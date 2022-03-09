@@ -14,6 +14,10 @@ method described in BS EN ISO 52016-1:2017, section 6.5.6.
 # Standard library imports
 import sys
 
+# Difference between external air temperature and sky temperature
+# (default value for intermediate climatic region from BS EN ISO 52016-1:2017, Table B.19)
+temp_diff_sky = 11.0 # Kelvin
+
 class BuildingElement:
     """ A base class with common functionality for building elements
 
@@ -32,7 +36,7 @@ class BuildingElement:
                        environment, in deg C
     """
 
-    def __init__(self, area, h_ci, h_ri, h_ce, h_re, a_sol):
+    def __init__(self, area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky):
         """ Initialisation common to all building element types
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
@@ -42,6 +46,21 @@ class BuildingElement:
         h_ce  -- external convective heat transfer coefficient, in W / (m2.K)
         h_re  -- external radiative heat transfer coefficient, in W / (m2.K)
         a_sol -- solar absorption coefficient at the external surface (dimensionless)
+        f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
+
+        Other variables:
+        i_sol_dif -- diffuse part (excluding circumsolar) of the solar irradiance
+                     on the element, in W / m2
+        i_sol_dir -- direct part (excluding circumsolar) of the solar irradiance
+                     on the element, in W / m2
+        f_sh_obst -- shading reduction_factor for external obstacles for the element
+        therm_rad_to_sky -- thermal radiation to the sky, in W / m2, calculated
+                            according to BS EN ISO 52016-1:2017, section 6.5.13.3
+
+        TODO i_sol_dif, i_sol_dir, f_sh_obst should be calculated (taking into
+             account tilt and orientation of the element). Set to zero (i.e.
+             ignore solar radiation on external surfaces) for now, until these
+             calculations have been implemented
         """
         self.area  = area
         self.h_ci  = h_ci
@@ -49,9 +68,11 @@ class BuildingElement:
         self.h_ce  = h_ce
         self.h_re  = h_re
         self.a_sol = a_sol
+        self.i_sol_dif = 0.0
+        self.i_sol_dir = 0.0
+        self.f_sh_obst = 0.0
 
-        # TODO beta_eli and gamma_eli are defined under eqn 41 in BS EN ISO 52016-1:2017.
-        #      Where are they used?
+        self.therm_rad_to_sky = f_sky * h_re * temp_diff_sky
 
     def no_of_nodes(self):
         """ Return number of nodes including external and internal layers """
@@ -96,11 +117,19 @@ class BuildingElementOpaque(BuildingElement):
                     - 'IE': mass divided over internal and external side
                     - 'D':  mass equally distributed
                     - 'M':  mass concentrated inside
+
+        Other variables:
+        f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
         """
         self.__external_conditions = ext_cond
 
+        # TODO This is the f_sky value for an unshaded vertical wall
+        #      (from BS EN ISO 52016-1:2017, Table B.18). Need to handle other
+        #      cases (roof, non-vertical wall) as well.
+        f_sky = 0.5
+
         # Initialise the base BuildingElement class
-        super().__init__(area, h_ci, h_ri, h_ce, h_re, a_sol)
+        super().__init__(area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky)
 
         # Calculate node conductances (h_pli) and node heat capacities (k_pli)
         # according to BS EN ISO 52016-1:2017, section 6.5.7.2
