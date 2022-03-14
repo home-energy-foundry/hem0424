@@ -11,6 +11,7 @@ import sys
 
 # Local imports
 from core.simulation_time import SimulationTime
+from core.external_conditions import ExternalConditions
 from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
@@ -31,6 +32,7 @@ class Project:
 
         Other (self.__) variables:
         simtime            -- SimulationTime object for this Project
+        external_conditions -- ExternalConditions object for this Project
         cold_water_sources -- dictionary of ColdWaterSource objects with names as keys
         energy_supplies    -- dictionary of EnergySupply objects with names as keys
         controls           -- dictionary of control objects (of varying types) with names as keys
@@ -43,6 +45,11 @@ class Project:
             proj_dict['SimulationTime']['start'],
             proj_dict['SimulationTime']['end'],
             proj_dict['SimulationTime']['step'],
+            )
+
+        self.__external_conditions = ExternalConditions(
+            self.__simtime,
+            proj_dict['ExternalConditions']['air_temperatures'],
             )
 
         self.__cold_water_sources = {}
