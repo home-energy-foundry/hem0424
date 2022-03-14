@@ -15,6 +15,7 @@ from core.external_conditions import ExternalConditions
 from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
+from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.water_heat_demand.shower import MixerShower, InstantElecShower
 
@@ -39,6 +40,8 @@ class Project:
         hot_water_sources  -- dictionary of hot water source objects (of varying types)
                               with names as keys
         showers            -- dictionary of shower objects (of varying types) with names as keys
+        space_heat_systems -- dictionary of space heating system objects (of varying
+                              types) with names as keys
         """
 
         self.__simtime = SimulationTime(
@@ -152,6 +155,35 @@ class Project:
         self.__showers = {}
         for name, data in proj_dict['Shower'].items():
             self.__showers[name] = dict_to_shower(name, data)
+
+        def dict_to_space_heat_system(name, data):
+            space_heater_type = data['type']
+            if space_heater_type == 'InstantElecHeater':
+                if 'Control' in data.keys():
+                    ctrl = self.__controls[data['Control']]
+                    # TODO Need to handle error if Control name is invalid.
+                else:
+                    ctrl = None
+
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                space_heater = InstantElecHeater(
+                    data['rated_power'],
+                    energy_supply_conn,
+                    self.__simtime,
+                    ctrl,
+                    )
+            else:
+                sys.exit(name + ': space heating system type (' \
+                       + space_heater_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return space_heater
+
+        self.__space_heat_systems = {}
+        for name, data in proj_dict['SpaceHeatSystem'].items():
+            self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
 
 
     def run(self):

@@ -50,5 +50,12 @@
 			"ColdWaterSource": "mains water",
 			"EnergySupply": "mains elec"
 		}
+	},
+	"SpaceHeatSystem": {
+		"main": {
+			"type": "InstantElecHeater",
+			"rated_power": 6.0,
+			"EnergySupply": "mains elec"
+		}
 	}
 }
