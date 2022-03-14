@@ -198,7 +198,7 @@ class Project:
             return hw_demand
 
         # Loop over each timestep
-        for t_idx, t_current in self.__simtime:
+        for t_idx, t_current, delta_t in self.__simtime:
             hw_demand = hot_water_demand()
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
