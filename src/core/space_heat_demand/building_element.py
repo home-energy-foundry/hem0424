@@ -109,7 +109,7 @@ class BuildingElementOpaque(BuildingElement):
         a_sol    -- solar absorption coefficient at the external surface (dimensionless)
         r_c      -- thermal resistance, in m2.K / W
         k_m      -- areal heat capacity, in J / (m2.K)
-        ext_cond -- reference to ExternalEnvironment object
+        ext_cond -- reference to ExternalConditions object
         mass_distribution_class
                  -- distribution of mass in building element, one of:
                     - 'I':  mass concentrated on internal side
