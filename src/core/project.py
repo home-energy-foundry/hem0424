@@ -10,12 +10,15 @@ initialises the relevant objects in the core model.
 import sys
 
 # Local imports
+import core.units as units
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
 from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
+from core.space_heat_demand.zone import Zone
+from core.space_heat_demand.building_element import BuildingElementOpaque
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.water_heat_demand.shower import MixerShower, InstantElecShower
 
@@ -42,6 +45,7 @@ class Project:
         showers            -- dictionary of shower objects (of varying types) with names as keys
         space_heat_systems -- dictionary of space heating system objects (of varying
                               types) with names as keys
+        zones              -- dictionary of Zone objects with names as keys
         """
 
         self.__simtime = SimulationTime(
@@ -185,6 +189,45 @@ class Project:
         for name, data in proj_dict['SpaceHeatSystem'].items():
             self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
 
+        def dict_to_building_element(name, data):
+            building_element_type = data['type']
+            if building_element_type == 'BuildingElementOpaque':
+                building_element = BuildingElementOpaque(
+                    data['area'],
+                    data['h_ci'],
+                    data['h_ri'],
+                    data['h_ce'],
+                    data['h_re'],
+                    data['a_sol'],
+                    data['r_c'],
+                    data['k_m'],
+                    data['mass_distribution_class'],
+                    self.__external_conditions,
+                    )
+            else:
+                sys.exit( name + ': building element type ('
+                        + building_element_type + ') not recognised.' )
+                # TODO Exit just the current case instead of whole program entirely?
+            return building_element
+
+        def dict_to_zone(name, data):
+            # Read in building elements and add to list
+            building_elements = []
+            for building_element_name, building_element_data in data['BuildingElement'].items():
+                building_elements.append(
+                    dict_to_building_element(building_element_name, building_element_data)
+                    )
+
+            # TODO Calculate thermal bridging rather than hard-coding to zero (i.e. ignoring them)
+            tb_heat_trans_coeff = 0.0
+            # TODO Implement ventilation elements rather than using empty list (i.e. ignoring them)
+            vent_elements = []
+
+            return Zone(data['area'], building_elements, tb_heat_trans_coeff, vent_elements)
+
+        self.__zones = {}
+        for name, data in proj_dict['Zone'].items():
+            self.__zones[name] = dict_to_zone(name, data)
 
     def run(self):
         """ Run the simulation """
@@ -197,11 +240,73 @@ class Project:
                 # TODO Remove hard-coding of shower temperature and duration
             return hw_demand
 
+        def calc_space_heating(delta_t_h):
+            """ Calculate space heating demand, heating system output and temperatures
+
+            Arguments:
+            delta_t_h -- calculation timestep, in hours
+            """
+            temp_ext_air = self.__external_conditions.air_temp()
+            # Calculate timestep in seconds
+            delta_t = delta_t_h * units.seconds_per_hour
+
+            # Calculate space heating and cooling demand for each zone and sum
+            # Keep track of how much is from each zone, so that energy provided
+            # can be split between them in same proportion later
+            space_heat_demand_total = 0.0 # in kWh
+            space_cool_demand_total = 0.0 # in kWh
+            space_heat_demand_zone = {}
+            space_cool_demand_zone = {}
+            for name, zone in self.__zones.items():
+                # TODO Calculate the gains rather than hard-coding to zero (i.e. ignoring them)
+                gains_internal = 0.0
+                gains_solar = 0.0
+
+                space_heat_demand_zone[name], space_cool_demand_zone[name] = \
+                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal, gains_solar)
+                space_heat_demand_total = space_heat_demand_total + space_heat_demand_zone[name]
+                space_cool_demand_total = space_cool_demand_total + space_cool_demand_zone[name]
+
+            # Calculate how much heating/cooling the systems can provide
+            space_heat_provided = \
+                self.__space_heat_systems['main'].demand_energy(space_heat_demand_total)
+                # TODO Remove hard-coding of space heating system name and handle multiple systems
+            space_cool_provided = 0.0 # TODO Handle cooling (values should be <= 0.0
+
+            # Apportion the provided heating/cooling between the zones in
+            # proportion to the heating/cooling demand in each zone. Then
+            # update resultant temperatures in zones.
+            for name, zone in self.__zones.items():
+                if space_heat_demand_total == 0.0:
+                    frac_heat_zone = 0.0
+                else:
+                    frac_heat_zone = space_heat_demand_zone[name] / space_heat_demand_total
+
+                if space_cool_demand_total == 0.0:
+                    frac_cool_zone = 0.0
+                else:
+                    frac_cool_zone = space_cool_demand_zone[name] / space_cool_demand_total
+
+                gains_heat_cool = ( space_heat_provided * frac_heat_zone \
+                                  + space_cool_provided * frac_cool_zone \
+                                  ) \
+                                * units.W_per_kW / delta_t_h # Convert from kWh to W
+
+                zone.update_temperatures(
+                    delta_t,
+                    temp_ext_air,
+                    gains_internal,
+                    gains_solar,
+                    gains_heat_cool
+                    )
+
         # Loop over each timestep
         for t_idx, t_current, delta_t_h in self.__simtime:
             hw_demand = hot_water_demand()
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
+
+            calc_space_heating(delta_t_h)
 
         # Return results from all energy supplies
         results_totals = {}

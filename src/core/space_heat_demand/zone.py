@@ -9,6 +9,9 @@ and to calculate the temperatures in the zone and associated building elements.
 # Standard library imports
 import numpy as np
 
+# Local imports
+import core.units as units
+
 # Convective fractions
 # (default values from BS EN ISO 52016-1:2017, Table B.11)
 f_int_c = 0.4 # Can be different for each source of internal gains
@@ -38,6 +41,8 @@ class Zone:
         vent_elements     -- list of ventilation elements (infiltration, mech vent etc.)
 
         Other variables:
+        temp_setpnt_heat  -- temperature setpoint for heating, in deg C
+        temp_setpnt_cool  -- temperature setpoint for cooling, in deg C
         area_el_total     -- total area of all building elements associated
                              with this zone, in m2
         c_int             -- internal thermal capacity of the zone, in J / K
@@ -57,11 +62,18 @@ class Zone:
         no_of_temps       -- number of unknown temperatures (each node in each
                              building element + 1 for internal air) to be
                              solved for
+        temp_prev         -- list of temperatures (nodes and internal air) from
+                             previous timestep. Positions in list defined in
+                             self.__element_positions and self.__zone_idx
         """
         self.__useful_area = area
         self.__building_elements = building_elements
         self.__vent_elements     = vent_elements
         self.__tb_heat_trans_coeff = tb_heat_trans_coeff
+
+        # TODO Make the temperature setpoints inputs for each timestep
+        self.__temp_setpnt_heat = 21.0
+        self.__temp_setpnt_cool = 25.0
 
         self.__area_el_total = sum([eli.area for eli in self.__building_elements])
         self.__c_int = k_m_int * area
@@ -79,6 +91,10 @@ class Zone:
             self.__element_positions[eli] = (start_idx, end_idx)
         self.__zone_idx = n
         self.__no_of_temps = n + 1
+
+        # Set starting point for temperatures (self.__temp_prev)
+        # TODO Currently hard-coded to 10.0 deg C - make this configurable?
+        self.__temp_prev = [10.0] * self.__no_of_temps
 
     def __calc_temperatures(self,
             delta_t,
@@ -227,3 +243,126 @@ class Zone:
         # Solve matrix eqn M.X = B to calculate vector_x (temperatures)
         vector_x = np.linalg.solve(matrix_a, vector_b)
         return vector_x
+
+    def __temp_operative(self, temp_vector):
+        """ Calculate the operative temperature, in deg C
+
+        According to the procedure in BS EN ISO 52016-1:2017, section 6.5.5.3.
+
+        Arguments:
+        temp_vector -- vector (list) of temperatures calculated from the heat balance equations
+        """
+        temp_int_air = temp_vector[self.__zone_idx]
+
+        # Mean radiant temperature is weighted average of internal surface temperatures
+        temp_mean_radiant = sum([eli.area * temp_vector[self.__element_positions[eli][1]] \
+                                 for eli in self.__building_elements]) \
+                          / self.__area_el_total
+
+        return (temp_int_air + temp_mean_radiant) / 2.0
+
+    def space_heat_cool_demand(self, delta_t_h, temp_ext_air, gains_internal, gains_solar):
+        """ Calculate heating and cooling demand in the zone for the current timestep
+
+        According to the procedure in BS EN ISO 52016-1:2017, section 6.5.5.2, steps 1 to 4.
+
+        Arguments:
+        delta_t_h -- calculation timestep, in hours
+        temp_ext_air -- temperature of the external air for the current timestep, in deg C
+        gains_internal -- internal gains for the current timestep, in W
+        gains_solar -- solar gains for the current timestep, in W
+        """
+        # Calculate timestep in seconds
+        delta_t = delta_t_h * units.seconds_per_hour
+
+        # For calculation of demand, set heating/cooling gains to zero
+        gains_heat_cool = 0.0
+
+        # Calculate node and internal air temperatures with heating/cooling gains of zero
+        temp_vector_no_heat_cool = self.__calc_temperatures(
+            delta_t,
+            self.__temp_prev,
+            temp_ext_air,
+            gains_internal,
+            gains_solar,
+            gains_heat_cool,
+            )
+
+        # Calculate internal operative temperature at free-floating conditions
+        # i.e. with no heating/cooling
+        temp_operative_free = self.__temp_operative(temp_vector_no_heat_cool)
+
+        # Determine relevant setpoint (if neither, then return space heating/cooling demand of zero)
+        # Determine maximum heating/cooling
+        if temp_operative_free > self.__temp_setpnt_cool:
+            # Cooling
+            # TODO Implement eqn 26 "if max power available" case rather than just "otherwise" case?
+            #      Could max. power be available at this point for all heating/cooling systems?
+            temp_setpnt = self.__temp_setpnt_cool
+            heat_cool_load_upper = - 10.0 * self.__useful_area
+        elif temp_operative_free < self.__temp_setpnt_heat:
+            # Heating
+            # TODO Implement eqn 26 "if max power available" case rather than just "otherwise" case?
+            #      Could max. power be available at this point for all heating/cooling systems?
+            temp_setpnt = self.__temp_setpnt_heat
+            heat_cool_load_upper = 10.0 * self.__useful_area
+        else:
+            return 0.0, 0.0 # No heating or cooling load
+
+        # Calculate node and internal air temperatures with maximum heating/cooling
+        temp_vector_upper_heat_cool = self.__calc_temperatures(
+            delta_t,
+            self.__temp_prev,
+            temp_ext_air,
+            gains_internal,
+            gains_solar,
+            heat_cool_load_upper,
+            )
+
+        # Calculate internal operative temperature with maximum heating/cooling
+        temp_operative_upper = self.__temp_operative(temp_vector_upper_heat_cool)
+
+        # Calculate heating (positive) or cooling (negative) required to reach setpoint
+        heat_cool_load_unrestricted = heat_cool_load_upper * (temp_setpnt - temp_operative_free) \
+                                    / (temp_operative_upper - temp_operative_free)
+
+        # Convert from W to kWh
+        heat_cool_demand = heat_cool_load_unrestricted / units.W_per_kW * delta_t_h
+
+        space_heat_demand = 0.0 # in kWh
+        space_cool_demand = 0.0 # in kWh
+        if heat_cool_demand < 0.0:
+            space_cool_demand = heat_cool_demand
+        elif heat_cool_demand > 0.0:
+            space_heat_demand = heat_cool_demand
+        else:
+            pass
+        return space_heat_demand, space_cool_demand
+
+    def update_temperatures(self,
+            delta_t,
+            temp_ext_air,
+            gains_internal,
+            gains_solar,
+            gains_heat_cool,
+            ):
+        """ Update node and internal air temperatures for calculation of next timestep
+
+        Arguments:
+        delta_t         -- calculation timestep, in seconds
+        temp_ext_air    -- temperature of external air, in deg C
+        gains_internal  -- total internal heat gains, in W
+        gains_solar     -- directly transmitted solar gains, in W
+        gains_heat_cool -- gains from heating (positive) or cooling (negative), in W
+        """
+
+        # Calculate node and internal air temperatures with calculated heating/cooling gains.
+        # Save as "previous" temperatures for next timestep
+        self.__temp_prev = self.__calc_temperatures(
+            delta_t,
+            self.__temp_prev,
+            temp_ext_air,
+            gains_internal,
+            gains_solar,
+            gains_heat_cool,
+            )
