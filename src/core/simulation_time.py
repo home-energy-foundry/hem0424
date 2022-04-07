@@ -62,7 +62,7 @@ class SimulationTime:
             # If we have reached the end of the simulation, stop iteration
             raise StopIteration
 
-        return self.__idx, self.__current
+        return self.__idx, self.__current, self.timestep()
 
     def current(self):
         """ Return current simulation time """

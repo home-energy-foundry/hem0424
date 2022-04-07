@@ -1,6 +1,9 @@
 # Ignore .pyc files
 /**/*.pyc
 
+# Ignore Python Virtual Environment
+/venv/*
+
 # Ignore Eclipse project config files
 /.project
 /.pydevproject
