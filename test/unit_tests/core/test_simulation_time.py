@@ -40,7 +40,7 @@ class TestSimulationTime(unittest.TestCase):
         for i in range(0, 8):
             with self.subTest(i=i):
                 # Check that call to next() returns correct index and current time
-                self.assertEqual(next(simtime_iter), (i, i + 2), "incorrect loop vars returned")
+                self.assertEqual(next(simtime_iter), (i, i + 2, 1), "incorrect loop vars returned")
 
                 # Check that individual functions also return correct index and current time
                 self.assertEqual(
