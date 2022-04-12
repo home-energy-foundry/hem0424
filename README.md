@@ -31,7 +31,25 @@ file, e.g. (assuming the working directory is the top-level folder of the reposi
 	# TODO
 
 # Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+## Unit tests
+This project makes use of the unittest module in the Python standard library.
+
+To run all unit tests (with the top level of the repository as your working directory), run:
+
+	# RHEL 7 / CentOS 7:
+	python3 -m unittest discover test/
+	
+	# Other systems:
+	# TODO
+
+If the tests were successful, you should see output that looks similar to the below:
+
+	Ran 4 tests in 0.001s
+	
+	OK
+
+Make sure that the number of tests that ran is greater than zero. If any of the tests failed, the
+output from running the unittest module should indicate the issue(s) that need to be resolved.
 
 # Contribute
 SAP 11 is currently not at a stage where we are in a position to accept external contributions 
