@@ -37,7 +37,7 @@ This project makes use of the unittest module in the Python standard library.
 To run all unit tests (with the top level of the repository as your working directory), run:
 
 	# RHEL 7 / CentOS 7:
-	python -m unittest discover test/
+	python3 -m unittest discover test/
 	
 	# Other systems:
 	# TODO
