@@ -162,13 +162,16 @@ class Zone:
         # - Calculate RHS of node energy balance eqn and add to vector_b
         for eli in self.__building_elements:
             # External surface node (eqn 41)
+            # Get position (row == column) in matrix previously calculated for the first (external) node
             idx = self.__element_positions[eli][0]
+            # Position of first (external) node within element is zero
+            i = 0
             # Coeff for temperature of this node
-            matrix_a[idx][idx] = (eli.k_pli[0] / delta_t) + eli.h_ce + eli.h_re + eli.h_pli[0]
+            matrix_a[idx][idx] = (eli.k_pli[i] / delta_t) + eli.h_ce + eli.h_re + eli.h_pli[i]
             # Coeff for temperature of next node
-            matrix_a[idx][idx + 1] = - eli.h_pli[0]
+            matrix_a[idx][idx + 1] = - eli.h_pli[i]
             # RHS of heat balance eqn for this node
-            vector_b[idx] = (eli.k_pli[0] / delta_t) * temp_prev[idx] \
+            vector_b[idx] = (eli.k_pli[i] / delta_t) * temp_prev[idx] \
                           + (eli.h_ce + eli.h_re) * eli.temp_ext() \
                           + eli.a_sol * (eli.i_sol_dif + eli.i_sol_dir * eli.f_sh_obst) \
                           - eli.therm_rad_to_sky
@@ -189,6 +192,7 @@ class Zone:
             idx = idx + 1
             assert idx == self.__element_positions[eli][1]
             i = i + 1
+            assert i == eli.no_of_nodes() - 1
             # Coeff for temperature of prev node
             matrix_a[idx][idx - 1] = - eli.h_pli[i - 1]
             # Coeff for temperature of this node
