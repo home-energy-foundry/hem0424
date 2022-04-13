@@ -18,7 +18,8 @@ from core.energy_supply.energy_supply import EnergySupply
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
-from core.space_heat_demand.building_element import BuildingElementOpaque
+from core.space_heat_demand.building_element import \
+    BuildingElementOpaque, BuildingElementTransparent
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.water_heat_demand.shower import MixerShower, InstantElecShower
 
@@ -202,6 +203,16 @@ class Project:
                     data['r_c'],
                     data['k_m'],
                     data['mass_distribution_class'],
+                    self.__external_conditions,
+                    )
+            elif building_element_type == 'BuildingElementTransparent':
+                building_element = BuildingElementTransparent(
+                    data['area'],
+                    data['h_ci'],
+                    data['h_ri'],
+                    data['h_ce'],
+                    data['h_re'],
+                    data['r_c'],
                     self.__external_conditions,
                     )
             else:

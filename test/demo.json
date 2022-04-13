@@ -100,7 +100,7 @@
 				},
 				"wall 3":{
 					"type": "BuildingElementOpaque",
-					"area": 20.0,
+					"area": 15.0,
 					"h_ci": 0.33,
 					"h_ri": 0.43,
 					"h_ce": 0.33,
@@ -109,6 +109,15 @@
 					"r_c": 0.73,
 					"k_m": 19300,
 					"mass_distribution_class": "I"
+				},
+				"window 0":{
+					"type": "BuildingElementTransparent",
+					"area": 5.0,
+					"h_ci": 0.35,
+					"h_ri": 0.45,
+					"h_ce": 0.35,
+					"h_re": 0.25,
+					"r_c": 0.4
 				}
 			}
 		}

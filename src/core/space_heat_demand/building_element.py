@@ -167,3 +167,53 @@ class BuildingElementOpaque(BuildingElement):
         # TODO For now, this only handles building elements to the outdoor
         #      environment, not e.g. elements to adjacent zones.
 
+
+class BuildingElementTransparent(BuildingElement):
+    """ A class to represent transparent building elements (windows etc.) """
+
+    def __init__(self,
+            area,
+            h_ci,
+            h_ri,
+            h_ce,
+            h_re,
+            r_c,
+            ext_cond,
+            ):
+        """ Construct a BuildingElementTransparent object
+
+        Arguments (names based on those in BS EN ISO 52016-1:2017):
+        area     -- area (in m2) of this building element
+        h_ci     -- internal convective heat transfer coefficient, in W / (m2.K)
+        h_ri     -- internal radiative heat transfer coefficient, in W / (m2.K)
+        h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
+        h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
+        r_c      -- thermal resistance, in m2.K / W
+        ext_cond -- reference to ExternalConditions object
+
+        Other variables:
+        f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
+        """
+        self.__external_conditions = ext_cond
+
+        # Solar absorption coefficient is zero because element is transparent
+        a_sol = 0.0
+
+        # TODO This is the f_sky value for an unshaded vertical wall
+        #      (from BS EN ISO 52016-1:2017, Table B.18). Need to handle other
+        #      cases (roof, non-vertical wall) as well.
+        f_sky = 0.5
+
+        # Initialise the base BuildingElement class
+        super().__init__(area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky)
+
+        # Calculate node conductances (h_pli) and node heat capacities (k_pli)
+        # according to BS EN ISO 52016-1:2017, section 6.5.7.4
+        self.h_pli = [1.0 / r_c]
+        self.k_pli = [0.0, 0.0]
+
+    def temp_ext(self):
+        """ Return the temperature of the air on the other side of the building element """
+        return self.__external_conditions.air_temp()
+        # TODO For now, this only handles building elements to the outdoor
+        #      environment, not e.g. elements to adjacent zones.
