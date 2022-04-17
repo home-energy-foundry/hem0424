@@ -15,7 +15,8 @@ test_setup()
 # Local imports
 from core.external_conditions import ExternalConditions
 from core.simulation_time import SimulationTime
-from core.space_heat_demand.building_element import BuildingElementOpaque
+from core.space_heat_demand.building_element import \
+    BuildingElementOpaque, BuildingElementTransparent
 
 class TestBuildingElementOpaque(unittest.TestCase):
     """ Unit tests for BuildingElementOpaque class """
@@ -141,3 +142,66 @@ class TestBuildingElementOpaque(unittest.TestCase):
             for t_idx, _, _ in self.simtime:
                 with self.subTest(i = i * t_idx):
                     self.assertEqual(be.temp_ext(), t_idx * 5.0, "incorrect ext temp returned")
+
+
+class TestBuildingElementTransparent(unittest.TestCase):
+    """ Unit tests for BuildingElementTransparent class """
+
+    def setUp(self):
+        """ Create BuildingElementTransparent object to be tested """
+        self.simtime = SimulationTime(0, 4, 1)
+        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0])
+
+        self.be = BuildingElementTransparent(5.0, 0.35, 0.45, 0.30, 0.25, 0.4, ec)
+
+    def test_no_of_nodes(self):
+        """ Test that number of nodes (total and inside) have been calculated correctly """
+        self.assertEqual(self.be.no_of_nodes(), 2, "incorrect number of nodes")
+        self.assertEqual(self.be.no_of_inside_nodes(), 0, "incorrect number of inside nodes")
+
+    def test_area(self):
+        """ Test that correct area is returned when queried """
+        self.assertEqual(self.be.area, 5.0, "incorrect area returned")
+
+    def test_h_ci(self):
+        """ Test that correct h_ci is returned when queried """
+        self.assertEqual(self.be.h_ci, 0.35, "incorrect h_ci returned")
+
+    def test_h_ri(self):
+        """ Test that correct h_ri is returned when queried """
+        self.assertEqual(self.be.h_ri, 0.45, "incorrect h_ri returned")
+
+    def test_h_ce(self):
+        """ Test that correct h_ce is returned when queried """
+        self.assertEqual(self.be.h_ce, 0.30, "incorrect h_ce returned")
+
+    def test_h_re(self):
+        """ Test that correct h_re is returned when queried """
+        self.assertEqual(self.be.h_re, 0.25, "incorrect h_re returned")
+
+    def test_a_sol(self):
+        """ Test that correct a_sol is returned when queried """
+        self.assertEqual(self.be.a_sol, 0.0, "non-zero a_sol returned")
+
+    def test_therm_rad_to_sky(self):
+        """ Test that correct therm_rad_to_sky is returned when queried """
+        self.assertEqual(self.be.therm_rad_to_sky, 1.375, "incorrect therm_rad_to_sky returned")
+
+    def test_h_pli(self):
+        """ Test that correct h_pli list is returned when queried """
+        self.assertEqual(self.be.h_pli, [2.5], "incorrect h_pli list returned")
+
+    def test_k_pli(self):
+        """ Test that correct k_pli list is returned when queried """
+        self.assertEqual(self.be.k_pli, [0.0, 0.0], "non-zero k_pli list returned")
+
+    def test_temp_ext(self):
+        """ Test that the correct external temperature is returned when queried """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i = t_idx):
+                self.assertEqual(
+                    self.be.temp_ext(),
+                    t_idx * 5.0,
+                    "incorrect ext temp returned",
+                    )
+
