@@ -19,14 +19,103 @@ class HeatPumpTestData:
     the correct data records for the conditions being modelled.
     """
 
-    def __init__(self, hp_testdata_dict):
+    def __init__(self, hp_testdata_dict_list):
         """ Construct a HeatPumpTestData object
 
         Arguments:
-        hp_testdata_dict -- dictionary of heat pump test data, with the following elements:
-            TODO List elements and their definitions
+        hp_testdata_dict_list
+            -- list of dictionaries of heat pump test data, each with the following elements:
+                - test_letter
+                - capacity
+                - cop
+                - degradation_coeff
+                - design_flow_temp
+                - temp_outlet
+                - temp_source
+                - temp_test
         """
-        pass # TODO Implement this function
+        
+        def duplicates(a, b):
+            """ Determine whether records a and b are duplicates """
+            return (a['temp_test'] == b['temp_test'] \
+                and a['design_flow_temp'] == b['design_flow_temp'])
+
+        # Keys will be design flow temps, values will be lists of dicts containing the test data
+        self.__testdata = {}
+
+        # A separate list of design flow temps is required because it can be
+        # sorted, whereas the dict above can't be (at least before Python 3.7)
+        self.__dsgn_flow_temps = []
+        # Dict to count duplicate records for each design flow temp
+        dupl = {}
+
+        # Read the test data records
+        for hp_testdata_dict in hp_testdata_dict_list:
+            dsgn_flow_temp = hp_testdata_dict['design_flow_temp']
+            
+            # When a new design flow temp is encountered, add it to the lists/dicts
+            if dsgn_flow_temp not in self.__dsgn_flow_temps:
+                self.__dsgn_flow_temps.append(dsgn_flow_temp)
+                self.__testdata[dsgn_flow_temp] = []
+                dupl[dsgn_flow_temp] = 0
+
+            # Check for duplicate records
+            duplicate = False
+            for d in self.__testdata[dsgn_flow_temp]:
+                if duplicates(hp_testdata_dict, d):
+                    duplicate = True
+                    # Increment count of number of duplicates for this design flow temp
+                    # Handle records with same inlet temp
+                    # Cannot process a row at the same inlet temperature (div
+                    # by zero error during interpolation), so we add a tiny
+                    # amount to the temperature (to 10DP) for each duplicate
+                    # found.
+                    # TODO Why do we need to alter the duplicate record? Can we
+                    #      not just eliminate it?
+                    hp_testdata_dict['temp_test']   += 0.0000000001
+                    hp_testdata_dict['temp_source'] += 0.0000000001
+                    # TODO The adjustment to temp_source is in the python
+                    #      implementation of DAHPSE but not in the spreadsheet
+                    #      implementation. Given that temp_source can be the
+                    #      same for all test records anyway, is this adjustment
+                    #      needed?
+            # This increment has to be after loop to avoid multiple-counting
+            # when there are 3 or more duplicates. E.g. if there are already 2
+            # records that are the same, then when adding a third that is the
+            # same, we only want to increment the counter by 1 (for the record
+            # we are adding) and not 2 (the number of existing records the new
+            # record duplicates).
+            if duplicate:
+                dupl[dsgn_flow_temp] += 1
+
+            # Add the test record to the data structure, under the appropriate design flow temp
+            self.__testdata[dsgn_flow_temp].append(hp_testdata_dict)
+
+        # Check the number of test records is as expected
+        # - 1 or 2 design flow temps
+        # - 4 or 5 distinct records for each flow temp
+        # TODO Is there any reason the model couldn't handle more than 2 design
+        #      flow temps or more than 5 test records if data is available?
+        #      Could/should we relax the restrictions below?
+        if len(self.__dsgn_flow_temps) < 1:
+            sys.exit('No test data provided for heat pump performance')
+        elif len(self.__dsgn_flow_temps) > 2:
+            sys.exit('Test data for a maximum of 2 design flow temperatures may be provided')
+        for dsgn_flow_temp, data in self.__testdata.items():
+            if dupl[dsgn_flow_temp]:
+                if (len(data) - dupl[dsgn_flow_temp]) != 4:
+                    sys.exit('Expected 4 distinct records for each design flow temperature')
+            elif len(data) != 5:
+                sys.exit('Expected 5 records for each design flow temperature')
+
+        # Sort the list of design flow temps
+        self.__dsgn_flow_temps = sorted(self.__dsgn_flow_temps)
+
+        # Sort the records in order of test temperature from low to high
+        for dsgn_flow_temp, data in self.__testdata.items():
+            data.sort(key=lambda sublist: sublist['temp_test'])
+
+        # TODO Calculate variables which are not time-dependent
 
 
 class HeatPumpService:
