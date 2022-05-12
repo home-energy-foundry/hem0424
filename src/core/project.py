@@ -20,6 +20,8 @@ from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent
+from core.space_heat_demand.thermal_bridge import \
+    ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.water_heat_demand.shower import MixerShower, InstantElecShower
 
@@ -221,6 +223,30 @@ class Project:
                 # TODO Exit just the current case instead of whole program entirely?
             return building_element
 
+        def dict_to_thermal_bridging(data):
+            # If data is for individual thermal bridges, initialise the relevant
+            # objects and return a list of them. Otherwise, just use the overall
+            # figure given.
+            if isinstance(data, dict):
+                thermal_bridging = []
+                for tb_name, tb_data in data.items():
+                    tb_type = tb_data['type']
+                    if tb_type == 'ThermalBridgeLinear':
+                        tb = ThermalBridgeLinear(
+                                tb_data['linear_thermal_transmittance'],
+                                tb_data['length']
+                                )
+                    elif tb_type == 'ThermalBridgePoint':
+                        tb = ThermalBridgePoint(tb_data['heat_transfer_coeff'])
+                    else:
+                        sys.exit( tb_name + ': thermal bridge type ('
+                                + tb_type + ') not recognised.' )
+                        # TODO Exit just the current case instead of whole program entirely?
+                    thermal_bridging.append(tb)
+            else:
+                thermal_bridging = data
+            return thermal_bridging
+
         def dict_to_zone(name, data):
             # Read in building elements and add to list
             building_elements = []
@@ -229,12 +255,12 @@ class Project:
                     dict_to_building_element(building_element_name, building_element_data)
                     )
 
-            # TODO Calculate thermal bridging rather than hard-coding to zero (i.e. ignoring them)
-            tb_heat_trans_coeff = 0.0
+            # Read in thermal bridging data
+            thermal_bridging = dict_to_thermal_bridging(data['ThermalBridging'])
             # TODO Implement ventilation elements rather than using empty list (i.e. ignoring them)
             vent_elements = []
 
-            return Zone(data['area'], building_elements, tb_heat_trans_coeff, vent_elements)
+            return Zone(data['area'], building_elements, thermal_bridging, vent_elements)
 
         self.__zones = {}
         for name, data in proj_dict['Zone'].items():
