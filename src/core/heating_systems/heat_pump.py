@@ -10,6 +10,7 @@ BS EN 15316-4-2:2017 and is described in the SAP calculation method CALCM-01.
 
 # Standard library imports
 import sys
+from copy import deepcopy
 
 
 class HeatPumpTestData:
@@ -34,7 +35,6 @@ class HeatPumpTestData:
                 - temp_source
                 - temp_test
         """
-        
         def duplicates(a, b):
             """ Determine whether records a and b are duplicates """
             return (a['temp_test'] == b['temp_test'] \
@@ -50,7 +50,10 @@ class HeatPumpTestData:
         dupl = {}
 
         # Read the test data records
-        for hp_testdata_dict in hp_testdata_dict_list:
+        # Work on a deep copy of the input data structure in case the original
+        # is used to init other objects (or the same object multiple times
+        # e.g. during testing)
+        for hp_testdata_dict in deepcopy(hp_testdata_dict_list):
             dsgn_flow_temp = hp_testdata_dict['design_flow_temp']
             
             # When a new design flow temp is encountered, add it to the lists/dicts
