@@ -12,6 +12,12 @@ BS EN 15316-4-2:2017 and is described in the SAP calculation method CALCM-01.
 import sys
 from copy import deepcopy
 
+# Third-party imports
+import numpy as np
+
+# Local imports
+from core.units import Celcius2Kelvin
+
 
 class HeatPumpTestData:
     """ An object to represent EN 14825 test data for a heat pump.
@@ -119,6 +125,40 @@ class HeatPumpTestData:
             data.sort(key=lambda sublist: sublist['temp_test'])
 
         # TODO Calculate variables which are not time-dependent
+
+        def init_carnot_cop_coldest_conditions():
+            """ Calculate Carnot CoP for each design flow temp at coldest test condition """
+            carnot_cop_cld = {}
+            for dsgn_flow_temp in self.__dsgn_flow_temps:
+                # Get the source and outlet temperatures from the test record
+                # with the lowest test temperature (i.e. record zero as the
+                # records have already been sorted)
+                temp_source_cld = Celcius2Kelvin(self.__testdata[dsgn_flow_temp][0]['temp_source'])
+                temp_outlet_cld = Celcius2Kelvin(self.__testdata[dsgn_flow_temp][0]['temp_outlet'])
+
+                # Calculate the Carnot CoP and add to list of CoPs (one entry
+                # for each dsgn flow temp)
+                carnot_cop_cld[dsgn_flow_temp] = temp_outlet_cld \
+                                               / (temp_outlet_cld - temp_source_cld)
+
+            return carnot_cop_cld
+
+        self.__carnot_cop_cld = init_carnot_cop_coldest_conditions()
+
+    def carnot_cop_coldest_conditions(self, flow_temp):
+        """ Return Carnot CoP at coldest test condition, interpolated between design flow temps """
+        # TODO What do we do if flow_temp is outside the range of design flow temps provided?
+
+        if len(self.__dsgn_flow_temps) == 1:
+            # If there is data for only one design flow temp, use that
+            return self.__carnot_cop_cld[self.__dsgn_flow_temps[0]]
+
+        # Interpolate between the Carnot CoPs at each design flow temp
+        cop_list = []
+        for dsgn_flow_temp in self.__dsgn_flow_temps:
+            cop_list.append(self.__carnot_cop_cld[dsgn_flow_temp])
+
+        return np.interp(flow_temp, self.__dsgn_flow_temps, cop_list)
 
 
 class HeatPumpService:

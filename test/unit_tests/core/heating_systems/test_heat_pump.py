@@ -278,3 +278,21 @@ class TestHeatPumpTestData(unittest.TestCase):
         #      will require the init function to throw exceptions rather than
         #      exit the process as it does now.
 
+    def test_carnot_cop_coldest_conditions(self):
+        """ Test that correct Carnot CoP at coldest conditions is returned for the flow temp """
+        results = [
+            9.033823529411764,
+            8.338588800904978,
+            7.643354072398189,
+            6.948119343891403,
+            6.252884615384615,
+            ]
+
+        for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
+            with self.subTest(i=i):
+                self.assertEqual(
+                    self.hp_testdata.carnot_cop_coldest_conditions(flow_temp),
+                    results[i],
+                    "incorrect Carnot CoP at coldest conditions returned"
+                    )
+
