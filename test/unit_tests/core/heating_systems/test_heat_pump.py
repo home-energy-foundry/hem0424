@@ -296,3 +296,26 @@ class TestHeatPumpTestData(unittest.TestCase):
                     "incorrect Carnot CoP at coldest conditions returned"
                     )
 
+    def test_outlet_temp_coldest_conditions(self):
+        """ Test that correct outlet temp is returned for the flow temp """
+        results = [307.15, 311.65, 316.15, 320.65, 325.15]
+
+        for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
+            with self.subTest(i=i):
+                self.assertEqual(
+                    self.hp_testdata.outlet_temp_coldest_conditions(flow_temp),
+                    results[i],
+                    "incorrect outlet temp at coldest conditions returned"
+                    )
+
+    def test_source_temp_coldest_conditions(self):
+        """ Test that correct source temp is returned for the flow temp """
+        results = [273.15, 273.15, 273.15, 273.15, 273.15]
+
+        for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
+            with self.subTest(i=i):
+                self.assertEqual(
+                    self.hp_testdata.source_temp_coldest_conditions(flow_temp),
+                    results[i],
+                    "incorrect source temp at coldest conditions returned"
+                    )

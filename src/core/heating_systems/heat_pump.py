@@ -160,6 +160,34 @@ class HeatPumpTestData:
 
         return np.interp(flow_temp, self.__dsgn_flow_temps, cop_list)
 
+    def __data_coldest_conditions(self, data_item_name, flow_temp):
+        # TODO What do we do if flow_temp is outside the range of design flow temps provided?
+
+        if len(self.__dsgn_flow_temps) == 1:
+            # If there is data for only one design flow temp, use that
+            return self.__testdata[self.__dsgn_flow_temps[0]][0][data_item_name]
+
+        # Interpolate between the outlet temps at each design flow temp
+        data_list = []
+        for dsgn_flow_temp in self.__dsgn_flow_temps:
+            data_list.append(self.__testdata[dsgn_flow_temp][0][data_item_name])
+
+        return np.interp(flow_temp, self.__dsgn_flow_temps, data_list)
+
+    def outlet_temp_coldest_conditions(self, flow_temp):
+        """
+        Return outlet temp, in Kelvin, at coldest test condition, interpolated
+        between design flow temps.
+        """
+        return Celcius2Kelvin(self.__data_coldest_conditions('temp_outlet', flow_temp))
+
+    def source_temp_coldest_conditions(self, flow_temp):
+        """
+        Return source temp, in Kelvin, at coldest test condition, interpolated
+        between design flow temps.
+        """
+        return Celcius2Kelvin(self.__data_coldest_conditions('temp_source', flow_temp))
+
 
 class HeatPumpService:
     """ An object to represent a service (e.g. water heating) provided by a heat pump.
