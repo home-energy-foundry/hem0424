@@ -138,6 +138,7 @@ data_sorted = {
         {
             "test_letter": "A",
             "capacity": 8.4,
+            "carnot_cop": 9.033823529411764,
             "cop": 4.6,
             "degradation_coeff": 0.90,
             "design_flow_temp": 35,
@@ -148,6 +149,7 @@ data_sorted = {
         {
             "test_letter": "F",
             "capacity": 8.4,
+            "carnot_cop": 9.033823529438331,
             "cop": 4.6,
             "degradation_coeff": 0.90,
             "design_flow_temp": 35,
@@ -158,6 +160,7 @@ data_sorted = {
         {
             "test_letter": "B",
             "capacity": 8.3,
+            "carnot_cop": 10.104999999999999,
             "cop": 4.9,
             "degradation_coeff": 0.90,
             "design_flow_temp": 35,
@@ -168,6 +171,7 @@ data_sorted = {
         {
             "test_letter": "C",
             "capacity": 8.3,
+            "carnot_cop": 11.116666666666665,
             "cop": 5.1,
             "degradation_coeff": 0.90,
             "design_flow_temp": 35,
@@ -178,6 +182,7 @@ data_sorted = {
         {
             "test_letter": "D",
             "capacity": 8.2,
+            "carnot_cop": 12.38125,
             "cop": 5.4,
             "degradation_coeff": 0.95,
             "design_flow_temp": 35,
@@ -190,6 +195,7 @@ data_sorted = {
         {
             "test_letter": "A",
             "capacity": 8.8,
+            "carnot_cop": 6.252884615384615,
             "cop": 3.2,
             "degradation_coeff": 0.90,
             "design_flow_temp": 55,
@@ -200,6 +206,7 @@ data_sorted = {
         {
             "test_letter": "F",
             "capacity": 8.8,
+            "carnot_cop": 6.252884615396638,
             "cop": 3.2,
             "degradation_coeff": 0.90,
             "design_flow_temp": 55,
@@ -210,6 +217,7 @@ data_sorted = {
         {
             "test_letter": "F2",
             "capacity": 8.8,
+            "carnot_cop": 6.252884615408662,
             "cop": 3.2,
             "degradation_coeff": 0.90,
             "design_flow_temp": 55,
@@ -220,6 +228,7 @@ data_sorted = {
         {
             "test_letter": "B",
             "capacity": 8.6,
+            "carnot_cop": 7.503571428571428,
             "cop": 3.6,
             "degradation_coeff": 0.90,
             "design_flow_temp": 55,
@@ -230,6 +239,7 @@ data_sorted = {
         {
             "test_letter": "C",
             "capacity": 8.5,
+            "carnot_cop": 8.587499999999999,
             "cop": 3.9,
             "degradation_coeff": 0.98,
             "design_flow_temp": 55,
@@ -240,6 +250,7 @@ data_sorted = {
         {
             "test_letter": "D",
             "capacity": 8.5,
+            "carnot_cop": 10.104999999999999,
             "cop": 4.3,
             "degradation_coeff": 0.98,
             "design_flow_temp": 55,

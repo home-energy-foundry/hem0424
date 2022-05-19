@@ -19,6 +19,11 @@ import numpy as np
 from core.units import Celcius2Kelvin
 
 
+def carnot_cop(temp_source, temp_outlet):
+    """ Calculate Carnot CoP based on source and outlet temperatures (in Kelvin) """
+    return temp_outlet / (temp_outlet - temp_source)
+
+
 class HeatPumpTestData:
     """ An object to represent EN 14825 test data for a heat pump.
 
@@ -124,41 +129,15 @@ class HeatPumpTestData:
         for dsgn_flow_temp, data in self.__testdata.items():
             data.sort(key=lambda sublist: sublist['temp_test'])
 
-        # TODO Calculate variables which are not time-dependent
-
-        def init_carnot_cop_coldest_conditions():
-            """ Calculate Carnot CoP for each design flow temp at coldest test condition """
-            carnot_cop_cld = {}
-            for dsgn_flow_temp in self.__dsgn_flow_temps:
-                # Get the source and outlet temperatures from the test record
-                # with the lowest test temperature (i.e. record zero as the
-                # records have already been sorted)
-                temp_source_cld = Celcius2Kelvin(self.__testdata[dsgn_flow_temp][0]['temp_source'])
-                temp_outlet_cld = Celcius2Kelvin(self.__testdata[dsgn_flow_temp][0]['temp_outlet'])
-
-                # Calculate the Carnot CoP and add to list of CoPs (one entry
-                # for each dsgn flow temp)
-                carnot_cop_cld[dsgn_flow_temp] = temp_outlet_cld \
-                                               / (temp_outlet_cld - temp_source_cld)
-
-            return carnot_cop_cld
-
-        self.__carnot_cop_cld = init_carnot_cop_coldest_conditions()
-
-    def carnot_cop_coldest_conditions(self, flow_temp):
-        """ Return Carnot CoP at coldest test condition, interpolated between design flow temps """
-        # TODO What do we do if flow_temp is outside the range of design flow temps provided?
-
-        if len(self.__dsgn_flow_temps) == 1:
-            # If there is data for only one design flow temp, use that
-            return self.__carnot_cop_cld[self.__dsgn_flow_temps[0]]
-
-        # Interpolate between the Carnot CoPs at each design flow temp
-        cop_list = []
+        # TODO Calculate derived variables which are not time-dependent
         for dsgn_flow_temp in self.__dsgn_flow_temps:
-            cop_list.append(self.__carnot_cop_cld[dsgn_flow_temp])
+            for data in self.__testdata[dsgn_flow_temp]:
+                # Get the source and outlet temperatures from the test record
+                temp_source = Celcius2Kelvin(data['temp_source'])
+                temp_outlet = Celcius2Kelvin(data['temp_outlet'])
 
-        return np.interp(flow_temp, self.__dsgn_flow_temps, cop_list)
+                # Calculate the Carnot CoP and add to the test record
+                data['carnot_cop'] = carnot_cop(temp_source, temp_outlet)
 
     def __data_coldest_conditions(self, data_item_name, flow_temp):
         # TODO What do we do if flow_temp is outside the range of design flow temps provided?
@@ -173,6 +152,10 @@ class HeatPumpTestData:
             data_list.append(self.__testdata[dsgn_flow_temp][0][data_item_name])
 
         return np.interp(flow_temp, self.__dsgn_flow_temps, data_list)
+
+    def carnot_cop_coldest_conditions(self, flow_temp):
+        """ Return Carnot CoP at coldest test condition, interpolated between design flow temps """
+        return self.__data_coldest_conditions('carnot_cop', flow_temp)
 
     def outlet_temp_coldest_conditions(self, flow_temp):
         """
