@@ -286,6 +286,7 @@ class TestHeatPumpTestData(unittest.TestCase):
         sorted list of the design flow temperatures for which the data records
         apply.
         """
+        self.maxDiff = None
         self.assertEqual(
             self.hp_testdata._HeatPumpTestData__dsgn_flow_temps,
             [35, 55],
