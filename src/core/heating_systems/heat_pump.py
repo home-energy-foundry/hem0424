@@ -18,6 +18,9 @@ import numpy as np
 # Local imports
 from core.units import Celcius2Kelvin
 
+# Constants
+N_EXER = 3.0
+
 
 def carnot_cop(temp_source, temp_outlet):
     """ Calculate Carnot CoP based on source and outlet temperatures (in Kelvin) """
@@ -138,6 +141,21 @@ class HeatPumpTestData:
 
                 # Calculate the Carnot CoP and add to the test record
                 data['carnot_cop'] = carnot_cop(temp_source, temp_outlet)
+
+            temp_source_cld = Celcius2Kelvin(self.__testdata[dsgn_flow_temp][0]['temp_source'])
+            temp_outlet_cld = Celcius2Kelvin(self.__testdata[dsgn_flow_temp][0]['temp_outlet'])
+            carnot_cop_cld = self.__testdata[dsgn_flow_temp][0]['carnot_cop']
+
+            # Calculate derived variables that require values at coldest test temp as inputs
+            for data in self.__testdata[dsgn_flow_temp]:
+                # Get the source and outlet temperatures from the test record
+                temp_source = Celcius2Kelvin(data['temp_source'])
+                temp_outlet = Celcius2Kelvin(data['temp_outlet'])
+
+                # Calculate the theoretical load ratio and add to the test record
+                data['theoretical_load_ratio'] \
+                    = ((data['carnot_cop'] / carnot_cop_cld) \
+                    * (temp_outlet_cld * temp_source / (temp_source_cld * temp_outlet)) ** N_EXER)
 
     def __data_coldest_conditions(self, data_item_name, flow_temp):
         # TODO What do we do if flow_temp is outside the range of design flow temps provided?

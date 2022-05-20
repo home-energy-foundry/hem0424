@@ -144,7 +144,8 @@ data_sorted = {
             "design_flow_temp": 35,
             "temp_outlet": 34,
             "temp_source": 0,
-            "temp_test": -7
+            "temp_test": -7,
+            "theoretical_load_ratio": 1.0,
         },
         {
             "test_letter": "F",
@@ -155,7 +156,8 @@ data_sorted = {
             "design_flow_temp": 35,
             "temp_outlet": 34,
             "temp_source": 0.0000000001,
-            "temp_test": -6.9999999999
+            "temp_test": -6.9999999999,
+            "theoretical_load_ratio": 1.0000000000040385,
         },
         {
             "test_letter": "B",
@@ -166,7 +168,8 @@ data_sorted = {
             "design_flow_temp": 35,
             "temp_outlet": 30,
             "temp_source": 0,
-            "temp_test": 2
+            "temp_test": 2,
+            "theoretical_load_ratio": 1.1634388356892613,
         },
         {
             "test_letter": "C",
@@ -177,7 +180,8 @@ data_sorted = {
             "design_flow_temp": 35,
             "temp_outlet": 27,
             "temp_source": 0,
-            "temp_test": 7
+            "temp_test": 7,
+            "theoretical_load_ratio": 1.3186802349509577,
         },
         {
             "test_letter": "D",
@@ -188,7 +192,8 @@ data_sorted = {
             "design_flow_temp": 35,
             "temp_outlet": 24,
             "temp_source": 0,
-            "temp_test": 12
+            "temp_test": 12,
+            "theoretical_load_ratio": 1.513621351820552,
         }
     ],
     55: [
@@ -201,7 +206,8 @@ data_sorted = {
             "design_flow_temp": 55,
             "temp_outlet": 52,
             "temp_source": 0,
-            "temp_test": -7
+            "temp_test": -7,
+            "theoretical_load_ratio": 1.0,
         },
         {
             "test_letter": "F",
@@ -212,7 +218,8 @@ data_sorted = {
             "design_flow_temp": 55,
             "temp_outlet": 52,
             "temp_source": 0.0000000001,
-            "temp_test": -6.9999999999
+            "temp_test": -6.9999999999,
+            "theoretical_load_ratio": 1.0000000000030207,
         },
         {
             "test_letter": "F2",
@@ -223,7 +230,8 @@ data_sorted = {
             "design_flow_temp": 55,
             "temp_outlet": 52,
             "temp_source": 0.0000000002,
-            "temp_test": -6.9999999998
+            "temp_test": -6.9999999998,
+            "theoretical_load_ratio": 1.0000000000060418,
         },
         {
             "test_letter": "B",
@@ -234,7 +242,8 @@ data_sorted = {
             "design_flow_temp": 55,
             "temp_outlet": 42,
             "temp_source": 0,
-            "temp_test": 2
+            "temp_test": 2,
+            "theoretical_load_ratio": 1.3179136223360988,
         },
         {
             "test_letter": "C",
@@ -245,7 +254,8 @@ data_sorted = {
             "design_flow_temp": 55,
             "temp_outlet": 36,
             "temp_source": 0,
-            "temp_test": 7
+            "temp_test": 7,
+            "theoretical_load_ratio": 1.5978273764295179,
         },
         {
             "test_letter": "D",
@@ -256,7 +266,8 @@ data_sorted = {
             "design_flow_temp": 55,
             "temp_outlet": 30,
             "temp_source": 0,
-            "temp_test": 12
+            "temp_test": 12,
+            "theoretical_load_ratio": 1.9940427298329144,
         }
     ]
 }
