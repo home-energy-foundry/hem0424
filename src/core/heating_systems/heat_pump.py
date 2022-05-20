@@ -141,6 +141,8 @@ class HeatPumpTestData:
 
                 # Calculate the Carnot CoP and add to the test record
                 data['carnot_cop'] = carnot_cop(temp_source, temp_outlet)
+                # Calculate the exergetic efficiency and add to the test record
+                data['exergetic_eff'] = data['cop'] / data['carnot_cop']
 
             temp_source_cld = Celcius2Kelvin(self.__testdata[dsgn_flow_temp][0]['temp_source'])
             temp_outlet_cld = Celcius2Kelvin(self.__testdata[dsgn_flow_temp][0]['temp_outlet'])
