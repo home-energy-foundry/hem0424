@@ -353,3 +353,61 @@ class TestHeatPumpTestData(unittest.TestCase):
                     results[i],
                     "incorrect source temp at coldest conditions returned"
                     )
+
+    def test_exergy_load_ratio_and_eff_either_side_of_op_cond(self):
+        """ Test that correct exergy load ratios and exergy efficiencies are returned """
+        results_lr_below = [
+            1.1634388356892613, 1.1225791267684564, 1.0817194178476517, 1.0408597089268468,
+            1.0000000000060418,
+            1.3186802349509577, 1.318488581797243, 1.3182969286435282, 1.3181052754898135,
+            1.3179136223360988,
+            ]
+        results_lr_above = [
+            1.3186802349509577, 1.318488581797243, 1.3182969286435282, 1.3181052754898135,
+            1.3179136223360988,
+            1.513621351820552, 1.5346728579727933, 1.555724364125035, 1.5767758702772765,
+            1.5978273764295179,
+            ]
+        results_eff_below = [
+            0.48490846115784275, 0.49162229619850667, 0.49833613123917064, 0.5050499662798346,
+            0.5117638013204985,
+            0.4587706146926537, 0.4640208453602804, 0.4692710760279071, 0.4745213066955337,
+            0.4797715373631604,
+            ]
+        results_eff_above = [
+            0.4587706146926537, 0.4640208453602804, 0.4692710760279071, 0.4745213066955337,
+            0.4797715373631604,
+            0.43614336193841496, 0.44064463935774134, 0.4451459167770678, 0.4496471941963942,
+            0.4541484716157206,
+            ]
+
+        i = -1
+        for exergy_lr_op_cond in [1.2, 1.4]:
+            for flow_temp in [35, 40, 45, 50, 55]:
+                i += 1
+                with self.subTest(i=i):
+                    lr_below, lr_above, eff_below, eff_above = \
+                        self.hp_testdata.exergy_load_ratio_and_eff_either_side_of_op_cond(
+                            flow_temp,
+                            exergy_lr_op_cond,
+                            )
+                    self.assertEqual(
+                        lr_below,
+                        results_lr_below[i],
+                        "incorrect load ratio below operating conditions returned",
+                        )
+                    self.assertEqual(
+                        lr_above,
+                        results_lr_above[i],
+                        "incorrect load ratio above operating conditions returned",
+                        )
+                    self.assertEqual(
+                        eff_below,
+                        results_eff_below[i],
+                        "incorrect efficiency below operating conditions returned",
+                        )
+                    self.assertEqual(
+                        eff_above,
+                        results_eff_above[i],
+                        "incorrect efficiency above operating conditions returned",
+                        )

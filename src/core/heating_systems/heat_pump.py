@@ -191,6 +191,62 @@ class HeatPumpTestData:
         """
         return Celcius2Kelvin(self.__data_coldest_conditions('temp_source', flow_temp))
 
+    def exergy_load_ratio_and_eff_either_side_of_op_cond(self, flow_temp, exergy_lr_op_cond):
+        """ Return exergy load ratio and exergy efficiency either side of operating conditions.
+
+        This function returns 4 results:
+        - Exergy load ratio below operating conditions
+        - Exergy load ratio above operating conditions
+        - Exergy efficiency below operating conditions
+        - Exergy efficiency above operating conditions
+
+        Arguments:
+        flow_temp         -- flow temperature, in Celcius
+        exergy_lr_op_cond -- exergy load ratio at operating conditions
+        """
+        load_ratios_below = []
+        load_ratios_above = []
+        efficiencies_below = []
+        efficiencies_above = []
+
+        # For each design flow temperature, find load ratios in test data
+        # either side of load ratio calculated for operating conditions.
+        # Note: Loop over sorted list of design flow temps and then index into
+        #       self.__testdata, rather than looping over self.__testdata,
+        #       which is unsorted and therefore may populate the lists in the
+        #       wrong order.
+        for dsgn_flow_temp in self.__dsgn_flow_temps:
+            found = False
+            dsgn_flow_temp_data = self.__testdata[dsgn_flow_temp]
+            # Find the first load ratio in the test data that is greater than
+            # or equal to than the load ratio at operating conditions - this
+            # and the previous load ratio are the values either side of
+            # operating conditions.
+            for idx, test_record in enumerate(dsgn_flow_temp_data):
+                if test_record['theoretical_load_ratio'] >= exergy_lr_op_cond:
+                    assert idx > 0
+                    found = True
+                    # Current value of idx will be used later, so break out of loop
+                    break
+
+            if not found:
+                # Use the highest (list index -1) and second highest
+                idx = -1
+
+            # Look up correct load ratio and efficiency based on the idx found above
+            load_ratios_below.append(dsgn_flow_temp_data[idx-1]['theoretical_load_ratio'])
+            load_ratios_above.append(dsgn_flow_temp_data[idx]['theoretical_load_ratio'])
+            efficiencies_below.append(dsgn_flow_temp_data[idx-1]['exergetic_eff'])
+            efficiencies_above.append(dsgn_flow_temp_data[idx]['exergetic_eff'])
+
+        # Interpolate between the values found for the different design flow temperatures
+        lr_below = np.interp(flow_temp, self.__dsgn_flow_temps, load_ratios_below)
+        lr_above = np.interp(flow_temp, self.__dsgn_flow_temps, load_ratios_above)
+        eff_below = np.interp(flow_temp, self.__dsgn_flow_temps, efficiencies_below)
+        eff_above = np.interp(flow_temp, self.__dsgn_flow_temps, efficiencies_above)
+
+        return lr_below, lr_above, eff_below, eff_above
+
 
 class HeatPumpService:
     """ An object to represent a service (e.g. water heating) provided by a heat pump.
