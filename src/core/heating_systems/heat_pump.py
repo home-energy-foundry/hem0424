@@ -191,14 +191,16 @@ class HeatPumpTestData:
         """
         return Celcius2Kelvin(self.__data_coldest_conditions('temp_source', flow_temp))
 
-    def exergy_load_ratio_and_eff_either_side_of_op_cond(self, flow_temp, exergy_lr_op_cond):
-        """ Return exergy load ratio and exergy efficiency either side of operating conditions.
+    def lr_eff_degcoeff_either_side_of_op_cond(self, flow_temp, exergy_lr_op_cond):
+        """ Return test results either side of operating conditions.
 
-        This function returns 4 results:
+        This function returns 6 results:
         - Exergy load ratio below operating conditions
         - Exergy load ratio above operating conditions
         - Exergy efficiency below operating conditions
         - Exergy efficiency above operating conditions
+        - Degradation coeff below operating conditions
+        - Degradation coeff above operating conditions
 
         Arguments:
         flow_temp         -- flow temperature, in Celcius
@@ -208,6 +210,8 @@ class HeatPumpTestData:
         load_ratios_above = []
         efficiencies_below = []
         efficiencies_above = []
+        degradation_coeffs_below = []
+        degradation_coeffs_above = []
 
         # For each design flow temperature, find load ratios in test data
         # either side of load ratio calculated for operating conditions.
@@ -238,14 +242,18 @@ class HeatPumpTestData:
             load_ratios_above.append(dsgn_flow_temp_data[idx]['theoretical_load_ratio'])
             efficiencies_below.append(dsgn_flow_temp_data[idx-1]['exergetic_eff'])
             efficiencies_above.append(dsgn_flow_temp_data[idx]['exergetic_eff'])
+            degradation_coeffs_below.append(dsgn_flow_temp_data[idx-1]['degradation_coeff'])
+            degradation_coeffs_above.append(dsgn_flow_temp_data[idx]['degradation_coeff'])
 
         # Interpolate between the values found for the different design flow temperatures
         lr_below = np.interp(flow_temp, self.__dsgn_flow_temps, load_ratios_below)
         lr_above = np.interp(flow_temp, self.__dsgn_flow_temps, load_ratios_above)
         eff_below = np.interp(flow_temp, self.__dsgn_flow_temps, efficiencies_below)
         eff_above = np.interp(flow_temp, self.__dsgn_flow_temps, efficiencies_above)
+        deg_below = np.interp(flow_temp, self.__dsgn_flow_temps, degradation_coeffs_below)
+        deg_above = np.interp(flow_temp, self.__dsgn_flow_temps, degradation_coeffs_above)
 
-        return lr_below, lr_above, eff_below, eff_above
+        return lr_below, lr_above, eff_below, eff_above, deg_below, deg_above
 
 
 class HeatPumpService:

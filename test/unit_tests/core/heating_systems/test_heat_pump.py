@@ -354,8 +354,8 @@ class TestHeatPumpTestData(unittest.TestCase):
                     "incorrect source temp at coldest conditions returned"
                     )
 
-    def test_exergy_load_ratio_and_eff_either_side_of_op_cond(self):
-        """ Test that correct exergy load ratios and exergy efficiencies are returned """
+    def test_lr_eff_degcoeff_either_side_of_op_cond(self):
+        """ Test that correct test results either side of operating conditions are returned """
         results_lr_below = [
             1.1634388356892613, 1.1225791267684564, 1.0817194178476517, 1.0408597089268468,
             1.0000000000060418,
@@ -380,14 +380,17 @@ class TestHeatPumpTestData(unittest.TestCase):
             0.43614336193841496, 0.44064463935774134, 0.4451459167770678, 0.4496471941963942,
             0.4541484716157206,
             ]
+        results_deg_below = [0.9] * 10
+        results_deg_above = \
+            [0.9, 0.9, 0.9, 0.9, 0.9, 0.95, 0.9575, 0.965, 0.9724999999999999, 0.98]
 
         i = -1
         for exergy_lr_op_cond in [1.2, 1.4]:
             for flow_temp in [35, 40, 45, 50, 55]:
                 i += 1
                 with self.subTest(i=i):
-                    lr_below, lr_above, eff_below, eff_above = \
-                        self.hp_testdata.exergy_load_ratio_and_eff_either_side_of_op_cond(
+                    lr_below, lr_above, eff_below, eff_above, deg_below, deg_above = \
+                        self.hp_testdata.lr_eff_degcoeff_either_side_of_op_cond(
                             flow_temp,
                             exergy_lr_op_cond,
                             )
@@ -410,4 +413,14 @@ class TestHeatPumpTestData(unittest.TestCase):
                         eff_above,
                         results_eff_above[i],
                         "incorrect efficiency above operating conditions returned",
+                        )
+                    self.assertEqual(
+                        deg_below,
+                        results_deg_below[i],
+                        "incorrect degradation coeff below operating conditions returned",
+                        )
+                    self.assertEqual(
+                        deg_above,
+                        results_deg_above[i],
+                        "incorrect degradation coeff above operating conditions returned",
                         )
