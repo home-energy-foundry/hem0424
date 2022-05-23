@@ -312,6 +312,30 @@ class TestHeatPumpTestData(unittest.TestCase):
         #      will require the init function to throw exceptions rather than
         #      exit the process as it does now.
 
+    def test_average_degradation_coeff(self):
+        """ Test that correct average degradation coeff is returned for the flow temp """
+        results = [0.9125, 0.919375, 0.92625, 0.933125, 0.94]
+
+        for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    self.hp_testdata.average_degradation_coeff(flow_temp),
+                    results[i],
+                    msg="incorrect average degradation coefficient returned"
+                    )
+
+    def test_average_capacity(self):
+        """ Test that correct average capacity is returned for the flow temp """
+        results = [8.3, 8.375, 8.45, 8.525, 8.6]
+
+        for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    self.hp_testdata.average_capacity(flow_temp),
+                    results[i],
+                    msg="incorrect average capacity returned"
+                    )
+
     def test_carnot_cop_coldest_conditions(self):
         """ Test that correct Carnot CoP at coldest conditions is returned for the flow temp """
         results = [

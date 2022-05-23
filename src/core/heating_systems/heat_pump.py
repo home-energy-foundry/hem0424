@@ -34,6 +34,8 @@ class HeatPumpTestData:
     the correct data records for the conditions being modelled.
     """
 
+    __test_letters_non_bivalent = ['A', 'B', 'C', 'D']
+
     def __init__(self, hp_testdata_dict_list):
         """ Construct a HeatPumpTestData object
 
@@ -132,7 +134,45 @@ class HeatPumpTestData:
         for dsgn_flow_temp, data in self.__testdata.items():
             data.sort(key=lambda sublist: sublist['temp_test'])
 
-        # TODO Calculate derived variables which are not time-dependent
+        # Calculate derived variables which are not time-dependent
+
+        def ave_degradation_coeff():
+            # The list average_deg_coeff will be in the same order as the
+            # corresponding elements in self.__dsgn_flow_temps. This behaviour
+            # is relied upon elsewhere.
+            average_deg_coeff = []
+            for dsgn_flow_temp in self.__dsgn_flow_temps:
+                average_deg_coeff.append(
+                    sum([
+                        x['degradation_coeff']
+                        for x in self.__testdata[dsgn_flow_temp]
+                        if x['test_letter'] in self.__test_letters_non_bivalent
+                        ]) \
+                    / len(self.__test_letters_non_bivalent)
+                    )
+            return average_deg_coeff
+
+        self.__average_deg_coeff = ave_degradation_coeff()
+
+        def ave_capacity():
+            # The list average_cap will be in the same order as the
+            # corresponding elements in self.__dsgn_flow_temps. This behaviour
+            # is relied upon elsewhere.
+            average_cap = []
+            for dsgn_flow_temp in self.__dsgn_flow_temps:
+                average_cap.append(
+                    sum([
+                        x['capacity']
+                        for x in self.__testdata[dsgn_flow_temp]
+                        if x['test_letter'] in self.__test_letters_non_bivalent
+                        ]) \
+                    / len(self.__test_letters_non_bivalent)
+                    )
+            return average_cap
+
+        self.__average_cap = ave_capacity()
+
+        # Calculate derived variables for each data record which are not time-dependent
         for dsgn_flow_temp in self.__dsgn_flow_temps:
             for data in self.__testdata[dsgn_flow_temp]:
                 # Get the source and outlet temperatures from the test record
@@ -158,6 +198,14 @@ class HeatPumpTestData:
                 data['theoretical_load_ratio'] \
                     = ((data['carnot_cop'] / carnot_cop_cld) \
                     * (temp_outlet_cld * temp_source / (temp_source_cld * temp_outlet)) ** N_EXER)
+
+    def average_degradation_coeff(self, flow_temp):
+        """ Return average deg coeff for tests A-D, interpolated between design flow temps """
+        return np.interp(flow_temp, self.__dsgn_flow_temps, self.__average_deg_coeff)
+
+    def average_capacity(self, flow_temp):
+        """ Return average capacity for tests A-D, interpolated between design flow temps """
+        return np.interp(flow_temp, self.__dsgn_flow_temps, self.__average_cap)
 
     def __data_coldest_conditions(self, data_item_name, flow_temp):
         # TODO What do we do if flow_temp is outside the range of design flow temps provided?
