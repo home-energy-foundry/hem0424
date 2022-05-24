@@ -13,10 +13,19 @@ method described in BS EN ISO 52016-1:2017, section 6.5.6.
 
 # Standard library imports
 import sys
+from math import cos, pi
 
 # Difference between external air temperature and sky temperature
 # (default value for intermediate climatic region from BS EN ISO 52016-1:2017, Table B.19)
 temp_diff_sky = 11.0 # Kelvin
+
+def sky_view_factor(pitch):
+    """ Calculate longwave sky view factor from pitch in degrees """
+    # TODO account for shading
+    # TODO check longwave is correct
+    pitch_rads = pitch*pi/180
+    return 0.5 * (1 + cos(pitch_rads))
+    
 
 class BuildingElement:
     """ A base class with common functionality for building elements
@@ -96,6 +105,7 @@ class BuildingElementOpaque(BuildingElement):
             r_c,
             k_m,
             mass_distribution_class,
+            pitch,
             ext_cond,
             ):
         """ Construct a BuildingElementOpaque object
@@ -109,6 +119,7 @@ class BuildingElementOpaque(BuildingElement):
         a_sol    -- solar absorption coefficient at the external surface (dimensionless)
         r_c      -- thermal resistance, in m2.K / W
         k_m      -- areal heat capacity, in J / (m2.K)
+        pitch    -- pitch, in degrees
         ext_cond -- reference to ExternalConditions object
         mass_distribution_class
                  -- distribution of mass in building element, one of:
@@ -123,10 +134,8 @@ class BuildingElementOpaque(BuildingElement):
         """
         self.__external_conditions = ext_cond
 
-        # TODO This is the f_sky value for an unshaded vertical wall
-        #      (from BS EN ISO 52016-1:2017, Table B.18). Need to handle other
-        #      cases (roof, non-vertical wall) as well.
-        f_sky = 0.5
+        # This is the f_sky value for an unshaded surface
+        f_sky = sky_view_factor(pitch)
 
         # Initialise the base BuildingElement class
         super().__init__(area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky)
@@ -178,6 +187,7 @@ class BuildingElementTransparent(BuildingElement):
             h_ce,
             h_re,
             r_c,
+            pitch,
             ext_cond,
             ):
         """ Construct a BuildingElementTransparent object
@@ -189,6 +199,7 @@ class BuildingElementTransparent(BuildingElement):
         h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
         h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
         r_c      -- thermal resistance, in m2.K / W
+        pitch    -- pitch, in degrees
         ext_cond -- reference to ExternalConditions object
 
         Other variables:
@@ -199,10 +210,8 @@ class BuildingElementTransparent(BuildingElement):
         # Solar absorption coefficient is zero because element is transparent
         a_sol = 0.0
 
-        # TODO This is the f_sky value for an unshaded vertical wall
-        #      (from BS EN ISO 52016-1:2017, Table B.18). Need to handle other
-        #      cases (roof, non-vertical wall) as well.
-        f_sky = 0.5
+        # This is the f_sky value for an unshaded surface
+        f_sky = sky_view_factor(pitch)
 
         # Initialise the base BuildingElement class
         super().__init__(area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky)

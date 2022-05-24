@@ -203,6 +203,7 @@ class Project:
                     data['r_c'],
                     data['k_m'],
                     data['mass_distribution_class'],
+                    data['pitch'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementTransparent':
@@ -213,6 +214,7 @@ class Project:
                     data['h_ce'],
                     data['h_re'],
                     data['r_c'],
+                    data['pitch'],
                     self.__external_conditions,
                     )
             else:
