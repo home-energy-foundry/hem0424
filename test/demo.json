@@ -124,6 +124,22 @@
 					"r_c": 0.4,
 					"pitch": 90
 				}
+			},
+			"ThermalBridging": {
+				"TB1": {
+					"type": "ThermalBridgeLinear",
+					"linear_thermal_transmittance": 1.0,
+					"length": 3.0
+				},
+				"TB2": {
+					"type": "ThermalBridgeLinear",
+					"linear_thermal_transmittance": 0.1,
+					"length": 2.0
+				},
+				"TB3": {
+					"type": "ThermalBridgePoint",
+					"heat_transfer_coeff": 2.0
+				}
 			}
 		}
 	}
