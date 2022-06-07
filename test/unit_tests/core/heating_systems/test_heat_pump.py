@@ -285,6 +285,7 @@ data_sorted = {
 
 class TestHeatPumpTestData(unittest.TestCase):
     """ Unit tests for HeatPumpTestData class """
+    # TODO Test handling of case where test data for only 1 design flow temp has been provided
 
     def setUp(self):
         """ Create HeatPumpTestData object to be tested """

@@ -214,10 +214,18 @@ class HeatPumpTestData:
 
     def average_degradation_coeff(self, flow_temp):
         """ Return average deg coeff for tests A-D, interpolated between design flow temps """
+        if len(self.__dsgn_flow_temps) == 1:
+            # If there is data for only one design flow temp, use that
+            return self.__average_deg_coeff[0]
+
         return np.interp(flow_temp, self.__dsgn_flow_temps, self.__average_deg_coeff)
 
     def average_capacity(self, flow_temp):
         """ Return average capacity for tests A-D, interpolated between design flow temps """
+        if len(self.__dsgn_flow_temps) == 1:
+            # If there is data for only one design flow temp, use that
+            return self.__average_cap[0]
+
         return np.interp(flow_temp, self.__dsgn_flow_temps, self.__average_cap)
 
     def __data_coldest_conditions(self, data_item_name, flow_temp):
@@ -305,6 +313,12 @@ class HeatPumpTestData:
             efficiencies_above.append(dsgn_flow_temp_data[idx]['exergetic_eff'])
             degradation_coeffs_below.append(dsgn_flow_temp_data[idx-1]['degradation_coeff'])
             degradation_coeffs_above.append(dsgn_flow_temp_data[idx]['degradation_coeff'])
+
+        if len(self.__dsgn_flow_temps) == 1:
+            # If there is data for only one design flow temp, use that
+            return load_ratios_below[0], load_ratios_above[0], \
+                   efficiencies_below[0], efficiencies_above[0], \
+                   degradation_coeffs_below[0], degradation_coeffs_above[0]
 
         # Interpolate between the values found for the different design flow temperatures
         lr_below = np.interp(flow_temp, self.__dsgn_flow_temps, load_ratios_below)
