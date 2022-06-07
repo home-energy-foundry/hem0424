@@ -173,6 +173,16 @@ class HeatPumpTestData:
 
         self.__average_cap = ave_capacity()
 
+        def init_temp_spread_test_conditions():
+            """ List temp spread at test conditions for the design flow temps in the test data """
+            dtheta_out_by_flow_temp = {35: 5.0, 55: 8.0, 65: 10.0}
+            dtheta_out = []
+            for dsgn_flow_temp in self.__dsgn_flow_temps:
+                dtheta_out.append(dtheta_out_by_flow_temp[dsgn_flow_temp])
+            return dtheta_out
+
+        self.__temp_spread_test_conditions = init_temp_spread_test_conditions()
+
         def init_regression_coeffs():
             """ Calculate polynomial regression coefficients for test temperature vs. CoP """
             regression_coeffs = {}
@@ -227,6 +237,14 @@ class HeatPumpTestData:
             return self.__average_cap[0]
 
         return np.interp(flow_temp, self.__dsgn_flow_temps, self.__average_cap)
+
+    def temp_spread_test_conditions(self, flow_temp):
+        """ Return temperature spread under test conditions, interpolated between design flow temps """
+        if len(self.__dsgn_flow_temps) == 1:
+            # If there is data for only one design flow temp, use that
+            return self.__temp_spread_test_conditions[0]
+
+        return np.interp(flow_temp, self.__dsgn_flow_temps, self.__temp_spread_test_conditions)
 
     def __data_coldest_conditions(self, data_item_name, flow_temp):
         # TODO What do we do if flow_temp is outside the range of design flow temps provided?

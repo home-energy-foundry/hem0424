@@ -349,6 +349,18 @@ class TestHeatPumpTestData(unittest.TestCase):
                     msg="incorrect average capacity returned"
                     )
 
+    def test_temp_spread_test_conditions(self):
+        """ Test that correct temp spread at test conditions is returned for the flow temp """ 
+        results = [5.0, 5.75, 6.5, 7.25, 8.0]
+        
+        for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
+            with self.subTest(i=i):
+                self.assertEqual(
+                    self.hp_testdata.temp_spread_test_conditions(flow_temp),
+                    results[i],
+                    msg="incorrect temp spread at test conditions returned"
+                    )
+
     def test_carnot_cop_coldest_conditions(self):
         """ Test that correct Carnot CoP at coldest conditions is returned for the flow temp """
         results = [
