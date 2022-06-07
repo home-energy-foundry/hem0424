@@ -14,6 +14,7 @@ from copy import deepcopy
 
 # Third-party imports
 import numpy as np
+from numpy.polynomial.polynomial import polyfit
 
 # Local imports
 from core.units import Celcius2Kelvin
@@ -172,6 +173,18 @@ class HeatPumpTestData:
 
         self.__average_cap = ave_capacity()
 
+        def init_regression_coeffs():
+            """ Calculate polynomial regression coefficients for test temperature vs. CoP """
+            regression_coeffs = {}
+            for dsgn_flow_temp in self.__dsgn_flow_temps:
+                temp_test_list = [x['temp_test'] for x in self.__testdata[dsgn_flow_temp]]
+                cop_list = [x['cop'] for x in self.__testdata[dsgn_flow_temp]]
+                regression_coeffs[dsgn_flow_temp] = (list(polyfit(temp_test_list, cop_list, 2)))
+
+            return regression_coeffs
+
+        self.__regression_coeffs = init_regression_coeffs()
+
         # Calculate derived variables for each data record which are not time-dependent
         for dsgn_flow_temp in self.__dsgn_flow_temps:
             for data in self.__testdata[dsgn_flow_temp]:
@@ -302,6 +315,53 @@ class HeatPumpTestData:
         deg_above = np.interp(flow_temp, self.__dsgn_flow_temps, degradation_coeffs_above)
 
         return lr_below, lr_above, eff_below, eff_above, deg_below, deg_above
+
+    def cop_op_cond_if_not_air_source(
+            self,
+            flow_temp,
+            min_temp_diff_emit,
+            temp_ext,
+            temp_source,
+            temp_output,
+            ):
+        """ Calculate CoP at operating conditions when heat pump is not air-source
+        
+        Arguments:
+        flow_temp          -- flow temperature, in Celcius
+        min_temp_diff_emit -- minimum temperature difference above the room
+                              temperature for emitters to operate, in
+                              Celcius/Kelvin
+        temp_ext           -- external temperature, in Celcius
+        temp_source        -- source temperature, in Kelvin
+        temp_output        -- output temperature, in Kelvin
+        """
+        # For each design flow temperature, calculate CoP at operating conditions
+        # Note: Loop over sorted list of design flow temps and then index into
+        #       self.__testdata, rather than looping over self.__testdata,
+        #       which is unsorted and therefore may populate the lists in the
+        #       wrong order.
+        cop_op_cond = []
+        for dsgn_flow_temp in self.__dsgn_flow_temps:
+            dsgn_flow_temp_data = self.__testdata[dsgn_flow_temp]
+            # Get the source and outlet temperatures from the coldest test record
+            temp_outlet_cld = Celcius2Kelvin(dsgn_flow_temp_data[0]['temp_outlet'])
+            temp_source_cld = Celcius2Kelvin(dsgn_flow_temp_data[0]['temp_source'])
+
+            cop_operating_conditions \
+                = ( self.__regression_coeffs[dsgn_flow_temp][0] \
+                  + self.__regression_coeffs[dsgn_flow_temp][1] * temp_ext \
+                  + self.__regression_coeffs[dsgn_flow_temp][2] * temp_ext ** 2 \
+                  ) \
+                * temp_output * (temp_outlet_cld - temp_source_cld) \
+                / ( temp_outlet_cld * max( (temp_output - temp_source), min_temp_diff_emit))
+            cop_op_cond.append(cop_operating_conditions)
+
+        if len(self.__dsgn_flow_temps) == 1:
+            # If there is data for only one design flow temp, use that
+            return cop_op_cond[0]
+
+        # Interpolate between the values found for the different design flow temperatures
+        return np.interp(flow_temp, self.__dsgn_flow_temps, cop_op_cond)
 
 
 class HeatPumpService:

@@ -312,6 +312,18 @@ class TestHeatPumpTestData(unittest.TestCase):
         #      will require the init function to throw exceptions rather than
         #      exit the process as it does now.
 
+    def test_init_regression_coeffs(self):
+        """ Test that regression coefficients have been populated correctly """
+        self.maxDiff = None
+        self.assertEqual(
+            self.hp_testdata._HeatPumpTestData__regression_coeffs,
+            {
+                35: [4.810017281274474, 0.03677543129969711, 0.0009914765238219576],
+                55: [3.4857982546529755, 0.050636568790103566, 0.001410495558351414]
+            },
+            "list of regression coefficients populated incorrectly"
+            )
+
     def test_average_degradation_coeff(self):
         """ Test that correct average degradation coeff is returned for the flow temp """
         results = [0.9125, 0.919375, 0.92625, 0.933125, 0.94]
@@ -448,3 +460,36 @@ class TestHeatPumpTestData(unittest.TestCase):
                         results_deg_above[i],
                         "incorrect degradation coeff above operating conditions returned",
                         )
+
+    def test_cop_op_cond_if_not_air_source(self):
+        """ Test that correct CoP at operating conditions (not air source) is returned """
+        results = [
+            8.070540309266503,
+            10.616403014723252,
+            5.539815752185454,
+            8.039050079300951,
+            4.460426809129295,
+            ]
+
+        i = -1
+        for flow_temp, min_temp_diff_emit, temp_ext, temp_source, temp_output in [
+            [35.0, 8.0, 0.00, 283.15, 303.15],
+            [40.0, 7.0, -5.0, 293.15, 308.15],
+            [45.0, 6.0, 5.00, 278.15, 310.65],
+            [50.0, 5.0, 10.0, 288.15, 313.15],
+            [55.0, 4.0, 7.50, 273.15, 318.15],
+            ]:
+            i += 1
+            with self.subTest(i=i):
+                self.assertEqual(
+                    self.hp_testdata.cop_op_cond_if_not_air_source(
+                        flow_temp,
+                        min_temp_diff_emit,
+                        temp_ext,
+                        temp_source,
+                        temp_output,
+                        ),
+                    results[i],
+                    "incorrect CoP at operating conditions (not air source) returned",
+                    )
+
