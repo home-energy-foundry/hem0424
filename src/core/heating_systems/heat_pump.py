@@ -297,6 +297,13 @@ class HeatPumpTestData:
             self.__data_at_test_condition('temp_source', test_condition, flow_temp)
             )
 
+    def capacity_at_test_condition(self, test_condition, flow_temp):
+        """
+        Return capacity, in kW, at specified test condition (A, B, C, D, F or
+        cld), interpolated between design flow temps.
+        """
+        return self.__data_at_test_condition('capacity', test_condition, flow_temp)
+
     def lr_eff_degcoeff_either_side_of_op_cond(self, flow_temp, exergy_lr_op_cond):
         """ Return test results either side of operating conditions.
 

@@ -451,6 +451,29 @@ class TestHeatPumpTestData(unittest.TestCase):
                     "incorrect source temp at condition "+test_condition+" returned"
                     )
 
+    def test_capacity_at_test_condition(self):
+        """ Test that correct capacity is returned for the flow temp and test condition """
+        i = -1
+        for flow_temp, test_condition, result in [
+            [35, 'cld', 8.4],
+            [40, 'cld', 8.5],
+            [45, 'cld', 8.6],
+            [50, 'cld', 8.7],
+            [55, 'cld', 8.8],
+            [45, 'A', 8.6],
+            [45, 'B', 8.45],
+            [45, 'C', 8.4],
+            [45, 'D', 8.35],
+            [45, 'F', 8.6],
+            ]:
+            i += 1
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    self.hp_testdata.capacity_at_test_condition(test_condition, flow_temp),
+                    result,
+                    msg="incorrect capacity at condition "+test_condition+" returned"
+                    )
+
     def test_lr_eff_degcoeff_either_side_of_op_cond(self):
         """ Test that correct test results either side of operating conditions are returned """
         results_lr_below = [
