@@ -246,37 +246,56 @@ class HeatPumpTestData:
 
         return np.interp(flow_temp, self.__dsgn_flow_temps, self.__temp_spread_test_conditions)
 
-    def __data_coldest_conditions(self, data_item_name, flow_temp):
+    def __data_at_test_condition(self, data_item_name, test_condition, flow_temp):
+        """ Return value at specified test condition, interpolated between design flow temps """
         # TODO What do we do if flow_temp is outside the range of design flow temps provided?
+
+        def find_test_record_index(dsgn_flow_temp):
+            """ Find position of specified test condition in list """
+            if test_condition == 'cld':
+                # Coldest test condition is first in list
+                return 0
+            for index, test_record in enumerate(self.__testdata[dsgn_flow_temp]):
+                if test_record['test_letter'] == test_condition:
+                    return index
 
         if len(self.__dsgn_flow_temps) == 1:
             # If there is data for only one design flow temp, use that
-            return self.__testdata[self.__dsgn_flow_temps[0]][0][data_item_name]
+            idx = find_test_record_index(self.__dsgn_flow_temps[0])
+            return self.__testdata[self.__dsgn_flow_temps[0]][idx][data_item_name]
 
-        # Interpolate between the outlet temps at each design flow temp
+        # Interpolate between the values at each design flow temp
         data_list = []
         for dsgn_flow_temp in self.__dsgn_flow_temps:
-            data_list.append(self.__testdata[dsgn_flow_temp][0][data_item_name])
+            idx = find_test_record_index(dsgn_flow_temp)
+            data_list.append(self.__testdata[dsgn_flow_temp][idx][data_item_name])
 
         return np.interp(flow_temp, self.__dsgn_flow_temps, data_list)
 
-    def carnot_cop_coldest_conditions(self, flow_temp):
-        """ Return Carnot CoP at coldest test condition, interpolated between design flow temps """
-        return self.__data_coldest_conditions('carnot_cop', flow_temp)
+    def carnot_cop_at_test_condition(self, test_condition, flow_temp):
+        """
+        Return Carnot CoP at specified test condition (A, B, C, D, F or cld),
+        interpolated between design flow temps
+        """
+        return self.__data_at_test_condition('carnot_cop', test_condition, flow_temp)
 
-    def outlet_temp_coldest_conditions(self, flow_temp):
+    def outlet_temp_at_test_condition(self, test_condition, flow_temp):
         """
-        Return outlet temp, in Kelvin, at coldest test condition, interpolated
-        between design flow temps.
+        Return outlet temp, in Kelvin, at specified test condition (A, B, C, D,
+        F or cld), interpolated between design flow temps.
         """
-        return Celcius2Kelvin(self.__data_coldest_conditions('temp_outlet', flow_temp))
+        return Celcius2Kelvin(
+            self.__data_at_test_condition('temp_outlet', test_condition, flow_temp)
+            )
 
-    def source_temp_coldest_conditions(self, flow_temp):
+    def source_temp_at_test_condition(self, test_condition, flow_temp):
         """
-        Return source temp, in Kelvin, at coldest test condition, interpolated
-        between design flow temps.
+        Return source temp, in Kelvin, at specified test condition (A, B, C, D,
+        F or cld), interpolated between design flow temps.
         """
-        return Celcius2Kelvin(self.__data_coldest_conditions('temp_source', flow_temp))
+        return Celcius2Kelvin(
+            self.__data_at_test_condition('temp_source', test_condition, flow_temp)
+            )
 
     def lr_eff_degcoeff_either_side_of_op_cond(self, flow_temp, exergy_lr_op_cond):
         """ Return test results either side of operating conditions.

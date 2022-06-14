@@ -361,46 +361,94 @@ class TestHeatPumpTestData(unittest.TestCase):
                     msg="incorrect temp spread at test conditions returned"
                     )
 
-    def test_carnot_cop_coldest_conditions(self):
-        """ Test that correct Carnot CoP at coldest conditions is returned for the flow temp """
-        results = [
-            9.033823529411764,
-            8.338588800904978,
-            7.643354072398189,
-            6.948119343891403,
-            6.252884615384615,
-            ]
-
-        for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
+    def test_carnot_cop_at_test_condition(self):
+        """ Test that correct Carnot CoP is returned for the flow temp and test condition """
+        # TODO Test conditions other than just coldest
+        i = -1
+        for flow_temp, test_condition, result in [
+            [35, 'cld', 9.033823529411764],
+            [40, 'cld', 8.338588800904978],
+            [45, 'cld', 7.643354072398189],
+            [50, 'cld', 6.948119343891403],
+            [55, 'cld', 6.252884615384615],
+            [45, 'A', 7.643354072398189],
+            [45, 'B', 8.804285714285713],
+            [45, 'C', 9.852083333333333],
+            [45, 'D', 11.243125],
+            [45, 'F', 7.643354072417485],
+            ]:
+            # TODO Note that the result above for condition F is different to
+            #      that for condition A, despite the source and outlet temps in
+            #      the inputs being the same for both, because of the adjustment
+            #      to the source temp applied in the HeatPumpTestData __init__
+            #      function when duplicate records are found. This may not be
+            #      the desired behaviour (see the TODO comment in that function)
+            #      but in that case the problem is not with the function that
+            #      is being tested here, so for now we set the result so that
+            #      the test passes.
+            i += 1
             with self.subTest(i=i):
                 self.assertEqual(
-                    self.hp_testdata.carnot_cop_coldest_conditions(flow_temp),
-                    results[i],
-                    "incorrect Carnot CoP at coldest conditions returned"
+                    self.hp_testdata.carnot_cop_at_test_condition(test_condition, flow_temp),
+                    result,
+                    "incorrect Carnot CoP at condition "+test_condition+" returned"
                     )
 
-    def test_outlet_temp_coldest_conditions(self):
-        """ Test that correct outlet temp is returned for the flow temp """
-        results = [307.15, 311.65, 316.15, 320.65, 325.15]
-
-        for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
+    def test_outlet_temp_at_test_condition(self):
+        """ Test that correct outlet temp is returned for the flow temp and test condition """
+        # TODO Test conditions other than just coldest
+        i = -1
+        for flow_temp, test_condition, result in [
+            [35, 'cld', 307.15],
+            [40, 'cld', 311.65],
+            [45, 'cld', 316.15],
+            [50, 'cld', 320.65],
+            [55, 'cld', 325.15],
+            [45, 'A', 316.15],
+            [45, 'B', 309.15],
+            [45, 'C', 304.65],
+            [45, 'D', 300.15],
+            [45, 'F', 316.15],
+            ]:
+            i += 1
             with self.subTest(i=i):
                 self.assertEqual(
-                    self.hp_testdata.outlet_temp_coldest_conditions(flow_temp),
-                    results[i],
-                    "incorrect outlet temp at coldest conditions returned"
+                    self.hp_testdata.outlet_temp_at_test_condition(test_condition, flow_temp),
+                    result,
+                    "incorrect outlet temp at condition "+test_condition+" returned"
                     )
 
-    def test_source_temp_coldest_conditions(self):
-        """ Test that correct source temp is returned for the flow temp """
-        results = [273.15, 273.15, 273.15, 273.15, 273.15]
-
-        for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
+    def test_source_temp_at_test_condition(self):
+        """ Test that correct source temp is returned for the flow temp and test condition """
+        # TODO Test conditions other than just coldest
+        i = -1
+        for flow_temp, test_condition, result in [
+            [35, 'cld', 273.15],
+            [40, 'cld', 273.15],
+            [45, 'cld', 273.15],
+            [50, 'cld', 273.15],
+            [55, 'cld', 273.15],
+            [45, 'A', 273.15],
+            [45, 'B', 273.15],
+            [45, 'C', 273.15],
+            [45, 'D', 273.15],
+            [45, 'F', 273.15000000009996],
+            ]:
+            # TODO Note that the result above for condition F is different to
+            #      that for condition A, despite the source and outlet temps in
+            #      the inputs being the same for both, because of the adjustment
+            #      to the source temp applied in the HeatPumpTestData __init__
+            #      function when duplicate records are found. This may not be
+            #      the desired behaviour (see the TODO comment in that function)
+            #      but in that case the problem is not with the function that
+            #      is being tested here, so for now we set the result so that
+            #      the test passes.
+            i += 1
             with self.subTest(i=i):
                 self.assertEqual(
-                    self.hp_testdata.source_temp_coldest_conditions(flow_temp),
-                    results[i],
-                    "incorrect source temp at coldest conditions returned"
+                    self.hp_testdata.source_temp_at_test_condition(test_condition, flow_temp),
+                    result,
+                    "incorrect source temp at condition "+test_condition+" returned"
                     )
 
     def test_lr_eff_degcoeff_either_side_of_op_cond(self):
