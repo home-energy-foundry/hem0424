@@ -5,7 +5,8 @@
 		"step": 1
 	},
 	"ExternalConditions": {
-		"air_temperatures": [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
+		"air_temperatures": [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0],
+		"ground_temperatures": [8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7]
 	},
 	"ColdWaterSource": {
 		"mains water": {

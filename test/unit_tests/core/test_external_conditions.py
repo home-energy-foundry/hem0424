@@ -23,7 +23,8 @@ class TestExternalConditions(unittest.TestCase):
         """ Create ExternalConditions object to be tested """
         self.simtime = SimulationTime(0, 8, 1)
         self.airtemp = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
-        self.extcond = ExternalConditions(self.simtime, self.airtemp)
+        self.groundtemp = [8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7]
+        self.extcond = ExternalConditions(self.simtime, self.airtemp, self.groundtemp)
 
     def test_air_temp(self):
         """ Test that ExternalConditions object returns correct air temperatures """
@@ -34,3 +35,14 @@ class TestExternalConditions(unittest.TestCase):
                     self.airtemp[t_idx],
                     "incorrect air temp returned",
                     )
+
+    def test_ground_temp(self):
+        """ Test that ExternalConditions object returns correct ground temperatures """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertEqual(
+                    self.extcond.ground_temp(),
+                    self.groundtemp[t_idx],
+                    "incorrect ground temp returned",
+                    )
+

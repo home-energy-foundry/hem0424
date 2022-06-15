@@ -60,6 +60,7 @@ class Project:
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
+            proj_dict['ExternalConditions']['ground_temperatures'],
             )
 
         self.__cold_water_sources = {}
