@@ -19,7 +19,7 @@ from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
-    BuildingElementOpaque, BuildingElementTransparent
+    BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -218,6 +218,20 @@ class Project:
                     data['h_re'],
                     data['r_c'],
                     data['pitch'],
+                    self.__external_conditions,
+                    )
+            elif building_element_type == 'BuildingElementGround':
+                building_element = BuildingElementGround(
+                    data['area'],
+                    data['h_ci'],
+                    data['h_ri'],
+                    data['h_ce'],
+                    data['h_re'],
+                    data['r_c'],
+                    data['r_gr'],
+                    data['k_m'],
+                    data['k_gr'],
+                    data['mass_distribution_class'],
                     self.__external_conditions,
                     )
             else:

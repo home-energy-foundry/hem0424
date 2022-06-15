@@ -124,6 +124,19 @@
 					"h_re": 0.25,
 					"r_c": 0.4,
 					"pitch": 90
+				},
+				"ground":{
+					"type": "BuildingElementGround",
+					"area": 15.0,
+					"h_ci": 0.33,
+					"h_ri": 0.43,
+					"h_ce": 0.33,
+					"h_re": 0.23,
+					"r_c": 0.73,
+					"r_gr": 0.5,
+					"k_m": 19300,
+					"k_gr": 24000.0,
+					"mass_distribution_class": "D"
 				}
 			},
 			"ThermalBridging": {

@@ -177,6 +177,94 @@ class BuildingElementOpaque(BuildingElement):
         #      environment, not e.g. elements to adjacent zones.
 
 
+class BuildingElementGround(BuildingElement):
+    """ A class to represent ground building elements """
+
+    def __init__(self,
+            area,
+            h_ci,
+            h_ri,
+            h_ce,
+            h_re,
+            r_c,
+            r_gr,
+            k_m,
+            k_gr,
+            mass_distribution_class,
+            ext_cond,
+            ):
+        """ Construct a BuildingElementGround object
+    
+        Arguments (names based on those in BS EN ISO 52016-1:2017):
+        area     -- area (in m2) of this building element
+        h_ci     -- internal convective heat transfer coefficient, in W / (m2.K)
+        h_ri     -- internal radiative heat transfer coefficient, in W / (m2.K)
+        h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
+        h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
+        r_c      -- thermal resistance of the ground floor element, in m2.K / W
+        r_gr     -- thermal resistance of the fixed ground layer, in m2.K / W
+        k_m      -- areal heat capacity of the ground floor element, in J / (m2.K)
+        k_gr     -- areal heat capacity of the fixed ground element, in J / (m2.K)
+        ext_cond -- reference to ExternalConditions object
+        mass_distribution_class
+                 -- distribution of mass in building element, one of:
+                    - 'I':  mass concentrated on internal side
+                    - 'E':  mass concentrated on external side
+                    - 'IE': mass divided over internal and external side
+                    - 'D':  mass equally distributed
+                    - 'M':  mass concentrated inside
+        """
+        # TODO add ground-specific arguments described above (r_gr and k_gr) into code, maybe set as universal inputs
+        
+        self.__external_conditions = ext_cond
+        
+        # Solar absorption coefficient at the external surface of the ground element is zero
+        # according to BS EN ISO 52016-1:2017, section 6.5.7.3
+        a_sol = 0.0
+        
+        # View factor to the sky is zero because element is in contact with the ground
+        f_sky = 0.0
+
+        # Initialise the base BuildingElement class
+        super().__init__(area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky)
+
+        # Calculate node conductances (h_pli) and node heat capacities (k_pli)
+        # according to BS EN ISO 52016-1:2017, section 6.5.7.3
+
+        def init_h_pli():
+            h_4 = 4.0 / r_c
+            h_3 = 2.0 / r_c
+            h_2 = 1.0 / (r_c / 4 + r_gr / 2)
+            h_1 = 2.0 / r_gr
+            return [h_1, h_2, h_3, h_4]
+
+        self.h_pli = init_h_pli()
+
+        def init_k_pli():
+            if   mass_distribution_class == 'I':
+                return [0.0, k_gr, 0.0, 0.0, k_m]
+            elif mass_distribution_class == 'E':
+                return [0.0, k_gr, k_m, 0.0, 0.0]
+            elif mass_distribution_class == 'IE':
+                k_ie = k_m / 2.0
+                return [0.0, k_gr, k_ie, 0.0, k_ie]
+            elif mass_distribution_class == 'D':
+                k_inner = k_m / 2.0
+                k_outer = k_m / 4.0
+                return [0.0, k_gr, k_outer, k_inner, k_outer]
+            elif mass_distribution_class == 'M':
+                return [0.0, k_gr, 0.0, k_m, 0.0]
+            else:
+                sys.exit("Mass distribution class ("+str(mass_distribution_class)+") not valid")
+                # TODO Exit just the current case instead of whole program entirely?
+
+        self.k_pli = init_k_pli()
+
+    def temp_ext(self):
+        """ Return the temperature of the air on the other side of the building element """
+        return self.__external_conditions.ground_temp()
+
+
 class BuildingElementTransparent(BuildingElement):
     """ A class to represent transparent building elements (windows etc.) """
 
