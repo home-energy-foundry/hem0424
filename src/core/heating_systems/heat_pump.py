@@ -423,16 +423,18 @@ class HeatPumpTestData:
 
 
 class HeatPumpService:
-    """ An object to represent a service (e.g. water heating) provided by a heat pump.
+    """ A base class for objects representing services (e.g. water heating) provided by a heat pump.
 
     This object encapsulates the name of the service, meaning that the system
     consuming the energy does not have to specify this on every call, and
     helping to enforce that each service has a unique name.
 
-    This object also provides a place to handle parts of the calculation (e.g.
+    Derived objects provide a place to handle parts of the calculation (e.g.
     distribution flow temperature) that may differ for different services.
 
-    TODO Separate subclasses for different types of service (HW and space heating)?
+    Separate subclasses need to be implemented for different types of service
+    (e.g. HW and space heating). These should implement the following functions:
+    - demand_energy(self, energy_demand)
     """
 
     def __init__(self, heat_pump, service_name):
@@ -445,11 +447,41 @@ class HeatPumpService:
         self.__hp = heat_pump
         self.__service_name = service_name
 
+
+class HeatPumpServiceWater(HeatPumpService):
+    """ An object to represent a water heating service provided by a heat pump to e.g. a cylinder.
+
+    This object contains the parts of the heat pump calculation that are
+    specific to providing hot water.
+    """
+
+    def __init__(self, heat_pump, service_name, temp_hot_water, temp_limit_upper, cold_feed):
+        """ Construct a BoilerServiceWater object
+
+        Arguments:
+        heat_pump -- reference to the HeatPump object providing the service
+        service_name -- name of the service demanding energy from the heat pump
+        temp_hot_water -- temperature of the hot water to be provided, in deg C
+        temp_limit_upper -- upper operating limit for temperature, in deg C
+        cold_feed -- reference to ColdWaterSource object
+        """
+        super().__init__(heat_pump, service_name)
+
+        self.__temp_hot_water = temp_hot_water
+        self.__temp_limit_upper = temp_limit_upper
+        self.__cold_feed = cold_feed
+
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat pump """
-        # TODO Calculate required flow temperature
-        # TODO Call self.__hp._HeatPump__demand_energy func
-        return 0.0 # TODO Return energy supplied
+        temp_cold_water = self.__cold_feed.temperature()
+
+        return self.__hp._HeatPump__demand_energy(
+            self.__service_name,
+            energy_demand,
+            self.__temp_hot_water,
+            temp_cold_water,
+            self.__temp_limit_upper,
+            )
 
 
 class HeatPump:
@@ -479,7 +511,7 @@ class HeatPump:
 
         # TODO Assign hp_dict elements to member variables of this class
 
-    def service(self, service_name):
+    def service(self, service_name, service_type):
         """ Return a HeatPumpService object """
         # Check that service_name is not already registered
         if service_name in self.__energy_supply_connections.keys():
@@ -490,9 +522,19 @@ class HeatPump:
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
 
-        return HeatPumpService(self, service_name)
+        if service_type == 'W': # Hot water cylinder/tank
+            return HeatPumpServiceWater(self, service_name)
+        else:
+            sys.exit(service_name + ': service type (' + str(service_type) + ') not recognised.')
 
-    def __demand_energy(self, service_name, required_output, required_flow_temp):
+    def __demand_energy(
+            self,
+            service_name,
+            energy_output_required,
+            temp_flow_required,
+            temp_return_feed,
+            temp_limit_upper,
+            ):
         """ Calculate energy required by heat pump to satisfy demand for the service indicated.
 
         Note: Call via a HeatPumpService object, not directly.
