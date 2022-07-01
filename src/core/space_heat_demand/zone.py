@@ -6,7 +6,7 @@ This module provides objects to represent the thermal zones in the building,
 and to calculate the temperatures in the zone and associated building elements.
 """
 
-# Standard library imports
+# Third-party imports
 import numpy as np
 
 # Local imports
