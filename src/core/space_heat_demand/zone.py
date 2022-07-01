@@ -30,14 +30,16 @@ class Zone:
     in this object by solving a matrix equation.
     """
 
-    def __init__(self, area, building_elements, tb_heat_trans_coeff, vent_elements):
+    def __init__(self, area, building_elements, thermal_bridging, vent_elements):
         """ Construct a Zone object
 
         Arguments:
         area              -- useful floor area of the zone, in m2
         building_elements -- list of BuildingElement objects (walls, floors, windows etc.)
-        tb_heat_trans_coeff -- overall heat transfer coefficient for thermal
+        thermal_bridging  -- Either:
+                             - overall heat transfer coefficient for thermal
                                bridges in the zone, in W / K
+                             - list of ThermalBridge objects for this zone
         vent_elements     -- list of ventilation elements (infiltration, mech vent etc.)
 
         Other variables:
@@ -69,7 +71,16 @@ class Zone:
         self.__useful_area = area
         self.__building_elements = building_elements
         self.__vent_elements     = vent_elements
-        self.__tb_heat_trans_coeff = tb_heat_trans_coeff
+
+        # If thermal_bridging is a list of ThermalBridge objects, calculate the
+        # overall heat transfer coefficient for thermal bridges, otherwise just
+        # use the coefficient given
+        if isinstance(thermal_bridging, list):
+            self.__tb_heat_trans_coeff = 0.0
+            for tb in thermal_bridging:
+                self.__tb_heat_trans_coeff += tb.heat_trans_coeff()
+        else:
+            self.__tb_heat_trans_coeff = thermal_bridging
 
         # TODO Make the temperature setpoints inputs for each timestep
         self.__temp_setpnt_heat = 21.0
@@ -162,13 +173,16 @@ class Zone:
         # - Calculate RHS of node energy balance eqn and add to vector_b
         for eli in self.__building_elements:
             # External surface node (eqn 41)
+            # Get position (row == column) in matrix previously calculated for the first (external) node
             idx = self.__element_positions[eli][0]
+            # Position of first (external) node within element is zero
+            i = 0
             # Coeff for temperature of this node
-            matrix_a[idx][idx] = (eli.k_pli[0] / delta_t) + eli.h_ce + eli.h_re + eli.h_pli[0]
+            matrix_a[idx][idx] = (eli.k_pli[i] / delta_t) + eli.h_ce + eli.h_re + eli.h_pli[i]
             # Coeff for temperature of next node
-            matrix_a[idx][idx + 1] = - eli.h_pli[0]
+            matrix_a[idx][idx + 1] = - eli.h_pli[i]
             # RHS of heat balance eqn for this node
-            vector_b[idx] = (eli.k_pli[0] / delta_t) * temp_prev[idx] \
+            vector_b[idx] = (eli.k_pli[i] / delta_t) * temp_prev[idx] \
                           + (eli.h_ce + eli.h_re) * eli.temp_ext() \
                           + eli.a_sol * (eli.i_sol_dif + eli.i_sol_dir * eli.f_sh_obst) \
                           - eli.therm_rad_to_sky
@@ -189,6 +203,7 @@ class Zone:
             idx = idx + 1
             assert idx == self.__element_positions[eli][1]
             i = i + 1
+            assert i == eli.no_of_nodes() - 1
             # Coeff for temperature of prev node
             matrix_a[idx][idx - 1] = - eli.h_pli[i - 1]
             # Coeff for temperature of this node
