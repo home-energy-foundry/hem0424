@@ -13,6 +13,7 @@ import sys
 import core.units as units
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
+from core.schedule import expand_schedule
 from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
@@ -76,7 +77,8 @@ class Project:
             """ Parse dictionary of control data and return approprate control object """
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
-                ctrl = OnOffTimeControl(data['schedule'], self.__simtime)
+                sched = expand_schedule(bool, data['schedule'], "main")
+                ctrl = OnOffTimeControl(sched, self.__simtime)
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?

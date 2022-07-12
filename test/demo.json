@@ -21,7 +21,9 @@
 	"Control": {
 		"hw timer": {
 			"type": "OnOffTimeControl",
-			"schedule": [true, true, false, true, true, true, true, true]
+			"schedule": {
+				"main": [true, true, false, {"value": true, "repeat": 5}]
+			}
 		}
 	},
 	"HotWaterSource": {
