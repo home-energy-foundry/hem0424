@@ -61,17 +61,17 @@ class Project:
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
             proj_dict['ExternalConditions']['ground_temperatures'],
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None
+            proj_dict['ExternalConditions']['diffuse_horizontal_radiation'],
+            proj_dict['ExternalConditions']['direct_beam_radiation'],
+            proj_dict['ExternalConditions']['solar_reflectivity_of_ground'],
+            proj_dict['ExternalConditions']['latitude'],
+            proj_dict['ExternalConditions']['longitude'],
+            proj_dict['ExternalConditions']['timezone'],
+            proj_dict['ExternalConditions']['start_day'],
+            proj_dict['ExternalConditions']['end_day'],
+            proj_dict['ExternalConditions']['january_first'],
+            proj_dict['ExternalConditions']['daylight_savings'],
+            proj_dict['ExternalConditions']['leap_day_included']
             )
 
         self.__cold_water_sources = {}
