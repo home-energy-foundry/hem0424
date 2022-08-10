@@ -36,6 +36,7 @@ class HeatPumpTestData:
     """
 
     __test_letters_non_bivalent = ['A', 'B', 'C', 'D']
+    __test_letters_all = ['A','B','C','D','F']
 
     def __init__(self, hp_testdata_dict_list):
         """ Construct a HeatPumpTestData object
@@ -72,7 +73,7 @@ class HeatPumpTestData:
         # e.g. during testing)
         for hp_testdata_dict in deepcopy(hp_testdata_dict_list):
             dsgn_flow_temp = hp_testdata_dict['design_flow_temp']
-            
+
             # When a new design flow temp is encountered, add it to the lists/dicts
             if dsgn_flow_temp not in self.__dsgn_flow_temps:
                 self.__dsgn_flow_temps.append(dsgn_flow_temp)
@@ -127,6 +128,19 @@ class HeatPumpTestData:
                     sys.exit('Expected 4 distinct records for each design flow temperature')
             elif len(data) != 5:
                 sys.exit('Expected 5 records for each design flow temperature')
+
+        # Check if test letters ABCDF are present as expected
+        test_letter_array = []
+        for temperature in self.__dsgn_flow_temps:
+            for test_data in self.__testdata[temperature]:
+                for test_letter in test_data['test_letter']:
+                    test_letter_array.append(test_letter)
+                if len(test_letter_array) == 5:
+                    for test_letter_check in self.__test_letters_all:
+                        if test_letter_check not in test_letter_array:
+                            error_output = 'Expected test letter ' + test_letter_check + ' in ' + str(temperature) + ' degree temp data'
+                            sys.exit(error_output)
+                    test_letter_array = []
 
         # Sort the list of design flow temps
         self.__dsgn_flow_temps = sorted(self.__dsgn_flow_temps)
