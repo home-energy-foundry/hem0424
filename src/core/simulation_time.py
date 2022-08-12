@@ -76,6 +76,10 @@ class SimulationTime:
         """ Return ordinal enumeration of current timestep """
         return self.__idx
 
+    def current_hour(self):
+        """ Return current hour """
+        return int(math.floor(self.__current))
+
     def total_steps(self):
         """ Return the total number of timesteps in simulation """
         return self.__total

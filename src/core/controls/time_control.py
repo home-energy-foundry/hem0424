@@ -20,8 +20,4 @@ class OnOffTimeControl:
 
     def is_on(self):
         """ Return true if control will allow system to run """
-        return self.__schedule[self.__simulation_time.index()]
-        # TODO Assumes schedule is one entry per timestep but in
-        #      future it could be e.g. hourly figures even if timestep is
-        #      sub-hourly. This would require the SimulationTime class to
-        #      support such lookups.
+        return self.__schedule[self.__simulation_time.current_hour()]

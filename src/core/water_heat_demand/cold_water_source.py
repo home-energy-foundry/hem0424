@@ -20,8 +20,4 @@ class ColdWaterSource:
 
     def temperature(self):
         """ Return the cold water temperature for the current timestep """
-        return self.__cold_water_temps[self.__simulation_time.index()]
-        # TODO Assumes cold water temps list is one entry per timestep but in
-        #      future it could be e.g. hourly figures even if timestep is
-        #      sub-hourly. This would require the SimulationTime class to
-        #      support such lookups.
+        return self.__cold_water_temps[self.__simulation_time.current_hour()]

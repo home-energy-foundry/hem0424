@@ -86,7 +86,7 @@ class EnergySupply:
                      ") not already registered by calling connection function.")
             # TODO Exit just the current case instead of whole program entirely?
 
-        t_idx = self.__simulation_time.index()
+        t_idx = self.__simulation_time.current_hour()
         self.__demand_total[t_idx] = self.__demand_total[t_idx] + amount_demanded
         self.__demand_by_end_user[end_user_name][t_idx] \
             = self.__demand_by_end_user[end_user_name][t_idx] \
