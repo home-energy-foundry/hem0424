@@ -61,6 +61,7 @@
 	},
 	"Zone": {
 		"zone 1": {
+			"SpaceHeatSystem": "main",
 			"area": 80.0,
 			"BuildingElement": {
 				"wall 0": {

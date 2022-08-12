@@ -189,9 +189,16 @@ class Project:
                 # TODO Exit just the current case instead of whole program entirely?
             return space_heater
 
+        # If one or more space heating systems have been provided, add them to the project
         self.__space_heat_systems = {}
-        for name, data in proj_dict['SpaceHeatSystem'].items():
-            self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
+        # If no space heating systems have been provided, then skip. This
+        # facilitates running the simulation with no heating systems at all
+        if 'SpaceHeatSystem' in proj_dict:
+            for name, data in proj_dict['SpaceHeatSystem'].items():
+                self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
+
+        self.__space_cool_systems = {}
+        # TODO Read in space cooling systems and populate dict
 
         def dict_to_building_element(name, data):
             building_element_type = data['type']
@@ -264,7 +271,20 @@ class Project:
                 thermal_bridging = data
             return thermal_bridging
 
+        self.__heat_system_name_for_zone = {}
+        self.__cool_system_name_for_zone = {}
+
         def dict_to_zone(name, data):
+            # Record which heating and cooling system this zone is heated/cooled by (if applicable)
+            if 'SpaceHeatSystem' in data:
+                self.__heat_system_name_for_zone[name] = data['SpaceHeatSystem']
+            else:
+                self.__heat_system_name_for_zone[name] = None
+            if 'SpaceCoolSystem' in data:
+                self.__cool_system_name_for_zone[name] = data['SpaceCoolSystem']
+            else:
+                self.__cool_system_name_for_zone[name] = None
+
             # Read in building elements and add to list
             building_elements = []
             for building_element_name, building_element_data in data['BuildingElement'].items():
@@ -307,44 +327,74 @@ class Project:
             # Calculate space heating and cooling demand for each zone and sum
             # Keep track of how much is from each zone, so that energy provided
             # can be split between them in same proportion later
-            space_heat_demand_total = 0.0 # in kWh
-            space_cool_demand_total = 0.0 # in kWh
+
+            space_heat_demand_system = {} # in kWh
+            for heat_system_name in self.__space_heat_systems.keys():
+                space_heat_demand_system[heat_system_name] = 0.0
+
+            space_cool_demand_system = {} # in kWh
+            for cool_system_name in self.__space_cool_systems.keys():
+                space_cool_demand_system[cool_system_name] = 0.0
+
             space_heat_demand_zone = {}
             space_cool_demand_zone = {}
-            for name, zone in self.__zones.items():
+            for z_name, zone in self.__zones.items():
+                # Look up names of relevant heating and cooling systems for this zone
+                h_name = self.__heat_system_name_for_zone[z_name]
+                c_name = self.__cool_system_name_for_zone[z_name]
+
                 # TODO Calculate the gains rather than hard-coding to zero (i.e. ignoring them)
                 gains_internal = 0.0
                 gains_solar = 0.0
 
-                space_heat_demand_zone[name], space_cool_demand_zone[name] = \
+                space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
                     zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal, gains_solar)
-                space_heat_demand_total = space_heat_demand_total + space_heat_demand_zone[name]
-                space_cool_demand_total = space_cool_demand_total + space_cool_demand_zone[name]
 
-            # Calculate how much heating/cooling the systems can provide
-            space_heat_provided = \
-                self.__space_heat_systems['main'].demand_energy(space_heat_demand_total)
-                # TODO Remove hard-coding of space heating system name and handle multiple systems
-            space_cool_provided = 0.0 # TODO Handle cooling (values should be <= 0.0
+                if h_name is not None: # If the zone is heated
+                    space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
+                if c_name is not None: # If the zone is cooled
+                    space_cool_demand_system[c_name] += space_cool_demand_zone[z_name]
+
+            # Calculate how much heating the systems can provide
+            space_heat_provided = {}
+            for heat_system_name, heat_system in self.__space_heat_systems.items():
+                space_heat_provided[heat_system_name] = \
+                    heat_system.demand_energy(space_heat_demand_system[heat_system_name])
+
+            # Calculate how much cooling the systems can provide
+            space_cool_provided = {}
+            for cool_system_name, cool_system in self.__space_cool_systems.items():
+                space_cool_provided[cool_system_name] = \
+                    cool_system.demand_energy(space_cool_demand_system[cool_system_name])
 
             # Apportion the provided heating/cooling between the zones in
             # proportion to the heating/cooling demand in each zone. Then
             # update resultant temperatures in zones.
-            for name, zone in self.__zones.items():
-                if space_heat_demand_total == 0.0:
-                    frac_heat_zone = 0.0
-                else:
-                    frac_heat_zone = space_heat_demand_zone[name] / space_heat_demand_total
+            for z_name, zone in self.__zones.items():
+                # Look up names of relevant heating and cooling systems for this zone
+                h_name = self.__heat_system_name_for_zone[z_name]
+                c_name = self.__cool_system_name_for_zone[z_name]
 
-                if space_cool_demand_total == 0.0:
-                    frac_cool_zone = 0.0
+                # If zone is unheated or there was no demand on heating system,
+                # set heating gains for zone to zero, else calculate
+                if h_name is None or space_heat_demand_system[h_name] == 0.0:
+                    gains_heat = 0.0
                 else:
-                    frac_cool_zone = space_cool_demand_zone[name] / space_cool_demand_total
+                    frac_heat_zone = space_heat_demand_zone[z_name] \
+                                   / space_heat_demand_system[h_name]
+                    gains_heat = space_heat_provided[h_name] * frac_heat_zone
 
-                gains_heat_cool = ( space_heat_provided * frac_heat_zone \
-                                  + space_cool_provided * frac_cool_zone \
-                                  ) \
-                                * units.W_per_kW / delta_t_h # Convert from kWh to W
+                # If zone is uncooled or there was no demand on cooling system,
+                # set cooling gains for zone to zero, else calculate
+                if c_name is None or space_cool_demand_system[c_name] == 0.0:
+                    gains_cool = 0.0
+                else:
+                    frac_cool_zone = space_cool_demand_zone[z_name] \
+                                   / space_cool_demand_system[c_name]
+                    gains_cool = space_cool_provided[c_name] * frac_cool_zone
+
+                # Sum heating gains (+ve) and cooling gains (-ve) and convert from kWh to W
+                gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
 
                 zone.update_temperatures(
                     delta_t,
