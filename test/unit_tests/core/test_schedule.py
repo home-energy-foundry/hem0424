@@ -20,6 +20,9 @@ class TestSchedule(unittest.TestCase):
 
     def setUp(self):
         """ Define schedules to be used in tests """
+
+        # Concise boolean schedule input (e.g. for heating time control) to be
+        # expanded into full schedule
         self.schedule = {
             "main": [
                 {"value": "weekday", "repeat": 5},
@@ -39,32 +42,34 @@ class TestSchedule(unittest.TestCase):
                 False,
                 ],
             }
+
+        # Expanded boolean schedule (one item per hour)
         self.schedule_expanded = [
-            # Weekday
+            # Weekday schedule (Mon)
             False, False, False, False, False, False, False, True,
             True, False, False, False, False, False, False, False,
             True, True, True, True, True, True, True, False,
-            # Weekday
+            # Weekday schedule (Tue)
             False, False, False, False, False, False, False, True,
             True, False, False, False, False, False, False, False,
             True, True, True, True, True, True, True, False,
-            # Weekday
+            # Weekday schedule (Wed)
             False, False, False, False, False, False, False, True,
             True, False, False, False, False, False, False, False,
             True, True, True, True, True, True, True, False,
-            # Weekday
+            # Weekday schedule (Thu)
             False, False, False, False, False, False, False, True,
             True, False, False, False, False, False, False, False,
             True, True, True, True, True, True, True, False,
-            # Weekday
+            # Weekday schedule (Fri)
             False, False, False, False, False, False, False, True,
             True, False, False, False, False, False, False, False,
             True, True, True, True, True, True, True, False,
-            # Weekend
+            # Weekend schedule (Sat)
             False, False, False, False, False, False, False, True,
             True, True, True, True, True, True, True, True,
             True, True, True, True, True, True, True, False,
-            # Weekend
+            # Weekend schedule (Sun)
             False, False, False, False, False, False, False, True,
             True, True, True, True, True, True, True, True,
             True, True, True, True, True, True, True, False,
@@ -73,6 +78,8 @@ class TestSchedule(unittest.TestCase):
     def test_process_schedule(self):
         """ Test that schedule is expanded correctly """
         self.maxDiff = None
+        # Run the concise schedule through the expand_schedule function and
+        # check it matches the expanded schedule as expected
         self.assertEqual(
             expand_schedule(bool, self.schedule, "main"),
             self.schedule_expanded,
