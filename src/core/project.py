@@ -191,6 +191,8 @@ class Project:
 
         # If one or more space heating systems have been provided, add them to the project
         self.__space_heat_systems = {}
+        # If no space heating systems have been provided, then skip. This
+        # facilitates running the simulation with no heating systems at all
         if 'SpaceHeatSystem' in proj_dict:
             for name, data in proj_dict['SpaceHeatSystem'].items():
                 self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
@@ -332,11 +334,12 @@ class Project:
 
             space_cool_demand_system = {} # in kWh
             for cool_system_name in self.__space_cool_systems.keys():
-                space_cool_demand_system[heat_system_name] = 0.0
+                space_cool_demand_system[cool_system_name] = 0.0
 
             space_heat_demand_zone = {}
             space_cool_demand_zone = {}
             for z_name, zone in self.__zones.items():
+                # Look up names of relevant heating and cooling systems for this zone
                 h_name = self.__heat_system_name_for_zone[z_name]
                 c_name = self.__cool_system_name_for_zone[z_name]
 
@@ -360,7 +363,7 @@ class Project:
 
             # Calculate how much cooling the systems can provide
             space_cool_provided = {}
-            for cool_system_name, cool_system in self.__space_cool_systems:
+            for cool_system_name, cool_system in self.__space_cool_systems.items():
                 space_cool_provided[cool_system_name] = \
                     cool_system.demand_energy(space_cool_demand_system[cool_system_name])
 
@@ -368,6 +371,7 @@ class Project:
             # proportion to the heating/cooling demand in each zone. Then
             # update resultant temperatures in zones.
             for z_name, zone in self.__zones.items():
+                # Look up names of relevant heating and cooling systems for this zone
                 h_name = self.__heat_system_name_for_zone[z_name]
                 c_name = self.__cool_system_name_for_zone[z_name]
 
