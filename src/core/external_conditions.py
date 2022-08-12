@@ -23,7 +23,7 @@ class ExternalConditions:
 
     def air_temp(self):
         """ Return the external air temperature for the current timestep """
-        return self.__air_temps[self.__simulation_time.index()]
+        return self.__air_temps[self.__simulation_time.current_hour()]
         # TODO Assumes air temps list is one entry per timestep but in
         #      future it could be e.g. hourly figures even if timestep is
         #      sub-hourly. This would require the SimulationTime class to
@@ -31,7 +31,7 @@ class ExternalConditions:
 
     def ground_temp(self):
         """ Return the external ground temperature for the current timestep """
-        return self.__ground_temps[self.__simulation_time.index()]
+        return self.__ground_temps[self.__simulation_time.current_hour()]
         # TODO Assumes ground temps list is one entry per timestep but in
         #      future it could be e.g. hourly figures even if timestep is
         #      sub-hourly. This would require the SimulationTime class to
