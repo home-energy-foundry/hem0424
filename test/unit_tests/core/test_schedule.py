@@ -89,14 +89,15 @@ class TestSchedule(unittest.TestCase):
     def test_expand_events(self):
         """ Test that list of events is expanded into schedule correctly """
         events = [
+            {"start": 2, "duration": 6},
             {"start": 2.1, "duration": 6},
             {"start": 3, "duration": 6}
         ]
         simulation_timestep = 0.5
         total_timesteps = 10
         schedule = [
-            None, None, None, None, {"start": 2.1, "duration": 6},
-            None, {"start": 3, "duration": 6}, None, None, None
+            None, None, None, None, [{"start": 2, "duration": 6}, {"start": 2.1, "duration": 6}],
+            None, [{"start": 3, "duration": 6}], None, None, None
             ]
         # Run the list of events through the expand_events function and check it
         # matches the event schedule expected

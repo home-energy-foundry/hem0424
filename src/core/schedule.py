@@ -78,5 +78,8 @@ def expand_events(event_list, sim_timestep, tot_timesteps):
     # starts in, and assign the event to that timestep
     for event in event_list:
         starting_timestep = floor(event['start'] / sim_timestep)
-        schedule[starting_timestep] = event
+        if schedule[starting_timestep] is None:
+            schedule[starting_timestep] = [event]
+        else:
+            schedule[starting_timestep].append(event)
     return schedule
