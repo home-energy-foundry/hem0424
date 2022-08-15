@@ -75,7 +75,7 @@ class TestSchedule(unittest.TestCase):
             True, True, True, True, True, True, True, False,
             ]
 
-    def test_process_schedule(self):
+    def test_expand_schedule(self):
         """ Test that schedule is expanded correctly """
         self.maxDiff = None
         # Run the concise schedule through the expand_schedule function and
