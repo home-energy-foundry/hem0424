@@ -229,12 +229,10 @@ class ExternalConditions:
         nhour is the actual (clock) time for the location, the hour of the day, in h
         """
         
-        nhour = self.__simulation_time.current()
-        #TODO nhour is the actual clock hour of the day. But we currently can't
-        #calculate that from the inputs since the timestep is defined as being from an
-        #arbitrary zero point. suggestion would be to allow input of the start day 
-        #for the calculation and always begin at midnight.
-        #using 'current' simulation time for now as a proxy.
+        nhour = self.__simulation_time.current_hour()
+        #TODO at midnight nhour is 0 and so we get a negative solar time for any location 
+        #west of 0 latitude. There is never any radiation at midnight anyway so perhaps 
+        #it doesn't matter? just something to be aware of if we see odd results later.
 
         tsol = nhour - (self.equation_of_time() / 60) - self.time_shift()
         
