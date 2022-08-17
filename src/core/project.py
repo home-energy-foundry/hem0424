@@ -167,6 +167,7 @@ class Project:
             self.__showers[name] = dict_to_shower(name, data)
 
         def dict_to_event_schedules(data):
+            """ Process list of events (for hot water draw-offs, appliance use etc.) """
             sim_timestep = self.__simtime.timestep()
             tot_timesteps = self.__simtime.total_steps()
             return expand_events(data, sim_timestep, tot_timesteps)
