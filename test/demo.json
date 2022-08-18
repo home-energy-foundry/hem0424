@@ -54,6 +54,18 @@
 			"EnergySupply": "mains elec"
 		}
 	},
+	"Events": {
+		"Shower": {
+			"IES": [
+				{"start": 4.1, "duration": 6, "temperature": 41.0},
+				{"start": 4.5, "duration": 6, "temperature": 41.0},
+				{"start": 6, "duration": 6, "temperature": 41.0}
+			],
+			"mixer": [
+				{"start": 7, "duration": 6, "temperature": 41.0}
+			]
+		}
+	},
 	"SpaceHeatSystem": {
 		"main": {
 			"type": "InstantElecHeater",

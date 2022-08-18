@@ -9,6 +9,7 @@ schedules) in input files.
 
 # Standard library imports
 import sys
+from math import floor
 
 def expand_schedule(sched_type, sched_dict, sched_main):
     """ Construct a schedule from direct entries or sub-schedules.
@@ -58,3 +59,27 @@ def expand_schedule(sched_type, sched_dict, sched_main):
         return sched_expanded
 
     return process_schedule_entries(sched_dict[sched_main])
+
+
+def expand_events(event_list, sim_timestep, tot_timesteps):
+    """ Construct a schedule from a list of events
+    
+    Arguments:
+    event_list    -- list of event dictionaries, where the 'start' element gives
+                     the start time of the event, in hours from the start of the
+                     simulation
+    sim_timestep  -- length of simulation timestep, in hours
+    tot_timesteps -- total number of timesteps in the simulation
+    """
+    # Initialise schedule of events, with no events taking place
+    schedule = [None] * tot_timesteps
+
+    # For each event in the list, calculate which timestep of the simulation it
+    # starts in, and assign the event to that timestep
+    for event in event_list:
+        starting_timestep = floor(event['start'] / sim_timestep)
+        if schedule[starting_timestep] is None:
+            schedule[starting_timestep] = [event]
+        else:
+            schedule[starting_timestep].append(event)
+    return schedule
