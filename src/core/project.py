@@ -25,6 +25,7 @@ from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.water_heat_demand.shower import MixerShower, InstantElecShower
+from core.space_heat_demand.internal_gains import InternalGains
 
 
 class Project:
@@ -72,6 +73,11 @@ class Project:
         for name, data in proj_dict['EnergySupply'].items():
             self.__energy_supplies[name] = EnergySupply(data['fuel'], self.__simtime)
             # TODO Consider replacing fuel type string with fuel type object
+
+        self.__internal_gains = InternalGains(
+            proj_dict['InternalGains']['total_internal_gains'],
+            self.__simtime
+            )
 
         def dict_to_ctrl(name, data):
             """ Parse dictionary of control data and return approprate control object """
@@ -346,11 +352,11 @@ class Project:
                 c_name = self.__cool_system_name_for_zone[z_name]
 
                 # TODO Calculate the gains rather than hard-coding to zero (i.e. ignoring them)
-                gains_internal = 0.0
                 gains_solar = 0.0
-
+                # Convert W/m2 to W
+                gains_internal_zone = self.__internal_gains.total_internal_gain() * zone.area()
                 space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
-                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal, gains_solar)
+                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal_zone, gains_solar)
 
                 if h_name is not None: # If the zone is heated
                     space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
@@ -398,10 +404,13 @@ class Project:
                 # Sum heating gains (+ve) and cooling gains (-ve) and convert from kWh to W
                 gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
 
+                # Convert W/m2 to W
+                gains_internal_zone = self.__internal_gains.total_internal_gain() * zone.area()
+
                 zone.update_temperatures(
                     delta_t,
                     temp_ext_air,
-                    gains_internal,
+                    gains_internal_zone,
                     gains_solar,
                     gains_heat_cool
                     )

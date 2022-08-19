@@ -107,6 +107,9 @@ class Zone:
         # TODO Currently hard-coded to 10.0 deg C - make this configurable?
         self.__temp_prev = [10.0] * self.__no_of_temps
 
+    def area(self):
+        return self.__useful_area
+
     def __calc_temperatures(self,
             delta_t,
             temp_prev,
