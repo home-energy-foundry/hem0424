@@ -104,8 +104,8 @@ class Boiler:
 
         # TODO Assign boiler_dict elements to member variables of this class
 
-    def service(self, service_name, service_type):
-        """ Return a BoilerService object """
+    def __create_service_connection(self, service_name):
+        """ Create an EnergySupplyConnection for the service name given """
         # Check that service_name is not already registered
         if service_name in self.__energy_supply_connections.keys():
             sys.exit("Error: Service name already used: "+service_name)
@@ -115,10 +115,17 @@ class Boiler:
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
 
-        if service_type == 'W': # Hot water cylinder/tank
-            return BoilerServiceWater(self, service_name)
-        else:
-            sys.exit(service_name + ': service type (' + str(service_type) + ') not recognised.')
+    def service_hot_water(self, service_name, temp_hot_water, temp_limit_upper, cold_feed):
+        """ Return a BoilerServiceWater object and create an EnergySupplyConnection for it
+        
+        Arguments:
+        service_name -- name of the service demanding energy from the boiler
+        temp_hot_water -- temperature of the hot water to be provided, in deg C
+        temp_limit_upper -- upper operating limit for temperature, in deg C
+        cold_feed -- reference to ColdWaterSource object
+        """
+        self.__create_service_connection(service_name)
+        return BoilerServiceWater(self, service_name, temp_hot_water, temp_limit_upper, cold_feed)
 
     def __demand_energy(
             self,
