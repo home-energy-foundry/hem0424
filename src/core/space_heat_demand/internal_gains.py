@@ -12,7 +12,7 @@ class InternalGains:
         """ Construct a InternalGains object
 
         Arguments:
-        total_internal_gains -- list of internal gains, in W (one entry per timestep)
+        total_internal_gains -- list of internal gains, in W/m2 (one entry per timestep)
         simulation_time  -- reference to SimulationTime object
         """
         self.__total_internal_gains = total_internal_gains
