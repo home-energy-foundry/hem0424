@@ -17,7 +17,8 @@
 		"end_day": 1,
 		"january_first": 1,
 		"daylight_savings": "not applicable",
-		"leap_day_included": false
+		"leap_day_included": false,
+		"direct_beam_conversion_needed": false
 		
 		
 	},

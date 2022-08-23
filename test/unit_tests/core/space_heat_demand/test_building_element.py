@@ -36,6 +36,7 @@ class TestBuildingElementOpaque(unittest.TestCase):
                                 None,
                                 None,
                                 None,
+                                None,
                                 )
         #TODO implement rest of external conditions in unit tests
 
@@ -173,6 +174,7 @@ class TestBuildingElementGround(unittest.TestCase):
                                 None,
                                 None,
                                 None,
+                                None
                                 )
         #TODO implement rest of external conditions in unit tests
 
@@ -294,6 +296,7 @@ class TestBuildingElementTransparent(unittest.TestCase):
         """ Create BuildingElementTransparent object to be tested """
         self.simtime = SimulationTime(0, 4, 1)
         ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None, 
+                                None,
                                 None,
                                 None,
                                 None,

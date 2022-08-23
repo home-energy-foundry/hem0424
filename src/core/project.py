@@ -72,7 +72,8 @@ class Project:
             proj_dict['ExternalConditions']['end_day'],
             proj_dict['ExternalConditions']['january_first'],
             proj_dict['ExternalConditions']['daylight_savings'],
-            proj_dict['ExternalConditions']['leap_day_included']
+            proj_dict['ExternalConditions']['leap_day_included'],
+            proj_dict['ExternalConditions']['direct_beam_conversion_needed']
             )
 
         self.__cold_water_sources = {}
@@ -318,7 +319,6 @@ class Project:
 
     def run(self):
         """ Run the simulation """
-
         def hot_water_demand():
             """ Calculate the hot water demand for the current timestep """
             hw_demand = 0.0

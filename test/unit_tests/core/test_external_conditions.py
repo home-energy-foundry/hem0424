@@ -35,6 +35,7 @@ class TestExternalConditions(unittest.TestCase):
         self.january_first = 1
         self.daylight_savings = "not applicable"
         self.leap_day_included = False
+        self.direct_beam_conversion_needed = False
         self.extcond = ExternalConditions(self.simtime, 
                                           self.airtemp, 
                                           self.groundtemp,
@@ -48,7 +49,8 @@ class TestExternalConditions(unittest.TestCase):
                                           self.end_day,
                                           self.january_first,
                                           self.daylight_savings,
-                                          self.leap_day_included
+                                          self.leap_day_included,
+                                          self.direct_beam_conversion_needed
                                         )
 
     def test_air_temp(self):

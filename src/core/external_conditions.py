@@ -27,7 +27,8 @@ class ExternalConditions:
             end_day,
             january_first,
             daylight_savings,
-            leap_day_included
+            leap_day_included,
+            direct_beam_conversion_needed
             ):
         """ Construct an ExternalConditions object
 
@@ -49,6 +50,9 @@ class ExternalConditions:
                             applicable but not taken into account, 
                             not applicable
         leap_day_included   -- whether climate data includes a leap day, true or false (single value)
+        direct_beam_conversion_needed -- A flag to indicate whether direct beam radiation from climate data needs to be 
+                                        converted from horizontal to normal incidence. If normal direct beam radiation 
+                                        values are provided then no conversion is needed. 
         """     
         
         self.__simulation_time  = simulation_time
@@ -65,6 +69,7 @@ class ExternalConditions:
         self.__january_first = january_first
         self.__daylight_savings = daylight_savings
         self.__leap_day_included = leap_day_included
+        self.__direct_beam_conversion_needed = direct_beam_conversion_needed
         
     def testoutput_setup(self,tilt,orientation):
         """ print output to a file for analysis """
@@ -169,7 +174,20 @@ class ExternalConditions:
         
     def direct_beam_radiation(self):
         """ Return the direct_beam_radiation for the current timestep """
-        return self.__direct_beam_radiation[self.__simulation_time.current_hour()]
+        raw_value = self.__direct_beam_radiation[self.__simulation_time.current_hour()]
+        
+        if self.__direct_beam_conversion_needed:
+            sin_asol = sin(radians(self.solar_altitude()))
+            #prevent division by zero error. if sin_asol = 0 then the sun is lower than the
+            #horizon and there will be no direct radiation to convert
+            if sin_asol > 0:
+                Gsol_b = raw_value / sin_asol
+            else:
+                Gsol_b = raw_value
+        else:
+            Gsol_b = raw_value
+        
+        return Gsol_b
         # TODO Assumes direct_beam_radiation list is one entry per timestep but in
         #      future it could be e.g. hourly figures even if timestep is
         #      sub-hourly. This would require the SimulationTime class to

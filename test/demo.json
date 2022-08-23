@@ -7,8 +7,8 @@
 	"ExternalConditions": {
 		"air_temperatures": [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0],
 		"ground_temperatures": [8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7],
-		"diffuse_horizontal_radiation": [333, 610, 572, 420, 0, 10, 90, 275],
-		"direct_beam_radiation": [420, 750, 425, 500, 0, 40, 0, 388],
+		"diffuse_horizontal_radiation": [50, 50, 50, 50, 50, 50, 50, 50],
+		"direct_beam_radiation": [150, 150, 150, 150, 150, 150, 150, 150],
 		"solar_reflectivity_of_ground": [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
 		"latitude": 51.42,
 		"longitude": -0.75,
@@ -17,7 +17,8 @@
 		"end_day": 100,
 		"january_first": 1,
 		"daylight_savings": "not applicable",
-		"leap_day_included": false
+		"leap_day_included": false,
+		"direct_beam_conversion_needed": false
 		
 		
 	},
