@@ -49,7 +49,8 @@ class ExternalConditions:
                             applicable but not taken into account, 
                             not applicable
         leap_day_included   -- whether climate data includes a leap day, true or false (single value)
-        """
+        """     
+        
         self.__simulation_time  = simulation_time
         self.__air_temps        = air_temps
         self.__ground_temps     = ground_temps
@@ -64,6 +65,83 @@ class ExternalConditions:
         self.__january_first = january_first
         self.__daylight_savings = daylight_savings
         self.__leap_day_included = leap_day_included
+        
+    def testoutput_setup(self,tilt,orientation):
+        """ print output to a file for analysis """
+        
+        #call this function once at the start of the calculation to test outputs
+        
+        import time
+        readable = time.ctime()
+        with open("test_sunpath.txt", "a") as o:
+            o.write("\n")
+            o.write("\n")
+            o.write("*****************")
+            o.write("\n")
+            o.write(readable)
+            o.write("\n")
+            o.write("latitude " + str(self.latitude()))
+            o.write("\n")
+            o.write("longitude " + str(self.longitude()))
+            o.write("\n")
+            o.write("day of year " + str(self.start_day()))
+            o.write("\n")
+            o.write("surface tilt " + str(tilt))
+            o.write("\n")
+            o.write("surface orientation " + str(orientation))
+            o.write("\n")
+            o.write("sim hour,solar time,s declination,s hour angle,s altitude,s azimuth,air mass,sun surface azimuth,direct irad,solar angle of incidence,ET irad,F1,F2,E,delta,a over b,diffuse irad,ground reflect irad,circumsolar,final diffuse,final direct")
+            
+        
+    def testoutput(self,tilt,orientation):
+        """ print output to a file for analysis """
+        
+        #call this function once during every timestep to test outputs
+        
+        #write headers
+        with open("test_sunpath.txt", "a") as o:
+            o.write("\n")
+            o.write(str(self.__simulation_time.current_hour()))
+            o.write(",")
+            o.write(str(self.solar_time()))
+            o.write(",")
+            o.write(str(self.solar_declination()))
+            o.write(",")
+            o.write(str(self.solar_hour_angle()))
+            o.write(",")
+            o.write(str(self.solar_altitude()))
+            o.write(",")
+            o.write(str(self.solar_azimuth_angle()))
+            o.write(",")
+            o.write(str(self.air_mass()))
+            o.write(",")
+            o.write(str(self.sun_surface_azimuth(orientation)))
+            o.write(",")
+            o.write(str(self.direct_irradiance(tilt, orientation)))
+            o.write(",")
+            o.write(str(self.solar_angle_of_incidence(tilt, orientation)))
+            o.write(",")
+            o.write(str(self.extra_terrestrial_radiation()))
+            o.write(",")
+            o.write(str(self.F1(tilt, orientation)))
+            o.write(",")
+            o.write(str(self.F2(tilt, orientation)))
+            o.write(",")
+            o.write(str(self.dimensionless_clearness_parameter()))
+            o.write(",")
+            o.write(str(self.dimensionless_sky_brightness_parameter(tilt, orientation)))
+            o.write(",")
+            o.write(str(self.a_over_b(tilt, orientation)))
+            o.write(",")
+            o.write(str(self.diffuse_irradiance(tilt, orientation)))
+            o.write(",")
+            o.write(str(self.ground_reflection_irradiance(tilt)))
+            o.write(",")
+            o.write(str(self.circumsolar_irradiance(tilt, orientation)))
+            o.write(",")
+            o.write(str(self.calculated_diffuse_irradiance(tilt, orientation)))
+            o.write(",")
+            o.write(str(self.calculated_direct_irradiance(tilt, orientation)))
 
     def air_temp(self):
         """ Return the external air temperature for the current timestep """
@@ -83,7 +161,7 @@ class ExternalConditions:
         
     def diffuse_horizontal_radiation(self):
         """ Return the diffuse_horizontal_radiation for the current timestep """
-        return self.__diffuse_horizontal_radiation[self.__simulation_time.index()]
+        return self.__diffuse_horizontal_radiation[self.__simulation_time.current_hour()]
         # TODO Assumes diffuse_horizontal_radiation list is one entry per timestep but in
         #      future it could be e.g. hourly figures even if timestep is
         #      sub-hourly. This would require the SimulationTime class to
@@ -91,7 +169,7 @@ class ExternalConditions:
         
     def direct_beam_radiation(self):
         """ Return the direct_beam_radiation for the current timestep """
-        return self.__direct_beam_radiation[self.__simulation_time.index()]
+        return self.__direct_beam_radiation[self.__simulation_time.current_hour()]
         # TODO Assumes direct_beam_radiation list is one entry per timestep but in
         #      future it could be e.g. hourly figures even if timestep is
         #      sub-hourly. This would require the SimulationTime class to
@@ -99,7 +177,7 @@ class ExternalConditions:
 
     def solar_reflectivity_of_ground(self):
         """ Return the solar_reflectivity_of_ground for the current timestep """
-        return self.__solar_reflectivity_of_ground[self.__simulation_time.index()]
+        return self.__solar_reflectivity_of_ground[self.__simulation_time.current_hour()]
         # TODO Assumes solar_reflectivity_of_ground list is one entry per timestep but in
         #      future it could be e.g. hourly figures even if timestep is
         #      sub-hourly. This would require the SimulationTime class to
@@ -172,7 +250,7 @@ class ExternalConditions:
         solar_declination = 0.33281 - 22.984 * cos(Rdc) - 0.3499 * cos(2 * Rdc) \
                           - 0.1398 * cos(3 * Rdc) + 3.7872 * sin(Rdc) + 0.03205 \
                           * sin(2 * Rdc) + 0.07187 * sin(3 * Rdc)
-                          
+
         return solar_declination
             
     def equation_of_time(self):
@@ -190,31 +268,28 @@ class ExternalConditions:
         # note we convert the values inside the cos() to radians for the python function
         # even though the 180 / pi is converting from radians into degrees
         # this way the formula remains consistent with as written in the ISO document
-        
+            
         if   nday < 21:
             teq = 2.6 + 0.44 * nday
         elif nday < 136:
-            teq = 5.2 + 9.0 * cos(radians((nday - 43) * 0.0357 * (180 / pi)))
+            teq = 5.2 + 9.0 * cos((nday - 43) * 0.0357)
         elif nday < 241:
-            teq = 1.4 - 5.0 * cos(radians((nday - 135) * 0.0449 * (180 / pi)))
+            teq = 1.4 - 5.0 * cos((nday - 135) * 0.0449)
         elif nday < 336:
-            teq = -6.3 - 10.0 * cos(radians((nday - 306) * 0.036 * (180 / pi)))
+            teq = -6.3 - 10.0 * cos((nday - 306) * 0.036)
         elif nday <= 366:
             teq = 0.45 * (nday - 359)
         else:
             sys.exit("Day of the year ("+str(nday)+") not valid")
-            
+ 
         return teq
         
     def time_shift(self):
-        """ Calculate the time shift resulting from the fact that the 
-        longitude and the path of the sun are not equal """
+        """ Calculate the time shift, in hours, resulting from the fact that the 
+        longitude and the path of the sun are not equal
         
-        """ 
-        tshift is the time shift, in h
-        TZ is the time zone, the actual (clock) time for the location compared to UTC, in h;
-        λw is the longitude of the weather station, in degrees
-        """       
+        NOTE Daylight saving time is disregarded in tshift which is time independent
+        """
         
         tshift = self.timezone() - self.longitude() / 15
         
@@ -230,9 +305,6 @@ class ExternalConditions:
         """
         
         nhour = self.__simulation_time.current_hour()
-        #TODO at midnight nhour is 0 and so we get a negative solar time for any location 
-        #west of 0 latitude. There is never any radiation at midnight anyway so perhaps 
-        #it doesn't matter? just something to be aware of if we see odd results later.
 
         tsol = nhour - (self.equation_of_time() / 60) - self.time_shift()
         
@@ -372,6 +444,14 @@ class ExternalConditions:
         sin_sha = sin(radians(self.solar_hour_angle()))
         cos_sha = cos(radians(self.solar_hour_angle()))
         
+        #TODO while debugging the negative diffuse radiation issue, I came across this equation
+        #in The Practical Handbook of Photovoltaics, Chapter IIA-1 The Role of Solar Radiation
+        #Climatology in the Design of Photovoltaic Systems
+        #BUT the first line is different and reads sin_dec * sin_lat - cos_t
+        #I thought this could potentially be a reason for the odd negative value of diffue radiation
+        #around sunrise, but trying the alternate version gives a math domain error for horizontal
+        #surfaces - i.e. tilt = 0 so it is likley the ISO formulation is the correct one.
+        
         solar_angle_of_incidence = acos( \
                                    sin_dec * sin_lat * cos_t \
                                  - sin_dec * cos_lat * sin_t * cos_o \
@@ -433,7 +513,7 @@ class ExternalConditions:
     # preprocessing step so that the core calculation always recieves the 'correct' climate data.
     
     # TODO one exception to the above could be this if we expect the climate data to only provide
-    # direct horizontal (rather than normal?:
+    # direct horizontal (rather than normal):
     # If only direct (beam) solar irradiance at horizontal plane is available in the climatic data set,
     # it shall be converted to normal incidence by dividing the value by the sine of the solar altitude.
     # for now I assume the direct beam in the inputs is normal incidence.
@@ -459,11 +539,11 @@ class ExternalConditions:
                           
         """
         
-        direct_irradiance = max(0, self.direct_beam_radiation(), cos(radians(self.solar_angle_of_incidence(tilt, orientation))))
-    
+        direct_irradiance = max(0, self.direct_beam_radiation() * cos(radians(self.solar_angle_of_incidence(tilt, orientation))))
+
         return direct_irradiance
     
-    def extra_terrestrial_radiation(self, tilt, orientation):
+    def extra_terrestrial_radiation(self):
         """  calculates the extra terrestrial radiation, the normal irradiance out of the atmosphere 
         as a function of the day
         
@@ -476,9 +556,13 @@ class ExternalConditions:
                           
         """
         
-        extra_terrestrial_radiation = self.solar_angle_of_incidence(tilt, orientation) \
-                                    * (1 + 0.033 * cos(radians(self.earth_orbit_deviation())))
-    
+        #NOTE the ISO 52010 has an error in this formula.
+        #it lists Gsol,c as the solar angle of incidence on the inclined surface
+        #when it should be the solar constant, given elsewhere as 1367
+        #we use the correct version of the formula here
+        
+        extra_terrestrial_radiation = 1367 * (1 + 0.033 * cos(radians(self.earth_orbit_deviation())))
+
         return extra_terrestrial_radiation
     
     def brightness_coefficient(self, E, Fij):
@@ -523,6 +607,125 @@ class ExternalConditions:
             }
         
         return brightness_coeff_dict[index][Fij]
+    
+    def F1(self, tilt, orientation):
+        """ returns the circumsolar brightness coefficient, F1
+
+        Arguments:
+        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
+                          upwards facing, 0 to 180, in degrees;
+        orientation    -- is the orientation angle of the inclined surface, expressed as the 
+                          geographical azimuth angle of the horizontal projection of the inclined 
+                          surface normal, -180 to 180, in degrees;
+                          
+        """
+        
+        E = self.dimensionless_clearness_parameter()
+        delta = self.dimensionless_sky_brightness_parameter(tilt, orientation)
+        
+        #brightness coeffs
+        f11 = self.brightness_coefficient(E, 'f11')
+        f12 = self.brightness_coefficient(E, 'f12')
+        f13 = self.brightness_coefficient(E, 'f13')
+        #The formulation of F1 is made so as to avoid non-physical negative values 
+        #that may occur and result in unacceptable distortions if the model is used 
+        #for very low solar elevation angles
+        F1 = max(0, f11 + f12 * delta + f13 * (pi * self.solar_zenith_angle() / 180))
+        
+        return F1
+    
+    def F2(self, tilt, orientation):
+        """ returns the horizontal brightness coefficient, F2
+        
+        Arguments:
+        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
+                          upwards facing, 0 to 180, in degrees;
+        orientation    -- is the orientation angle of the inclined surface, expressed as the 
+                          geographical azimuth angle of the horizontal projection of the inclined 
+                          surface normal, -180 to 180, in degrees;
+                          
+        """
+        
+        E = self.dimensionless_clearness_parameter()
+        delta = self.dimensionless_sky_brightness_parameter(tilt, orientation)
+        
+        #horizontal brightness coefficient, F2
+        f21 = self.brightness_coefficient(E, 'f21')
+        f22 = self.brightness_coefficient(E, 'f22')
+        f23 = self.brightness_coefficient(E, 'f23')
+        #F2 does not have the same restriction of max 0 as F1
+        #from the EnergyPlus Engineering Reference:
+        #The horizon brightening is assumed to be a linear source at the horizon 
+        #and to be independent of azimuth. In actuality, for clear skies, the 
+        #horizon brightening is highest at the horizon and decreases in intensity 
+        #away from the horizon. For overcast skies the horizon brightening has a 
+        #negative value since for such skies the sky radiance increases rather than 
+        #decreases away from the horizon.
+        F2 = f21 + f22 * delta + f23 * (pi * self.solar_zenith_angle() / 180)
+        
+        #TODO this is giving large negative values for vertical surfaces that are not south facing
+        #for tilt = 90 the equatins reduces to:
+        #Gsol_d * ((1 - F1) * 0.5 + F2
+        #F2 is negative and dominates....
+        #does any one know the Perez model in detail to be able to help understand?
+       
+        return F2
+    
+    def dimensionless_clearness_parameter(self):
+        """ returns the dimensionless clearness parameter, E, anisotropic sky conditions (Perez model)"""
+        
+        Gsol_d = self.diffuse_horizontal_radiation()
+        Gsol_b = self.direct_beam_radiation()
+        asol = self.solar_altitude()
+        
+        #constant parameter for the clearness formula, K, in rad^-3 from table 9 of ISO 52010
+        K = 1.014
+        
+        if Gsol_d == 0:
+            E = 999
+        else:
+            E = (((Gsol_d + Gsol_b) / Gsol_d) + K * (pi / 180 * asol)**3) \
+              / (1 + K * (pi / 180 * asol)**3)
+              
+        return E
+    
+    def dimensionless_sky_brightness_parameter(self, tilt, orientation):
+        """  calculates the dimensionless sky brightness parameter, delta
+        
+        Arguments:
+        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
+                          upwards facing, 0 to 180, in degrees;
+        orientation    -- is the orientation angle of the inclined surface, expressed as the 
+                          geographical azimuth angle of the horizontal projection of the inclined 
+                          surface normal, -180 to 180, in degrees;
+                          
+        """
+        
+        delta = self.air_mass() * self.diffuse_horizontal_radiation() \
+              / self.extra_terrestrial_radiation()
+        
+        return delta
+    
+    def a_over_b(self, tilt, orientation):
+        """  calculates the ratio of the parameters a and b
+        
+        Arguments:
+        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
+                          upwards facing, 0 to 180, in degrees;
+        orientation    -- is the orientation angle of the inclined surface, expressed as the 
+                          geographical azimuth angle of the horizontal projection of the inclined 
+                          surface normal, -180 to 180, in degrees;
+                          
+        """
+        
+        #dimensionless parameters a & b
+        #describing the incidence-weighted solid angle sustained by the circumsolar region as seen 
+        #respectively by the tilted surface and the horizontal. 
+        a = max(0, cos(radians(self.solar_angle_of_incidence(tilt, orientation))))
+        b = max(cos(radians(85)), cos(radians(self.solar_zenith_angle())))
+        
+        return a / b
+        
      
     def diffuse_irradiance(self, tilt, orientation):
         """  calculates the diffuse part of the irradiance on the surface (without ground reflection)
@@ -535,47 +738,19 @@ class ExternalConditions:
                           surface normal, -180 to 180, in degrees;
                           
         """
+        
         #first set up parameters needed for the calculation
         Gsol_d = self.diffuse_horizontal_radiation()
-        Gsol_b = self.direct_beam_radiation()
-        asol = self.solar_altitude()
-        
-        #dimensionless parameters a & b
-        a = max(0, cos(radians(self.solar_angle_of_incidence(tilt, orientation))))
-        b = max(cos(radians(85)), cos(radians(self.solar_zenith_angle())))
-        
-        #constant parameter for the clearness formula, K, in rad^-3 from table 9 of ISO 52010
-        K = 1.014
-        
-        #dimensionless clearness parameter, anisotropic sky conditions (Perez model)
-        if Gsol_d == 0:
-            E = 999
-        else:
-            E = (((Gsol_d + Gsol_b) / Gsol_d) + K * (pi / 180 * asol)**3) \
-              / (1 + K * (pi / 180 * asol)**3)
-              
-        #dimensionless sky brightness parameter
-        delta = self.air_mass() * Gsol_d / self.extra_terrestrial_radiation(tilt, orientation)
-        
-        #circumsolar brightness coefficient, F1
-        f11 = self.brightness_coefficient(E, 'f11')
-        f12 = self.brightness_coefficient(E, 'f12')
-        f13 = self.brightness_coefficient(E, 'f13')
-        F1 = max(0, f11 + f12 * delta + f13 * (pi * self.solar_zenith_angle() / 180))
-        
-        #horizontal brightness coefficient, F2
-        f21 = self.brightness_coefficient(E, 'f21')
-        f22 = self.brightness_coefficient(E, 'f22')
-        f23 = self.brightness_coefficient(E, 'f23')
-        F2 = f21 + f22 * delta + f23 * (pi * self.solar_zenith_angle() / 180)
+        F1 = self.F1(tilt, orientation)
+        F2 = self.F2(tilt, orientation)
+        a_over_b = self.a_over_b(tilt, orientation)
         
         #main calculation using all the above parameters
         diffuse_irradiance = Gsol_d * ( (1 - F1) \
                             * ((1 + cos(radians(tilt))) / 2) \
-                            + F1 * (a / b) + F2 * sin(radians(tilt)) \
+                            + F1 * a_over_b + F2 * sin(radians(tilt)) \
                             )
-        
-    
+
         return diffuse_irradiance
     
     def ground_reflection_irradiance(self, tilt):
@@ -609,35 +784,12 @@ class ExternalConditions:
                           surface normal, -180 to 180, in degrees;
                           
         """
-        #first set up parameters needed for the calculation
+
         Gsol_d = self.diffuse_horizontal_radiation()
-        Gsol_b = self.direct_beam_radiation()
-        asol = self.solar_altitude()
+        F1 = self.F1(tilt, orientation)
+        a_over_b = self.a_over_b(tilt, orientation)
         
-        #dimensionless parameters a & b
-        a = max(0, cos(radians(self.solar_angle_of_incidence(tilt, orientation))))
-        b = max(cos(radians(85)), cos(radians(self.solar_zenith_angle())))
-        
-        #constant parameter for the clearness formula, K, in rad^-3 from table 9 of ISO 52010
-        K = 1.014
-        
-        #dimensionless clearness parameter, anisotropic sky conditions (Perez model)
-        if Gsol_d == 0:
-            E = 999
-        else:
-            E = (((Gsol_d + Gsol_b) / Gsol_d) + K * (pi / 180 * asol)**3) \
-              / (1 + K * (pi / 180 * asol)**3)
-              
-        #dimensionless sky brightness parameter
-        delta = self.air_mass() * Gsol_d / self.extra_terrestrial_radiation(tilt, orientation)
-        
-        #circumsolar brightness coefficient, F1
-        f11 = self.brightness_coefficient(E, 'f11')
-        f12 = self.brightness_coefficient(E, 'f12')
-        f13 = self.brightness_coefficient(E, 'f13')
-        F1 = max(0, f11 + f12 * delta + f13 * (pi * self.solar_zenith_angle() / 180))
-        
-        circumsolar_irradiance = Gsol_d * F1 * (a / b)
+        circumsolar_irradiance = Gsol_d * F1 * a_over_b
         
         return circumsolar_irradiance
     
