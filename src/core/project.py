@@ -13,7 +13,7 @@ import sys
 import core.units as units
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
-from core.schedule import expand_schedule
+from core.schedule import expand_schedule, expand_events
 from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
@@ -178,6 +178,19 @@ class Project:
         for name, data in proj_dict['Shower'].items():
             self.__showers[name] = dict_to_shower(name, data)
 
+        def dict_to_event_schedules(data):
+            """ Process list of events (for hot water draw-offs, appliance use etc.) """
+            sim_timestep = self.__simtime.timestep()
+            tot_timesteps = self.__simtime.total_steps()
+            return expand_events(data, sim_timestep, tot_timesteps)
+
+        self.__event_schedules = {}
+        for sched_type, schedules in proj_dict['Events'].items():
+            if sched_type not in self.__event_schedules:
+                self.__event_schedules[sched_type] = {}
+            for name, data in schedules.items():
+                self.__event_schedules[sched_type][name] = dict_to_event_schedules(data)
+
         def dict_to_space_heat_system(name, data):
             space_heater_type = data['type']
             if space_heater_type == 'InstantElecHeater':
@@ -319,12 +332,26 @@ class Project:
 
     def run(self):
         """ Run the simulation """
-        def hot_water_demand():
-            """ Calculate the hot water demand for the current timestep """
+
+        def hot_water_demand(t_idx):
+            """ Calculate the hot water demand for the current timestep
+            
+            Arguments:
+            t_idx -- timestep index/count
+            """
             hw_demand = 0.0
             for name, shower in self.__showers.items():
-                hw_demand = hw_demand + shower.hot_water_demand(41.0, 6.0)
-                # TODO Remove hard-coding of shower temperature and duration
+                # Get all shower use events for the current timestep
+                usage_events = self.__event_schedules['Shower'][name][t_idx]
+
+                # If shower is used in the current timestep, get details of use
+                # and calculate HW demand from shower
+                if usage_events is not None:
+                    for event in usage_events:
+                        shower_temp = event['temperature']
+                        shower_duration = event['duration']
+                        hw_demand += shower.hot_water_demand(shower_temp, shower_duration)
+
             return hw_demand
 
         def calc_space_heating(delta_t_h):
@@ -419,7 +446,7 @@ class Project:
 
         # Loop over each timestep
         for t_idx, t_current, delta_t_h in self.__simtime:
-            hw_demand = hot_water_demand()
+            hw_demand = hot_water_demand(t_idx)
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
 

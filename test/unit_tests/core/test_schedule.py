@@ -13,7 +13,7 @@ from unit_tests.common import test_setup
 test_setup()
 
 # Local imports
-from core.schedule import expand_schedule
+from core.schedule import expand_schedule, expand_events
 
 class TestSchedule(unittest.TestCase):
     """ Unit tests for schedule module """
@@ -75,7 +75,7 @@ class TestSchedule(unittest.TestCase):
             True, True, True, True, True, True, True, False,
             ]
 
-    def test_process_schedule(self):
+    def test_expand_schedule(self):
         """ Test that schedule is expanded correctly """
         self.maxDiff = None
         # Run the concise schedule through the expand_schedule function and
@@ -84,4 +84,25 @@ class TestSchedule(unittest.TestCase):
             expand_schedule(bool, self.schedule, "main"),
             self.schedule_expanded,
             "incorrect schedule expansion"
+            )
+
+    def test_expand_events(self):
+        """ Test that list of events is expanded into schedule correctly """
+        events = [
+            {"start": 2, "duration": 6},
+            {"start": 2.1, "duration": 6},
+            {"start": 3, "duration": 6}
+        ]
+        simulation_timestep = 0.5
+        total_timesteps = 10
+        schedule = [
+            None, None, None, None, [{"start": 2, "duration": 6}, {"start": 2.1, "duration": 6}],
+            None, [{"start": 3, "duration": 6}], None, None, None
+            ]
+        # Run the list of events through the expand_events function and check it
+        # matches the event schedule expected
+        self.assertEqual(
+            expand_events(events, simulation_timestep, total_timesteps),
+            schedule,
+            "incorrect expansion of event list to schedule",
             )
