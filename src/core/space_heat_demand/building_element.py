@@ -177,6 +177,94 @@ class BuildingElementOpaque(BuildingElement):
         #      environment, not e.g. elements to adjacent zones.
 
 
+class BuildingElementAdjacentZTC(BuildingElement):
+    """ A class to represent building elements adjacent to a thermally conditioned zone (ZTC) """
+
+    def __init__(self,
+            area,
+            h_ci,
+            h_ri,
+            r_c,
+            k_m,
+            mass_distribution_class,
+            ext_cond,
+            ):
+        """ Construct a BuildingElementAdjacentZTC object
+
+        Arguments (names based on those in BS EN ISO 52016-1:2017):
+        area     -- area (in m2) of this building element
+        h_ci     -- internal convective heat transfer coefficient, in W / (m2.K)
+        h_ri     -- internal radiative heat transfer coefficient, in W / (m2.K)
+        r_c      -- thermal resistance, in m2.K / W
+        k_m      -- areal heat capacity, in J / (m2.K)
+        ext_cond -- reference to ExternalConditions object
+        mass_distribution_class
+                 -- distribution of mass in building element, one of:
+                    - 'I':  mass concentrated on internal side
+                    - 'E':  mass concentrated on external side
+                    - 'IE': mass divided over internal and external side
+                    - 'D':  mass equally distributed
+                    - 'M':  mass concentrated inside
+
+        Other variables:
+        f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
+        h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
+        h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
+        a_sol    -- solar absorption coefficient at the external surface (dimensionless)
+        """
+        self.__external_conditions = ext_cond
+
+        # Element is adjacent to another building / thermally conditioned zone therefore
+        # according to BS EN ISO 52016-1:2017, section 6.5.6.3.6:
+        # View factor to the sky is zero 
+        f_sky = 0
+        # Solar absorption coefficient at the external surface is zero
+        a_sol = 0
+        # External heat transfer coefficients are zero
+        h_ce = 0
+        h_re = 0
+
+        # Initialise the base BuildingElement class
+        super().__init__(area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky)
+
+        # Calculate node conductances (h_pli) and node heat capacities (k_pli)
+        # according to BS EN ISO 52016-1:2017, section 6.5.7.2
+
+        def init_h_pli():
+            h_outer = 6.0 / r_c
+            h_inner = 3.0 / r_c
+            return [h_outer, h_inner, h_inner, h_outer]
+
+        self.h_pli = init_h_pli()
+
+        def init_k_pli():
+            if   mass_distribution_class == 'I':
+                return [0.0, 0.0, 0.0, 0.0, k_m]
+            elif mass_distribution_class == 'E':
+                return [k_m, 0.0, 0.0, 0.0, 0.0]
+            elif mass_distribution_class == 'IE':
+                k_ie = k_m / 2.0
+                return [k_ie, 0.0, 0.0, 0.0, k_ie]
+            elif mass_distribution_class == 'D':
+                k_inner = k_m / 4.0
+                k_outer = k_m / 8.0
+                return [k_outer, k_inner, k_inner, k_inner, k_outer]
+            elif mass_distribution_class == 'M':
+                return [0.0, 0.0, k_m, 0.0, 0.0]
+            else:
+                sys.exit("Mass distribution class ("+str(mass_distribution_class)+") not valid")
+                # TODO Exit just the current case instead of whole program entirely?
+
+        self.k_pli = init_k_pli()
+
+    def temp_ext(self):
+        """ Return the temperature of the air on the other side of the building element """
+        return self.__external_conditions.air_temp()
+        # Air on other side of building element is in ZTC
+        # Assume adiabtiatic boundary conditions (BS EN ISO 52016-1:2017, section 6.5.6.3.6)
+        # Therefore no heat transfer from external facing node
+
+
 class BuildingElementGround(BuildingElement):
     """ A class to represent ground building elements """
 
