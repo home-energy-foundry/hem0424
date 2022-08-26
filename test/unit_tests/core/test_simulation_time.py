@@ -21,7 +21,7 @@ class TestSimulationTime(unittest.TestCase):
     def setUp(self):
         """ Create SimulationTime object to be tested """
         self.timestep = 0.5
-        self.simtime = SimulationTime(2, 6, self.timestep)
+        self.simtime = SimulationTime(22, 26, self.timestep)
 
     def test_timestep(self):
         """ Test that SimulationTime object returns correct timestep """
@@ -43,21 +43,26 @@ class TestSimulationTime(unittest.TestCase):
                 # Check that call to next() returns correct index and current time
                 self.assertEqual(
                     next(simtime_iter),
-                    (i, i * self.timestep + 2, self.timestep),
+                    (i, i * self.timestep + 22, self.timestep),
                     "incorrect loop vars returned"
                     )
 
                 # Check that individual functions also return correct index and current time
                 self.assertEqual(
                     self.simtime.current(),
-                    2 + i * self.simtime.timestep(),
+                    22 + i * self.simtime.timestep(),
                     "incorrect current time returned"
                     )
                 self.assertEqual(self.simtime.index(), i, "incorrect ordinal index returned")
                 self.assertEqual(
                     self.simtime.current_hour(),
-                    [2, 2, 3, 3, 4, 4, 5, 5][i],
+                    [22, 22, 23, 23, 24, 24, 25, 25][i],
                     "incorrect current hour returned"
+                    )
+                self.assertEqual(
+                    self.simtime.hour_of_day(),
+                    [22, 22, 23, 23, 0, 0, 1, 1][i],
+                    "incorrect hour of day returned"
                     )
 
         # Once all timesteps have been iterated over, next increment should raise exception

@@ -80,6 +80,12 @@ class SimulationTime:
         """ Return current hour """
         return int(math.floor(self.__current))
 
+    def hour_of_day(self):
+        """ Return hour of day (00:00-01:00 is hour zero) """
+        # TODO Assumes that self.__current == 0 is midnight - make this more flexible
+        time_of_day = self.__current % 24
+        return int(math.floor(time_of_day))
+
     def total_steps(self):
         """ Return the total number of timesteps in simulation """
         return self.__total
