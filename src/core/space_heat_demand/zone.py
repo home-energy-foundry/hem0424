@@ -181,12 +181,12 @@ class Zone:
             # Position of first (external) node within element is zero
             i = 0
             # Coeff for temperature of this node
-            matrix_a[idx][idx] = (eli.k_pli[i] / delta_t) + eli.h_ce + eli.h_re + eli.h_pli[i]
+            matrix_a[idx][idx] = (eli.k_pli[i] / delta_t) + eli.h_ce() + eli.h_re() + eli.h_pli[i]
             # Coeff for temperature of next node
             matrix_a[idx][idx + 1] = - eli.h_pli[i]
             # RHS of heat balance eqn for this node
             vector_b[idx] = (eli.k_pli[i] / delta_t) * temp_prev[idx] \
-                          + (eli.h_ce + eli.h_re) * eli.temp_ext() \
+                          + (eli.h_ce() + eli.h_re()) * eli.temp_ext() \
                           + eli.a_sol * (eli.i_sol_dif + eli.i_sol_dir * eli.f_sh_obst) \
                           - eli.therm_rad_to_sky
 
@@ -211,7 +211,7 @@ class Zone:
             matrix_a[idx][idx - 1] = - eli.h_pli[i - 1]
             # Coeff for temperature of this node
             matrix_a[idx][idx] = (eli.k_pli[i] / delta_t) + eli.h_ci \
-                               + eli.h_ri * sum_area_frac + eli.h_pli[i - 1]
+                               + eli.h_ri() * sum_area_frac + eli.h_pli[i - 1]
             # Add final sum term for LHS of eqn 39 in loop below.
             # These are coeffs for temperatures of internal surface nodes of
             # all building elements in the zone
@@ -222,7 +222,7 @@ class Zone:
                 # already partially set the value of the matrix element above
                 # (before this loop) and do not want to overwrite it)
                 matrix_a[idx][col] = matrix_a[idx][col] \
-                                   - (elk.area / self.__area_el_total) * eli.h_ri
+                                   - (elk.area / self.__area_el_total) * eli.h_ri()
             # Coeff for temperature of thermal zone
             matrix_a[idx][self.__zone_idx] = - eli.h_ci
             # RHS of heat balance eqn for this node

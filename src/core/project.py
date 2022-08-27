@@ -228,9 +228,6 @@ class Project:
                 building_element = BuildingElementOpaque(
                     data['area'],
                     data['h_ci'],
-                    data['h_ri'],
-                    data['h_ce'],
-                    data['h_re'],
                     data['a_sol'],
                     data['r_c'],
                     data['k_m'],
@@ -242,9 +239,6 @@ class Project:
                 building_element = BuildingElementTransparent(
                     data['area'],
                     data['h_ci'],
-                    data['h_ri'],
-                    data['h_ce'],
-                    data['h_re'],
                     data['r_c'],
                     data['pitch'],
                     self.__external_conditions,
@@ -253,7 +247,6 @@ class Project:
                 building_element = BuildingElementGround(
                     data['area'],
                     data['h_ci'],
-                    data['h_ri'],
                     data['h_ce'],
                     data['h_re'],
                     data['r_c'],
@@ -267,7 +260,6 @@ class Project:
                 building_element = BuildingElementAdjacentZTC(
                     data['area'],
                     data['h_ci'],
-                    data['h_ri'],
                     data['r_c'],
                     data['k_m'],
                     data['mass_distribution_class'],

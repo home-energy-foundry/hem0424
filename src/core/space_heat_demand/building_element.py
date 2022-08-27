@@ -45,15 +45,12 @@ class BuildingElement:
                        environment, in deg C
     """
 
-    def __init__(self, area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky):
+    def __init__(self, area, h_ci, a_sol, f_sky):
         """ Initialisation common to all building element types
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area  -- area (in m2) of this building element
         h_ci  -- internal convective heat transfer coefficient, in W / (m2.K)
-        h_ri  -- internal radiative heat transfer coefficient, in W / (m2.K)
-        h_ce  -- external convective heat transfer coefficient, in W / (m2.K)
-        h_re  -- external radiative heat transfer coefficient, in W / (m2.K)
         a_sol -- solar absorption coefficient at the external surface (dimensionless)
         f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
 
@@ -73,15 +70,27 @@ class BuildingElement:
         """
         self.area  = area
         self.h_ci  = h_ci
-        self.h_ri  = h_ri
-        self.h_ce  = h_ce
-        self.h_re  = h_re
         self.a_sol = a_sol
         self.i_sol_dif = 0.0
         self.i_sol_dir = 0.0
         self.f_sh_obst = 0.0
 
-        self.therm_rad_to_sky = f_sky * h_re * temp_diff_sky
+        self.therm_rad_to_sky = f_sky * self.h_re() * temp_diff_sky
+
+    def h_ri(self):
+        """ Return internal radiative heat transfer coefficient, in W / (m2.K) """
+        # Value from BS EN ISO 13789:2017, Table 8
+        return 5.13
+
+    def h_ce(self):
+        """ Return external convective heat transfer coefficient, in W / (m2.K) """
+        # Value from BS EN ISO 13789:2017, Table 8
+        return 20.0
+
+    def h_re(self):
+        """ Return external radiative heat transfer coefficient, in W / (m2.K) """
+        # Value from BS EN ISO 13789:2017, Table 8
+        return 4.14
 
     def no_of_nodes(self):
         """ Return number of nodes including external and internal layers """
@@ -98,9 +107,6 @@ class BuildingElementOpaque(BuildingElement):
     def __init__(self,
             area,
             h_ci,
-            h_ri,
-            h_ce,
-            h_re,
             a_sol,
             r_c,
             k_m,
@@ -113,9 +119,6 @@ class BuildingElementOpaque(BuildingElement):
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
         h_ci     -- internal convective heat transfer coefficient, in W / (m2.K)
-        h_ri     -- internal radiative heat transfer coefficient, in W / (m2.K)
-        h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
-        h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
         a_sol    -- solar absorption coefficient at the external surface (dimensionless)
         r_c      -- thermal resistance, in m2.K / W
         k_m      -- areal heat capacity, in J / (m2.K)
@@ -138,7 +141,7 @@ class BuildingElementOpaque(BuildingElement):
         f_sky = sky_view_factor(pitch)
 
         # Initialise the base BuildingElement class
-        super().__init__(area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky)
+        super().__init__(area, h_ci, a_sol, f_sky)
 
         # Calculate node conductances (h_pli) and node heat capacities (k_pli)
         # according to BS EN ISO 52016-1:2017, section 6.5.7.2
@@ -183,7 +186,6 @@ class BuildingElementAdjacentZTC(BuildingElement):
     def __init__(self,
             area,
             h_ci,
-            h_ri,
             r_c,
             k_m,
             mass_distribution_class,
@@ -194,7 +196,6 @@ class BuildingElementAdjacentZTC(BuildingElement):
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
         h_ci     -- internal convective heat transfer coefficient, in W / (m2.K)
-        h_ri     -- internal radiative heat transfer coefficient, in W / (m2.K)
         r_c      -- thermal resistance, in m2.K / W
         k_m      -- areal heat capacity, in J / (m2.K)
         ext_cond -- reference to ExternalConditions object
@@ -225,7 +226,7 @@ class BuildingElementAdjacentZTC(BuildingElement):
         h_re = 0
 
         # Initialise the base BuildingElement class
-        super().__init__(area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky)
+        super().__init__(area, h_ci, a_sol, f_sky)
 
         # Calculate node conductances (h_pli) and node heat capacities (k_pli)
         # according to BS EN ISO 52016-1:2017, section 6.5.7.2
@@ -257,6 +258,20 @@ class BuildingElementAdjacentZTC(BuildingElement):
 
         self.k_pli = init_k_pli()
 
+    def h_ce(self):
+        """ Return external convective heat transfer coefficient, in W / (m2.K) """
+        # Element is adjacent to another building / thermally conditioned zone
+        # therefore according to BS EN ISO 52016-1:2017, section 6.5.6.3.6,
+        # external heat transfer coefficients are zero
+        return 0.0
+
+    def h_re(self):
+        """ Return external radiative heat transfer coefficient, in W / (m2.K) """
+        # Element is adjacent to another building / thermally conditioned zone
+        # therefore according to BS EN ISO 52016-1:2017, section 6.5.6.3.6,
+        # external heat transfer coefficients are zero
+        return 0.0
+
     def temp_ext(self):
         """ Return the temperature of the air on the other side of the building element """
         return self.__external_conditions.air_temp()
@@ -271,7 +286,6 @@ class BuildingElementGround(BuildingElement):
     def __init__(self,
             area,
             h_ci,
-            h_ri,
             h_ce,
             h_re,
             r_c,
@@ -286,7 +300,6 @@ class BuildingElementGround(BuildingElement):
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
         h_ci     -- internal convective heat transfer coefficient, in W / (m2.K)
-        h_ri     -- internal radiative heat transfer coefficient, in W / (m2.K)
         h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
         h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
         r_c      -- thermal resistance of the ground floor element, in m2.K / W
@@ -305,7 +318,12 @@ class BuildingElementGround(BuildingElement):
         # TODO add ground-specific arguments described above (r_gr and k_gr) into code, maybe set as universal inputs
         
         self.__external_conditions = ext_cond
-        
+
+        # TODO Set external surface heat transfer coefficients based on thermal
+        #      resistance of virtual ground layer. For now, these are inputs.
+        self.__h_ce = h_ce
+        self.__h_re = h_re
+
         # Solar absorption coefficient at the external surface of the ground element is zero
         # according to BS EN ISO 52016-1:2017, section 6.5.7.3
         a_sol = 0.0
@@ -314,7 +332,7 @@ class BuildingElementGround(BuildingElement):
         f_sky = 0.0
 
         # Initialise the base BuildingElement class
-        super().__init__(area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky)
+        super().__init__(area, h_ci, a_sol, f_sky)
 
         # Calculate node conductances (h_pli) and node heat capacities (k_pli)
         # according to BS EN ISO 52016-1:2017, section 6.5.7.3
@@ -348,6 +366,14 @@ class BuildingElementGround(BuildingElement):
 
         self.k_pli = init_k_pli()
 
+    def h_ce(self):
+        """ Return external convective heat transfer coefficient, in W / (m2.K) """
+        return self.__h_ce
+
+    def h_re(self):
+        """ Return external radiative heat transfer coefficient, in W / (m2.K) """
+        return self.__h_re
+
     def temp_ext(self):
         """ Return the temperature of the air on the other side of the building element """
         return self.__external_conditions.ground_temp()
@@ -359,9 +385,6 @@ class BuildingElementTransparent(BuildingElement):
     def __init__(self,
             area,
             h_ci,
-            h_ri,
-            h_ce,
-            h_re,
             r_c,
             pitch,
             ext_cond,
@@ -371,9 +394,6 @@ class BuildingElementTransparent(BuildingElement):
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
         h_ci     -- internal convective heat transfer coefficient, in W / (m2.K)
-        h_ri     -- internal radiative heat transfer coefficient, in W / (m2.K)
-        h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
-        h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
         r_c      -- thermal resistance, in m2.K / W
         pitch    -- pitch, in degrees
         ext_cond -- reference to ExternalConditions object
@@ -390,7 +410,7 @@ class BuildingElementTransparent(BuildingElement):
         f_sky = sky_view_factor(pitch)
 
         # Initialise the base BuildingElement class
-        super().__init__(area, h_ci, h_ri, h_ce, h_re, a_sol, f_sky)
+        super().__init__(area, h_ci, a_sol, f_sky)
 
         # Calculate node conductances (h_pli) and node heat capacities (k_pli)
         # according to BS EN ISO 52016-1:2017, section 6.5.7.4
