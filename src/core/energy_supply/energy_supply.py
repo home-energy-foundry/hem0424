@@ -8,7 +8,20 @@ mains electricity or other fuels (e.g. LPG, wood pellets).
 
 # Standard library inputs
 import sys
+from enum import Enum,auto
 
+class Fuel_code(Enum):
+    MAINS_GAS = auto()
+    ELECTRICITY = auto()
+    
+    @classmethod
+    def from_string(cls, strval):
+        if strval == 'mains_gas':
+            return cls.MAINS_GAS
+        elif strval == 'electricity':
+            return cls.ELECTRICITY
+        else:
+            sys.exit('fuel code ('+ str(strval) + ') not valid')
 
 class EnergySupplyConnection:
     """ An object to represent the connection of a system that consumes energy to the energy supply
@@ -34,6 +47,9 @@ class EnergySupplyConnection:
         """ Forwards the amount of energy demanded (in kWh) to the relevant EnergySupply object """
         self.__energy_supply._EnergySupply__demand_energy(self.__end_user_name, amount_demanded)
 
+    def fuel_type(self):
+        return self.__energy_supply.fuel_type()
+    
 
 class EnergySupply:
     """ An object to represent an energy supply, and to report energy consumption """
@@ -54,7 +70,7 @@ class EnergySupply:
         demand_by_end_user -- dictionary of lists to hold demand from each end user on this
                               energy supply at each timestep
         """
-        self.__fuel_type          = fuel_type
+        self.__fuel_type          = Fuel_code.from_string(fuel_type)
         self.__simulation_time    = simulation_time
         self.__demand_total       = self.__init_demand_list()
         self.__demand_by_end_user = {}
@@ -102,3 +118,8 @@ class EnergySupply:
         Returns dictionary of lists, where dictionary keys are names of end users.
         """
         return self.__demand_by_end_user
+
+    def fuel_type(self):
+        return self.__fuel_type
+    
+    

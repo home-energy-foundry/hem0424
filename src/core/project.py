@@ -17,6 +17,7 @@ from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
+from core.heating_systems.boiler import Boiler
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import BuildingElementOpaque
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -178,6 +179,17 @@ class Project:
                     energy_supply_conn,
                     self.__simtime,
                     ctrl,
+                    )
+            elif space_heater_type == 'Boiler':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+                
+                space_heater = Boiler(
+                    data,
+                    energy_supply_conn,
+                    self.__external_conditions,
+                    self.__simtime
                     )
             else:
                 sys.exit(name + ': space heating system type (' \
