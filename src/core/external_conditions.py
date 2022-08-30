@@ -626,7 +626,7 @@ class ExternalConditions:
         
         return brightness_coeff_dict[index][Fij]
     
-    def F1(self, tilt, orientation):
+    def F1(self):
         """ returns the circumsolar brightness coefficient, F1
 
         Arguments:
@@ -639,7 +639,7 @@ class ExternalConditions:
         """
         
         E = self.dimensionless_clearness_parameter()
-        delta = self.dimensionless_sky_brightness_parameter(tilt, orientation)
+        delta = self.dimensionless_sky_brightness_parameter()
         
         #brightness coeffs
         f11 = self.brightness_coefficient(E, 'f11')
@@ -652,7 +652,7 @@ class ExternalConditions:
         
         return F1
     
-    def F2(self, tilt, orientation):
+    def F2(self):
         """ returns the horizontal brightness coefficient, F2
         
         Arguments:
@@ -665,7 +665,7 @@ class ExternalConditions:
         """
         
         E = self.dimensionless_clearness_parameter()
-        delta = self.dimensionless_sky_brightness_parameter(tilt, orientation)
+        delta = self.dimensionless_sky_brightness_parameter()
         
         #horizontal brightness coefficient, F2
         f21 = self.brightness_coefficient(E, 'f21')
@@ -680,12 +680,6 @@ class ExternalConditions:
         #negative value since for such skies the sky radiance increases rather than 
         #decreases away from the horizon.
         F2 = f21 + f22 * delta + f23 * (pi * self.solar_zenith_angle() / 180)
-        
-        #TODO this is giving large negative values for vertical surfaces that are not south facing
-        #for tilt = 90 the equatins reduces to:
-        #Gsol_d * ((1 - F1) * 0.5 + F2
-        #F2 is negative and dominates....
-        #does any one know the Perez model in detail to be able to help understand?
        
         return F2
     
@@ -707,7 +701,7 @@ class ExternalConditions:
               
         return E
     
-    def dimensionless_sky_brightness_parameter(self, tilt, orientation):
+    def dimensionless_sky_brightness_parameter(self):
         """  calculates the dimensionless sky brightness parameter, delta
         
         Arguments:
@@ -759,8 +753,8 @@ class ExternalConditions:
         
         #first set up parameters needed for the calculation
         Gsol_d = self.diffuse_horizontal_radiation()
-        F1 = self.F1(tilt, orientation)
-        F2 = self.F2(tilt, orientation)
+        F1 = self.F1()
+        F2 = self.F2()
         a_over_b = self.a_over_b(tilt, orientation)
         
         #main calculation using all the above parameters
