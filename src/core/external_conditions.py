@@ -321,7 +321,9 @@ class ExternalConditions:
         tsol is the solar time, in h
         nhour is the actual (clock) time for the location, the hour of the day, in h
         """
-        nhour = self.__simulation_time.hour_of_day()
+        nhour = self.__simulation_time.hour_of_day() + 1
+        #note we +1 here because the simulation hour of day starts at 0
+        #while the sun path standard hour of day starts at 1 (hour 0 to 1)
         tsol = nhour - (self.equation_of_time() / 60) - self.time_shift()
         
         return tsol    
