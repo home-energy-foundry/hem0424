@@ -21,6 +21,7 @@ from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround
+from core.space_heat_demand.ventilation_element import VentilationElementInfiltration
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -269,6 +270,35 @@ class Project:
                 # TODO Exit just the current case instead of whole program entirely?
             return building_element
 
+        def dict_to_ventilation_element(name, data):
+            ventilation_element_type = data['type']
+            if ventilation_element_type == 'VentilationElementInfiltration':
+                ventilation_element = VentilationElementInfiltration(
+                    data['storey'],
+                    data['shelter'],
+                    data['build_type'],
+                    data['test_result'],
+                    data['test_type'],
+                    data['env_area'],
+                    data['volume'],
+                    data['sheltered_sides'],
+                    data['open_chimneys'],
+                    data['open_flues'],
+                    data['closed_fire'],
+                    data['flues_d'],
+                    data['flues_e'],
+                    data['blocked_chimneys'],
+                    data['extract_fans'],
+                    data['passive_vents'],
+                    data['gas_fires'],
+                    self.__external_conditions,
+                    )
+            else:
+                sys.exit( name + ': ventilation element type ('
+                      + ventilation_element_type + ') not recognised.' )
+            # TODO Exit just the current case instead of whole program entirely?
+            return ventilation_element
+
         def dict_to_thermal_bridging(data):
             # If data is for individual thermal bridges, initialise the relevant
             # objects and return a list of them. Otherwise, just use the overall
@@ -316,8 +346,13 @@ class Project:
 
             # Read in thermal bridging data
             thermal_bridging = dict_to_thermal_bridging(data['ThermalBridging'])
-            # TODO Implement ventilation elements rather than using empty list (i.e. ignoring them)
+
+            # Read in ventilation elements and add to list
             vent_elements = []
+            for ventilation_element_name, ventilation_element_data in data['VentilationElement'].items():
+                vent_elements.append(
+                    dict_to_ventilation_element(ventilation_element_name, ventilation_element_data)
+                    )
 
             return Zone(data['area'], building_elements, thermal_bridging, vent_elements)
 
