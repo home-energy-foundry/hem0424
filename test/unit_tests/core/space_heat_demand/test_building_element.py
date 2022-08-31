@@ -258,11 +258,11 @@ class TestBuildingElementGround(unittest.TestCase):
         ec = ExternalConditions(self.simtime, None, [8.0, 9.0, 10.0, 11.0])
 
         # Create an object for each mass distribution class
-        be_I = BuildingElementGround(20.0, 0, 0.50, 0.20, 0.25, 0.5, 19000.0, 24000.0, "I", ec)
-        be_E = BuildingElementGround(22.5, 45, 0.51, 0.21, 0.50, 0.5, 18000.0, 24000.0, "E", ec)
-        be_IE = BuildingElementGround(25.0, 90, 0.52, 0.22, 0.75, 0.5, 17000.0, 24000.0, "IE", ec)
-        be_D = BuildingElementGround(27.5, 135, 0.53, 0.23, 0.80, 0.5, 16000.0, 24000.0, "D", ec)
-        be_M = BuildingElementGround(30.0, 180, 0.54, 0.24, 0.40, 0.5, 15000.0, 24000.0, "M", ec)
+        be_I = BuildingElementGround(20.0, 0, 1.5, 0.1, 19000.0, "I", ec)
+        be_E = BuildingElementGround(22.5, 45, 1.4, 0.2, 18000.0, "E", ec)
+        be_IE = BuildingElementGround(25.0, 90, 1.33, 0.2, 17000.0, "IE", ec)
+        be_D = BuildingElementGround(27.5, 135, 1.25, 0.2, 16000.0, "D", ec)
+        be_M = BuildingElementGround(30.0, 180, 1.0, 0.3, 15000.0, "M", ec)
 
         # Put objects in a list that can be iterated over
         self.test_be_objs = [be_I, be_E, be_IE, be_D, be_M]
@@ -305,12 +305,11 @@ class TestBuildingElementGround(unittest.TestCase):
 
     def test_h_ce(self):
         """ Test that correct h_ce is returned when queried """
-        # Define increment between test cases
-        h_ce_inc = 0.01
+        results = [15.78947368, 91.30434783, 20.59886422, 10.34482759, 5.084745763]
 
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_ce(), 0.5 + i * h_ce_inc, msg="incorrect h_ce returned")
+                self.assertAlmostEqual(be.h_ce(), results[i], msg="incorrect h_ce returned")
 
     def test_h_re(self):
         """ Test that correct h_re is returned when queried """
@@ -319,7 +318,7 @@ class TestBuildingElementGround(unittest.TestCase):
 
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_re(), 0.2 + i * h_re_inc, msg="incorrect h_re returned")
+                self.assertAlmostEqual(be.h_re(), 0.0, msg="incorrect h_re returned")
 
     def test_a_sol(self):
         """ Test that correct a_sol is returned when queried """
@@ -340,11 +339,11 @@ class TestBuildingElementGround(unittest.TestCase):
     def test_h_pli(self):
         """ Test that correct h_pli list is returned when queried """
         results = [
-            [4.0, 3.2, 8.0, 16.0],
-            [4.0, 2.6666666666666665, 4.0, 8.0],
-            [4.0, 2.2857142857142856, 2.6666666666666665, 5.333333333333333],
-            [4.0, 2.2222222222222223, 2.5, 5.0],
-            [4.0, 2.857142857142857, 5.0, 10.0],
+            [6.0, 3.0, 3.0, 6.0],
+            [6.0, 2.896551724137931, 2.8, 5.6],
+            [6.0, 2.8197879858657244, 2.66, 5.32],
+            [6.0, 2.727272727272727, 2.5, 5.0],
+            [6.0, 2.4000000000000004, 2.0, 4.0],
             ]
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
@@ -353,11 +352,11 @@ class TestBuildingElementGround(unittest.TestCase):
     def test_k_pli(self):
         """ Test that correct k_pli list is returned when queried """
         results = [
-            [0.0, 24000.0, 0.0, 0.0, 19000.0],
-            [0.0, 24000.0, 18000.0, 0.0, 0.0],
-            [0.0, 24000.0, 8500.0, 0.0, 8500.0],
-            [0.0, 24000.0, 4000.0, 8000.0, 4000.0],
-            [0.0, 24000.0, 0.0, 15000.0, 0.0],
+            [0.0, 150000.0, 0.0, 0.0, 19000.0],
+            [0.0, 150000.0, 18000.0, 0.0, 0.0],
+            [0.0, 150000.0, 8500.0, 0.0, 8500.0],
+            [0.0, 150000.0, 4000.0, 8000.0, 4000.0],
+            [0.0, 150000.0, 0.0, 15000.0, 0.0],
             ]
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):

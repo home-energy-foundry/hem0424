@@ -245,12 +245,9 @@ class Project:
                 building_element = BuildingElementGround(
                     data['area'],
                     data['pitch'],
-                    data['h_ce'],
-                    data['h_re'],
-                    data['r_c'],
-                    data['r_gr'],
+                    data['u_value'],
+                    data['r_f'],
                     data['k_m'],
-                    data['k_gr'],
                     data['mass_distribution_class'],
                     self.__external_conditions,
                     )

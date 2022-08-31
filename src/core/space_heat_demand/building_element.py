@@ -306,12 +306,9 @@ class BuildingElementGround(BuildingElement):
     def __init__(self,
             area,
             pitch,
-            h_ce,
-            h_re,
-            r_c,
-            r_gr,
+            u_value,
+            r_f,
             k_m,
-            k_gr,
             mass_distribution_class,
             ext_cond,
             ):
@@ -320,12 +317,10 @@ class BuildingElementGround(BuildingElement):
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
         pitch    -- pitch, in degrees, where 0 means facing down, and 90 means vertical
-        h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
-        h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
-        r_c      -- thermal resistance of the ground floor element, in m2.K / W
-        r_gr     -- thermal resistance of the fixed ground layer, in m2.K / W
+        u_value  -- steady-state thermal transmittance of floor, including the
+                    effect of the ground, in W / (m2.K)
+        r_f      -- total thermal resistance of all layers in the floor construction, in (m2.K) / W
         k_m      -- areal heat capacity of the ground floor element, in J / (m2.K)
-        k_gr     -- areal heat capacity of the fixed ground element, in J / (m2.K)
         ext_cond -- reference to ExternalConditions object
         mass_distribution_class
                  -- distribution of mass in building element, one of:
@@ -334,15 +329,17 @@ class BuildingElementGround(BuildingElement):
                     - 'IE': mass divided over internal and external side
                     - 'D':  mass equally distributed
                     - 'M':  mass concentrated inside
-        """
-        # TODO add ground-specific arguments described above (r_gr and k_gr) into code, maybe set as universal inputs
-        
-        self.__external_conditions = ext_cond
 
-        # TODO Set external surface heat transfer coefficients based on thermal
-        #      resistance of virtual ground layer. For now, these are inputs.
-        self.__h_ce = h_ce
-        self.__h_re = h_re
+        Other variables:
+        h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
+        h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
+        r_c      -- thermal resistance of the ground floor element including the
+                    effect of the ground, in m2.K / W
+        r_gr     -- thermal resistance of the fixed ground layer, in m2.K / W
+        k_gr     -- areal heat capacity of the fixed ground layer, in J / (m2.K)
+        """
+        self.__u_value = u_value
+        self.__external_conditions = ext_cond
 
         # Solar absorption coefficient at the external surface of the ground element is zero
         # according to BS EN ISO 52016-1:2017, section 6.5.7.3
@@ -351,6 +348,26 @@ class BuildingElementGround(BuildingElement):
         # View factor to the sky is zero because element is in contact with the ground
         f_sky = 0.0
 
+        # Thermal properties of ground from BS EN ISO 13370:2017 Table 7
+        # Use values for clay or silt (same as BR 443 and SAP 10)
+        thermal_conductivity = 1.5
+        heat_capacity_per_vol = 300000
+
+        # Calculate thermal resistance and heat capacity of fixed ground layer
+        # using BS EN ISO 13370:2017
+        thickness_ground_layer = 0.5 # Specified in BS EN ISO 52016-1:2017 section 6.5.8.2
+        r_gr = thickness_ground_layer / thermal_conductivity
+        k_gr = thickness_ground_layer * heat_capacity_per_vol
+
+        # Calculate thermal resistance of virtual layer using BS EN ISO 13370:2017 Equation (F1)
+        r_si = 0.17 # ISO 6946 - internal surface resistance
+        r_vi = (1.0 / u_value) - r_si - r_f - r_gr
+
+        # Set external surface heat transfer coeffs as per BS EN ISO 52016-1:2017 eqn 49
+        # Must be set before initialisation of base class, as these are referenced there
+        self.__h_ce = 1.0 / r_vi
+        self.__h_re = 0.0
+
         # Initialise the base BuildingElement class
         super().__init__(area, pitch, a_sol, f_sky)
 
@@ -358,6 +375,7 @@ class BuildingElementGround(BuildingElement):
         # according to BS EN ISO 52016-1:2017, section 6.5.7.3
 
         def init_h_pli():
+            r_c = 1.0 / u_value
             h_4 = 4.0 / r_c
             h_3 = 2.0 / r_c
             h_2 = 1.0 / (r_c / 4 + r_gr / 2)
