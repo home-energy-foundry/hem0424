@@ -24,7 +24,7 @@ class TestBuildingElementOpaque(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementOpaque objects to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None)
+        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None, None)
 
         # Create an object for each mass distribution class
         be_I = BuildingElementOpaque(20.0, 0.30, 0.40, 0.50, 0.20, 0.60, 0.25, 19000.0, "I", 0, ec)
@@ -148,7 +148,7 @@ class TestBuildingElementGround(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementGround objects to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, None, [8.0, 9.0, 10.0, 11.0])
+        ec = ExternalConditions(self.simtime, None, [8.0, 9.0, 10.0, 11.0], None)
 
         # Create an object for each mass distribution class
         be_I = BuildingElementGround(20.0, 0.30, 0.40, 0.50, 0.20, 0.25, 0.5, 19000.0, 24000.0, "I", ec)
@@ -267,7 +267,7 @@ class TestBuildingElementTransparent(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementTransparent object to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None)
+        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None, None)
 
         self.be = BuildingElementTransparent(5.0, 0.35, 0.45, 0.30, 0.25, 0.4, 90, ec)
 
