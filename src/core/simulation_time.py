@@ -78,12 +78,15 @@ class SimulationTime:
 
     def current_hour(self):
         """ Return current hour """
+        # Round down to remove fractions of hour
         return int(math.floor(self.__current))
 
     def hour_of_day(self):
         """ Return hour of day (00:00-01:00 is hour zero) """
         # TODO Assumes that self.__current == 0 is midnight - make this more flexible
+        # Remainder from division by 24 gives time relative to start of day
         time_of_day = self.__current % 24
+        # Round down to remove fractions of hour
         return int(math.floor(time_of_day))
 
     def total_steps(self):
