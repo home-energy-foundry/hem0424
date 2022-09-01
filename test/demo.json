@@ -176,6 +176,15 @@
 					"k_m": 19300,
 					"k_gr": 24000.0,
 					"mass_distribution_class": "D"
+				},
+				"wall 4":{
+					"type": "BuildingElementAdjacentZTC",
+					"area": 20.0,
+					"h_ci": 0.34,
+					"h_ri": 0.44,
+					"r_c": 0.74,
+					"k_m": 19400,
+					"mass_distribution_class": "I"
 				}
 			},
 			"ThermalBridging": {
