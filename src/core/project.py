@@ -432,13 +432,42 @@ class Project:
                     gains_heat_cool
                     )
 
-        # Loop over each timestep
+                if c_name is None:
+                    cooling_name = 'n/a'
+                    space_cool_demand_system[c_name] = 'n/a'
+                else:
+                    cooling_name = c_name
+                    space_cool_demand_system = space_cool_demand_system[c_name]
+
+                #These dictionaries should not be converted
+                space_cool_demand_zone = space_cool_demand_zone[z_name]
+                space_heat_demand_zone =  space_heat_demand_zone[z_name]
+                space_heat_demand_system = space_heat_demand_system[h_name]
+
+            return zone.temp_operative(), zone.temp_internal_air(), space_heat_demand_zone, z_name, space_heat_demand_system, h_name, space_cool_demand_zone, space_cool_demand_system, cooling_name
+
+        timestep_array = []
+        temp_operative_array = []
+        temp_internal_air_array = []
+        space_heat_demand_array = []
+        space_heat_system_array = []
+        space_cool_demand_array = []
+        space_cool_system_array = []
+
         for t_idx, t_current, delta_t_h in self.__simtime:
+            timestep_array.append(t_current)
             hw_demand = hot_water_demand(t_idx)
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
 
-            calc_space_heating(delta_t_h)
+            temp_operative, temp_internal_air, space_heat_demand_zone, z_name, space_heat_demand_system, h_name, space_cool_demand_zone, space_cool_demand_system, cooling_name = calc_space_heating(delta_t_h)
+
+            temp_operative_array.append(temp_operative)
+            temp_internal_air_array.append(temp_internal_air)
+            space_heat_demand_array.append(space_heat_demand_zone)
+            space_heat_system_array.append(space_heat_demand_system)
+            space_cool_demand_array.append(space_cool_demand_zone)
+            space_cool_system_array.append(space_cool_demand_system)
 
         # Return results from all energy supplies
         results_totals = {}
