@@ -163,8 +163,20 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementAdjacentZTC objects to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None)
-
+        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0],None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None
+                                )
         # Create an object for each mass distribution class
         be_I = BuildingElementAdjacentZTC(20.0, 0.30, 0.40, 0.25, 19000.0, "I", ec)
         be_E = BuildingElementAdjacentZTC(22.5, 0.31, 0.41, 0.50, 18000.0, "E", ec)
