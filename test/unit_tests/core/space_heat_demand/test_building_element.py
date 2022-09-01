@@ -41,11 +41,11 @@ class TestBuildingElementOpaque(unittest.TestCase):
         #TODO implement rest of external conditions in unit tests
 
         # Create an object for each mass distribution class
-        be_I = BuildingElementOpaque(20.0, 0.30, 0.40, 0.50, 0.20, 0.60, 0.25, 19000.0, "I", 0, ec)
-        be_E = BuildingElementOpaque(22.5, 0.31, 0.41, 0.51, 0.21, 0.61, 0.50, 18000.0, "E", 45, ec)
-        be_IE = BuildingElementOpaque(25.0, 0.32, 0.42, 0.52, 0.22, 0.62, 0.75, 17000.0, "IE", 90, ec)
-        be_D = BuildingElementOpaque(27.5, 0.33, 0.43, 0.53, 0.23, 0.63, 0.80, 16000.0, "D", 135, ec)
-        be_M = BuildingElementOpaque(30.0, 0.34, 0.44, 0.54, 0.24, 0.64, 0.40, 15000.0, "M", 180, ec)
+        be_I = BuildingElementOpaque(20.0, 0.30, 0.40, 0.50, 0.20, 0.60, 0.25, 19000.0, "I", 0, 0, ec)
+        be_E = BuildingElementOpaque(22.5, 0.31, 0.41, 0.51, 0.21, 0.61, 0.50, 18000.0, "E", 45, 180, ec)
+        be_IE = BuildingElementOpaque(25.0, 0.32, 0.42, 0.52, 0.22, 0.62, 0.75, 17000.0, "IE", 90, 90, ec)
+        be_D = BuildingElementOpaque(27.5, 0.33, 0.43, 0.53, 0.23, 0.63, 0.80, 16000.0, "D", 135, -90, ec)
+        be_M = BuildingElementOpaque(30.0, 0.34, 0.44, 0.54, 0.24, 0.64, 0.40, 15000.0, "M", 180, 0, ec)
 
         # Put objects in a list that can be iterated over
         self.test_be_objs = [be_I, be_E, be_IE, be_D, be_M]
@@ -311,7 +311,7 @@ class TestBuildingElementTransparent(unittest.TestCase):
                                 )
         #TODO implement rest of external conditions in unit tests
 
-        self.be = BuildingElementTransparent(5.0, 0.35, 0.45, 0.30, 0.25, 0.4, 90, ec)
+        self.be = BuildingElementTransparent(5.0, 0.35, 0.45, 0.30, 0.25, 0.4, 90, 180, 0.75, 0.25, ec)
 
     def test_no_of_nodes(self):
         """ Test that number of nodes (total and inside) have been calculated correctly """

@@ -247,6 +247,7 @@ class Project:
                     data['k_m'],
                     data['mass_distribution_class'],
                     data['pitch'],
+                    data['orientation'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementTransparent':
@@ -258,6 +259,9 @@ class Project:
                     data['h_re'],
                     data['r_c'],
                     data['pitch'],
+                    data['orientation'],
+                    data['g_value'],
+                    data['frame_area_fraction'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementGround':
@@ -341,7 +345,7 @@ class Project:
 
         def hot_water_demand(t_idx):
             """ Calculate the hot water demand for the current timestep
-            
+
             Arguments:
             t_idx -- timestep index/count
             """
@@ -389,12 +393,10 @@ class Project:
                 h_name = self.__heat_system_name_for_zone[z_name]
                 c_name = self.__cool_system_name_for_zone[z_name]
 
-                # TODO Calculate the gains rather than hard-coding to zero (i.e. ignoring them)
-                gains_solar = 0.0
                 # Convert W/m2 to W
                 gains_internal_zone = self.__internal_gains.total_internal_gain() * zone.area()
                 space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
-                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal_zone, gains_solar)
+                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal_zone)
 
                 if h_name is not None: # If the zone is heated
                     space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
@@ -449,7 +451,6 @@ class Project:
                     delta_t,
                     temp_ext_air,
                     gains_internal_zone,
-                    gains_solar,
                     gains_heat_cool
                     )
 

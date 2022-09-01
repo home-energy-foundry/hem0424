@@ -5,7 +5,7 @@
 		"step": 1
 	},
 	"ExternalConditions": {
-		"air_temperatures": [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0, 21.0, 22.0, 21.0, 20.0, 22.0, 19.0, 18.0, 17.0, 16.4, 15.2, 17.8, 15.0, 9.9, 7.2, 5.5, 2.1],
+		"air_temperatures": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
 		"ground_temperatures": [8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7, 8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7, 8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7],
 		"diffuse_horizontal_radiation": [0, 0, 0, 0, 0, 0, 0, 0, 52, 85, 95, 88, 80, 58, 21, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 		"direct_beam_radiation": [0, 0, 0, 0, 0, 0, 0, 0, 169, 284, 328, 397, 354, 205, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -39,7 +39,7 @@
 		"hw timer": {
 			"type": "OnOffTimeControl",
 			"schedule": {
-				"main": [true, true, false, {"value": true, "repeat": 5}, {"value": true, "repeat": 16}]
+				"main": [{"value": true, "repeat": 24}]
 			}
 		}
 	},
@@ -87,7 +87,8 @@
 		"main": {
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
-			"EnergySupply": "mains elec"
+			"EnergySupply": "mains elec",
+			"Control": "hw timer"
 		}
 	},
 	"Zone": {
@@ -106,7 +107,8 @@
 					"r_c": 0.7,
 					"k_m": 19000,
 					"mass_distribution_class": "IE",
-					"pitch": 90
+					"pitch": 90,
+					"orientation": 90
 				},
 				"wall 1":{
 					"type": "BuildingElementOpaque",
@@ -119,7 +121,8 @@
 					"r_c": 0.71,
 					"k_m": 19100,
 					"mass_distribution_class": "M",
-					"pitch": 90
+					"pitch": 90,
+					"orientation": -90
 				},
 				"wall 2": {
 					"type": "BuildingElementOpaque",
@@ -132,7 +135,8 @@
 					"r_c": 0.72,
 					"k_m": 19200,
 					"mass_distribution_class": "E",
-					"pitch": 90
+					"pitch": 90,
+					"orientation": 180
 				},
 				"wall 3":{
 					"type": "BuildingElementOpaque",
@@ -145,7 +149,8 @@
 					"r_c": 0.73,
 					"k_m": 19300,
 					"mass_distribution_class": "I",
-					"pitch": 90
+					"pitch": 90,
+					"orientation": 0
 				},
 				"window 0":{
 					"type": "BuildingElementTransparent",
@@ -155,7 +160,10 @@
 					"h_ce": 0.35,
 					"h_re": 0.25,
 					"r_c": 0.4,
-					"pitch": 90
+					"pitch": 90,
+					"orientation": 90,
+					"g_value": 0.75,
+					"frame_area_fraction": 0.25
 				},
 				"ground":{
 					"type": "BuildingElementGround",

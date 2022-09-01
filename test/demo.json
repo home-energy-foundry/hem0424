@@ -106,7 +106,8 @@
 					"r_c": 0.7,
 					"k_m": 19000,
 					"mass_distribution_class": "IE",
-					"pitch": 90
+					"pitch": 90,
+					"orientation": 90
 				},
 				"wall 1":{
 					"type": "BuildingElementOpaque",
@@ -119,7 +120,8 @@
 					"r_c": 0.71,
 					"k_m": 19100,
 					"mass_distribution_class": "M",
-					"pitch": 90
+					"pitch": 90,
+					"orientation": -90
 				},
 				"wall 2": {
 					"type": "BuildingElementOpaque",
@@ -132,7 +134,8 @@
 					"r_c": 0.72,
 					"k_m": 19200,
 					"mass_distribution_class": "E",
-					"pitch": 90
+					"pitch": 90,
+					"orientation": 180
 				},
 				"wall 3":{
 					"type": "BuildingElementOpaque",
@@ -145,7 +148,8 @@
 					"r_c": 0.73,
 					"k_m": 19300,
 					"mass_distribution_class": "I",
-					"pitch": 90
+					"pitch": 90,
+					"orientation": 0
 				},
 				"window 0":{
 					"type": "BuildingElementTransparent",
@@ -155,7 +159,10 @@
 					"h_ce": 0.35,
 					"h_re": 0.25,
 					"r_c": 0.4,
-					"pitch": 90
+					"pitch": 90,
+					"orientation": 90,
+					"g_value": 0.75,
+					"frame_area_fraction": 0.25
 				},
 				"ground":{
 					"type": "BuildingElementGround",
