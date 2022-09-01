@@ -475,4 +475,4 @@ class Project:
         for name, supply in self.__energy_supplies.items():
             results_totals[name] = supply.results_total()
             results_end_user[name] = supply.results_by_end_user()
-        return results_totals, results_end_user
+        return timestep_array, results_totals, results_end_user, temp_operative_array, temp_internal_air_array, z_name, space_heat_demand_array, space_cool_demand_array, h_name, space_heat_system_array, cooling_name, space_cool_system_array

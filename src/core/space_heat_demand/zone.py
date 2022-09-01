@@ -276,6 +276,14 @@ class Zone:
 
         return (temp_int_air + temp_mean_radiant) / 2.0
 
+    def temp_operative(self):
+        """ Return operative temperature, in deg C """
+        return self.__temp_operative(self.__temp_prev)
+
+    def temp_internal_air(self):
+        """ Return internal air temperature, in deg C """
+        return self.__temp_prev[self.__zone_idx]
+
     def space_heat_cool_demand(self, delta_t_h, temp_ext_air, gains_internal, gains_solar):
         """ Calculate heating and cooling demand in the zone for the current timestep
 
