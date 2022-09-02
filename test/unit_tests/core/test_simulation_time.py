@@ -69,6 +69,11 @@ class TestSimulationTime(unittest.TestCase):
                     [0, 0, 0, 0, 1, 1, 1, 1][i],
                     "incorrect current day returned"
                     )
+                self.assertEqual(
+                    self.simtime.time_series_idx(0),
+                    [22, 22, 23, 23, 24, 24, 25, 25][i],
+                    "incorrect time series index returned"
+                    )
 
         # Once all timesteps have been iterated over, next increment should raise exception
         with self.assertRaises(StopIteration):
