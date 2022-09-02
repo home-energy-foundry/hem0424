@@ -32,7 +32,7 @@ class TestBuildingElementOpaque(unittest.TestCase):
                                 None,
                                 None,
                                 None,
-                                None,
+                                0, # Start day
                                 None,
                                 None,
                                 None,
@@ -170,7 +170,7 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
                                 None,
                                 None,
                                 None,
-                                None,
+                                0, # Start day
                                 None,
                                 None,
                                 None,
@@ -290,7 +290,7 @@ class TestBuildingElementGround(unittest.TestCase):
                                 None,
                                 None,
                                 None,
-                                None,
+                                0, # Start day
                                 None,
                                 None,
                                 None,
@@ -423,7 +423,7 @@ class TestBuildingElementTransparent(unittest.TestCase):
                                 None,
                                 None,
                                 None,
-                                None,
+                                0, # Start day
                                 None,
                                 None,
                                 None,

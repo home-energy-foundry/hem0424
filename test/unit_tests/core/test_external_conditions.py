@@ -30,8 +30,8 @@ class TestExternalConditions(unittest.TestCase):
         self.latitude = 51.42
         self.longitude = -0.75
         self.timezone = 0
-        self.start_day = 100
-        self.end_day = 100
+        self.start_day = 0
+        self.end_day = 0
         self.january_first = 1
         self.daylight_savings = "not applicable"
         self.leap_day_included = False

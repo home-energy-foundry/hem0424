@@ -42,8 +42,8 @@ class ExternalConditions:
         latitude        -- latitude of weather station, angle from south, in degrees (single value)
         longitude       -- longitude of weather station, easterly +ve westerly -ve, in degrees (single value)
         timezone        -- timezone of weather station, -12 to 12 (single value)
-        start_day       -- first day of the time series, day of the year, 1 to 366 (single value)
-        end_day         -- last day of the time series, day of the year, 1 to 366 (single value)
+        start_day       -- first day of the time series, day of the year, 0 to 365 (single value)
+        end_day         -- last day of the time series, day of the year, 0 to 365 (single value)
         january_first   -- day of the week for January 1st, monday to sunday, 1 to 7 (single value)
         daylight_savings    -- handling of daylight savings time, (single value)
                             e.g. applicable and taken into account, 
@@ -150,7 +150,7 @@ class ExternalConditions:
 
     def air_temp(self):
         """ Return the external air temperature for the current timestep """
-        return self.__air_temps[self.__simulation_time.current_hour()]
+        return self.__air_temps[self.__simulation_time.time_series_idx(self.__start_day)]
         # TODO Assumes air temps list is one entry per timestep but in
         #      future it could be e.g. hourly figures even if timestep is
         #      sub-hourly. This would require the SimulationTime class to
@@ -158,7 +158,7 @@ class ExternalConditions:
 
     def ground_temp(self):
         """ Return the external ground temperature for the current timestep """
-        return self.__ground_temps[self.__simulation_time.current_hour()]
+        return self.__ground_temps[self.__simulation_time.time_series_idx(self.__start_day)]
         # TODO Assumes ground temps list is one entry per timestep but in
         #      future it could be e.g. hourly figures even if timestep is
         #      sub-hourly. This would require the SimulationTime class to
@@ -166,7 +166,7 @@ class ExternalConditions:
 
     def diffuse_horizontal_radiation(self):
         """ Return the diffuse_horizontal_radiation for the current timestep """
-        return self.__diffuse_horizontal_radiation[self.__simulation_time.current_hour()]
+        return self.__diffuse_horizontal_radiation[self.__simulation_time.time_series_idx(self.__start_day)]
         # TODO Assumes diffuse_horizontal_radiation list is one entry per timestep but in
         #      future it could be e.g. hourly figures even if timestep is
         #      sub-hourly. This would require the SimulationTime class to
@@ -174,7 +174,7 @@ class ExternalConditions:
 
     def direct_beam_radiation(self):
         """ Return the direct_beam_radiation for the current timestep """
-        raw_value = self.__direct_beam_radiation[self.__simulation_time.current_hour()]
+        raw_value = self.__direct_beam_radiation[self.__simulation_time.time_series_idx(self.__start_day)]
         # if the climate data to only provide direct horizontal (rather than normal:
         # If only direct (beam) solar irradiance at horizontal plane is available in the climatic data set,
         # it shall be converted to normal incidence by dividing the value by the sine of the solar altitude.
@@ -198,7 +198,7 @@ class ExternalConditions:
 
     def solar_reflectivity_of_ground(self):
         """ Return the solar_reflectivity_of_ground for the current timestep """
-        return self.__solar_reflectivity_of_ground[self.__simulation_time.current_hour()]
+        return self.__solar_reflectivity_of_ground[self.__simulation_time.time_series_idx(self.__start_day)]
         # TODO Assumes solar_reflectivity_of_ground list is one entry per timestep but in
         #      future it could be e.g. hourly figures even if timestep is
         #      sub-hourly. This would require the SimulationTime class to
