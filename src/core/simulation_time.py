@@ -9,6 +9,10 @@ simulation timestep.
 # Standard library imports
 import math
 
+# Local imports
+import core.units as units
+
+
 class SimulationTime:
     """ An iterator object to track properties relating to the simulation timestep
 
@@ -94,6 +98,14 @@ class SimulationTime:
         # Divide current time in hours by 24 and round down to get current day
         # TODO Assumes that day 0 is 0 <= self.__current < 24 - make this more flexible
         return int(math.floor(self.__current / 24.0))
+
+    def time_series_idx(self, start_day):
+        """ Calculate array lookup index """
+        # Index in array of time-series data is current hour (relative to start
+        # of year) adjusted for start day (relative to start of year) of
+        # time-series data
+        # TODO Assumes that time-series data is hourly - make this more flexible
+        return self.current_hour() - start_day * units.hours_per_day
 
     def total_steps(self):
         """ Return the total number of timesteps in simulation """
