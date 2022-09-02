@@ -258,10 +258,10 @@ class ExternalConditions:
     def earth_orbit_deviation(self):
         """ Calculate Rdc, the earth orbit deviation, as a function of the day, in degrees """
 
-        nday = self.start_day()
-        #TODO nday is the day of the year, from 1 to 365 or 366 (leap year)
-        #I assume eventually nday will be returnable from a function in
-        #simulation_time but for now we just use the start day
+        nday = self.__simulation_time.current_day() + 1
+        # nday is the day of the year, from 1 to 365 or 366 (leap year)
+        # Note that current_day function returns days numbered 0 to 364 or 365,
+        # so we need to add 1 here
 
         Rdc = (360 / 365) * nday
 
@@ -287,9 +287,10 @@ class ExternalConditions:
         nday is the day of the year, from 1 to 365 or 366 (leap year)
         """    
 
-        nday = self.start_day()
-        #TODO I assume eventually nday will be returnable from a function in
-        #simulation_time but for now we just use the start day
+        nday = self.__simulation_time.current_day() + 1
+        # nday is the day of the year, from 1 to 365 or 366 (leap year)
+        # Note that current_day function returns days numbered 0 to 364 or 365,
+        # so we need to add 1 here
 
         # note we convert the values inside the cos() to radians for the python function
         # even though the 180 / pi is converting from radians into degrees
