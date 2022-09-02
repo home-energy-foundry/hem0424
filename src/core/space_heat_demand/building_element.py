@@ -45,6 +45,20 @@ class BuildingElement:
                        environment, in deg C
     """
 
+    # Values from BS EN ISO 13789:2017, Table 8: Conventional surface heat
+    # transfer coefficients
+    __H_CI_UPWARDS = 5.0
+    __H_CI_HORIZONTAL = 2.5
+    __H_CI_DOWNWARDS = 0.7
+    __H_CE = 20.0
+    __H_RI = 5.13
+    __H_RE = 4.14
+
+    # From BR 443: The values under "horizontal" apply to heat flow
+    # directions +/- 30 degrees from horizontal plane.
+    __PITCH_HORIZ_LIMIT_LOWER = 60.0
+    __PITCH_HORIZ_LIMIT_UPPER = 120.0
+
     def __init__(self, area, pitch, a_sol, f_sky):
         """ Initialisation common to all building element types
 
@@ -79,40 +93,36 @@ class BuildingElement:
 
     def h_ci(self, temp_int_air, temp_int_surface):
         """ Return internal convective heat transfer coefficient, in W / (m2.K) """
-        # Values from BS EN ISO 13789:2017, Table 8
-
-        # From BR 443: The values under "horizontal" apply to heat flow
-        # directions +/- 30 degrees from horizontal plane.
-        if self.__pitch >= 60 and self.__pitch <= 120:
+        if self.__pitch >= self.__PITCH_HORIZ_LIMIT_LOWER \
+        and self.__pitch <= self.__PITCH_HORIZ_LIMIT_UPPER:
             # Horizontal heat flow
-            return 2.5
+            return self.__H_CI_HORIZONTAL
         else:
             inwards_heat_flow = (temp_int_air < temp_int_surface)
+            is_floor = (self.__pitch < self.__PITCH_HORIZ_LIMIT_LOWER)
+            is_ceiling = (self.__pitch > self.__PITCH_HORIZ_LIMIT_UPPER)
             upwards_heat_flow \
-                = ( (self.__pitch < 90 and inwards_heat_flow)     # Floor
-                 or (self.__pitch > 90 and not inwards_heat_flow) # Ceiling
+                = ( (is_floor and inwards_heat_flow)
+                 or (is_ceiling and not inwards_heat_flow)
                   )
             if upwards_heat_flow:
                 # Upwards heat flow
-                return 5.0
+                return self.__H_CI_UPWARDS
             else:
                 # Downwards heat flow
-                return 0.7
+                return self.__H_CI_DOWNWARDS
 
     def h_ri(self):
         """ Return internal radiative heat transfer coefficient, in W / (m2.K) """
-        # Value from BS EN ISO 13789:2017, Table 8
-        return 5.13
+        return self.__H_RI
 
     def h_ce(self):
         """ Return external convective heat transfer coefficient, in W / (m2.K) """
-        # Value from BS EN ISO 13789:2017, Table 8
-        return 20.0
+        return self.__H_CE
 
     def h_re(self):
         """ Return external radiative heat transfer coefficient, in W / (m2.K) """
-        # Value from BS EN ISO 13789:2017, Table 8
-        return 4.14
+        return self.__H_RE
 
     def no_of_nodes(self):
         """ Return number of nodes including external and internal layers """
@@ -241,9 +251,6 @@ class BuildingElementAdjacentZTC(BuildingElement):
         f_sky = 0
         # Solar absorption coefficient at the external surface is zero
         a_sol = 0
-        # External heat transfer coefficients are zero
-        h_ce = 0
-        h_re = 0
 
         # Initialise the base BuildingElement class
         super().__init__(area, pitch, a_sol, f_sky)
