@@ -68,11 +68,6 @@ class BuildingElement:
         f_sh_obst -- shading reduction_factor for external obstacles for the element
         therm_rad_to_sky -- thermal radiation to the sky, in W / m2, calculated
                             according to BS EN ISO 52016-1:2017, section 6.5.13.3
-
-        TODO i_sol_dif, i_sol_dir, f_sh_obst should be calculated (taking into
-             account tilt and orientation of the element). Set to zero (i.e.
-             ignore solar radiation on external surfaces) for now, until these
-             calculations have been implemented
         """
         self.area  = area
         self.h_ci  = h_ci
@@ -80,6 +75,9 @@ class BuildingElement:
         self.h_ce  = h_ce
         self.h_re  = h_re
         self.a_sol = a_sol
+
+        # TODO f_sh_obst should be calculated. Set to 1.0 for now (i.e. ignore
+        #      shading) until this has been implemented.
         self.f_sh_obst = 1.0
 
         self.therm_rad_to_sky = f_sky * h_re * temp_diff_sky
