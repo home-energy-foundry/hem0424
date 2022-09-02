@@ -64,7 +64,8 @@ class BuildingElement:
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area  -- area (in m2) of this building element
-        pitch -- pitch, in degrees, where 0 means facing down, and 90 means vertical
+        pitch -- pitch, in degrees between 0 and 180, where 0 means facing down,
+                 90 means vertical and 180 means facing directly up
         a_sol -- solar absorption coefficient at the external surface (dimensionless)
         f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
 
@@ -149,7 +150,8 @@ class BuildingElementOpaque(BuildingElement):
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- pitch, in degrees, where 0 means facing down, and 90 means vertical
+        pitch    -- pitch, in degrees between 0 and 180, where 0 means facing down,
+                    90 means vertical and 180 means facing directly up
         a_sol    -- solar absorption coefficient at the external surface (dimensionless)
         r_c      -- thermal resistance, in m2.K / W
         k_m      -- areal heat capacity, in J / (m2.K)
@@ -225,7 +227,8 @@ class BuildingElementAdjacentZTC(BuildingElement):
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- pitch, in degrees, where 0 means facing down, and 90 means vertical
+        pitch    -- pitch, in degrees between 0 and 180, where 0 means facing down,
+                    90 means vertical and 180 means facing directly up
         r_c      -- thermal resistance, in m2.K / W
         k_m      -- areal heat capacity, in J / (m2.K)
         ext_cond -- reference to ExternalConditions object
@@ -326,7 +329,8 @@ class BuildingElementGround(BuildingElement):
     
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- pitch, in degrees, where 0 means facing down, and 90 means vertical
+        pitch    -- pitch, in degrees between 0 and 180, where 0 means facing down,
+                    90 means vertical and 180 means facing directly up
         h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
         h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
         r_c      -- thermal resistance of the ground floor element, in m2.K / W
@@ -419,7 +423,8 @@ class BuildingElementTransparent(BuildingElement):
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- pitch, in degrees, where 0 means facing down, and 90 means vertical
+        pitch    -- pitch, in degrees between 0 and 180, where 0 means facing down,
+                    90 means vertical and 180 means facing directly up
         r_c      -- thermal resistance, in m2.K / W
         ext_cond -- reference to ExternalConditions object
 
