@@ -87,10 +87,6 @@
 				"wall 0": {
 					"type": "BuildingElementOpaque",
 					"area": 25.0,
-					"h_ci": 0.3,
-					"h_ri": 0.4,
-					"h_ce": 0.3,
-					"h_re": 0.2,
 					"a_sol": 0.6,
 					"r_c": 0.7,
 					"k_m": 19000,
@@ -100,10 +96,6 @@
 				"wall 1":{
 					"type": "BuildingElementOpaque",
 					"area": 25.0,
-					"h_ci": 0.31,
-					"h_ri": 0.41,
-					"h_ce": 0.31,
-					"h_re": 0.21,
 					"a_sol": 0.61,
 					"r_c": 0.71,
 					"k_m": 19100,
@@ -113,10 +105,6 @@
 				"wall 2": {
 					"type": "BuildingElementOpaque",
 					"area": 20.0,
-					"h_ci": 0.32,
-					"h_ri": 0.42,
-					"h_ce": 0.32,
-					"h_re": 0.22,
 					"a_sol": 0.62,
 					"r_c": 0.72,
 					"k_m": 19200,
@@ -126,10 +114,6 @@
 				"wall 3":{
 					"type": "BuildingElementOpaque",
 					"area": 15.0,
-					"h_ci": 0.33,
-					"h_ri": 0.43,
-					"h_ce": 0.33,
-					"h_re": 0.23,
 					"a_sol": 0.63,
 					"r_c": 0.73,
 					"k_m": 19300,
@@ -139,18 +123,13 @@
 				"window 0":{
 					"type": "BuildingElementTransparent",
 					"area": 5.0,
-					"h_ci": 0.35,
-					"h_ri": 0.45,
-					"h_ce": 0.35,
-					"h_re": 0.25,
 					"r_c": 0.4,
 					"pitch": 90
 				},
 				"ground":{
 					"type": "BuildingElementGround",
 					"area": 15.0,
-					"h_ci": 0.33,
-					"h_ri": 0.43,
+					"pitch": 0.0,
 					"h_ce": 0.33,
 					"h_re": 0.23,
 					"r_c": 0.73,
@@ -162,8 +141,7 @@
 				"wall 4":{
 					"type": "BuildingElementAdjacentZTC",
 					"area": 20.0,
-					"h_ci": 0.34,
-					"h_ri": 0.44,
+					"pitch": 180,
 					"r_c": 0.74,
 					"k_m": 19400,
 					"mass_distribution_class": "I"

@@ -229,33 +229,24 @@ class Project:
             if building_element_type == 'BuildingElementOpaque':
                 building_element = BuildingElementOpaque(
                     data['area'],
-                    data['h_ci'],
-                    data['h_ri'],
-                    data['h_ce'],
-                    data['h_re'],
+                    data['pitch'],
                     data['a_sol'],
                     data['r_c'],
                     data['k_m'],
                     data['mass_distribution_class'],
-                    data['pitch'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementTransparent':
                 building_element = BuildingElementTransparent(
                     data['area'],
-                    data['h_ci'],
-                    data['h_ri'],
-                    data['h_ce'],
-                    data['h_re'],
-                    data['r_c'],
                     data['pitch'],
+                    data['r_c'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementGround':
                 building_element = BuildingElementGround(
                     data['area'],
-                    data['h_ci'],
-                    data['h_ri'],
+                    data['pitch'],
                     data['h_ce'],
                     data['h_re'],
                     data['r_c'],
@@ -268,8 +259,7 @@ class Project:
             elif building_element_type == 'BuildingElementAdjacentZTC':
                 building_element = BuildingElementAdjacentZTC(
                     data['area'],
-                    data['h_ci'],
-                    data['h_ri'],
+                    data['pitch'],
                     data['r_c'],
                     data['k_m'],
                     data['mass_distribution_class'],
