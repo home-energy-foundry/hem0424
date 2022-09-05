@@ -68,7 +68,8 @@ class Project:
 
         self.__cold_water_sources = {}
         for name, data in proj_dict['ColdWaterSource'].items():
-            self.__cold_water_sources[name] = ColdWaterSource(data['temperatures'], self.__simtime)
+            self.__cold_water_sources[name] \
+                = ColdWaterSource(data['temperatures'], self.__simtime, data['start_day'])
 
         self.__energy_supplies = {}
         for name, data in proj_dict['EnergySupply'].items():
@@ -77,7 +78,8 @@ class Project:
 
         self.__internal_gains = InternalGains(
             proj_dict['InternalGains']['total_internal_gains'],
-            self.__simtime
+            self.__simtime,
+            proj_dict['InternalGains']['start_day']
             )
 
         def dict_to_ctrl(name, data):
@@ -85,7 +87,7 @@ class Project:
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
                 sched = expand_schedule(bool, data['schedule'], "main")
-                ctrl = OnOffTimeControl(sched, self.__simtime)
+                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'])
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?

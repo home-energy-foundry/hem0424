@@ -23,7 +23,7 @@ class Test_OnOffTimeControl(unittest.TestCase):
         """ Create TimeControl object to be tested """
         self.simtime     = SimulationTime(0, 8, 1)
         self.schedule    = [True, False, True, True, False, True, False, False]
-        self.timecontrol = OnOffTimeControl(self.schedule, self.simtime)
+        self.timecontrol = OnOffTimeControl(self.schedule, self.simtime, 0)
 
     def test_is_on(self):
         """ Test that OnOffTimeControl object returns correct schedule"""
