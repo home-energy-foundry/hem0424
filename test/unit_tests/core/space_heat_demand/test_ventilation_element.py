@@ -49,7 +49,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
         """ Test that correct infiltration rate for openings
          is returned when queried """
         self.assertEqual(
-            self.ve_inf.inf_openings,
+            self.ve_inf._VentilationElementInfiltration__inf_openings,
             4.0,
             "incorrect infiltration rate for openings returned"
             )
@@ -57,7 +57,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
     def test_divisor(self):
         """ Test that correct Q50 divisor is returned when queried """
         self.assertEqual(
-            self.ve_inf.divisor,
+            self.ve_inf._VentilationElementInfiltration__divisor,
             29.4,
             "incorrect Q50 divisor returned"
             )
@@ -65,7 +65,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
     def test_shelter_factor(self):
         """ Test that correct shelter factor is returned when queried """
         self.assertEqual(
-            self.ve_inf.shelter_factor,
+            self.ve_inf._VentilationElementInfiltration__shelter_factor,
             0.85,
             "incorrect shelter factor returned"
             )
@@ -73,7 +73,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
     def test_infiltration(self):
         """ Test that correct infiltration rate is returned when queried """
         self.assertAlmostEqual(
-            self.ve_inf.infiltration,
+            self.ve_inf._VentilationElementInfiltration__infiltration,
             3.553061,
             6,
             "incorrect infiltration rate returned"
