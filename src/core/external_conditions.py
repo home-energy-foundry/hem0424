@@ -14,8 +14,8 @@ class ExternalConditions:
 
         Arguments:
         simulation_time -- reference to SimulationTime object
-        air_temps       -- list of external air temperatures, in deg C (one entry per timestep)
-        ground_temps    -- list of external ground temperatures, in deg C (one entry per timestep)
+        air_temps       -- list of external air temperatures, in deg C (one entry per hour)
+        ground_temps    -- list of external ground temperatures, in deg C (one entry per hour)
         """
         self.__simulation_time  = simulation_time
         self.__air_temps        = air_temps
@@ -24,15 +24,11 @@ class ExternalConditions:
     def air_temp(self):
         """ Return the external air temperature for the current timestep """
         return self.__air_temps[self.__simulation_time.current_hour()]
-        # TODO Assumes air temps list is one entry per timestep but in
-        #      future it could be e.g. hourly figures even if timestep is
-        #      sub-hourly. This would require the SimulationTime class to
-        #      support such lookups.
+        # TODO Assumes schedule is one entry per hour but this should be made
+        #      more flexible in the future.
 
     def ground_temp(self):
         """ Return the external ground temperature for the current timestep """
         return self.__ground_temps[self.__simulation_time.current_hour()]
-        # TODO Assumes ground temps list is one entry per timestep but in
-        #      future it could be e.g. hourly figures even if timestep is
-        #      sub-hourly. This would require the SimulationTime class to
-        #      support such lookups.
+        # TODO Assumes schedule is one entry per hour but this should be made
+        #      more flexible in the future.

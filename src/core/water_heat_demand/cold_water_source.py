@@ -12,7 +12,7 @@ class ColdWaterSource:
         """ Construct a ColdWaterSource object
 
         Arguments:
-        cold_water_temps -- list of cold water temperatures, in deg C (one entry per timestep)
+        cold_water_temps -- list of cold water temperatures, in deg C (one entry per hour)
         simulation_time  -- reference to SimulationTime object
         start_day        -- first day of the time series, day of the year, 0 to 365 (single value)
         """
@@ -23,3 +23,5 @@ class ColdWaterSource:
     def temperature(self):
         """ Return the cold water temperature for the current timestep """
         return self.__cold_water_temps[self.__simulation_time.time_series_idx(self.__start_day)]
+        # TODO Assumes schedule is one entry per hour but this should be made
+        #      more flexible in the future.
