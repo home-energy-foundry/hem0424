@@ -20,7 +20,8 @@ from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
-    BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround
+    BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
+    BuildingElementAdjacentZTC
 from core.space_heat_demand.ventilation_element import VentilationElementInfiltration
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
@@ -90,7 +91,8 @@ class Project:
 
         self.__cold_water_sources = {}
         for name, data in proj_dict['ColdWaterSource'].items():
-            self.__cold_water_sources[name] = ColdWaterSource(data['temperatures'], self.__simtime)
+            self.__cold_water_sources[name] \
+                = ColdWaterSource(data['temperatures'], self.__simtime, data['start_day'])
 
         self.__energy_supplies = {}
         for name, data in proj_dict['EnergySupply'].items():
@@ -99,7 +101,8 @@ class Project:
 
         self.__internal_gains = InternalGains(
             proj_dict['InternalGains']['total_internal_gains'],
-            self.__simtime
+            self.__simtime,
+            proj_dict['InternalGains']['start_day']
             )
 
         def dict_to_ctrl(name, data):
@@ -107,7 +110,7 @@ class Project:
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
                 sched = expand_schedule(bool, data['schedule'], "main")
-                ctrl = OnOffTimeControl(sched, self.__simtime)
+                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'])
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -249,39 +252,39 @@ class Project:
             if building_element_type == 'BuildingElementOpaque':
                 building_element = BuildingElementOpaque(
                     data['area'],
-                    data['h_ci'],
-                    data['h_ri'],
-                    data['h_ce'],
-                    data['h_re'],
+                    data['pitch'],
                     data['a_sol'],
                     data['r_c'],
                     data['k_m'],
                     data['mass_distribution_class'],
-                    data['pitch'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementTransparent':
                 building_element = BuildingElementTransparent(
                     data['area'],
-                    data['h_ci'],
-                    data['h_ri'],
-                    data['h_ce'],
-                    data['h_re'],
-                    data['r_c'],
                     data['pitch'],
+                    data['r_c'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementGround':
                 building_element = BuildingElementGround(
                     data['area'],
-                    data['h_ci'],
-                    data['h_ri'],
+                    data['pitch'],
                     data['h_ce'],
                     data['h_re'],
                     data['r_c'],
                     data['r_gr'],
                     data['k_m'],
                     data['k_gr'],
+                    data['mass_distribution_class'],
+                    self.__external_conditions,
+                    )
+            elif building_element_type == 'BuildingElementAdjacentZTC':
+                building_element = BuildingElementAdjacentZTC(
+                    data['area'],
+                    data['pitch'],
+                    data['r_c'],
+                    data['k_m'],
                     data['mass_distribution_class'],
                     self.__external_conditions,
                     )
