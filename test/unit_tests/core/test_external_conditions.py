@@ -24,7 +24,34 @@ class TestExternalConditions(unittest.TestCase):
         self.simtime = SimulationTime(0, 8, 1)
         self.airtemp = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
         self.groundtemp = [8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7]
-        self.extcond = ExternalConditions(self.simtime, self.airtemp, self.groundtemp)
+        self.diffuse_horizontal_radiation = [333, 610, 572, 420, 0, 10, 90, 275]
+        self.direct_beam_radiation = [420, 750, 425, 500, 0, 40, 0, 388]
+        self.solar_reflectivity_of_ground = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
+        self.latitude = 51.42
+        self.longitude = -0.75
+        self.timezone = 0
+        self.start_day = 0
+        self.end_day = 0
+        self.january_first = 1
+        self.daylight_savings = "not applicable"
+        self.leap_day_included = False
+        self.direct_beam_conversion_needed = False
+        self.extcond = ExternalConditions(self.simtime, 
+                                          self.airtemp, 
+                                          self.groundtemp,
+                                          self.diffuse_horizontal_radiation,
+                                          self.direct_beam_radiation,
+                                          self.solar_reflectivity_of_ground,
+                                          self.latitude,
+                                          self.longitude,
+                                          self.timezone,
+                                          self.start_day,
+                                          self.end_day,
+                                          self.january_first,
+                                          self.daylight_savings,
+                                          self.leap_day_included,
+                                          self.direct_beam_conversion_needed
+                                        )
 
     def test_air_temp(self):
         """ Test that ExternalConditions object returns correct air temperatures """
@@ -46,3 +73,32 @@ class TestExternalConditions(unittest.TestCase):
                     "incorrect ground temp returned",
                     )
 
+    def diffuse_horizontal_radiation(self):
+        """ Test that ExternalConditions object returns correct diffuse_horizontal_radiation """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertEqual(
+                    self.extcond.diffuse_horizontal_radiation(),
+                    self.diffuse_horizontal_radiation[t_idx],
+                    "incorrect diffuse_horizontal_radiation returned",
+                    )
+                
+    def direct_beam_radiation(self):
+        """ Test that ExternalConditions object returns correct direct_beam_radiation """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertEqual(
+                    self.extcond.direct_beam_radiation(),
+                    self.direct_beam_radiation[t_idx],
+                    "incorrect direct_beam_radiation returned",
+                    )
+                
+    def solar_reflectivity_of_ground(self):
+        """ Test that ExternalConditions object returns correct solar_reflectivity_of_ground """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertEqual(
+                    self.extcond.solar_reflectivity_of_ground(),
+                    self.solar_reflectivity_of_ground[t_idx],
+                    "incorrect solar_reflectivity_of_ground returned",
+                    )

@@ -25,14 +25,28 @@ class TestBuildingElementOpaque(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementOpaque objects to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None)
+        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                0, # Start day
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                )
+        #TODO implement rest of external conditions in unit tests
 
         # Create an object for each mass distribution class
-        be_I = BuildingElementOpaque(20.0, 0, 0.60, 0.25, 19000.0, "I", ec)
-        be_E = BuildingElementOpaque(22.5, 45, 0.61, 0.50, 18000.0, "E", ec)
-        be_IE = BuildingElementOpaque(25.0, 90, 0.62, 0.75, 17000.0, "IE", ec)
-        be_D = BuildingElementOpaque(27.5, 135, 0.63, 0.80, 16000.0, "D", ec)
-        be_M = BuildingElementOpaque(30.0, 180, 0.64, 0.40, 15000.0, "M", ec)
+        be_I = BuildingElementOpaque(20.0, 0, 0.60, 0.25, 19000.0, "I", 0, ec)
+        be_E = BuildingElementOpaque(22.5, 45, 0.61, 0.50, 18000.0, "E", 180, ec)
+        be_IE = BuildingElementOpaque(25.0, 90, 0.62, 0.75, 17000.0, "IE", 90, ec)
+        be_D = BuildingElementOpaque(27.5, 135, 0.63, 0.80, 16000.0, "D", -90, ec)
+        be_M = BuildingElementOpaque(30.0, 180, 0.64, 0.40, 15000.0, "M", 0, ec)
 
         # Put objects in a list that can be iterated over
         self.test_be_objs = [be_I, be_E, be_IE, be_D, be_M]
@@ -145,8 +159,20 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementAdjacentZTC objects to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None)
-
+        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0],None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                0, # Start day
+                                None,
+                                None,
+                                None,
+                                None,
+                                None
+                                )
         # Create an object for each mass distribution class
         be_I = BuildingElementAdjacentZTC(20.0, 0, 0.25, 19000.0, "I", ec)
         be_E = BuildingElementAdjacentZTC(22.5, 45, 0.50, 18000.0, "E", ec)
@@ -255,7 +281,21 @@ class TestBuildingElementGround(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementGround objects to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, None, [8.0, 9.0, 10.0, 11.0])
+        ec = ExternalConditions(self.simtime, None, [8.0, 9.0, 10.0, 11.0],
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                0, # Start day
+                                None,
+                                None,
+                                None,
+                                None,
+                                None
+                                )
+        #TODO implement rest of external conditions in unit tests
 
         # Create an object for each mass distribution class
         be_I = BuildingElementGround(20.0, 0, 0.50, 0.20, 0.25, 0.5, 19000.0, 24000.0, "I", ec)
@@ -376,9 +416,23 @@ class TestBuildingElementTransparent(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementTransparent object to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None)
+        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None, 
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                0, # Start day
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                )
+        #TODO implement rest of external conditions in unit tests
 
-        self.be = BuildingElementTransparent(5.0, 90, 0.4, ec)
+        self.be = BuildingElementTransparent(5.0, 90, 0.4, 180, 0.75, 0.25, ec)
 
     def test_no_of_nodes(self):
         """ Test that number of nodes (total and inside) have been calculated correctly """
