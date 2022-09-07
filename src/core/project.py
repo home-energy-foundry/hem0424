@@ -77,7 +77,11 @@ class Project:
             # TODO Consider replacing fuel type string with fuel type object
 
         self.__internal_gains = InternalGains(
-            proj_dict['InternalGains']['total_internal_gains'],
+            expand_schedule(
+                float,
+                proj_dict['InternalGains']['schedule_total_internal_gains'],
+                "main",
+                ),
             self.__simtime,
             proj_dict['InternalGains']['start_day']
             )
