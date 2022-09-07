@@ -4,6 +4,9 @@
 
 This module provides object(s) to store and look up data on external conditions
 (e.g. external air temperature)
+
+Calculation of solar radiation on a surface of a given orientation and tilt is
+based on BS EN ISO 52010-1:2017.
 """
 
 # Standard library imports
@@ -261,7 +264,7 @@ class ExternalConditions:
         nday = self.__simulation_time.current_day() + 1
         # nday is the day of the year, from 1 to 365 or 366 (leap year)
         # Note that current_day function returns days numbered 0 to 364 or 365,
-        # so we need to add 1 here
+        # so we need to add 1 above
 
         Rdc = (360 / 365) * nday
 
