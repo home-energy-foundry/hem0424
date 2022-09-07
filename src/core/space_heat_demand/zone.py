@@ -30,11 +30,12 @@ class Zone:
     in this object by solving a matrix equation.
     """
 
-    def __init__(self, area, building_elements, thermal_bridging, vent_elements):
+    def __init__(self, area, volume, building_elements, thermal_bridging, vent_elements):
         """ Construct a Zone object
 
         Arguments:
         area              -- useful floor area of the zone, in m2
+        volume            -- total volume of the zone, m3
         building_elements -- list of BuildingElement objects (walls, floors, windows etc.)
         thermal_bridging  -- Either:
                              - overall heat transfer coefficient for thermal
@@ -69,6 +70,7 @@ class Zone:
                              self.__element_positions and self.__zone_idx
         """
         self.__useful_area = area
+        self.__volume = volume
         self.__building_elements = building_elements
         self.__vent_elements     = vent_elements
 
@@ -241,7 +243,7 @@ class Zone:
         matrix_a[self.__zone_idx][self.__zone_idx] \
             = (self.__c_int / delta_t) \
             + sum([eli.area * eli.h_ci for eli in self.__building_elements]) \
-            + sum([vei.h_ve() for vei in self.__vent_elements]) \
+            + sum([vei.h_ve(self.__volume) for vei in self.__vent_elements]) \
             + self.__tb_heat_trans_coeff
         # Add final sum term for LHS of eqn 38 in loop below.
         # These are coeffs for temperatures of internal surface nodes of
@@ -252,7 +254,7 @@ class Zone:
         # RHS of heat balance eqn for zone
         vector_b[self.__zone_idx] \
             = (self.__c_int / delta_t) * temp_prev[self.__zone_idx] \
-            + sum([vei.h_ve() * vei.temp_supply() for vei in self.__vent_elements]) \
+            + sum([vei.h_ve(self.__volume) * vei.temp_supply() for vei in self.__vent_elements]) \
             + self.__tb_heat_trans_coeff * temp_ext_air \
             + f_int_c * gains_internal \
             + f_sol_c * gains_solar \

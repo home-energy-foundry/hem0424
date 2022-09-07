@@ -77,10 +77,30 @@
 			"EnergySupply": "mains elec"
 		}
 	},
+	"Infiltration": {
+		"storey": 1,
+		"shelter": "normal",
+		"build_type": "house",
+		"test_result": 4.0,
+		"test_type": "Q50",
+		"env_area": 25.0,
+		"volume": 75.0,
+		"sheltered_sides": 1,
+		"open_chimneys": 1,
+		"open_flues": 1,
+		"closed_fire": 2,
+		"flues_d": 1,
+		"flues_e": 1,
+		"blocked_chimneys": 0,
+		"extract_fans": 2,
+		"passive_vents": 2,
+		"gas_fires": 0
+	},
 	"Zone": {
 		"zone 1": {
 			"SpaceHeatSystem": "main",
 			"area": 80.0,
+			"volume": 75.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
@@ -172,28 +192,6 @@
 				"TB3": {
 					"type": "ThermalBridgePoint",
 					"heat_transfer_coeff": 2.0
-				}
-			},
-			"VentilationElement": {
-				"V1": {
-					"type": "VentilationElementInfiltration",
-					"storey": 1,
-					"shelter": "normal",
-					"build_type": "house",
-					"test_result": 4.0,
-					"test_type": "Q50",
-					"env_area": 25.0,
-					"volume": 75.0,
-					"sheltered_sides": 1,
-					"open_chimneys": 1,
-					"open_flues": 1,
-					"closed_fire": 2,
-					"flues_d": 1,
-					"flues_e": 1,
-					"blocked_chimneys": 0,
-					"extract_fans": 2,
-					"passive_vents": 2,
-					"gas_fires": 0
 				}
 			}
 		}

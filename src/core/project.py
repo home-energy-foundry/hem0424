@@ -67,6 +67,27 @@ class Project:
             proj_dict['ExternalConditions']['wind_speeds']
             )
 
+        self.__infiltration = VentilationElementInfiltration(
+            proj_dict['Infiltration']['storey'],
+            proj_dict['Infiltration']['shelter'],
+            proj_dict['Infiltration']['build_type'],
+            proj_dict['Infiltration']['test_result'],
+            proj_dict['Infiltration']['test_type'],
+            proj_dict['Infiltration']['env_area'],
+            proj_dict['Infiltration']['volume'],
+            proj_dict['Infiltration']['sheltered_sides'],
+            proj_dict['Infiltration']['open_chimneys'],
+            proj_dict['Infiltration']['open_flues'],
+            proj_dict['Infiltration']['closed_fire'],
+            proj_dict['Infiltration']['flues_d'],
+            proj_dict['Infiltration']['flues_e'],
+            proj_dict['Infiltration']['blocked_chimneys'],
+            proj_dict['Infiltration']['extract_fans'],
+            proj_dict['Infiltration']['passive_vents'],
+            proj_dict['Infiltration']['gas_fires'],
+            self.__external_conditions,
+            )
+
         self.__cold_water_sources = {}
         for name, data in proj_dict['ColdWaterSource'].items():
             self.__cold_water_sources[name] = ColdWaterSource(data['temperatures'], self.__simtime)
@@ -270,34 +291,18 @@ class Project:
                 # TODO Exit just the current case instead of whole program entirely?
             return building_element
 
+        ''' TODO Reinstate this code when VentilationElement types other than infiltration
+                 have been defined.
         def dict_to_ventilation_element(name, data):
             ventilation_element_type = data['type']
-            if ventilation_element_type == 'VentilationElementInfiltration':
-                ventilation_element = VentilationElementInfiltration(
-                    data['storey'],
-                    data['shelter'],
-                    data['build_type'],
-                    data['test_result'],
-                    data['test_type'],
-                    data['env_area'],
-                    data['volume'],
-                    data['sheltered_sides'],
-                    data['open_chimneys'],
-                    data['open_flues'],
-                    data['closed_fire'],
-                    data['flues_d'],
-                    data['flues_e'],
-                    data['blocked_chimneys'],
-                    data['extract_fans'],
-                    data['passive_vents'],
-                    data['gas_fires'],
-                    self.__external_conditions,
-                    )
+            if ventilation_element_type == '': # TODO Add ventilation element type
+                # TODO Create VentilationElement object
             else:
                 sys.exit( name + ': ventilation element type ('
                       + ventilation_element_type + ') not recognised.' )
-            # TODO Exit just the current case instead of whole program entirely?
+                # TODO Exit just the current case instead of whole program entirely?
             return ventilation_element
+        '''
 
         def dict_to_thermal_bridging(data):
             # If data is for individual thermal bridges, initialise the relevant
@@ -348,13 +353,25 @@ class Project:
             thermal_bridging = dict_to_thermal_bridging(data['ThermalBridging'])
 
             # Read in ventilation elements and add to list
-            vent_elements = []
+            # All zones have infiltration, so start list with infiltration object
+            vent_elements = [self.__infiltration]
+            # Add any additional ventilation elements
+            ''' TODO Reinstate this code when VentilationElement types other than infiltration
+                     have been defined.
+            # TODO Handle case of no additional VentilationElement objects for the zone
             for ventilation_element_name, ventilation_element_data in data['VentilationElement'].items():
                 vent_elements.append(
                     dict_to_ventilation_element(ventilation_element_name, ventilation_element_data)
                     )
+            '''
 
-            return Zone(data['area'], building_elements, thermal_bridging, vent_elements)
+            return Zone(
+                data['area'],
+                data['volume'],
+                building_elements,
+                thermal_bridging,
+                vent_elements
+                )
 
         self.__zones = {}
         for name, data in proj_dict['Zone'].items():

@@ -84,7 +84,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
-                    self.ve_inf.h_ve(),
+                    self.ve_inf.h_ve(75.0),
                     [0.0829331, 0.0851745, 0.0874159, 0.0896574, 0.0918988, 0.0941402, 0.0963817, 0.0986231][t_idx],
                     7,
                     "incorrect heat transfer coeffient (h_ve) returned"

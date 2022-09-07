@@ -189,9 +189,13 @@ class VentilationElementInfiltration:
 
         self.__infiltration = init_infiltration()
 
-    def h_ve(self):
+    def h_ve(self, zone_volume):
         """ Calculate the heat transfer coefficient (h_ve), in W/K,
-        according to ISO 52016-1:2017, Section 6.5.10.1 """
+        according to ISO 52016-1:2017, Section 6.5.10.1
+        
+        Arguments:
+        zone_volume -- volume of zone, in m3
+        """
         # Define constants
         p_a = 1.204 # Air density at 20 degrees C, in kg/m^3 , BS EN ISO 52016-1:2017, Section 6.3.6
         c_a = 1.006 # Specific heat of air at constant pressure, in J/(kg K), BS EN ISO 52016-1:2017, Section 6.3.6
@@ -201,7 +205,7 @@ class VentilationElementInfiltration:
         inf_rate = self.__infiltration * wind_factor
         
         # Convert infiltration rate from ach to m^3/s
-        q_v = inf_rate * self.__volume / seconds_per_hour
+        q_v = inf_rate * zone_volume / seconds_per_hour
         
         # Calculate h_ve
         h_ve = p_a * c_a * q_v
