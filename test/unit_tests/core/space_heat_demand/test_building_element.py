@@ -42,11 +42,11 @@ class TestBuildingElementOpaque(unittest.TestCase):
         #TODO implement rest of external conditions in unit tests
 
         # Create an object for each mass distribution class
-        be_I = BuildingElementOpaque(20.0, 0.30, 0.40, 0.50, 0.20, 0.60, 0.25, 19000.0, "I", 0, 0, ec)
-        be_E = BuildingElementOpaque(22.5, 0.31, 0.41, 0.51, 0.21, 0.61, 0.50, 18000.0, "E", 45, 180, ec)
-        be_IE = BuildingElementOpaque(25.0, 0.32, 0.42, 0.52, 0.22, 0.62, 0.75, 17000.0, "IE", 90, 90, ec)
-        be_D = BuildingElementOpaque(27.5, 0.33, 0.43, 0.53, 0.23, 0.63, 0.80, 16000.0, "D", 135, -90, ec)
-        be_M = BuildingElementOpaque(30.0, 0.34, 0.44, 0.54, 0.24, 0.64, 0.40, 15000.0, "M", 180, 0, ec)
+        be_I = BuildingElementOpaque(20.0, 0, 0.60, 0.25, 19000.0, "I", 0, ec)
+        be_E = BuildingElementOpaque(22.5, 45, 0.61, 0.50, 18000.0, "E", 180, ec)
+        be_IE = BuildingElementOpaque(25.0, 90, 0.62, 0.75, 17000.0, "IE", 90, ec)
+        be_D = BuildingElementOpaque(27.5, 135, 0.63, 0.80, 16000.0, "D", -90, ec)
+        be_M = BuildingElementOpaque(30.0, 180, 0.64, 0.40, 15000.0, "M", 0, ec)
 
         # Put objects in a list that can be iterated over
         self.test_be_objs = [be_I, be_E, be_IE, be_D, be_M]
@@ -69,39 +69,35 @@ class TestBuildingElementOpaque(unittest.TestCase):
 
     def test_h_ci(self):
         """ Test that correct h_ci is returned when queried """
-        # Define increment between test cases
-        h_ci_inc = 0.01
+        temp_int_air = 20.0
+        temp_int_surface = [19.0, 21.0, 22.0, 21.0, 19.0]
+        results = [0.7, 5.0, 2.5, 0.7, 5.0]
 
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_ci, 0.3 + i * h_ci_inc, msg="incorrect h_ci returned")
+                self.assertAlmostEqual(
+                    be.h_ci(temp_int_air, temp_int_surface[i]),
+                    results[i],
+                    msg="incorrect h_ci returned"
+                    )
 
     def test_h_ri(self):
         """ Test that correct h_ri is returned when queried """
-        # Define increment between test cases
-        h_ri_inc = 0.01
-
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_ri, 0.4 + i * h_ri_inc, msg="incorrect h_ri returned")
+                self.assertAlmostEqual(be.h_ri(), 5.13, msg="incorrect h_ri returned")
 
     def test_h_ce(self):
         """ Test that correct h_ce is returned when queried """
-        # Define increment between test cases
-        h_ce_inc = 0.01
-
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_ce, 0.5 + i * h_ce_inc, msg="incorrect h_ce returned")
+                self.assertAlmostEqual(be.h_ce(), 20.0, msg="incorrect h_ce returned")
 
     def test_h_re(self):
         """ Test that correct h_re is returned when queried """
-        # Define increment between test cases
-        h_re_inc = 0.01
-
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_re, 0.2 + i * h_re_inc, msg="incorrect h_re returned")
+                self.assertAlmostEqual(be.h_re(), 4.14, msg="incorrect h_re returned")
 
     def test_a_sol(self):
         """ Test that correct a_sol is returned when queried """
@@ -114,7 +110,7 @@ class TestBuildingElementOpaque(unittest.TestCase):
 
     def test_therm_rad_to_sky(self):
         """ Test that correct therm_rad_to_sky is returned when queried """
-        results = [2.2, 1.971708332, 1.21, 0.370509922, 0.0]
+        results = [45.54, 38.87082140761768, 22.77, 6.6691785923823135, 0.0]
 
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
@@ -178,11 +174,11 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
                                 None
                                 )
         # Create an object for each mass distribution class
-        be_I = BuildingElementAdjacentZTC(20.0, 0.30, 0.40, 0.25, 19000.0, "I", ec)
-        be_E = BuildingElementAdjacentZTC(22.5, 0.31, 0.41, 0.50, 18000.0, "E", ec)
-        be_IE = BuildingElementAdjacentZTC(25.0, 0.32, 0.42, 0.75, 17000.0, "IE", ec)
-        be_D = BuildingElementAdjacentZTC(27.5, 0.33, 0.43, 0.80, 16000.0, "D", ec)
-        be_M = BuildingElementAdjacentZTC(30.0, 0.34, 0.44, 0.40, 15000.0, "M", ec)
+        be_I = BuildingElementAdjacentZTC(20.0, 0, 0.25, 19000.0, "I", ec)
+        be_E = BuildingElementAdjacentZTC(22.5, 45, 0.50, 18000.0, "E", ec)
+        be_IE = BuildingElementAdjacentZTC(25.0, 90, 0.75, 17000.0, "IE", ec)
+        be_D = BuildingElementAdjacentZTC(27.5, 135, 0.80, 16000.0, "D", ec)
+        be_M = BuildingElementAdjacentZTC(30.0, 180, 0.40, 15000.0, "M", ec)
 
         # Put objects in a list that can be iterated over
         self.test_be_objs = [be_I, be_E, be_IE, be_D, be_M]
@@ -205,33 +201,35 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
 
     def test_h_ci(self):
         """ Test that correct h_ci is returned when queried """
-        # Define increment between test cases
-        h_ci_inc = 0.01
+        temp_int_air = 20.0
+        temp_int_surface = [19.0, 21.0, 22.0, 21.0, 19.0]
+        results = [0.7, 5.0, 2.5, 0.7, 5.0]
 
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_ci, 0.3 + i * h_ci_inc, msg="incorrect h_ci returned")
+                self.assertAlmostEqual(
+                    be.h_ci(temp_int_air, temp_int_surface[i]),
+                    results[i],
+                    msg="incorrect h_ci returned"
+                    )
 
     def test_h_ri(self):
         """ Test that correct h_ri is returned when queried """
-        # Define increment between test cases
-        h_ri_inc = 0.01
-
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_ri, 0.4 + i * h_ri_inc, msg="incorrect h_ri returned")
+                self.assertAlmostEqual(be.h_ri(), 5.13, msg="incorrect h_ri returned")
 
     def test_h_ce(self):
         """ Test that correct h_ce is returned when queried """
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_ce, 0.0, msg="incorrect h_ce returned")
+                self.assertAlmostEqual(be.h_ce(), 0.0, msg="incorrect h_ce returned")
 
     def test_h_re(self):
         """ Test that correct h_re is returned when queried """
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_re, 0.0, msg="incorrect h_re returned")
+                self.assertAlmostEqual(be.h_re(), 0.0, msg="incorrect h_re returned")
 
     def test_a_sol(self):
         """ Test that correct a_sol is returned when queried """
@@ -300,11 +298,11 @@ class TestBuildingElementGround(unittest.TestCase):
         #TODO implement rest of external conditions in unit tests
 
         # Create an object for each mass distribution class
-        be_I = BuildingElementGround(20.0, 0.30, 0.40, 0.50, 0.20, 0.25, 0.5, 19000.0, 24000.0, "I", ec)
-        be_E = BuildingElementGround(22.5, 0.31, 0.41, 0.51, 0.21, 0.50, 0.5, 18000.0, 24000.0, "E", ec)
-        be_IE = BuildingElementGround(25.0, 0.32, 0.42, 0.52, 0.22, 0.75, 0.5, 17000.0, 24000.0, "IE", ec)
-        be_D = BuildingElementGround(27.5, 0.33, 0.43, 0.53, 0.23, 0.80, 0.5, 16000.0, 24000.0, "D", ec)
-        be_M = BuildingElementGround(30.0, 0.34, 0.44, 0.54, 0.24, 0.40, 0.5, 15000.0, 24000.0, "M", ec)
+        be_I = BuildingElementGround(20.0, 0, 0.50, 0.20, 0.25, 0.5, 19000.0, 24000.0, "I", ec)
+        be_E = BuildingElementGround(22.5, 45, 0.51, 0.21, 0.50, 0.5, 18000.0, 24000.0, "E", ec)
+        be_IE = BuildingElementGround(25.0, 90, 0.52, 0.22, 0.75, 0.5, 17000.0, 24000.0, "IE", ec)
+        be_D = BuildingElementGround(27.5, 135, 0.53, 0.23, 0.80, 0.5, 16000.0, 24000.0, "D", ec)
+        be_M = BuildingElementGround(30.0, 180, 0.54, 0.24, 0.40, 0.5, 15000.0, 24000.0, "M", ec)
 
         # Put objects in a list that can be iterated over
         self.test_be_objs = [be_I, be_E, be_IE, be_D, be_M]
@@ -327,21 +325,23 @@ class TestBuildingElementGround(unittest.TestCase):
 
     def test_h_ci(self):
         """ Test that correct h_ci is returned when queried """
-        # Define increment between test cases
-        h_ci_inc = 0.01
+        temp_int_air = 20.0
+        temp_int_surface = [19.0, 21.0, 22.0, 21.0, 19.0]
+        results = [0.7, 5.0, 2.5, 0.7, 5.0]
 
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_ci, 0.3 + i * h_ci_inc, msg="incorrect h_ci returned")
+                self.assertAlmostEqual(
+                    be.h_ci(temp_int_air, temp_int_surface[i]),
+                    results[i],
+                    msg="incorrect h_ci returned"
+                    )
 
     def test_h_ri(self):
         """ Test that correct h_ri is returned when queried """
-        # Define increment between test cases
-        h_ri_inc = 0.01
-
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_ri, 0.4 + i * h_ri_inc, msg="incorrect h_ri returned")
+                self.assertAlmostEqual(be.h_ri(), 5.13, msg="incorrect h_ri returned")
 
     def test_h_ce(self):
         """ Test that correct h_ce is returned when queried """
@@ -350,7 +350,7 @@ class TestBuildingElementGround(unittest.TestCase):
 
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_ce, 0.5 + i * h_ce_inc, msg="incorrect h_ce returned")
+                self.assertAlmostEqual(be.h_ce(), 0.5 + i * h_ce_inc, msg="incorrect h_ce returned")
 
     def test_h_re(self):
         """ Test that correct h_re is returned when queried """
@@ -359,7 +359,7 @@ class TestBuildingElementGround(unittest.TestCase):
 
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_re, 0.2 + i * h_re_inc, msg="incorrect h_re returned")
+                self.assertAlmostEqual(be.h_re(), 0.2 + i * h_re_inc, msg="incorrect h_re returned")
 
     def test_a_sol(self):
         """ Test that correct a_sol is returned when queried """
@@ -432,7 +432,7 @@ class TestBuildingElementTransparent(unittest.TestCase):
                                 )
         #TODO implement rest of external conditions in unit tests
 
-        self.be = BuildingElementTransparent(5.0, 0.35, 0.45, 0.30, 0.25, 0.4, 90, 180, 0.75, 0.25, ec)
+        self.be = BuildingElementTransparent(5.0, 90, 0.4, 180, 0.75, 0.25, ec)
 
     def test_no_of_nodes(self):
         """ Test that number of nodes (total and inside) have been calculated correctly """
@@ -445,19 +445,19 @@ class TestBuildingElementTransparent(unittest.TestCase):
 
     def test_h_ci(self):
         """ Test that correct h_ci is returned when queried """
-        self.assertEqual(self.be.h_ci, 0.35, "incorrect h_ci returned")
+        self.assertEqual(self.be.h_ci(None, None), 2.5, "incorrect h_ci returned")
 
     def test_h_ri(self):
         """ Test that correct h_ri is returned when queried """
-        self.assertEqual(self.be.h_ri, 0.45, "incorrect h_ri returned")
+        self.assertEqual(self.be.h_ri(), 5.13, "incorrect h_ri returned")
 
     def test_h_ce(self):
         """ Test that correct h_ce is returned when queried """
-        self.assertEqual(self.be.h_ce, 0.30, "incorrect h_ce returned")
+        self.assertEqual(self.be.h_ce(), 20.0, "incorrect h_ce returned")
 
     def test_h_re(self):
         """ Test that correct h_re is returned when queried """
-        self.assertEqual(self.be.h_re, 0.25, "incorrect h_re returned")
+        self.assertEqual(self.be.h_re(), 4.14, "incorrect h_re returned")
 
     def test_a_sol(self):
         """ Test that correct a_sol is returned when queried """
@@ -465,7 +465,7 @@ class TestBuildingElementTransparent(unittest.TestCase):
 
     def test_therm_rad_to_sky(self):
         """ Test that correct therm_rad_to_sky is returned when queried """
-        self.assertEqual(self.be.therm_rad_to_sky, 1.375, "incorrect therm_rad_to_sky returned")
+        self.assertEqual(self.be.therm_rad_to_sky, 22.77, "incorrect therm_rad_to_sky returned")
 
     def test_h_pli(self):
         """ Test that correct h_pli list is returned when queried """

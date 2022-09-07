@@ -171,6 +171,7 @@
 				"ground":{
 					"type": "BuildingElementGround",
 					"area": 15.0,
+					"pitch": 0.0,
 					"h_ci": 0.33,
 					"h_ri": 0.43,
 					"h_ce": 0.33,
