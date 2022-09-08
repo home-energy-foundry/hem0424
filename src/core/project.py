@@ -60,6 +60,11 @@ class Project:
             proj_dict['SimulationTime']['step'],
             )
 
+        # TODO Some inputs are not currently used, so set to None here rather
+        #      than requiring them in input file.
+        # TODO Read timezone from input file. For now, set timezone to 0 (GMT)
+        # TODO Read direct_beam_conversion_needed from input file. For now,
+        #      assume false (for epw files)
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
@@ -68,13 +73,13 @@ class Project:
             proj_dict['ExternalConditions']['solar_reflectivity_of_ground'],
             proj_dict['ExternalConditions']['latitude'],
             proj_dict['ExternalConditions']['longitude'],
-            proj_dict['ExternalConditions']['timezone'],
-            proj_dict['ExternalConditions']['start_day'],
-            proj_dict['ExternalConditions']['end_day'],
-            proj_dict['ExternalConditions']['january_first'],
-            proj_dict['ExternalConditions']['daylight_savings'],
-            proj_dict['ExternalConditions']['leap_day_included'],
-            proj_dict['ExternalConditions']['direct_beam_conversion_needed']
+            0, #proj_dict['ExternalConditions']['timezone'],
+            0, #proj_dict['ExternalConditions']['start_day'],
+            365, #proj_dict['ExternalConditions']['end_day'],
+            None, #proj_dict['ExternalConditions']['january_first'],
+            None, #proj_dict['ExternalConditions']['daylight_savings'],
+            None, #proj_dict['ExternalConditions']['leap_day_included'],
+            False, #proj_dict['ExternalConditions']['direct_beam_conversion_needed']
             )
 
         self.__cold_water_sources = {}
