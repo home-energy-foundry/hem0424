@@ -19,7 +19,7 @@ from read_weather_file import weather_data_to_dict
 with open(sys.argv[1]) as json_file:
     project_dict = json.load(json_file)
 
-if len(sys.argv) > 1:
+if len(sys.argv) > 2:
     project_dict["ExternalConditions"] = weather_data_to_dict(sys.argv[2])
 
 project = Project(project_dict)

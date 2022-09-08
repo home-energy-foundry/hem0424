@@ -27,19 +27,19 @@ def weather_data_to_dict(weather_file):
         line_count = 0
         for row in csv_reader:
             if line_count == 0:
-                longitude = row[COLUMN_LONGITUDE]
-                latitude = row[COLUMN_LATITUDE]
+                longitude = float(row[COLUMN_LONGITUDE])
+                latitude = float(row[COLUMN_LATITUDE])
             elif line_count >= 8:
-                air_temperatures.append(row[COLUMN_AIR_TEMP])
-                dir_beam_rad.append(row[COLUMN_DIR_RAD])
-                diff_hor_rad.append(row[COLUMN_HOR_RAD])
-                ground_solar_reflc.append(row[COLUMN_GROUND_REFLECT])
+                air_temperatures.append(float(row[COLUMN_AIR_TEMP]))
+                dir_beam_rad.append(float(row[COLUMN_DIR_RAD]))
+                diff_hor_rad.append(float(row[COLUMN_HOR_RAD]))
+                ground_solar_reflc.append(float(row[COLUMN_GROUND_REFLECT]))
             line_count = line_count + 1
 
     external_conditions = {
         "air_temperatures": air_temperatures,
         "diffuse_horizontal_radiation": diff_hor_rad,
-        "direct_beam_radiation": dir_beam_rad.append,
+        "direct_beam_radiation": dir_beam_rad,
         "solar_reflectivity_of_ground": ground_solar_reflc,
         "longitude": longitude,
         "latitude": latitude
