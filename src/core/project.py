@@ -63,6 +63,18 @@ class Project:
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
+            proj_dict['ExternalConditions']['diffuse_horizontal_radiation'],
+            proj_dict['ExternalConditions']['direct_beam_radiation'],
+            proj_dict['ExternalConditions']['solar_reflectivity_of_ground'],
+            proj_dict['ExternalConditions']['latitude'],
+            proj_dict['ExternalConditions']['longitude'],
+            proj_dict['ExternalConditions']['timezone'],
+            proj_dict['ExternalConditions']['start_day'],
+            proj_dict['ExternalConditions']['end_day'],
+            proj_dict['ExternalConditions']['january_first'],
+            proj_dict['ExternalConditions']['daylight_savings'],
+            proj_dict['ExternalConditions']['leap_day_included'],
+            proj_dict['ExternalConditions']['direct_beam_conversion_needed']
             )
 
         self.__cold_water_sources = {}
@@ -76,7 +88,11 @@ class Project:
             # TODO Consider replacing fuel type string with fuel type object
 
         self.__internal_gains = InternalGains(
-            proj_dict['InternalGains']['total_internal_gains'],
+            expand_schedule(
+                float,
+                proj_dict['InternalGains']['schedule_total_internal_gains'],
+                "main",
+                ),
             self.__simtime,
             proj_dict['InternalGains']['start_day']
             )
@@ -233,6 +249,7 @@ class Project:
                     data['r_c'],
                     data['k_m'],
                     data['mass_distribution_class'],
+                    data['orientation'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementTransparent':
@@ -240,6 +257,9 @@ class Project:
                     data['area'],
                     data['pitch'],
                     data['r_c'],
+                    data['orientation'],
+                    data['g_value'],
+                    data['frame_area_fraction'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementGround':
@@ -333,7 +353,7 @@ class Project:
 
         def hot_water_demand(t_idx):
             """ Calculate the hot water demand for the current timestep
-            
+
             Arguments:
             t_idx -- timestep index/count
             """
@@ -381,12 +401,10 @@ class Project:
                 h_name = self.__heat_system_name_for_zone[z_name]
                 c_name = self.__cool_system_name_for_zone[z_name]
 
-                # TODO Calculate the gains rather than hard-coding to zero (i.e. ignoring them)
-                gains_solar = 0.0
                 # Convert W/m2 to W
                 gains_internal_zone = self.__internal_gains.total_internal_gain() * zone.area()
                 space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
-                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal_zone, gains_solar)
+                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal_zone)
 
                 if h_name is not None: # If the zone is heated
                     space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
@@ -441,7 +459,6 @@ class Project:
                     delta_t,
                     temp_ext_air,
                     gains_internal_zone,
-                    gains_solar,
                     gains_heat_cool
                     )
 

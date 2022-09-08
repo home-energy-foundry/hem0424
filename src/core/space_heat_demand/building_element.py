@@ -16,6 +16,7 @@ import sys
 from math import cos, pi
 
 # Local imports
+import core.external_conditions as external_conditions
 from core.units import average_monthly_to_annual
 
 # Difference between external air temperature and sky temperature
@@ -47,75 +48,94 @@ class BuildingElement:
     self.temp_ext() -- function to return the temperature of the external
                        environment, in deg C
     """
+    
+    # Values from BS EN ISO 13789:2017, Table 8: Conventional surface heat
+    # transfer coefficients
+    __H_CI_UPWARDS = 5.0
+    __H_CI_HORIZONTAL = 2.5
+    __H_CI_DOWNWARDS = 0.7
+    __H_CE = 20.0
+    __H_RI = 5.13
+    __H_RE = 4.14
+
+    # From BR 443: The values under "horizontal" apply to heat flow
+    # directions +/- 30 degrees from horizontal plane.
+    __PITCH_HORIZ_LIMIT_LOWER = 60.0
+    __PITCH_HORIZ_LIMIT_UPPER = 120.0
 
     def __init__(self, area, pitch, a_sol, f_sky):
         """ Initialisation common to all building element types
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area  -- area (in m2) of this building element
-        pitch -- pitch, in degrees, where 0 means facing down, and 90 means vertical
+        pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
+                 where 0 means facing down, 90 means vertical and 180 means facing directly up
         a_sol -- solar absorption coefficient at the external surface (dimensionless)
         f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
 
         Other variables:
-        i_sol_dif -- diffuse part (excluding circumsolar) of the solar irradiance
-                     on the element, in W / m2
-        i_sol_dir -- direct part (excluding circumsolar) of the solar irradiance
-                     on the element, in W / m2
+        i_sol_dif -- diffuse part (EXCLUDING circumsolar, as specified in ISO 52010) 
+                     of the solar irradiance on the element, in W / m2
+        i_sol_dir -- direct part (INCLUDING circumsolar, as specified in ISO 52010) 
+                     of the solar irradiance on the element, in W / m2
         f_sh_obst -- shading reduction_factor for external obstacles for the element
         therm_rad_to_sky -- thermal radiation to the sky, in W / m2, calculated
                             according to BS EN ISO 52016-1:2017, section 6.5.13.3
-
-        TODO i_sol_dif, i_sol_dir, f_sh_obst should be calculated (taking into
-             account tilt and orientation of the element). Set to zero (i.e.
-             ignore solar radiation on external surfaces) for now, until these
-             calculations have been implemented
         """
         self.area  = area
-        self.__pitch = pitch
+        self._pitch = pitch
         self.a_sol = a_sol
-        self.i_sol_dif = 0.0
-        self.i_sol_dir = 0.0
-        self.f_sh_obst = 0.0
+
+        # TODO f_sh_obst should be calculated. Set to 1.0 for now (i.e. ignore
+        #      shading) until this has been implemented.
+        self.f_sh_obst = 1.0
 
         self.therm_rad_to_sky = f_sky * self.h_re() * temp_diff_sky
 
     def h_ci(self, temp_int_air, temp_int_surface):
         """ Return internal convective heat transfer coefficient, in W / (m2.K) """
-        # Values from BS EN ISO 13789:2017, Table 8
-
-        # From BR 443: The values under "horizontal" apply to heat flow
-        # directions +/- 30 degrees from horizontal plane.
-        if self.__pitch >= 60 and self.__pitch <= 120:
+        if self._pitch >= self.__PITCH_HORIZ_LIMIT_LOWER \
+        and self._pitch <= self.__PITCH_HORIZ_LIMIT_UPPER:
             # Horizontal heat flow
-            return 2.5
+            return self.__H_CI_HORIZONTAL
         else:
             inwards_heat_flow = (temp_int_air < temp_int_surface)
+            is_floor = (self._pitch < self.__PITCH_HORIZ_LIMIT_LOWER)
+            is_ceiling = (self._pitch > self.__PITCH_HORIZ_LIMIT_UPPER)
             upwards_heat_flow \
-                = ( (self.__pitch < 90 and inwards_heat_flow)     # Floor
-                 or (self.__pitch > 90 and not inwards_heat_flow) # Ceiling
+                = ( (is_floor and inwards_heat_flow)
+                 or (is_ceiling and not inwards_heat_flow)
                   )
             if upwards_heat_flow:
                 # Upwards heat flow
-                return 5.0
+                return self.__H_CI_UPWARDS
             else:
                 # Downwards heat flow
-                return 0.7
+                return self.__H_CI_DOWNWARDS
 
     def h_ri(self):
         """ Return internal radiative heat transfer coefficient, in W / (m2.K) """
-        # Value from BS EN ISO 13789:2017, Table 8
-        return 5.13
+        return self.__H_RI
 
     def h_ce(self):
         """ Return external convective heat transfer coefficient, in W / (m2.K) """
-        # Value from BS EN ISO 13789:2017, Table 8
-        return 20.0
+        return self.__H_CE
 
     def h_re(self):
         """ Return external radiative heat transfer coefficient, in W / (m2.K) """
-        # Value from BS EN ISO 13789:2017, Table 8
-        return 4.14
+        return self.__H_RE
+
+    def i_sol_dir(self):
+        """ Return default of zero for i_sol_dir """
+        return 0
+
+    def i_sol_dif(self):
+        """ Return default of zero for i_sol_dif """
+        return 0
+
+    def solar_gains(self):
+        """ Return default of zero for solar gains """
+        return 0
 
     def no_of_nodes(self):
         """ Return number of nodes including external and internal layers """
@@ -136,16 +156,21 @@ class BuildingElementOpaque(BuildingElement):
             r_c,
             k_m,
             mass_distribution_class,
+            orientation,
             ext_cond,
             ):
         """ Construct a BuildingElementOpaque object
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- pitch, in degrees, where 0 means facing down, and 90 means vertical
+        pitch    -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
+                    where 0 means facing down, 90 means vertical and 180 means facing directly up
         a_sol    -- solar absorption coefficient at the external surface (dimensionless)
         r_c      -- thermal resistance, in m2.K / W
         k_m      -- areal heat capacity, in J / (m2.K)
+        orientation -- is the orientation angle of the inclined surface, expressed as the 
+                       geographical azimuth angle of the horizontal projection of the inclined 
+                       surface normal, -180 to 180, in degrees
         ext_cond -- reference to ExternalConditions object
         mass_distribution_class
                  -- distribution of mass in building element, one of:
@@ -158,6 +183,7 @@ class BuildingElementOpaque(BuildingElement):
         Other variables:
         f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
         """
+        self.__orientation = orientation
         self.__external_conditions = ext_cond
 
         # This is the f_sky value for an unshaded surface
@@ -196,6 +222,14 @@ class BuildingElementOpaque(BuildingElement):
 
         self.k_pli = init_k_pli()
 
+    def i_sol_dir(self):
+        """ Return calculated i_sol_dir using pitch and orientation of element """
+        return self.__external_conditions.calculated_direct_irradiance(self._pitch, self.__orientation)
+
+    def i_sol_dif(self):
+        """ Return calculated i_sol_dif using pitch and orientation of element """
+        return self.__external_conditions.calculated_diffuse_irradiance(self._pitch, self.__orientation)
+
     def temp_ext(self):
         """ Return the temperature of the air on the other side of the building element """
         return self.__external_conditions.air_temp()
@@ -218,7 +252,8 @@ class BuildingElementAdjacentZTC(BuildingElement):
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- pitch, in degrees, where 0 means facing down, and 90 means vertical
+        pitch    -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
+                    where 0 means facing down, 90 means vertical and 180 means facing directly up
         r_c      -- thermal resistance, in m2.K / W
         k_m      -- areal heat capacity, in J / (m2.K)
         ext_cond -- reference to ExternalConditions object
@@ -244,9 +279,6 @@ class BuildingElementAdjacentZTC(BuildingElement):
         f_sky = 0
         # Solar absorption coefficient at the external surface is zero
         a_sol = 0
-        # External heat transfer coefficients are zero
-        h_ce = 0
-        h_re = 0
 
         # Initialise the base BuildingElement class
         super().__init__(area, pitch, a_sol, f_sky)
@@ -333,7 +365,8 @@ class BuildingElementGround(BuildingElement):
     
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- pitch, in degrees, where 0 means facing down, and 90 means vertical
+        pitch    -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
+                    where 0 means facing down, 90 means vertical and 180 means facing directly up
         u_value  -- steady-state thermal transmittance of floor, including the
                     effect of the ground, in W / (m2.K)
         r_f      -- total thermal resistance of all layers in the floor construction, in (m2.K) / W
@@ -479,19 +512,37 @@ class BuildingElementTransparent(BuildingElement):
             area,
             pitch,
             r_c,
+            orientation,
+            g_value,
+            frame_area_fraction,
             ext_cond,
             ):
         """ Construct a BuildingElementTransparent object
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- pitch, in degrees, where 0 means facing down, and 90 means vertical
+        pitch    -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
+                    where 0 means facing down, 90 means vertical and 180 means facing directly up
         r_c      -- thermal resistance, in m2.K / W
+        orientation -- is the orientation angle of the inclined surface, expressed 
+                       as the geographical azimuth angle of the horizontal projection 
+                       of the inclined surface normal, -180 to 180, in degrees
+        g_value -- total solar energy transmittance of the transparent part of the window
+        frame_area_fraction -- is the frame area fraction of window wi, ratio of the 
+                               projected frame area to the overall projected area of 
+                               the glazed element of the window
         ext_cond -- reference to ExternalConditions object
 
         Other variables:
         f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
         """
+        self.__orientation = orientation
+        self.__g_value = g_value
+        #TODO ISO 52016 offers an input option; either the frame factor directly,
+        #or the glazed area of the window and then the frame factor is calculated.
+        #assuming for now that frame factor is provided (default 0.25 from App B)
+        #need to implement ISO 52016 E.2.1 here if other option given.
+        self.__frame_area_fraction = frame_area_fraction
         self.__external_conditions = ext_cond
 
         # Solar absorption coefficient is zero because element is transparent
@@ -507,6 +558,41 @@ class BuildingElementTransparent(BuildingElement):
         # according to BS EN ISO 52016-1:2017, section 6.5.7.4
         self.h_pli = [1.0 / r_c]
         self.k_pli = [0.0, 0.0]
+
+    #TODO f_sh_obst set to zero in main Building Element set up.
+    #calculate that properly here when implementing shading.
+    #self.f_sh_obst
+
+    def convert_g_value(self):
+        """return g_value corrected for angle of solar radiation"""
+
+        #TODO for windows with scattering glazing or solar shading provisions
+        #there is a different, more complex method for conversion that depends on
+        #timestep (via solar altitude).
+        #suggest this is implemented at the same time as window shading (devices
+        #rather than fixed features) as will also need to link to shading schedule.
+        #see ISO 52016 App E. Page 177
+        #How do we know whether a window has "scattering glazing"?
+
+        # g_value = agl * g_alt + (1 - agl) * g_dif
+
+        Fw = 0.90 
+        #default from ISO 52016 App B Table B.22
+        g_value = Fw * self.__g_value
+
+        return g_value
+
+    def solar_gains(self):
+        """ Return calculated solar gains using pitch and orientation of element """
+
+        i_sol_dir = self.__external_conditions.calculated_direct_irradiance(self._pitch, self.__orientation)
+        i_sol_dif = self.__external_conditions.calculated_diffuse_irradiance(self._pitch, self.__orientation)
+        g_value = self.convert_g_value()
+
+        solar_gains = g_value * (i_sol_dif + i_sol_dir * self.f_sh_obst) \
+                    * self.area * (1 - self.__frame_area_fraction)
+
+        return solar_gains
 
     def temp_ext(self):
         """ Return the temperature of the air on the other side of the building element """
