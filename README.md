@@ -30,6 +30,17 @@ file, e.g. (assuming the working directory is the top-level folder of the reposi
 	# Other systems
 	# TODO
 
+Note that the above requires an entire year's weather data to be provided in the input file.
+Alternatively, a weather file can be provided in EnergyPlus (epw) format, as a second argument to
+the program, e.g.:
+
+	# RHEL 7 / CentOS 7:
+	python3 src/sap.py test/demo.json /path/to/weather_files/GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
+
+	# Other systems
+	# TODO
+
+
 # Build and Test
 ## Unit tests
 This project makes use of the unittest module in the Python standard library.
