@@ -133,7 +133,11 @@
 					"u_value": 1.4,
 					"r_f": 0.2,
 					"k_m": 19300,
-					"mass_distribution_class": "D"
+					"mass_distribution_class": "D",
+					"h_pi": 2.0,
+					"h_pe": 2.5,
+					"perimeter": 16.0,
+					"psi_wall_floor_junc": 0.5
 				},
 				"wall 4":{
 					"type": "BuildingElementAdjacentZTC",

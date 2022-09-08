@@ -63,7 +63,6 @@ class Project:
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
-            proj_dict['ExternalConditions']['ground_temperatures'],
             )
 
         self.__cold_water_sources = {}
@@ -251,7 +250,12 @@ class Project:
                     data['r_f'],
                     data['k_m'],
                     data['mass_distribution_class'],
+                    data['h_pi'],
+                    data['h_pe'],
+                    data['perimeter'],
+                    data['psi_wall_floor_junc'],
                     self.__external_conditions,
+                    self.__simtime,
                     )
             elif building_element_type == 'BuildingElementAdjacentZTC':
                 building_element = BuildingElementAdjacentZTC(

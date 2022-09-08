@@ -15,6 +15,9 @@ method described in BS EN ISO 52016-1:2017, section 6.5.6.
 import sys
 from math import cos, pi
 
+# Local imports
+from core.units import average_monthly_to_annual
+
 # Difference between external air temperature and sky temperature
 # (default value for intermediate climatic region from BS EN ISO 52016-1:2017, Table B.19)
 temp_diff_sky = 11.0 # Kelvin
@@ -303,6 +306,15 @@ class BuildingElementAdjacentZTC(BuildingElement):
 class BuildingElementGround(BuildingElement):
     """ A class to represent ground building elements """
 
+    # Assume values for temp_int_annual and temp_int_monthly
+    # These are based on SAP 10 notional building runs for 5 archetypes used
+    # for inter-model comparison/validation. The average of the monthly mean
+    # internal temperatures from each run was taken.
+    __TEMP_INT_MONTHLY \
+        = [19.46399546, 19.66940204, 19.90785898, 20.19719837, 20.37461865, 20.45679018,
+           20.46767703, 20.46860812, 20.43505593, 20.22266322, 19.82726777, 19.45430847,
+          ]
+
     def __init__(self,
             area,
             pitch,
@@ -310,7 +322,12 @@ class BuildingElementGround(BuildingElement):
             r_f,
             k_m,
             mass_distribution_class,
+            h_pi,
+            h_pe,
+            perimeter,
+            psi_wall_floor_junc,
             ext_cond,
+            simulation_time,
             ):
         """ Construct a BuildingElementGround object
     
@@ -321,7 +338,15 @@ class BuildingElementGround(BuildingElement):
                     effect of the ground, in W / (m2.K)
         r_f      -- total thermal resistance of all layers in the floor construction, in (m2.K) / W
         k_m      -- areal heat capacity of the ground floor element, in J / (m2.K)
+        h_pi     -- internal periodic heat transfer coefficient, as defined in
+                    BS EN ISO 13370:2017 Annex H, in W / K
+        h_pe     -- internal periodic heat transfer coefficient, as defined in
+                    BS EN ISO 13370:2017 Annex H, in W / K
+        perimeter -- perimeter of the floor, in metres
+        psi_wall_floor_junc -- linear thermal transmittance of the junction
+                               between the floor and the walls, in W / (m.K)
         ext_cond -- reference to ExternalConditions object
+        simulation_time -- reference to SimulationTime object
         mass_distribution_class
                  -- distribution of mass in building element, one of:
                     - 'I':  mass concentrated on internal side
@@ -339,7 +364,14 @@ class BuildingElementGround(BuildingElement):
         k_gr     -- areal heat capacity of the fixed ground layer, in J / (m2.K)
         """
         self.__u_value = u_value
+        self.__h_pi = h_pi
+        self.__h_pe = h_pe
+        self.__perimeter = perimeter
+        self.__psi_wall_flr_junc = psi_wall_floor_junc
         self.__external_conditions = ext_cond
+        self.__simulation_time = simulation_time
+        self.__temp_int_annual = average_monthly_to_annual(self.__TEMP_INT_MONTHLY)
+
 
         # Solar absorption coefficient at the external surface of the ground element is zero
         # according to BS EN ISO 52016-1:2017, section 6.5.7.3
@@ -413,8 +445,31 @@ class BuildingElementGround(BuildingElement):
         return self.__h_re
 
     def temp_ext(self):
-        """ Return the temperature of the air on the other side of the building element """
-        return self.__external_conditions.ground_temp()
+        """ Return the temperature on the other side of the building element """
+        temp_ext_annual = self.__external_conditions.air_temp_annual()
+        temp_ext_month = self.__external_conditions.air_temp_monthly()
+
+        current_month = self.__simulation_time.current_month()
+        temp_int_month = self.__TEMP_INT_MONTHLY[current_month]
+
+        # BS EN ISO 13370:2017 Eqn C.4
+        heat_flow_month \
+            = self.__u_value * self.area * (self.__temp_int_annual - temp_ext_annual) \
+            + self.__perimeter * self.__psi_wall_flr_junc * (temp_int_month - temp_ext_month) \
+            - self.__h_pi * (self.__temp_int_annual - temp_int_month) \
+            + self.__h_pe * (temp_ext_annual - temp_ext_month)
+
+        # BS EN ISO 13370:2017 Eqn F.2
+        temp_ground_virtual \
+            = temp_int_month \
+            - ( heat_flow_month
+              - ( self.__perimeter * self.__psi_wall_flr_junc 
+                * (self.__temp_int_annual - temp_ext_annual)
+                )
+              ) \
+            / (self.area * self.__u_value)
+
+        return temp_ground_virtual
 
 
 class BuildingElementTransparent(BuildingElement):
