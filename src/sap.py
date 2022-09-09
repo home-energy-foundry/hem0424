@@ -24,34 +24,56 @@ with open(inp_filename) as json_file:
     project_dict = json.load(json_file)
 
 project = Project(project_dict)
-timestep_array, results_totals, results_end_user, temp_operative_array, temp_internal_air_array, z_name, space_heat_demand_array, space_cool_demand_array, h_name, space_heat_system_array, cooling_name, space_cool_system_array = project.run()
+timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict = project.run()
 
 with open(output_file, 'w') as f:
     writer = csv.writer(f)
 
-    headings = []
+    headings = ['Timestep']
     i = 0
     for totals_key in results_totals.keys():
         totals_header = str(totals_key)
         totals_header = totals_header + ' total'
-        headings.insert(i, totals_header)
+        headings.append(totals_header)
         for end_user_key in results_end_user[totals_key].keys():
             headings.append(end_user_key)
             i = i + 1
-    headings.insert(0, 'Timestep')
-    headings.extend(['Operative temp', 'Internal air temp', 'Zone name', 'Space heat demand', 'Space cool demand', 'Heating system', 'Sum of space heating', 'Cooling system', 'Sum of cooling system'])
+
+    for zone in zone_list:
+        for zone_outputs in zone_dict.keys():
+            zone_headings = zone_outputs + ' ' + zone
+            headings.append(zone_headings)
+
+    for system in hc_system_dict:
+        for hc_name in hc_system_dict[system].keys():
+            if hc_name == None:
+                hc_name = 'None'
+                hc_system_headings = system + ' ' + hc_name
+            else:
+                hc_system_headings = system + ' ' + hc_name
+            headings.append(hc_system_headings)
+
     writer.writerow(headings)
 
-    j = 0
     for t_idx, timestep in enumerate(timestep_array):
         row = []
+        zone_row = []
+        hc_system_row = []
         i = 0
+        # Loop over end use totals
         for totals_key in results_totals:
             row.insert(i, results_totals[totals_key][t_idx])
             for end_user_key in results_end_user[totals_key]:
                 row.append(results_end_user[totals_key][end_user_key][t_idx])
                 i = i + 1
+            # Loop over results separated by zone
+            for zone in zone_list:
+                for zone_outputs in zone_dict:
+                    zone_row.append(zone_dict[zone_outputs][zone][t_idx])
+            # Loop over heating and cooling system demand
+            for system in hc_system_dict:
+                for hc_name in hc_system_dict[system]:
+                    hc_system_row.append(hc_system_dict[system][hc_name][t_idx])
 
-        row = [t_idx] + row + [temp_operative_array[j], temp_internal_air_array[j], z_name, space_heat_demand_array[j], space_cool_demand_array[j], h_name, space_heat_system_array[j], cooling_name, space_cool_system_array[j]]
+        row = [t_idx] + row + zone_row + hc_system_row
         writer.writerow(row)
-        j = j + 1

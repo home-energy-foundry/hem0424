@@ -398,6 +398,8 @@ class Project:
             # Apportion the provided heating/cooling between the zones in
             # proportion to the heating/cooling demand in each zone. Then
             # update resultant temperatures in zones.
+            internal_air_temp = {}
+            operative_temp = {}
             for z_name, zone in self.__zones.items():
                 # Look up names of relevant heating and cooling systems for this zone
                 h_name = self.__heat_system_name_for_zone[z_name]
@@ -433,41 +435,63 @@ class Project:
                     )
 
                 if c_name is None:
-                    cooling_name = 'n/a'
                     space_cool_demand_system[c_name] = 'n/a'
-                else:
-                    cooling_name = c_name
-                    space_cool_demand_system = space_cool_demand_system[c_name]
 
-                #These dictionaries should not be converted
-                space_cool_demand_zone = space_cool_demand_zone[z_name]
-                space_heat_demand_zone =  space_heat_demand_zone[z_name]
-                space_heat_demand_system = space_heat_demand_system[h_name]
+                internal_air_temp[z_name] = zone.temp_internal_air()
+                operative_temp[z_name] = zone.temp_operative()
 
-            return zone.temp_operative(), zone.temp_internal_air(), space_heat_demand_zone, z_name, space_heat_demand_system, h_name, space_cool_demand_zone, space_cool_demand_system, cooling_name
+            return operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system
 
         timestep_array = []
-        temp_operative_array = []
-        temp_internal_air_array = []
-        space_heat_demand_array = []
-        space_heat_system_array = []
-        space_cool_demand_array = []
-        space_cool_system_array = []
+        operative_temp_dict = {}
+        internal_air_temp_dict = {}
+        space_heat_demand_dict = {}
+        space_cool_demand_dict = {}
+        space_heat_demand_system_dict = {}
+        space_cool_demand_system_dict = {}
+        zone_list = []
 
+        for z_name in self.__zones.keys():
+            operative_temp_dict[z_name] = []
+            internal_air_temp_dict[z_name] = []
+            space_heat_demand_dict[z_name] = []
+            space_cool_demand_dict[z_name] = []
+            zone_list.append(z_name)
+
+        for z_name, h_name in self.__heat_system_name_for_zone.items():
+            space_heat_demand_system_dict[h_name] = []
+
+        for z_name, c_name in self.__cool_system_name_for_zone.items():
+            space_cool_demand_system_dict[c_name] = []
+
+        # Loop over each timestep
         for t_idx, t_current, delta_t_h in self.__simtime:
             timestep_array.append(t_current)
             hw_demand = hot_water_demand(t_idx)
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
+            operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system = calc_space_heating(delta_t_h)
 
-            temp_operative, temp_internal_air, space_heat_demand_zone, z_name, space_heat_demand_system, h_name, space_cool_demand_zone, space_cool_demand_system, cooling_name = calc_space_heating(delta_t_h)
+            for z_name, temp in operative_temp.items():
+                operative_temp_dict[z_name].append(temp)
 
-            temp_operative_array.append(temp_operative)
-            temp_internal_air_array.append(temp_internal_air)
-            space_heat_demand_array.append(space_heat_demand_zone)
-            space_heat_system_array.append(space_heat_demand_system)
-            space_cool_demand_array.append(space_cool_demand_zone)
-            space_cool_system_array.append(space_cool_demand_system)
+            for z_name, temp in internal_air_temp.items():
+                internal_air_temp_dict[z_name].append(temp)
+
+            for z_name, demand in space_heat_demand_zone.items():
+                space_heat_demand_dict[z_name].append(demand)
+
+            for z_name, demand in space_cool_demand_zone.items():
+                space_cool_demand_dict[z_name].append(demand)
+
+            for h_name, demand in space_heat_demand_system.items():
+                space_heat_demand_system_dict[h_name].append(demand)
+
+            for c_name, demand in space_cool_demand_system.items():
+                space_cool_demand_system_dict[c_name].append(demand)
+
+        zone_dict = {'Operative temp': operative_temp_dict, 'Internal air temp': internal_air_temp_dict, 'Space heat demand': space_heat_demand_dict, 'Space cool demand': space_cool_demand_dict}
+        hc_system_dict = {'Heating system': space_heat_demand_system_dict, 'Cooling system': space_cool_demand_system_dict}
 
         # Return results from all energy supplies
         results_totals = {}
@@ -475,4 +499,4 @@ class Project:
         for name, supply in self.__energy_supplies.items():
             results_totals[name] = supply.results_total()
             results_end_user[name] = supply.results_by_end_user()
-        return timestep_array, results_totals, results_end_user, temp_operative_array, temp_internal_air_array, z_name, space_heat_demand_array, space_cool_demand_array, h_name, space_heat_system_array, cooling_name, space_cool_system_array
+        return timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict
