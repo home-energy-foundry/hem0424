@@ -14,6 +14,7 @@ test_setup()
 
 # Local imports
 from core.heating_systems.heat_pump import HeatPumpTestData, SourceType, SinkType
+from core.units import Celcius2Kelvin
 
 
 # Before defining the code to run the tests, we define the data to be parsed
@@ -332,7 +333,7 @@ class TestHeatPumpTestData(unittest.TestCase):
         for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
             with self.subTest(i=i):
                 self.assertAlmostEqual(
-                    self.hp_testdata.average_degradation_coeff(flow_temp),
+                    self.hp_testdata.average_degradation_coeff(Celcius2Kelvin(flow_temp)),
                     results[i],
                     msg="incorrect average degradation coefficient returned"
                     )
@@ -344,7 +345,7 @@ class TestHeatPumpTestData(unittest.TestCase):
         for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
             with self.subTest(i=i):
                 self.assertAlmostEqual(
-                    self.hp_testdata.average_capacity(flow_temp),
+                    self.hp_testdata.average_capacity(Celcius2Kelvin(flow_temp)),
                     results[i],
                     msg="incorrect average capacity returned"
                     )
@@ -356,7 +357,7 @@ class TestHeatPumpTestData(unittest.TestCase):
         for i, flow_temp in enumerate([35, 40, 45, 50, 55]):
             with self.subTest(i=i):
                 self.assertEqual(
-                    self.hp_testdata.temp_spread_test_conditions(flow_temp),
+                    self.hp_testdata.temp_spread_test_conditions(Celcius2Kelvin(flow_temp)),
                     results[i],
                     msg="incorrect temp spread at test conditions returned"
                     )
@@ -387,6 +388,7 @@ class TestHeatPumpTestData(unittest.TestCase):
             #      is being tested here, so for now we set the result so that
             #      the test passes.
             i += 1
+            flow_temp = Celcius2Kelvin(flow_temp)
             with self.subTest(i=i):
                 self.assertEqual(
                     self.hp_testdata.carnot_cop_at_test_condition(test_condition, flow_temp),
@@ -411,6 +413,7 @@ class TestHeatPumpTestData(unittest.TestCase):
             [45, 'F', 316.15],
             ]:
             i += 1
+            flow_temp = Celcius2Kelvin(flow_temp)
             with self.subTest(i=i):
                 self.assertEqual(
                     self.hp_testdata.outlet_temp_at_test_condition(test_condition, flow_temp),
@@ -444,6 +447,7 @@ class TestHeatPumpTestData(unittest.TestCase):
             #      is being tested here, so for now we set the result so that
             #      the test passes.
             i += 1
+            flow_temp = Celcius2Kelvin(flow_temp)
             with self.subTest(i=i):
                 self.assertEqual(
                     self.hp_testdata.source_temp_at_test_condition(test_condition, flow_temp),
@@ -467,6 +471,7 @@ class TestHeatPumpTestData(unittest.TestCase):
             [45, 'F', 8.6],
             ]:
             i += 1
+            flow_temp = Celcius2Kelvin(flow_temp)
             with self.subTest(i=i):
                 self.assertAlmostEqual(
                     self.hp_testdata.capacity_at_test_condition(test_condition, flow_temp),
@@ -485,6 +490,7 @@ class TestHeatPumpTestData(unittest.TestCase):
             [55.0, 273.15, 5.96636363636364, 1.0],
             ]:
             i += 1
+            flow_temp = Celcius2Kelvin(flow_temp)
             with self.subTest(i=i):
                 self.assertAlmostEqual(
                     self.hp_testdata.lr_op_cond(flow_temp, temp_source, carnot_cop_op_cond),
@@ -526,6 +532,7 @@ class TestHeatPumpTestData(unittest.TestCase):
         for exergy_lr_op_cond in [1.2, 1.4]:
             for flow_temp in [35, 40, 45, 50, 55]:
                 i += 1
+                flow_temp = Celcius2Kelvin(flow_temp)
                 with self.subTest(i=i):
                     lr_below, lr_above, eff_below, eff_above, deg_below, deg_above = \
                         self.hp_testdata.lr_eff_degcoeff_either_side_of_op_cond(
@@ -566,33 +573,32 @@ class TestHeatPumpTestData(unittest.TestCase):
     def test_cop_op_cond_if_not_air_source(self):
         """ Test that correct CoP at operating conditions (not air source) is returned """
         results = [
-            8.070540309266503,
-            10.616403014723252,
-            5.539815752185454,
-            8.039050079300951,
-            4.460426809129295,
+            6.5629213163133,
+            8.09149749487405,
+            4.60977003063163,
+            5.92554693808559,
+            3.76414827675397,
             ]
 
         i = -1
-        for flow_temp, min_temp_diff_emit, temp_ext, temp_source, temp_output in [
-            [35.0, 8.0, 0.00, 283.15, 303.15],
-            [40.0, 7.0, -5.0, 293.15, 308.15],
-            [45.0, 6.0, 5.00, 278.15, 310.65],
-            [50.0, 5.0, 10.0, 288.15, 313.15],
-            [55.0, 4.0, 7.50, 273.15, 318.15],
+        for min_temp_diff_emit, temp_ext, temp_source, temp_output in [
+            [8.0, 0.00, 283.15, 308.15],
+            [7.0, -5.0, 293.15, 313.15],
+            [6.0, 5.00, 278.15, 318.15],
+            [5.0, 10.0, 288.15, 323.15],
+            [4.0, 7.50, 273.15, 328.15],
             ]:
             i += 1
             with self.subTest(i=i):
-                self.assertEqual(
+                self.assertAlmostEqual(
                     self.hp_testdata.cop_op_cond_if_not_air_source(
-                        flow_temp,
                         min_temp_diff_emit,
-                        temp_ext,
+                        Celcius2Kelvin(temp_ext),
                         temp_source,
                         temp_output,
                         ),
                     results[i],
-                    "incorrect CoP at operating conditions (not air source) returned",
+                    msg="incorrect CoP at operating conditions (not air source) returned",
                     )
 
 

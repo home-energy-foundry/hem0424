@@ -18,7 +18,7 @@ import numpy as np
 from numpy.polynomial.polynomial import polyfit
 
 # Local imports
-from core.units import Celcius2Kelvin
+from core.units import Celcius2Kelvin, Kelvin2Celcius
 
 # Constants
 N_EXER = 3.0
@@ -99,10 +99,10 @@ class HeatPumpTestData:
                 - capacity
                 - cop
                 - degradation_coeff
-                - design_flow_temp
-                - temp_outlet
-                - temp_source
-                - temp_test
+                - design_flow_temp (in Celsius)
+                - temp_outlet (in Celsius)
+                - temp_source (in Celsius)
+                - temp_test (in Celsius)
         """
         def duplicates(a, b):
             """ Determine whether records a and b are duplicates """
@@ -293,6 +293,7 @@ class HeatPumpTestData:
             # If there is data for only one design flow temp, use that
             return self.__average_deg_coeff[0]
 
+        flow_temp = Kelvin2Celcius(flow_temp)
         return np.interp(flow_temp, self.__dsgn_flow_temps, self.__average_deg_coeff)
 
     def average_capacity(self, flow_temp):
@@ -301,6 +302,7 @@ class HeatPumpTestData:
             # If there is data for only one design flow temp, use that
             return self.__average_cap[0]
 
+        flow_temp = Kelvin2Celcius(flow_temp)
         return np.interp(flow_temp, self.__dsgn_flow_temps, self.__average_cap)
 
     def temp_spread_test_conditions(self, flow_temp):
@@ -309,6 +311,7 @@ class HeatPumpTestData:
             # If there is data for only one design flow temp, use that
             return self.__temp_spread_test_conditions[0]
 
+        flow_temp = Kelvin2Celcius(flow_temp)
         return np.interp(flow_temp, self.__dsgn_flow_temps, self.__temp_spread_test_conditions)
 
     def __data_at_test_condition(self, data_item_name, test_condition, flow_temp):
@@ -335,6 +338,7 @@ class HeatPumpTestData:
             idx = find_test_record_index(dsgn_flow_temp)
             data_list.append(self.__testdata[dsgn_flow_temp][idx][data_item_name])
 
+        flow_temp = Kelvin2Celcius(flow_temp)
         return np.interp(flow_temp, self.__dsgn_flow_temps, data_list)
 
     def carnot_cop_at_test_condition(self, test_condition, flow_temp):
@@ -371,20 +375,21 @@ class HeatPumpTestData:
 
     def lr_op_cond(self, flow_temp, temp_source, carnot_cop_op_cond):
         """ Return load ratio at operating conditions """
-        temp_output = Celcius2Kelvin(flow_temp)
         lr_op_cond_list = []
         for dsgn_flow_temp in self.__dsgn_flow_temps:
+            dsgn_flow_temp = Celcius2Kelvin(dsgn_flow_temp)
             temp_output_cld = self.outlet_temp_at_test_condition('cld', dsgn_flow_temp)
             temp_source_cld = self.source_temp_at_test_condition('cld', dsgn_flow_temp)
             carnot_cop_cld = self.carnot_cop_at_test_condition('cld', dsgn_flow_temp)
 
             lr_op_cond = (carnot_cop_op_cond / carnot_cop_cld) \
                        * ( temp_output_cld * temp_source
-                         / (temp_output * temp_source_cld)
+                         / (flow_temp * temp_source_cld)
                          ) \
                          ** N_EXER
             lr_op_cond_list.append(max(1.0, lr_op_cond))
 
+        flow_temp = Kelvin2Celcius(flow_temp)
         return np.interp(flow_temp, self.__dsgn_flow_temps, lr_op_cond_list)
 
     def lr_eff_degcoeff_either_side_of_op_cond(self, flow_temp, exergy_lr_op_cond):
@@ -399,7 +404,7 @@ class HeatPumpTestData:
         - Degradation coeff above operating conditions
 
         Arguments:
-        flow_temp         -- flow temperature, in Celcius
+        flow_temp         -- flow temperature, in Kelvin
         exergy_lr_op_cond -- exergy load ratio at operating conditions
         """
         load_ratios_below = []
@@ -448,6 +453,7 @@ class HeatPumpTestData:
                    degradation_coeffs_below[0], degradation_coeffs_above[0]
 
         # Interpolate between the values found for the different design flow temperatures
+        flow_temp = Kelvin2Celcius(flow_temp)
         lr_below = np.interp(flow_temp, self.__dsgn_flow_temps, load_ratios_below)
         lr_above = np.interp(flow_temp, self.__dsgn_flow_temps, load_ratios_above)
         eff_below = np.interp(flow_temp, self.__dsgn_flow_temps, efficiencies_below)
@@ -459,23 +465,25 @@ class HeatPumpTestData:
 
     def cop_op_cond_if_not_air_source(
             self,
-            flow_temp,
             min_temp_diff_emit,
             temp_ext,
             temp_source,
             temp_output,
             ):
         """ Calculate CoP at operating conditions when heat pump is not air-source
-        
+
         Arguments:
-        flow_temp          -- flow temperature, in Celcius
         min_temp_diff_emit -- minimum temperature difference above the room
                               temperature for emitters to operate, in
                               Celcius/Kelvin
-        temp_ext           -- external temperature, in Celcius
+        temp_ext           -- external temperature, in Kelvin
         temp_source        -- source temperature, in Kelvin
         temp_output        -- output temperature, in Kelvin
         """
+        # Need to use Celsius here because regression coeffs were calculated
+        # using temperature in Celsius
+        temp_ext = Kelvin2Celcius(temp_ext)
+
         # For each design flow temperature, calculate CoP at operating conditions
         # Note: Loop over sorted list of design flow temps and then index into
         #       self.__testdata, rather than looping over self.__testdata,
@@ -502,6 +510,7 @@ class HeatPumpTestData:
             return cop_op_cond[0]
 
         # Interpolate between the values found for the different design flow temperatures
+        flow_temp = Kelvin2Celcius(temp_output)
         return np.interp(flow_temp, self.__dsgn_flow_temps, cop_op_cond)
 
 
