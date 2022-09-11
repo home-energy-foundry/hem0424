@@ -474,6 +474,24 @@ class TestHeatPumpTestData(unittest.TestCase):
                     msg="incorrect capacity at condition "+test_condition+" returned"
                     )
 
+    def test_lr_op_cond(self):
+        """ Test that correct load ratio at operating conditions is returned """
+        i = -1
+        for flow_temp, temp_source, carnot_cop_op_cond, result in [
+            [35.0, 283.15, 12.326, 1.50508728516368],
+            [40.0, 293.15, 15.6575, 2.38250354792371],
+            [45.0, 278.15, 7.95375, 1.21688682087694],
+            [50.0, 288.15, 9.23285714285714, 1.58193632324929],
+            [55.0, 273.15, 5.96636363636364, 1.0],
+            ]:
+            i += 1
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    self.hp_testdata.lr_op_cond(flow_temp, temp_source, carnot_cop_op_cond),
+                    result, 
+                    msg="incorrect load ratio at operating conditions returned"
+                    )
+
     def test_lr_eff_degcoeff_either_side_of_op_cond(self):
         """ Test that correct test results either side of operating conditions are returned """
         results_lr_below = [

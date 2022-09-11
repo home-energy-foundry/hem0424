@@ -318,6 +318,24 @@ class HeatPumpTestData:
         """
         return self.__data_at_test_condition('capacity', test_condition, flow_temp)
 
+    def lr_op_cond(self, flow_temp, temp_source, carnot_cop_op_cond):
+        """ Return load ratio at operating conditions """
+        temp_output = Celcius2Kelvin(flow_temp)
+        lr_op_cond_list = []
+        for dsgn_flow_temp in self.__dsgn_flow_temps:
+            temp_output_cld = self.outlet_temp_at_test_condition('cld', dsgn_flow_temp)
+            temp_source_cld = self.source_temp_at_test_condition('cld', dsgn_flow_temp)
+            carnot_cop_cld = self.carnot_cop_at_test_condition('cld', dsgn_flow_temp)
+
+            lr_op_cond = (carnot_cop_op_cond / carnot_cop_cld) \
+                       * ( temp_output_cld * temp_source
+                         / (temp_output * temp_source_cld)
+                         ) \
+                         ** N_EXER
+            lr_op_cond_list.append(max(1.0, lr_op_cond))
+
+        return np.interp(flow_temp, self.__dsgn_flow_temps, lr_op_cond_list)
+
     def lr_eff_degcoeff_either_side_of_op_cond(self, flow_temp, exergy_lr_op_cond):
         """ Return test results either side of operating conditions.
 
