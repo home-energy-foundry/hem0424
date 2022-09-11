@@ -13,7 +13,7 @@ from unit_tests.common import test_setup
 test_setup()
 
 # Local imports
-from core.heating_systems.heat_pump import HeatPumpTestData
+from core.heating_systems.heat_pump import HeatPumpTestData, SourceType, SinkType
 
 
 # Before defining the code to run the tests, we define the data to be parsed
@@ -595,3 +595,39 @@ class TestHeatPumpTestData(unittest.TestCase):
                     "incorrect CoP at operating conditions (not air source) returned",
                     )
 
+
+class TestSourceType(unittest.TestCase):
+    """ Unit tests for SourceType """
+
+    def test_from_string(self):
+        """ Test that from_string function returns correct Enum values """
+        for strval, result in [
+            ['Ground', SourceType.GROUND],
+            ['OutsideAir', SourceType.OUTSIDE_AIR],
+            ['ExhaustAirMEV', SourceType.EXHAUST_AIR_MEV],
+            ['ExhaustAirMVHR', SourceType.EXHAUST_AIR_MVHR],
+            ['ExhaustAirMixed', SourceType.EXHAUST_AIR_MIXED],
+            ['WaterGround', SourceType.WATER_GROUND],
+            ['WaterSurface', SourceType.WATER_SURFACE],
+            ]:
+            self.assertEqual(
+                SourceType.from_string(strval),
+                result,
+                "incorrect SourceType returned",
+                )
+
+
+class TestSinkType(unittest.TestCase):
+    """ Unit tests for SinkType """
+
+    def test_from_string(self):
+        """ Test that from_string function returns correct Enum values """
+        for strval, result in [
+            ['Air', SinkType.AIR],
+            ['Water', SinkType.WATER],
+            ]:
+            self.assertEqual(
+                SinkType.from_string(strval),
+                result,
+                "incorrect SourceType returned",
+                )

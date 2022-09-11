@@ -11,6 +11,7 @@ BS EN 15316-4-2:2017 and is described in the SAP calculation method CALCM-01.
 # Standard library imports
 import sys
 from copy import deepcopy
+from enum import Enum, auto
 
 # Third-party imports
 import numpy as np
@@ -23,10 +24,60 @@ from core.units import Celcius2Kelvin
 N_EXER = 3.0
 
 
+# Data types
+
+class SourceType(Enum):
+    GROUND = auto()
+    OUTSIDE_AIR = auto()
+    EXHAUST_AIR_MEV = auto()
+    EXHAUST_AIR_MVHR = auto()
+    EXHAUST_AIR_MIXED = auto()
+    WATER_GROUND = auto()
+    WATER_SURFACE = auto()
+
+    @classmethod
+    def from_string(cls, strval):
+        if strval == 'Ground':
+            return cls.GROUND
+        elif strval == 'OutsideAir':
+            return cls.OUTSIDE_AIR
+        elif strval == 'ExhaustAirMEV':
+            return cls.EXHAUST_AIR_MEV
+        elif strval == 'ExhaustAirMVHR':
+            return cls.EXHAUST_AIR_MVHR
+        elif strval == 'ExhaustAirMixed':
+            return cls.EXHAUST_AIR_MIXED
+        elif strval == 'WaterGround':
+            return cls.WATER_GROUND
+        elif strval == 'WaterSurface':
+            return cls.WATER_SURFACE
+        else:
+            sys.exit('SourceType (' + str(strval) + ') not valid.')
+            # TODO Exit just the current case instead of whole program entirely?
+
+class SinkType(Enum):
+    AIR = auto()
+    WATER = auto()
+
+    @classmethod
+    def from_string(cls, strval):
+        if strval == 'Air':
+            return cls.AIR
+        elif strval == 'Water':
+            return cls.WATER
+        else:
+            sys.exit('SinkType (' + str(strval) + ') not valid.')
+            # TODO Exit just the current case instead of whole program entirely?
+
+
+# Free functions
+
 def carnot_cop(temp_source, temp_outlet):
     """ Calculate Carnot CoP based on source and outlet temperatures (in Kelvin) """
     return temp_outlet / (temp_outlet - temp_source)
 
+
+# Classes
 
 class HeatPumpTestData:
     """ An object to represent EN 14825 test data for a heat pump.
@@ -525,7 +576,17 @@ class HeatPump:
         Arguments:
         hp_dict -- dictionary of heat pump characteristics, with the following elements:
             - test_data -- EN 14825 test data dictionary
-            TODO List other elements and their definitions
+            - SourceType -- string specifying heat source type, one of:
+                - "Ground"
+                - "OutsideAir"
+                - "ExhaustAirMEV"
+                - "ExhaustAirMVHR"
+                - "ExhaustAirMixed"
+                - "WaterGround"
+                - "WaterSurface"
+            - SinkType -- string specifying heat distribution type, one of:
+                - "Air"
+                - "Water"
         energy_supply -- reference to EnergySupply object
         simulation_time -- reference to SimulationTime object
 
@@ -541,7 +602,9 @@ class HeatPump:
         self.__energy_supply_connections = {}
         self.__test_data = HeatPumpTestData(hp_dict['test_data'])
 
-        # TODO Assign hp_dict elements to member variables of this class
+        # Assign hp_dict elements to member variables of this class
+        self.__source_type = SourceType.from_string(hp_dict['SourceType'])
+        self.__sink_type = SinkType.from_string(hp_dict['SinkType'])
 
     def service(self, service_name, service_type):
         """ Return a HeatPumpService object """
