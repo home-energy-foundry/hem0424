@@ -62,8 +62,16 @@
 			"efficiency_full_load": 0.891,
 			"efficiency_part_load": 0.991,
 			"boiler_location": "internal",
-			"control_factor" : 0.25,
-			"modulation_load" : 0.2
+			"modulation_load": 1,
+			"separate_DHW_tests": "M&L",
+			"fuel_energy_1": 7.099,
+			"rejected_energy_1": 0.0004,
+			"storage_loss_factor_1": 0.98328,
+			"fuel_energy_2": 13.078,
+			"rejected_energy_2": 0.0004,
+			"storage_loss_factor_2": 0.91574,
+			"rejected_factor_3": 0,
+			"daily_HW_usage" : 132.5802
 		}
 	},
 	"Zone": {

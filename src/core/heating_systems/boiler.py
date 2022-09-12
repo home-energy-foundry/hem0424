@@ -14,10 +14,32 @@ paper STP09/B02).
 
 # Standard library imports
 import sys
+from enum import Enum, auto
 
 #Local imports
 from core.energy_supply.energy_supply import Fuel_code
+from core.material_properties import WATER
+import core.units as units
 
+
+class Boiler_HW_test(Enum):
+    M_L = auto()
+    M_S = auto()
+    M_only = auto()
+    No_additional_tests = auto()
+
+    @classmethod
+    def from_string(cls, strval):
+        if strval == 'M&L':
+            return cls.M_L
+        elif strval == 'M&S':
+            return cls.M_S
+        elif strval == 'M_only':
+            return cls.M_only
+        elif strval == 'No_additional_tests':
+            return cls.No_additional_tests
+        else:
+            sys.exit('Hot water test ('+ str(strval) + ') not valid')
 
 class BoilerService:
     """ A base class for objects representing services (e.g. water heating) provided by a boiler.
@@ -41,28 +63,130 @@ class BoilerService:
         boiler       -- reference to the Boiler object providing the service
         service_name -- name of the service demanding energy from the boiler
         """
-        self.__boiler = boiler
-        self.__service_name = service_name
+        self._boiler = boiler
+        self._service_name = service_name
 
 
-class BoilerServiceWater(BoilerService):
-    """ An object to represent a water heating service provided by a boiler to e.g. a cylinder.
+class BoilerServiceWaterCombi(BoilerService):
+    """ An object to represent a water heating service provided by a combi boiler.
 
     This object contains the parts of the boiler calculation that are
     specific to providing hot water.
-
-    TODO Handle combi boilers as well - would need to implement demand_hot_water function
     """
 
-    def __init__(self, boiler, service_name, temp_hot_water, temp_limit_upper, cold_feed):
-        """ Construct a BoilerServiceWater object
-        
+    def __init__(self, boilerservicewatercombi_dict, boiler, service_name, \
+                 temp_hot_water, cold_feed, simulation_time):
+        """ Construct a BoilerServiceWaterCombi object
+
         Arguments:
+        boilerservicewatercombi_dict       -- combi boiler heating properties
         boiler       -- reference to the Boiler object providing the service
         service_name -- name of the service demanding energy from the boiler
         temp_hot_water -- temperature of the hot water to be provided, in deg C
-        temp_limit_upper -- upper operating limit for temperature, in deg C
         cold_feed -- reference to ColdWaterSource object
+        """ 
+        super().__init__(boiler, service_name)
+        
+        self.__temp_hot_water = temp_hot_water
+        self.__cold_feed = cold_feed
+        self.__service_name = service_name
+        self.__simulation_time = simulation_time
+        
+        hw_tests = boilerservicewatercombi_dict["separate_DHW_tests"]
+        self.__separate_DHW_tests = Boiler_HW_test.from_string(hw_tests)
+        
+        self.__fuel_energy_1 = boilerservicewatercombi_dict["fuel_energy_1"]
+        self.__rejected_energy_1 = boilerservicewatercombi_dict["rejected_energy_1"]
+        self.__storage_loss_factor_1 = boilerservicewatercombi_dict["storage_loss_factor_1"]
+        self.__fuel_energy_2_test = boilerservicewatercombi_dict["fuel_energy_2"]
+        self.__rejected_energy_2_test = boilerservicewatercombi_dict["rejected_energy_2"]
+        self.__storage_loss_factor_2 = boilerservicewatercombi_dict["storage_loss_factor_2"]
+        self.__rejected_factor_3 = boilerservicewatercombi_dict["rejected_factor_3"] 
+        self.__daily_HW_usage = boilerservicewatercombi_dict["daily_HW_usage"] 
+        
+    def demand_hot_water(self, volume_demanded):
+        """ Demand volume from boiler. Currently combi only """
+        timestep = self.__simulation_time.timestep()
+        return_temperature = 60 
+        
+        energy_content_kWh_per_litre = WATER.volumetric_energy_content_kWh_per_litre(
+            self.__temp_hot_water,
+            self.__cold_feed.temperature()
+            )
+        energy_demand = volume_demanded * energy_content_kWh_per_litre 
+
+        combi_loss = self.boiler_combi_loss(energy_demand, timestep)
+        energy_demand = energy_demand + combi_loss
+
+        return self._boiler._Boiler__demand_energy(
+            self.__service_name,
+            energy_demand,
+            return_temperature
+            )
+        
+    def boiler_combi_loss(self, energy_demand, timestep):
+        # daily hot water usage factor
+        fu = 1.0 
+        threshold_volume = 100 # litres/day
+        if self.__daily_HW_usage < threshold_volume:
+            fu = self.__daily_HW_usage / threshold_volume
+
+        # Equivalent hot water litres at 60C for HW load profiles
+        hw_litres_S_profile = 36.0
+        hw_litres_M_profile = 100.2
+        hw_litres_L_profile = 199.8
+
+        dvf = hw_litres_M_profile - self.__daily_HW_usage
+        if self.__separate_DHW_tests == Boiler_HW_test.M_S \
+            and self.__daily_HW_usage < hw_litres_S_profile:
+            dvf = 64.2
+        elif (self.__separate_DHW_tests == Boiler_HW_test.M_L \
+            and self.__daily_HW_usage < hw_litres_M_profile) \
+            or (self.__separate_DHW_tests == Boiler_HW_test.M_S \
+            and self.__daily_HW_usage > hw_litres_M_profile):
+            dvf = 0
+        elif self.__separate_DHW_tests == Boiler_HW_test.M_L \
+            and self.__daily_HW_usage > hw_litres_L_profile:
+            dvf = -99.6
+
+        combi_loss = 0.0
+        if (self.__separate_DHW_tests == Boiler_HW_test.M_L) \
+            or (self.__separate_DHW_tests == Boiler_HW_test.M_S):
+            #combi loss calculation with tapping cycle number 2 tapping test results 
+            #(cycles M and S, or M and L)
+            combi_loss = (energy_demand * \
+                          (self.__rejected_energy_1 + dvf * self.__rejected_factor_3)) * fu \
+                          + self.__storage_loss_factor_2 * (timestep / units.hours_per_day)
+
+        elif self._boiler._Boiler__separate_DHW_tests == Boiler_HW_test.DHW_tests_M_only:
+            #combi loss calculation with tapping cycle number 2 only test results
+            combi_loss = (energy_demand * (self.__rejected_energy_1)) * fu \
+                + self.__storage_loss_factor_2 * (timestep / units.hours_per_day)
+
+        elif self.__separate_DHW_tests == Boiler_HW_test.No_additional_tests:
+            # when no additional hot water test has been done
+            default_combi_loss = 600 # annual default (kWh/day)
+            combi_loss = default_combi_loss / units.days_per_year \
+                        * (timestep / units.hours_per_day)
+
+        else:
+            exit('Invalid hot water test option')
+        return combi_loss
+
+
+class BoilerServiceSpace(BoilerService):
+    """ An object to represent a space heating service provided by a boiler to e.g. a cylinder.
+
+    This object contains the parts of the boiler calculation that are
+    specific to providing space heating-.
+    """
+    def __init__(self, boiler, service_name, temp_limit_upper):
+        """ Construct a BoilerServiceWater object
+
+        Arguments:
+        boiler       -- reference to the Boiler object providing the service
+        service_name -- name of the service demanding energy from the boiler
+        temp_limit_upper -- upper operating limit for temperature, in deg C
         """
         super().__init__(boiler, service_name)
 
@@ -113,6 +237,8 @@ class Boiler:
         full_load_gross = boiler_dict["efficiency_full_load"]
         part_load_gross = boiler_dict["efficiency_part_load"]
         self.__fuel_code = self.__energy_supply.fuel_type()
+        
+        
         # high value correction 
         net_to_gross = self.net_to_gross()
         full_load_net = full_load_gross / net_to_gross
@@ -166,17 +292,18 @@ class Boiler:
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
 
-    def service_hot_water(self, service_name, temp_hot_water, temp_limit_upper, cold_feed):
+    def service_hot_water(self, boilerservicewatercombi_dict, service_name, temp_hot_water, temp_limit_upper, cold_feed):
         """ Return a BoilerServiceWater object and create an EnergySupplyConnection for it
         
         Arguments:
+        boilerservicewatercombi_dict -- boiler hot water heating properties
         service_name -- name of the service demanding energy from the boiler
         temp_hot_water -- temperature of the hot water to be provided, in deg C
         temp_limit_upper -- upper operating limit for temperature, in deg C
         cold_feed -- reference to ColdWaterSource object
         """
         self.__create_service_connection(service_name)
-        return BoilerServiceWater(self, service_name, temp_hot_water, temp_limit_upper, cold_feed)
+        return BoilerServiceWaterCombi(self, boilerservicewatercombi_dict, service_name, temp_hot_water, temp_limit_upper, cold_feed, self.__simulation_time)
 
     def __demand_energy(
             self,

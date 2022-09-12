@@ -9,3 +9,5 @@ J_per_kWh = 3600000
 W_per_kW = 1000
 minutes_per_hour = 60
 seconds_per_hour = 3600
+hours_per_day = 24
+days_per_year = 365
