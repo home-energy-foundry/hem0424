@@ -30,14 +30,12 @@ with open(output_file, 'w') as f:
     writer = csv.writer(f)
 
     headings = ['Timestep']
-    i = 0
     for totals_key in results_totals.keys():
         totals_header = str(totals_key)
         totals_header = totals_header + ' total'
         headings.append(totals_header)
         for end_user_key in results_end_user[totals_key].keys():
             headings.append(end_user_key)
-            i = i + 1
 
     for zone in zone_list:
         for zone_outputs in zone_dict.keys():
@@ -56,24 +54,23 @@ with open(output_file, 'w') as f:
     writer.writerow(headings)
 
     for t_idx, timestep in enumerate(timestep_array):
-        row = []
+        energy_use_row = []
         zone_row = []
         hc_system_row = []
         i = 0
         # Loop over end use totals
         for totals_key in results_totals:
-            row.insert(i, results_totals[totals_key][t_idx])
+            energy_use_row.append(results_totals[totals_key][t_idx])
             for end_user_key in results_end_user[totals_key]:
-                row.append(results_end_user[totals_key][end_user_key][t_idx])
-                i = i + 1
+                energy_use_row.append(results_end_user[totals_key][end_user_key][t_idx])
             # Loop over results separated by zone
-            for zone in zone_list:
-                for zone_outputs in zone_dict:
-                    zone_row.append(zone_dict[zone_outputs][zone][t_idx])
+        for zone in zone_list:
+            for zone_outputs in zone_dict:
+                zone_row.append(zone_dict[zone_outputs][zone][t_idx])
             # Loop over heating and cooling system demand
-            for system in hc_system_dict:
-                for hc_name in hc_system_dict[system]:
-                    hc_system_row.append(hc_system_dict[system][hc_name][t_idx])
+        for system in hc_system_dict:
+            for hc_name in hc_system_dict[system]:
+                hc_system_row.append(hc_system_dict[system][hc_name][t_idx])
 
-        row = [t_idx] + row + zone_row + hc_system_row
+        row = [t_idx] + energy_use_row + zone_row + hc_system_row
         writer.writerow(row)
