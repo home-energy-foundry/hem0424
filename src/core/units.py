@@ -9,6 +9,7 @@ J_per_kWh = 3600000
 W_per_kW = 1000
 minutes_per_hour = 60
 seconds_per_hour = 3600
+hours_per_day = 24
 
 def Celcius2Kelvin(temp_C):
     assert temp_C >= -273.15

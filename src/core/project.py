@@ -20,11 +20,13 @@ from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
-    BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround
+    BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
+    BuildingElementAdjacentZTC
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.water_heat_demand.shower import MixerShower, InstantElecShower
+from core.space_heat_demand.internal_gains import InternalGains
 
 
 class Project:
@@ -62,23 +64,46 @@ class Project:
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
             proj_dict['ExternalConditions']['ground_temperatures'],
+            proj_dict['ExternalConditions']['diffuse_horizontal_radiation'],
+            proj_dict['ExternalConditions']['direct_beam_radiation'],
+            proj_dict['ExternalConditions']['solar_reflectivity_of_ground'],
+            proj_dict['ExternalConditions']['latitude'],
+            proj_dict['ExternalConditions']['longitude'],
+            proj_dict['ExternalConditions']['timezone'],
+            proj_dict['ExternalConditions']['start_day'],
+            proj_dict['ExternalConditions']['end_day'],
+            proj_dict['ExternalConditions']['january_first'],
+            proj_dict['ExternalConditions']['daylight_savings'],
+            proj_dict['ExternalConditions']['leap_day_included'],
+            proj_dict['ExternalConditions']['direct_beam_conversion_needed']
             )
 
         self.__cold_water_sources = {}
         for name, data in proj_dict['ColdWaterSource'].items():
-            self.__cold_water_sources[name] = ColdWaterSource(data['temperatures'], self.__simtime)
+            self.__cold_water_sources[name] \
+                = ColdWaterSource(data['temperatures'], self.__simtime, data['start_day'])
 
         self.__energy_supplies = {}
         for name, data in proj_dict['EnergySupply'].items():
             self.__energy_supplies[name] = EnergySupply(data['fuel'], self.__simtime)
             # TODO Consider replacing fuel type string with fuel type object
 
+        self.__internal_gains = InternalGains(
+            expand_schedule(
+                float,
+                proj_dict['InternalGains']['schedule_total_internal_gains'],
+                "main",
+                ),
+            self.__simtime,
+            proj_dict['InternalGains']['start_day']
+            )
+
         def dict_to_ctrl(name, data):
             """ Parse dictionary of control data and return approprate control object """
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
                 sched = expand_schedule(bool, data['schedule'], "main")
-                ctrl = OnOffTimeControl(sched, self.__simtime)
+                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'])
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -220,39 +245,43 @@ class Project:
             if building_element_type == 'BuildingElementOpaque':
                 building_element = BuildingElementOpaque(
                     data['area'],
-                    data['h_ci'],
-                    data['h_ri'],
-                    data['h_ce'],
-                    data['h_re'],
+                    data['pitch'],
                     data['a_sol'],
                     data['r_c'],
                     data['k_m'],
                     data['mass_distribution_class'],
-                    data['pitch'],
+                    data['orientation'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementTransparent':
                 building_element = BuildingElementTransparent(
                     data['area'],
-                    data['h_ci'],
-                    data['h_ri'],
-                    data['h_ce'],
-                    data['h_re'],
-                    data['r_c'],
                     data['pitch'],
+                    data['r_c'],
+                    data['orientation'],
+                    data['g_value'],
+                    data['frame_area_fraction'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementGround':
                 building_element = BuildingElementGround(
                     data['area'],
-                    data['h_ci'],
-                    data['h_ri'],
+                    data['pitch'],
                     data['h_ce'],
                     data['h_re'],
                     data['r_c'],
                     data['r_gr'],
                     data['k_m'],
                     data['k_gr'],
+                    data['mass_distribution_class'],
+                    self.__external_conditions,
+                    )
+            elif building_element_type == 'BuildingElementAdjacentZTC':
+                building_element = BuildingElementAdjacentZTC(
+                    data['area'],
+                    data['pitch'],
+                    data['r_c'],
+                    data['k_m'],
                     data['mass_distribution_class'],
                     self.__external_conditions,
                     )
@@ -323,7 +352,7 @@ class Project:
 
         def hot_water_demand(t_idx):
             """ Calculate the hot water demand for the current timestep
-            
+
             Arguments:
             t_idx -- timestep index/count
             """
@@ -371,12 +400,10 @@ class Project:
                 h_name = self.__heat_system_name_for_zone[z_name]
                 c_name = self.__cool_system_name_for_zone[z_name]
 
-                # TODO Calculate the gains rather than hard-coding to zero (i.e. ignoring them)
-                gains_internal = 0.0
-                gains_solar = 0.0
-
+                # Convert W/m2 to W
+                gains_internal_zone = self.__internal_gains.total_internal_gain() * zone.area()
                 space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
-                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal, gains_solar)
+                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal_zone)
 
                 if h_name is not None: # If the zone is heated
                     space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
@@ -426,11 +453,13 @@ class Project:
                 # Sum heating gains (+ve) and cooling gains (-ve) and convert from kWh to W
                 gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
 
+                # Convert W/m2 to W
+                gains_internal_zone = self.__internal_gains.total_internal_gain() * zone.area()
+
                 zone.update_temperatures(
                     delta_t,
                     temp_ext_air,
-                    gains_internal,
-                    gains_solar,
+                    gains_internal_zone,
                     gains_heat_cool
                     )
 
