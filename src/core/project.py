@@ -61,11 +61,27 @@ class Project:
             proj_dict['SimulationTime']['step'],
             )
 
+        # TODO Some inputs are not currently used, so set to None here rather
+        #      than requiring them in input file.
+        # TODO Read timezone from input file. For now, set timezone to 0 (GMT)
+        # TODO Read direct_beam_conversion_needed from input file. For now,
+        #      assume false (for epw files)
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
-            proj_dict['ExternalConditions']['ground_temperatures'],
-            proj_dict['ExternalConditions']['wind_speeds']
+            proj_dict['ExternalConditions']['wind_speeds'],
+            proj_dict['ExternalConditions']['diffuse_horizontal_radiation'],
+            proj_dict['ExternalConditions']['direct_beam_radiation'],
+            proj_dict['ExternalConditions']['solar_reflectivity_of_ground'],
+            proj_dict['ExternalConditions']['latitude'],
+            proj_dict['ExternalConditions']['longitude'],
+            0, #proj_dict['ExternalConditions']['timezone'],
+            0, #proj_dict['ExternalConditions']['start_day'],
+            365, #proj_dict['ExternalConditions']['end_day'],
+            None, #proj_dict['ExternalConditions']['january_first'],
+            None, #proj_dict['ExternalConditions']['daylight_savings'],
+            None, #proj_dict['ExternalConditions']['leap_day_included'],
+            False, #proj_dict['ExternalConditions']['direct_beam_conversion_needed']
             )
 
         self.__infiltration = VentilationElementInfiltration(
@@ -100,7 +116,11 @@ class Project:
             # TODO Consider replacing fuel type string with fuel type object
 
         self.__internal_gains = InternalGains(
-            proj_dict['InternalGains']['total_internal_gains'],
+            expand_schedule(
+                float,
+                proj_dict['InternalGains']['schedule_total_internal_gains'],
+                "main",
+                ),
             self.__simtime,
             proj_dict['InternalGains']['start_day']
             )
@@ -257,6 +277,7 @@ class Project:
                     data['r_c'],
                     data['k_m'],
                     data['mass_distribution_class'],
+                    data['orientation'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementTransparent':
@@ -264,20 +285,25 @@ class Project:
                     data['area'],
                     data['pitch'],
                     data['r_c'],
+                    data['orientation'],
+                    data['g_value'],
+                    data['frame_area_fraction'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementGround':
                 building_element = BuildingElementGround(
                     data['area'],
                     data['pitch'],
-                    data['h_ce'],
-                    data['h_re'],
-                    data['r_c'],
-                    data['r_gr'],
+                    data['u_value'],
+                    data['r_f'],
                     data['k_m'],
-                    data['k_gr'],
                     data['mass_distribution_class'],
+                    data['h_pi'],
+                    data['h_pe'],
+                    data['perimeter'],
+                    data['psi_wall_floor_junc'],
                     self.__external_conditions,
+                    self.__simtime,
                     )
             elif building_element_type == 'BuildingElementAdjacentZTC':
                 building_element = BuildingElementAdjacentZTC(
@@ -385,7 +411,7 @@ class Project:
 
         def hot_water_demand(t_idx):
             """ Calculate the hot water demand for the current timestep
-            
+
             Arguments:
             t_idx -- timestep index/count
             """
@@ -433,12 +459,10 @@ class Project:
                 h_name = self.__heat_system_name_for_zone[z_name]
                 c_name = self.__cool_system_name_for_zone[z_name]
 
-                # TODO Calculate the gains rather than hard-coding to zero (i.e. ignoring them)
-                gains_solar = 0.0
                 # Convert W/m2 to W
                 gains_internal_zone = self.__internal_gains.total_internal_gain() * zone.area()
                 space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
-                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal_zone, gains_solar)
+                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal_zone)
 
                 if h_name is not None: # If the zone is heated
                     space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
@@ -460,6 +484,8 @@ class Project:
             # Apportion the provided heating/cooling between the zones in
             # proportion to the heating/cooling demand in each zone. Then
             # update resultant temperatures in zones.
+            internal_air_temp = {}
+            operative_temp = {}
             for z_name, zone in self.__zones.items():
                 # Look up names of relevant heating and cooling systems for this zone
                 h_name = self.__heat_system_name_for_zone[z_name]
@@ -493,17 +519,67 @@ class Project:
                     delta_t,
                     temp_ext_air,
                     gains_internal_zone,
-                    gains_solar,
                     gains_heat_cool
                     )
 
+                if c_name is None:
+                    space_cool_demand_system[c_name] = 'n/a'
+
+                internal_air_temp[z_name] = zone.temp_internal_air()
+                operative_temp[z_name] = zone.temp_operative()
+
+            return operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system
+
+        timestep_array = []
+        operative_temp_dict = {}
+        internal_air_temp_dict = {}
+        space_heat_demand_dict = {}
+        space_cool_demand_dict = {}
+        space_heat_demand_system_dict = {}
+        space_cool_demand_system_dict = {}
+        zone_list = []
+
+        for z_name in self.__zones.keys():
+            operative_temp_dict[z_name] = []
+            internal_air_temp_dict[z_name] = []
+            space_heat_demand_dict[z_name] = []
+            space_cool_demand_dict[z_name] = []
+            zone_list.append(z_name)
+
+        for z_name, h_name in self.__heat_system_name_for_zone.items():
+            space_heat_demand_system_dict[h_name] = []
+
+        for z_name, c_name in self.__cool_system_name_for_zone.items():
+            space_cool_demand_system_dict[c_name] = []
+
         # Loop over each timestep
         for t_idx, t_current, delta_t_h in self.__simtime:
+            timestep_array.append(t_current)
             hw_demand = hot_water_demand(t_idx)
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
+            operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system = calc_space_heating(delta_t_h)
 
-            calc_space_heating(delta_t_h)
+            for z_name, temp in operative_temp.items():
+                operative_temp_dict[z_name].append(temp)
+
+            for z_name, temp in internal_air_temp.items():
+                internal_air_temp_dict[z_name].append(temp)
+
+            for z_name, demand in space_heat_demand_zone.items():
+                space_heat_demand_dict[z_name].append(demand)
+
+            for z_name, demand in space_cool_demand_zone.items():
+                space_cool_demand_dict[z_name].append(demand)
+
+            for h_name, demand in space_heat_demand_system.items():
+                space_heat_demand_system_dict[h_name].append(demand)
+
+            for c_name, demand in space_cool_demand_system.items():
+                space_cool_demand_system_dict[c_name].append(demand)
+
+        zone_dict = {'Operative temp': operative_temp_dict, 'Internal air temp': internal_air_temp_dict, 'Space heat demand': space_heat_demand_dict, 'Space cool demand': space_cool_demand_dict}
+        hc_system_dict = {'Heating system': space_heat_demand_system_dict, 'Cooling system': space_cool_demand_system_dict}
 
         # Return results from all energy supplies
         results_totals = {}
@@ -511,4 +587,4 @@ class Project:
         for name, supply in self.__energy_supplies.items():
             results_totals[name] = supply.results_total()
             results_end_user[name] = supply.results_by_end_user()
-        return results_totals, results_end_user
+        return timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict

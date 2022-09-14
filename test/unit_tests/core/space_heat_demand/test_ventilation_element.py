@@ -25,7 +25,22 @@ class TestVentilationElementInfiltration(unittest.TestCase):
         self.simtime = SimulationTime(0, 8, 1)
         air_temps = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5]
         wind_speeds = [3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4]
-        self.ec = ExternalConditions(self.simtime, air_temps, None, wind_speeds)
+        ec = ExternalConditions(self.simtime,
+                                air_temps,
+                                wind_speeds,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                0, # Start day
+                                None,
+                                None,
+                                None,
+                                None,
+                                None
+                                )
         self.ve_inf = VentilationElementInfiltration(1.0, 
                                                     "sheltered",
                                                     "house",
@@ -43,7 +58,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
                                                     3.0,
                                                     6.0,
                                                     0.0,
-                                                    self.ec,)
+                                                    ec,)
 
     def test_inf_openings(self):
         """ Test that correct infiltration rate for openings
