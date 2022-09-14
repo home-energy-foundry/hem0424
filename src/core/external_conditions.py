@@ -38,6 +38,7 @@ class ExternalConditions:
         Arguments:
         simulation_time -- reference to SimulationTime object
         air_temps       -- list of external air temperatures, in deg C (one entry per hour)
+        wind_speeds     -- list of wind speeds, in m/s (one entry per hour)
         diffuse_horizontal_radiation    -- list of diffuse horizontal radiation values, in W/m2 (one entry per hour)
         direct_beam_radiation           -- list of direct beam radiation values, in W/m2 (one entry per hour)
         solar_reflectivity_of_ground    -- list of ground reflectivity values, 0 to 1 (one entry per hour)
