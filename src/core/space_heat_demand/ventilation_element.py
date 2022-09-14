@@ -75,8 +75,12 @@ class VentilationElementInfiltration:
                 # TODO Exit just the current case instead of whole program entirely?
 
     # Divisors to convert air change rate at 50 Pa to infiltration
-    # TODO Fully reference the origin of these figures
     # Values for "Normal" House 1-2 storey and Flat storeys 1-10 are from CIBSE Guide A
+    # Values for "Exposed" based on CIBSE Guida A: "on severely exposed sites, a
+    # 50% increase to the tabulated values should be allowed.
+    # Values for "Sheltered" based on CIBSE Guide A: "on sheltered sites, the
+    # infiltration rate may be reduced by 30%".
+    # Values for "Very sheltered" assume a reduction of 50%.
     # Values for Flat storeys 11+ are extrapolated based on profiles of wind
     # speed vs. height, assuming storey height of 3.5 metres.
     __DIVISORS = [
@@ -175,8 +179,13 @@ class VentilationElementInfiltration:
 
         # Calculate infiltration rate
         def init_infiltration():
-            # If test results are Q4, convert to Q50 before applying divisor
             if test_type == "Q4":
+                # If test results are Q4, convert to Q50 before applying divisor.
+                # SAP 10 Technical Paper S10TP-19 "Use of low pressure pulse
+                # test data in SAP" gives the relationship between air
+                # permeability measured at 50 Pa and 4 Pa. The equation below is
+                # based on this but has been converted to work with test results
+                # expressed in ach rather than m3/m2/h.
                 test_result_q50 = 5.254 * (test_result**0.9241) * ((env_area / volume)**(1-0.9241))
             elif test_type == "Q50":
                 test_result_q50 = test_result
@@ -207,7 +216,7 @@ class VentilationElementInfiltration:
         # Convert infiltration rate from ach to m^3/s
         q_v = inf_rate * zone_volume / seconds_per_hour
         
-        # Calculate h_ve
+        # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
         h_ve = p_a * c_a * q_v
         return h_ve
         # TODO b_ztu needs to be applied in the case if ventilation element
