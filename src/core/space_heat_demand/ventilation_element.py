@@ -92,10 +92,6 @@ class VentilationElementInfiltration:
         [           28.5 ,      19.4 ,   13.4 ,     9.0 ], # Flat storeys 11+
         ]
 
-    # Shelter factors for number of sheltered sides from 0 to 4
-    # TODO Reference these
-    __SHELTER_FACTOR = [1.0, 0.93, 0.85, 0.78, 0.7]
-
     def __init__(self,
             storey,
             shelter,
@@ -173,7 +169,9 @@ class VentilationElementInfiltration:
             if sheltered_sides < 0 or sheltered_sides > 4:
                 sys.exit( ' Number of sheltered sides not recognised.' )
                 # TODO Exit just the current case instead of whole program entirely?
-            return self.__SHELTER_FACTOR[sheltered_sides]
+            # Calculate shelter factor based on formula from SAP 10.2
+            # TODO Reference the origin of this formula.
+            return 1.0 - (0.075 * sheltered_sides)
 
         self.__shelter_factor = init_shelter_factor()
 
