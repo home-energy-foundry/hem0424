@@ -19,7 +19,6 @@ class ExternalConditions:
     def __init__(self, 
             simulation_time, 
             air_temps, 
-            ground_temps, 
             diffuse_horizontal_radiation,
             direct_beam_radiation,
             solar_reflectivity_of_ground,
@@ -38,10 +37,9 @@ class ExternalConditions:
         Arguments:
         simulation_time -- reference to SimulationTime object
         air_temps       -- list of external air temperatures, in deg C (one entry per hour)
-        ground_temps    -- list of external ground temperatures, in deg C (one entry per hour)
-        diffuse_horizontal_radiation    -- list of diffuse horizontal radiation values, in W/m2 (one entry per timestep)
-        direct_beam_radiation           -- list of direct beam radiation values, in W/m2 (one entry per timestep)
-        solar_reflectivity_of_ground    -- list of ground reflectivity values, 0 to 1 (one entry per timestep)
+        diffuse_horizontal_radiation    -- list of diffuse horizontal radiation values, in W/m2 (one entry per hour)
+        direct_beam_radiation           -- list of direct beam radiation values, in W/m2 (one entry per hour)
+        solar_reflectivity_of_ground    -- list of ground reflectivity values, 0 to 1 (one entry per hour)
         latitude        -- latitude of weather station, angle from south, in degrees (single value)
         longitude       -- longitude of weather station, easterly +ve westerly -ve, in degrees (single value)
         timezone        -- timezone of weather station, -12 to 12 (single value)
@@ -60,7 +58,6 @@ class ExternalConditions:
 
         self.__simulation_time  = simulation_time
         self.__air_temps        = air_temps
-        self.__ground_temps     = ground_temps
         self.__diffuse_horizontal_radiation = diffuse_horizontal_radiation
         self.__direct_beam_radiation = direct_beam_radiation
         self.__solar_reflectivity_of_ground = solar_reflectivity_of_ground
@@ -157,6 +154,20 @@ class ExternalConditions:
         # TODO Assumes schedule is one entry per hour but this should be made
         #      more flexible in the future.
 
+    def air_temp_annual(self):
+        """ Return the average air temperature for the year """
+        assert len(self.__air_temps) == 8760 # Only works if data for whole year has been provided
+        return sum(self.__air_temps) / len(self.__air_temps)
+
+    def air_temp_monthly(self):
+        """ Return the average air temperature for the current month """
+        # Get start and end hours for current month
+        idx_start, idx_end = self.__simulation_time.current_month_start_end_hour()
+        # Get air temperatures for the current month
+        air_temps_month = self.__air_temps[idx_start:idx_end]
+
+        return sum(air_temps_month) / len(air_temps_month)
+
     def ground_temp(self):
         """ Return the external ground temperature for the current timestep """
         return self.__ground_temps[self.__simulation_time.time_series_idx(self.__start_day)]
@@ -166,10 +177,8 @@ class ExternalConditions:
     def diffuse_horizontal_radiation(self):
         """ Return the diffuse_horizontal_radiation for the current timestep """
         return self.__diffuse_horizontal_radiation[self.__simulation_time.time_series_idx(self.__start_day)]
-        # TODO Assumes diffuse_horizontal_radiation list is one entry per timestep but in
-        #      future it could be e.g. hourly figures even if timestep is
-        #      sub-hourly. This would require the SimulationTime class to
-        #      support such lookups.
+        # TODO Assumes schedule is one entry per hour but this should be made
+        #      more flexible in the future.
 
     def direct_beam_radiation(self):
         """ Return the direct_beam_radiation for the current timestep """
@@ -190,18 +199,15 @@ class ExternalConditions:
             Gsol_b = raw_value
 
         return Gsol_b
-        # TODO Assumes direct_beam_radiation list is one entry per timestep but in
-        #      future it could be e.g. hourly figures even if timestep is
-        #      sub-hourly. This would require the SimulationTime class to
-        #      support such lookups.
+        # TODO Assumes schedule is one entry per hour but this should be made
+        #      more flexible in the future.
+
 
     def solar_reflectivity_of_ground(self):
         """ Return the solar_reflectivity_of_ground for the current timestep """
         return self.__solar_reflectivity_of_ground[self.__simulation_time.time_series_idx(self.__start_day)]
-        # TODO Assumes solar_reflectivity_of_ground list is one entry per timestep but in
-        #      future it could be e.g. hourly figures even if timestep is
-        #      sub-hourly. This would require the SimulationTime class to
-        #      support such lookups.
+        # TODO Assumes schedule is one entry per hour but this should be made
+        #      more flexible in the future.
 
     def latitude(self):
         """ Return the latitude """
@@ -337,7 +343,7 @@ class ExternalConditions:
         return tsol
 
     def solar_hour_angle(self):
-        """ Calculate the solar hour angle, ω, in the middle of the 
+        """ Calculate the solar hour angle, in the middle of the 
         current hour as a function of the solar time """
 
         # TODO How is this to be adjusted for timesteps that are not hourly?
@@ -347,13 +353,13 @@ class ExternalConditions:
         w is the solar hour angle, in degrees
 
         Notes from ISO 52020 6.4.1.5
-        NOTE 1 The limitation of angles ranging between −180 and +180 degrees is 
+        NOTE 1 The limitation of angles ranging between -180 and +180 degrees is 
         needed to determine which shading objects are in the direction of the sun; 
         see also the calculation of the azimuth angle of the sun in 6.4.1.7.
-        NOTE 2 Explanation of “12.5”: The hour numbers are actually hour sections: 
+        NOTE 2 Explanation of "12.5": The hour numbers are actually hour sections: 
         the first hour section of a day runs from 0h to 1h. So, the average position 
         of the sun for the solar radiation measured during (solar) hour section N is 
-        at (solar) time = (N –0,5) h of the (solar) day.
+        at (solar) time = (N -0,5) h of the (solar) day.
         """
 
         w = (180 / 12) * (12.5 - self.solar_time())

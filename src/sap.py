@@ -13,6 +13,7 @@ import os
 
 # Local imports
 from core.project import Project
+from read_weather_file import weather_data_to_dict
 
 # TODO Rewrite this module with argparse library
 
@@ -22,6 +23,9 @@ output_file = file_path[0] + '_results.csv'
 
 with open(inp_filename) as json_file:
     project_dict = json.load(json_file)
+
+if len(sys.argv) > 2:
+    project_dict["ExternalConditions"] = weather_data_to_dict(sys.argv[2])
 
 project = Project(project_dict)
 timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict = project.run()

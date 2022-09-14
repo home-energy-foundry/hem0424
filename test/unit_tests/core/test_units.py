@@ -13,7 +13,7 @@ from unit_tests.common import test_setup
 test_setup()
 
 # Local imports
-from core.units import Celcius2Kelvin, Kelvin2Celcius
+from core.units import Celcius2Kelvin, Kelvin2Celcius, average_monthly_to_annual
 
 class TestUnits(unittest.TestCase):
     """ Unit tests for free functions in units module """
@@ -31,6 +31,15 @@ class TestUnits(unittest.TestCase):
                     i,
                     'round trip temperature conversion (C to K to C) failed to return orig value'
                     )
+
+    def test_average_monthly_to_annual(self):
+        """ Test conversion from monthly averages and annual average """
+        list_monthly_averages = [4.3, 4.9, 6.5, 8.9, 11.7, 14.6, 16.6, 16.4, 14.1, 10.6, 7.1, 4.2]
+        self.assertEqual(
+            average_monthly_to_annual(list_monthly_averages),
+            10.020547945205479,
+            "incorrect conversion of monthly averages to annual average",
+            )
 
 if __name__ == '__main__':
     unittest.main()

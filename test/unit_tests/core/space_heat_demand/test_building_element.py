@@ -25,7 +25,7 @@ class TestBuildingElementOpaque(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementOpaque objects to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None,
+        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0],
                                 None,
                                 None,
                                 None,
@@ -159,7 +159,7 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementAdjacentZTC objects to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0],None,
+        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0],
                                 None,
                                 None,
                                 None,
@@ -280,8 +280,38 @@ class TestBuildingElementGround(unittest.TestCase):
 
     def setUp(self):
         """ Create BuildingElementGround objects to be tested """
-        self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, None, [8.0, 9.0, 10.0, 11.0],
+        self.simtime = SimulationTime(742, 746, 1)
+
+        air_temp_day_Jan = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 7.5,
+                            10.0, 12.5, 15.0, 19.5, 17.0, 15.0, 12.0, 10.0, 7.0, 5.0, 3.0, 1.0
+                           ]
+        air_temp_day_Feb = [x + 1.0 for x in air_temp_day_Jan]
+        air_temp_day_Mar = [x + 2.0 for x in air_temp_day_Jan]
+        air_temp_day_Apr = [x + 3.0 for x in air_temp_day_Jan]
+        air_temp_day_May = [x + 4.0 for x in air_temp_day_Jan]
+        air_temp_day_Jun = [x + 5.0 for x in air_temp_day_Jan]
+        air_temp_day_Jul = [x + 6.0 for x in air_temp_day_Jan]
+        air_temp_day_Aug = [x + 6.0 for x in air_temp_day_Jan]
+        air_temp_day_Sep = [x + 5.0 for x in air_temp_day_Jan]
+        air_temp_day_Oct = [x + 4.0 for x in air_temp_day_Jan]
+        air_temp_day_Nov = [x + 3.0 for x in air_temp_day_Jan]
+        air_temp_day_Dec = [x + 2.0 for x in air_temp_day_Jan]
+
+        airtemp = []
+        airtemp.extend(air_temp_day_Jan * 31)
+        airtemp.extend(air_temp_day_Feb * 28)
+        airtemp.extend(air_temp_day_Mar * 31)
+        airtemp.extend(air_temp_day_Apr * 30)
+        airtemp.extend(air_temp_day_May * 31)
+        airtemp.extend(air_temp_day_Jun * 30)
+        airtemp.extend(air_temp_day_Jul * 31)
+        airtemp.extend(air_temp_day_Aug * 31)
+        airtemp.extend(air_temp_day_Sep * 30)
+        airtemp.extend(air_temp_day_Oct * 31)
+        airtemp.extend(air_temp_day_Nov * 30)
+        airtemp.extend(air_temp_day_Dec * 31)
+
+        ec = ExternalConditions(self.simtime, airtemp,
                                 None,
                                 None,
                                 None,
@@ -298,11 +328,11 @@ class TestBuildingElementGround(unittest.TestCase):
         #TODO implement rest of external conditions in unit tests
 
         # Create an object for each mass distribution class
-        be_I = BuildingElementGround(20.0, 0, 0.50, 0.20, 0.25, 0.5, 19000.0, 24000.0, "I", ec)
-        be_E = BuildingElementGround(22.5, 45, 0.51, 0.21, 0.50, 0.5, 18000.0, 24000.0, "E", ec)
-        be_IE = BuildingElementGround(25.0, 90, 0.52, 0.22, 0.75, 0.5, 17000.0, 24000.0, "IE", ec)
-        be_D = BuildingElementGround(27.5, 135, 0.53, 0.23, 0.80, 0.5, 16000.0, 24000.0, "D", ec)
-        be_M = BuildingElementGround(30.0, 180, 0.54, 0.24, 0.40, 0.5, 15000.0, 24000.0, "M", ec)
+        be_I = BuildingElementGround(20.0, 0, 1.5, 0.1, 19000.0, "I", 2.0, 2.5, 18.0, 0.5, ec, self.simtime)
+        be_E = BuildingElementGround(22.5, 45, 1.4, 0.2, 18000.0, "E", 2.1, 2.6, 19.0, 0.6, ec, self.simtime)
+        be_IE = BuildingElementGround(25.0, 90, 1.33, 0.2, 17000.0, "IE", 2.2, 2.7, 20.0, 0.7, ec, self.simtime)
+        be_D = BuildingElementGround(27.5, 135, 1.25, 0.2, 16000.0, "D", 2.3, 2.8, 21.0, 0.8, ec, self.simtime)
+        be_M = BuildingElementGround(30.0, 180, 1.0, 0.3, 15000.0, "M", 2.4, 2.9, 22.0, 0.9, ec, self.simtime)
 
         # Put objects in a list that can be iterated over
         self.test_be_objs = [be_I, be_E, be_IE, be_D, be_M]
@@ -345,12 +375,11 @@ class TestBuildingElementGround(unittest.TestCase):
 
     def test_h_ce(self):
         """ Test that correct h_ce is returned when queried """
-        # Define increment between test cases
-        h_ce_inc = 0.01
+        results = [15.78947368, 91.30434783, 20.59886422, 10.34482759, 5.084745763]
 
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_ce(), 0.5 + i * h_ce_inc, msg="incorrect h_ce returned")
+                self.assertAlmostEqual(be.h_ce(), results[i], msg="incorrect h_ce returned")
 
     def test_h_re(self):
         """ Test that correct h_re is returned when queried """
@@ -359,7 +388,7 @@ class TestBuildingElementGround(unittest.TestCase):
 
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
-                self.assertAlmostEqual(be.h_re(), 0.2 + i * h_re_inc, msg="incorrect h_re returned")
+                self.assertAlmostEqual(be.h_re(), 0.0, msg="incorrect h_re returned")
 
     def test_a_sol(self):
         """ Test that correct a_sol is returned when queried """
@@ -380,11 +409,11 @@ class TestBuildingElementGround(unittest.TestCase):
     def test_h_pli(self):
         """ Test that correct h_pli list is returned when queried """
         results = [
-            [4.0, 3.2, 8.0, 16.0],
-            [4.0, 2.6666666666666665, 4.0, 8.0],
-            [4.0, 2.2857142857142856, 2.6666666666666665, 5.333333333333333],
-            [4.0, 2.2222222222222223, 2.5, 5.0],
-            [4.0, 2.857142857142857, 5.0, 10.0],
+            [6.0, 3.0, 3.0, 6.0],
+            [6.0, 2.896551724137931, 2.8, 5.6],
+            [6.0, 2.8197879858657244, 2.66, 5.32],
+            [6.0, 2.727272727272727, 2.5, 5.0],
+            [6.0, 2.4000000000000004, 2.0, 4.0],
             ]
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
@@ -393,11 +422,11 @@ class TestBuildingElementGround(unittest.TestCase):
     def test_k_pli(self):
         """ Test that correct k_pli list is returned when queried """
         results = [
-            [0.0, 24000.0, 0.0, 0.0, 19000.0],
-            [0.0, 24000.0, 18000.0, 0.0, 0.0],
-            [0.0, 24000.0, 8500.0, 0.0, 8500.0],
-            [0.0, 24000.0, 4000.0, 8000.0, 4000.0],
-            [0.0, 24000.0, 0.0, 15000.0, 0.0],
+            [0.0, 150000.0, 0.0, 0.0, 19000.0],
+            [0.0, 150000.0, 18000.0, 0.0, 0.0],
+            [0.0, 150000.0, 8500.0, 0.0, 8500.0],
+            [0.0, 150000.0, 4000.0, 8000.0, 4000.0],
+            [0.0, 150000.0, 0.0, 15000.0, 0.0],
             ]
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
@@ -405,10 +434,12 @@ class TestBuildingElementGround(unittest.TestCase):
 
     def test_temp_ext(self):
         """ Test that the correct external temperature is returned when queried """
+        results = [8.474795225438358, 8.474795225438358, 8.988219392771693, 8.988219392771693]
+
         for i, be in enumerate(self.test_be_objs):
             for t_idx, _, _ in self.simtime:
                 with self.subTest(i = i * t_idx):
-                    self.assertEqual(be.temp_ext(), t_idx + 8.0, "incorrect ext temp returned")
+                    self.assertEqual(be.temp_ext(), results[t_idx], "incorrect ext temp returned")
 
 class TestBuildingElementTransparent(unittest.TestCase):
     """ Unit tests for BuildingElementTransparent class """
@@ -416,7 +447,7 @@ class TestBuildingElementTransparent(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementTransparent object to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0], None, 
+        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0],
                                 None,
                                 None,
                                 None,

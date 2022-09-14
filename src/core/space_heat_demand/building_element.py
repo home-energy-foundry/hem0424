@@ -17,6 +17,7 @@ from math import cos, pi
 
 # Local imports
 import core.external_conditions as external_conditions
+from core.units import average_monthly_to_annual
 
 # Difference between external air temperature and sky temperature
 # (default value for intermediate climatic region from BS EN ISO 52016-1:2017, Table B.19)
@@ -47,7 +48,7 @@ class BuildingElement:
     self.temp_ext() -- function to return the temperature of the external
                        environment, in deg C
     """
-
+    
     # Values from BS EN ISO 13789:2017, Table 8: Conventional surface heat
     # transfer coefficients
     __H_CI_UPWARDS = 5.0
@@ -337,17 +338,28 @@ class BuildingElementAdjacentZTC(BuildingElement):
 class BuildingElementGround(BuildingElement):
     """ A class to represent ground building elements """
 
+    # Assume values for temp_int_annual and temp_int_monthly
+    # These are based on SAP 10 notional building runs for 5 archetypes used
+    # for inter-model comparison/validation. The average of the monthly mean
+    # internal temperatures from each run was taken.
+    __TEMP_INT_MONTHLY \
+        = [19.46399546, 19.66940204, 19.90785898, 20.19719837, 20.37461865, 20.45679018,
+           20.46767703, 20.46860812, 20.43505593, 20.22266322, 19.82726777, 19.45430847,
+          ]
+
     def __init__(self,
             area,
             pitch,
-            h_ce,
-            h_re,
-            r_c,
-            r_gr,
+            u_value,
+            r_f,
             k_m,
-            k_gr,
             mass_distribution_class,
+            h_pi,
+            h_pe,
+            perimeter,
+            psi_wall_floor_junc,
             ext_cond,
+            simulation_time,
             ):
         """ Construct a BuildingElementGround object
     
@@ -355,13 +367,19 @@ class BuildingElementGround(BuildingElement):
         area     -- area (in m2) of this building element
         pitch    -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
                     where 0 means facing down, 90 means vertical and 180 means facing directly up
-        h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
-        h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
-        r_c      -- thermal resistance of the ground floor element, in m2.K / W
-        r_gr     -- thermal resistance of the fixed ground layer, in m2.K / W
+        u_value  -- steady-state thermal transmittance of floor, including the
+                    effect of the ground, in W / (m2.K)
+        r_f      -- total thermal resistance of all layers in the floor construction, in (m2.K) / W
         k_m      -- areal heat capacity of the ground floor element, in J / (m2.K)
-        k_gr     -- areal heat capacity of the fixed ground element, in J / (m2.K)
+        h_pi     -- internal periodic heat transfer coefficient, as defined in
+                    BS EN ISO 13370:2017 Annex H, in W / K
+        h_pe     -- internal periodic heat transfer coefficient, as defined in
+                    BS EN ISO 13370:2017 Annex H, in W / K
+        perimeter -- perimeter of the floor, in metres
+        psi_wall_floor_junc -- linear thermal transmittance of the junction
+                               between the floor and the walls, in W / (m.K)
         ext_cond -- reference to ExternalConditions object
+        simulation_time -- reference to SimulationTime object
         mass_distribution_class
                  -- distribution of mass in building element, one of:
                     - 'I':  mass concentrated on internal side
@@ -369,15 +387,24 @@ class BuildingElementGround(BuildingElement):
                     - 'IE': mass divided over internal and external side
                     - 'D':  mass equally distributed
                     - 'M':  mass concentrated inside
-        """
-        # TODO add ground-specific arguments described above (r_gr and k_gr) into code, maybe set as universal inputs
-        
-        self.__external_conditions = ext_cond
 
-        # TODO Set external surface heat transfer coefficients based on thermal
-        #      resistance of virtual ground layer. For now, these are inputs.
-        self.__h_ce = h_ce
-        self.__h_re = h_re
+        Other variables:
+        h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
+        h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
+        r_c      -- thermal resistance of the ground floor element including the
+                    effect of the ground, in m2.K / W
+        r_gr     -- thermal resistance of the fixed ground layer, in m2.K / W
+        k_gr     -- areal heat capacity of the fixed ground layer, in J / (m2.K)
+        """
+        self.__u_value = u_value
+        self.__h_pi = h_pi
+        self.__h_pe = h_pe
+        self.__perimeter = perimeter
+        self.__psi_wall_flr_junc = psi_wall_floor_junc
+        self.__external_conditions = ext_cond
+        self.__simulation_time = simulation_time
+        self.__temp_int_annual = average_monthly_to_annual(self.__TEMP_INT_MONTHLY)
+
 
         # Solar absorption coefficient at the external surface of the ground element is zero
         # according to BS EN ISO 52016-1:2017, section 6.5.7.3
@@ -386,6 +413,26 @@ class BuildingElementGround(BuildingElement):
         # View factor to the sky is zero because element is in contact with the ground
         f_sky = 0.0
 
+        # Thermal properties of ground from BS EN ISO 13370:2017 Table 7
+        # Use values for clay or silt (same as BR 443 and SAP 10)
+        thermal_conductivity = 1.5
+        heat_capacity_per_vol = 300000
+
+        # Calculate thermal resistance and heat capacity of fixed ground layer
+        # using BS EN ISO 13370:2017
+        thickness_ground_layer = 0.5 # Specified in BS EN ISO 52016-1:2017 section 6.5.8.2
+        r_gr = thickness_ground_layer / thermal_conductivity
+        k_gr = thickness_ground_layer * heat_capacity_per_vol
+
+        # Calculate thermal resistance of virtual layer using BS EN ISO 13370:2017 Equation (F1)
+        r_si = 0.17 # ISO 6946 - internal surface resistance
+        r_vi = (1.0 / u_value) - r_si - r_f - r_gr
+
+        # Set external surface heat transfer coeffs as per BS EN ISO 52016-1:2017 eqn 49
+        # Must be set before initialisation of base class, as these are referenced there
+        self.__h_ce = 1.0 / r_vi
+        self.__h_re = 0.0
+
         # Initialise the base BuildingElement class
         super().__init__(area, pitch, a_sol, f_sky)
 
@@ -393,6 +440,7 @@ class BuildingElementGround(BuildingElement):
         # according to BS EN ISO 52016-1:2017, section 6.5.7.3
 
         def init_h_pli():
+            r_c = 1.0 / u_value
             h_4 = 4.0 / r_c
             h_3 = 2.0 / r_c
             h_2 = 1.0 / (r_c / 4 + r_gr / 2)
@@ -430,8 +478,31 @@ class BuildingElementGround(BuildingElement):
         return self.__h_re
 
     def temp_ext(self):
-        """ Return the temperature of the air on the other side of the building element """
-        return self.__external_conditions.ground_temp()
+        """ Return the temperature on the other side of the building element """
+        temp_ext_annual = self.__external_conditions.air_temp_annual()
+        temp_ext_month = self.__external_conditions.air_temp_monthly()
+
+        current_month = self.__simulation_time.current_month()
+        temp_int_month = self.__TEMP_INT_MONTHLY[current_month]
+
+        # BS EN ISO 13370:2017 Eqn C.4
+        heat_flow_month \
+            = self.__u_value * self.area * (self.__temp_int_annual - temp_ext_annual) \
+            + self.__perimeter * self.__psi_wall_flr_junc * (temp_int_month - temp_ext_month) \
+            - self.__h_pi * (self.__temp_int_annual - temp_int_month) \
+            + self.__h_pe * (temp_ext_annual - temp_ext_month)
+
+        # BS EN ISO 13370:2017 Eqn F.2
+        temp_ground_virtual \
+            = temp_int_month \
+            - ( heat_flow_month
+              - ( self.__perimeter * self.__psi_wall_flr_junc 
+                * (self.__temp_int_annual - temp_ext_annual)
+                )
+              ) \
+            / (self.area * self.__u_value)
+
+        return temp_ground_virtual
 
 
 class BuildingElementTransparent(BuildingElement):
