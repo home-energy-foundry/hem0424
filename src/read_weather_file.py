@@ -11,6 +11,7 @@ from enum import Enum
 COLUMN_LONGITUDE = 6
 COLUMN_LATITUDE = 7
 COLUMN_AIR_TEMP = 6
+COLUMN_WIND_SPEED = 21
 COLUMN_DIR_RAD = 14
 COLUMN_HOR_RAD = 15
 COLUMN_GROUND_REFLECT = 32
@@ -18,6 +19,7 @@ COLUMN_GROUND_REFLECT = 32
 def weather_data_to_dict(weather_file):
     """ Read in weather file, return dictionary"""
     air_temperatures = []
+    wind_speeds = []
     diff_hor_rad = []
     dir_beam_rad = []
     ground_solar_reflc = []
@@ -31,6 +33,7 @@ def weather_data_to_dict(weather_file):
                 latitude = float(row[COLUMN_LATITUDE])
             elif line_count >= 8:
                 air_temperatures.append(float(row[COLUMN_AIR_TEMP]))
+                wind_speeds.append(float(row[COLUMN_WIND_SPEED]))
                 dir_beam_rad.append(float(row[COLUMN_DIR_RAD]))
                 diff_hor_rad.append(float(row[COLUMN_HOR_RAD]))
                 ground_solar_reflc.append(float(row[COLUMN_GROUND_REFLECT]))
@@ -38,6 +41,7 @@ def weather_data_to_dict(weather_file):
 
     external_conditions = {
         "air_temperatures": air_temperatures,
+        "wind_speeds": wind_speeds,
         "diffuse_horizontal_radiation": diff_hor_rad,
         "direct_beam_radiation": dir_beam_rad,
         "solar_reflectivity_of_ground": ground_solar_reflc,
