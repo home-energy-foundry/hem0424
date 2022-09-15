@@ -119,7 +119,7 @@ class VentilationElementInfiltration:
         shelter               -- exposure level of the building i.e. very sheltered, sheltered, normal, or exposed
         build_type            -- type of building e.g. house, flat, etc.
         test_result           -- result of pressure test, in ach
-        test_type             -- measurement used for pressure test i.e. based on air permeability value at 50 Pa (Q50) or 4 Pa (Q4)
+        test_type             -- measurement used for pressure test i.e. based on air change rate value at 50 Pa (50Pa) or 4 Pa (4Pa)
         env_area              -- total envelope area of the building including party walls and floors, in m^2
         volume                -- total volume of dwelling, m^3
         sheltered_sides       -- number of sides of the building which are sheltered
@@ -177,8 +177,9 @@ class VentilationElementInfiltration:
 
         # Calculate infiltration rate
         def init_infiltration():
-            if test_type == "Q4":
-                # If test results are Q4, convert to Q50 before applying divisor.
+            if test_type == "4Pa":
+                # If test results are at 4 Pa, convert to equivalent 50 Pa result
+                # before applying divisor.
                 # SAP 10 Technical Paper S10TP-19 "Use of low pressure pulse
                 # test data in SAP" gives the relationship between air
                 # permeability measured at 50 Pa and 4 Pa. The equation below is
@@ -186,7 +187,7 @@ class VentilationElementInfiltration:
                 # expressed in ach rather than m3/m2/h.
                 test_result_ach_50Pa \
                     = 5.254 * (test_result**0.9241) * ((env_area / volume)**(1-0.9241))
-            elif test_type == "Q50":
+            elif test_type == "50Pa":
                 test_result_ach_50Pa = test_result
             else:
                 sys.exit( ' Pressure test result type not recognised.' )

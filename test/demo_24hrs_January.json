@@ -100,7 +100,7 @@
 		"shelter": "normal",
 		"build_type": "house",
 		"test_result": 4.0,
-		"test_type": "Q50",
+		"test_type": "4Pa",
 		"env_area": 105.0,
 		"volume": 250.0,
 		"sheltered_sides": 1,
