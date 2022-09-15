@@ -184,14 +184,15 @@ class VentilationElementInfiltration:
                 # permeability measured at 50 Pa and 4 Pa. The equation below is
                 # based on this but has been converted to work with test results
                 # expressed in ach rather than m3/m2/h.
-                test_result_q50 = 5.254 * (test_result**0.9241) * ((env_area / volume)**(1-0.9241))
+                test_result_ach_50Pa \
+                    = 5.254 * (test_result**0.9241) * ((env_area / volume)**(1-0.9241))
             elif test_type == "Q50":
-                test_result_q50 = test_result
+                test_result_ach_50Pa = test_result
             else:
                 sys.exit( ' Pressure test result type not recognised.' )
                 # TODO Exit just the current case instead of whole program entirely?
 
-            return (test_result_q50 / self.__divisor) \
+            return (test_result_ach_50Pa / self.__divisor) \
                  + (self.__inf_openings * self.__shelter_factor)
 
         self.__infiltration = init_infiltration()
