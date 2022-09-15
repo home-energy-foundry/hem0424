@@ -95,10 +95,30 @@
 			"Control": "hw timer"
 		}
 	},
+	"Infiltration": {
+		"storey": 1,
+		"shelter": "normal",
+		"build_type": "house",
+		"test_result": 4.0,
+		"test_type": "Q50",
+		"env_area": 105.0,
+		"volume": 250.0,
+		"sheltered_sides": 1,
+		"open_chimneys": 1,
+		"open_flues": 1,
+		"closed_fire": 2,
+		"flues_d": 1,
+		"flues_e": 1,
+		"blocked_chimneys": 1,
+		"extract_fans": 2,
+		"passive_vents": 2,
+		"gas_fires": 1
+	},
 	"Zone": {
 		"zone 1": {
 			"SpaceHeatSystem": "main",
 			"area": 80.0,
+			"volume": 250.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",

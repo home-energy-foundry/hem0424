@@ -99,8 +99,8 @@
 		"build_type": "house",
 		"test_result": 4.0,
 		"test_type": "Q50",
-		"env_area": 25.0,
-		"volume": 75.0,
+		"env_area": 125.0,
+		"volume": 250.0,
 		"sheltered_sides": 1,
 		"open_chimneys": 1,
 		"open_flues": 1,
@@ -116,7 +116,7 @@
 		"zone 1": {
 			"SpaceHeatSystem": "main",
 			"area": 80.0,
-			"volume": 75.0,
+			"volume": 250.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
