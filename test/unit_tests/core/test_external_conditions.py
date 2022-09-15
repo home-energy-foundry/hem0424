@@ -127,7 +127,7 @@ class TestExternalConditions(unittest.TestCase):
                     "incorrect wind speed returned",
                     )
 
-    def diffuse_horizontal_radiation(self):
+    def test_diffuse_horizontal_radiation(self):
         """ Test that ExternalConditions object returns correct diffuse_horizontal_radiation """
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
@@ -137,7 +137,7 @@ class TestExternalConditions(unittest.TestCase):
                     "incorrect diffuse_horizontal_radiation returned",
                     )
                 
-    def direct_beam_radiation(self):
+    def test_direct_beam_radiation(self):
         """ Test that ExternalConditions object returns correct direct_beam_radiation """
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
@@ -147,7 +147,7 @@ class TestExternalConditions(unittest.TestCase):
                     "incorrect direct_beam_radiation returned",
                     )
                 
-    def solar_reflectivity_of_ground(self):
+    def test_solar_reflectivity_of_ground(self):
         """ Test that ExternalConditions object returns correct solar_reflectivity_of_ground """
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
