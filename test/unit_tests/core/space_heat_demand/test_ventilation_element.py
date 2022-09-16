@@ -45,7 +45,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
                                                     "sheltered",
                                                     "house",
                                                     4.5,
-                                                    "Q50",
+                                                    "50Pa",
                                                     40.0,
                                                     75.0,
                                                     2.0,
