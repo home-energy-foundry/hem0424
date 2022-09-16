@@ -96,8 +96,8 @@ class VentilationElementInfiltration:
             storey,
             shelter,
             build_type,
-            test_result,
-            test_type,
+            pressure_test_result_ach,
+            pressure_test_type,
             env_area,
             volume,
             sheltered_sides,
@@ -118,8 +118,8 @@ class VentilationElementInfiltration:
         storey                -- for flats, storey number within building / for non-flats, total number of storeys in building
         shelter               -- exposure level of the building i.e. very sheltered, sheltered, normal, or exposed
         build_type            -- type of building e.g. house, flat, etc.
-        test_result           -- result of pressure test, in ach
-        test_type             -- measurement used for pressure test i.e. based on air change rate value at 50 Pa (50Pa) or 4 Pa (4Pa)
+        pressure_test_result_ach -- result of pressure test, in ach
+        pressure_test_type    -- measurement used for pressure test i.e. based on air change rate value at 50 Pa (50Pa) or 4 Pa (4Pa)
         env_area              -- total envelope area of the building including party walls and floors, in m^2
         volume                -- total volume of dwelling, m^3
         sheltered_sides       -- number of sides of the building which are sheltered
@@ -177,7 +177,7 @@ class VentilationElementInfiltration:
 
         # Calculate infiltration rate
         def init_infiltration():
-            if test_type == "4Pa":
+            if pressure_test_type == "4Pa":
                 # If test results are at 4 Pa, convert to equivalent 50 Pa result
                 # before applying divisor.
                 # SAP 10 Technical Paper S10TP-19 "Use of low pressure pulse
@@ -186,9 +186,9 @@ class VentilationElementInfiltration:
                 # based on this but has been converted to work with test results
                 # expressed in ach rather than m3/m2/h.
                 test_result_ach_50Pa \
-                    = 5.254 * (test_result**0.9241) * ((env_area / volume)**(1-0.9241))
-            elif test_type == "50Pa":
-                test_result_ach_50Pa = test_result
+                    = 5.254 * (pressure_test_result_ach**0.9241) * ((env_area / volume)**(1-0.9241))
+            elif pressure_test_type == "50Pa":
+                test_result_ach_50Pa = pressure_test_result_ach
             else:
                 sys.exit( ' Pressure test result type not recognised.' )
                 # TODO Exit just the current case instead of whole program entirely?
