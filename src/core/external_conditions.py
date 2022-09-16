@@ -16,9 +16,10 @@ from math import cos, sin, pi, asin, acos, radians, degrees
 class ExternalConditions:
     """ An object to store and look up data on external conditions """
 
-    def __init__(self, 
-            simulation_time, 
-            air_temps, 
+    def __init__(self,
+            simulation_time,
+            air_temps,
+            wind_speeds,
             diffuse_horizontal_radiation,
             direct_beam_radiation,
             solar_reflectivity_of_ground,
@@ -37,6 +38,7 @@ class ExternalConditions:
         Arguments:
         simulation_time -- reference to SimulationTime object
         air_temps       -- list of external air temperatures, in deg C (one entry per hour)
+        wind_speeds     -- list of wind speeds, in m/s (one entry per hour)
         diffuse_horizontal_radiation    -- list of diffuse horizontal radiation values, in W/m2 (one entry per hour)
         direct_beam_radiation           -- list of direct beam radiation values, in W/m2 (one entry per hour)
         solar_reflectivity_of_ground    -- list of ground reflectivity values, 0 to 1 (one entry per hour)
@@ -58,6 +60,7 @@ class ExternalConditions:
 
         self.__simulation_time  = simulation_time
         self.__air_temps        = air_temps
+        self.__wind_speeds      = wind_speeds
         self.__diffuse_horizontal_radiation = diffuse_horizontal_radiation
         self.__direct_beam_radiation = direct_beam_radiation
         self.__solar_reflectivity_of_ground = solar_reflectivity_of_ground
@@ -845,3 +848,9 @@ class ExternalConditions:
                          + self.calculated_diffuse_irradiance(tilt, orientation)
 
         return total_irradiance
+
+    def wind_speed(self):
+        """ Return the wind speed for the current timestep """
+        return self.__wind_speeds[self.__simulation_time.time_series_idx(self.__start_day)]
+        # TODO Assumes schedule is one entry per hour but this should be made
+        #      more flexible in the future.

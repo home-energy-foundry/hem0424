@@ -22,6 +22,7 @@ from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
     BuildingElementAdjacentZTC
+from core.space_heat_demand.ventilation_element import VentilationElementInfiltration
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -68,6 +69,7 @@ class Project:
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
+            proj_dict['ExternalConditions']['wind_speeds'],
             proj_dict['ExternalConditions']['diffuse_horizontal_radiation'],
             proj_dict['ExternalConditions']['direct_beam_radiation'],
             proj_dict['ExternalConditions']['solar_reflectivity_of_ground'],
@@ -80,6 +82,27 @@ class Project:
             None, #proj_dict['ExternalConditions']['daylight_savings'],
             None, #proj_dict['ExternalConditions']['leap_day_included'],
             False, #proj_dict['ExternalConditions']['direct_beam_conversion_needed']
+            )
+
+        self.__infiltration = VentilationElementInfiltration(
+            proj_dict['Infiltration']['storey'],
+            proj_dict['Infiltration']['shelter'],
+            proj_dict['Infiltration']['build_type'],
+            proj_dict['Infiltration']['test_result'],
+            proj_dict['Infiltration']['test_type'],
+            proj_dict['Infiltration']['env_area'],
+            proj_dict['Infiltration']['volume'],
+            proj_dict['Infiltration']['sheltered_sides'],
+            proj_dict['Infiltration']['open_chimneys'],
+            proj_dict['Infiltration']['open_flues'],
+            proj_dict['Infiltration']['closed_fire'],
+            proj_dict['Infiltration']['flues_d'],
+            proj_dict['Infiltration']['flues_e'],
+            proj_dict['Infiltration']['blocked_chimneys'],
+            proj_dict['Infiltration']['extract_fans'],
+            proj_dict['Infiltration']['passive_vents'],
+            proj_dict['Infiltration']['gas_fires'],
+            self.__external_conditions,
             )
 
         self.__cold_water_sources = {}
@@ -297,6 +320,19 @@ class Project:
                 # TODO Exit just the current case instead of whole program entirely?
             return building_element
 
+        ''' TODO Reinstate this code when VentilationElement types other than infiltration
+                 have been defined.
+        def dict_to_ventilation_element(name, data):
+            ventilation_element_type = data['type']
+            if ventilation_element_type == '': # TODO Add ventilation element type
+                # TODO Create VentilationElement object
+            else:
+                sys.exit( name + ': ventilation element type ('
+                      + ventilation_element_type + ') not recognised.' )
+                # TODO Exit just the current case instead of whole program entirely?
+            return ventilation_element
+        '''
+
         def dict_to_thermal_bridging(data):
             # If data is for individual thermal bridges, initialise the relevant
             # objects and return a list of them. Otherwise, just use the overall
@@ -344,10 +380,27 @@ class Project:
 
             # Read in thermal bridging data
             thermal_bridging = dict_to_thermal_bridging(data['ThermalBridging'])
-            # TODO Implement ventilation elements rather than using empty list (i.e. ignoring them)
-            vent_elements = []
 
-            return Zone(data['area'], building_elements, thermal_bridging, vent_elements)
+            # Read in ventilation elements and add to list
+            # All zones have infiltration, so start list with infiltration object
+            vent_elements = [self.__infiltration]
+            # Add any additional ventilation elements
+            ''' TODO Reinstate this code when VentilationElement types other than infiltration
+                     have been defined.
+            # TODO Handle case of no additional VentilationElement objects for the zone
+            for ventilation_element_name, ventilation_element_data in data['VentilationElement'].items():
+                vent_elements.append(
+                    dict_to_ventilation_element(ventilation_element_name, ventilation_element_data)
+                    )
+            '''
+
+            return Zone(
+                data['area'],
+                data['volume'],
+                building_elements,
+                thermal_bridging,
+                vent_elements
+                )
 
         self.__zones = {}
         for name, data in proj_dict['Zone'].items():

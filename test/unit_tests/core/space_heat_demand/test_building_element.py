@@ -25,7 +25,9 @@ class TestBuildingElementOpaque(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementOpaque objects to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0],
+        ec = ExternalConditions(self.simtime,
+                                [0.0, 5.0, 10.0, 15.0],
+                                None,
                                 None,
                                 None,
                                 None,
@@ -159,7 +161,9 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementAdjacentZTC objects to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0],
+        ec = ExternalConditions(self.simtime,
+                                [0.0, 5.0, 10.0, 15.0],
+                                None,
                                 None,
                                 None,
                                 None,
@@ -311,7 +315,9 @@ class TestBuildingElementGround(unittest.TestCase):
         airtemp.extend(air_temp_day_Nov * 30)
         airtemp.extend(air_temp_day_Dec * 31)
 
-        ec = ExternalConditions(self.simtime, airtemp,
+        ec = ExternalConditions(self.simtime,
+                                airtemp,
+                                None,
                                 None,
                                 None,
                                 None,
@@ -447,7 +453,9 @@ class TestBuildingElementTransparent(unittest.TestCase):
     def setUp(self):
         """ Create BuildingElementTransparent object to be tested """
         self.simtime = SimulationTime(0, 4, 1)
-        ec = ExternalConditions(self.simtime, [0.0, 5.0, 10.0, 15.0],
+        ec = ExternalConditions(self.simtime,
+                                [0.0, 5.0, 10.0, 15.0],
+                                None,
                                 None,
                                 None,
                                 None,
