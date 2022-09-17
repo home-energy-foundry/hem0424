@@ -177,6 +177,12 @@ class ExternalConditions:
         # TODO Assumes schedule is one entry per hour but this should be made
         #      more flexible in the future.
 
+    def wind_speed(self):
+        """ Return the wind speed for the current timestep """
+        return self.__wind_speeds[self.__simulation_time.time_series_idx(self.__start_day)]
+        # TODO Assumes schedule is one entry per hour but this should be made
+        #      more flexible in the future.
+
     def diffuse_horizontal_radiation(self):
         """ Return the diffuse_horizontal_radiation for the current timestep """
         return self.__diffuse_horizontal_radiation[self.__simulation_time.time_series_idx(self.__start_day)]
@@ -849,8 +855,3 @@ class ExternalConditions:
 
         return total_irradiance
 
-    def wind_speed(self):
-        """ Return the wind speed for the current timestep """
-        return self.__wind_speeds[self.__simulation_time.time_series_idx(self.__start_day)]
-        # TODO Assumes schedule is one entry per hour but this should be made
-        #      more flexible in the future.
