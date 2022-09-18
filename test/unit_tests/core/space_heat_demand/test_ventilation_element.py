@@ -39,6 +39,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
                                 None,
                                 None,
                                 None,
+                                None,
                                 None
                                 )
         self.ve_inf = VentilationElementInfiltration(1.0, 

@@ -11,7 +11,7 @@ based on BS EN ISO 52010-1:2017.
 
 # Standard library imports
 import sys
-from math import cos, sin, pi, asin, acos, radians, degrees
+from math import cos, sin, tan, pi, asin, acos, radians, degrees
 
 class ExternalConditions:
     """ An object to store and look up data on external conditions """
@@ -31,7 +31,8 @@ class ExternalConditions:
             january_first,
             daylight_savings,
             leap_day_included,
-            direct_beam_conversion_needed
+            direct_beam_conversion_needed,
+            shading_segments
             ):
         """ Construct an ExternalConditions object
 
@@ -55,7 +56,9 @@ class ExternalConditions:
         leap_day_included   -- whether climate data includes a leap day, true or false (single value)
         direct_beam_conversion_needed -- A flag to indicate whether direct beam radiation from climate data needs to be 
                                         converted from horizontal to normal incidence. If normal direct beam radiation 
-                                        values are provided then no conversion is needed. 
+                                        values are provided then no conversion is needed.
+        shading_segments -- data splitting the ground plane into segments (8-36) and giving height
+                            and distance to shading objects surrounding the building
         """     
 
         self.__simulation_time  = simulation_time
@@ -73,6 +76,7 @@ class ExternalConditions:
         self.__daylight_savings = daylight_savings
         self.__leap_day_included = leap_day_included
         self.__direct_beam_conversion_needed = direct_beam_conversion_needed
+        self.__shading_segments = shading_segments
 
     def testoutput_setup(self,tilt,orientation):
         """ print output to a file for analysis """
@@ -109,7 +113,7 @@ class ExternalConditions:
         #write headers
         with open("test_sunpath.txt", "a") as o:
             o.write("\n")
-            o.write(str(self.__simulation_time.current_hour()))
+            o.write(str(self.__simulation_time.hour_of_day()))
             o.write(",")
             o.write(str(self.solar_time()))
             o.write(",")
@@ -333,7 +337,6 @@ class ExternalConditions:
         """
 
         tshift = self.timezone() - self.longitude() / 15
-
         return tshift
 
     def solar_time(self):
@@ -435,10 +438,12 @@ class ExternalConditions:
 
         if (sin_aux1 >= 0 and cos_aux1 > 0):
             solar_azimuth = 180 - aux2
+            if solar_azimuth < 0:
+                solar_azimuth = -solar_azimuth
         elif cos_aux1 < 0:
             solar_azimuth = aux2
         else:
-            solar_azimuth = -180 + aux2
+            solar_azimuth = -(180 + aux2)
 
         return solar_azimuth
 
@@ -855,3 +860,129 @@ class ExternalConditions:
 
         return total_irradiance
 
+    # end of sun path calculations from ISO 52010
+    # below are overshading calculations from ISO 52016
+
+    def outside_solar_beam(self, tilt, orientation):
+        """ checks if the shaded surface is in the view of the solar beam.
+        if not, then shading is complete, total direct rad = 0 and no further
+        shading calculation needed for this object for this time step. returns
+        a flag for whether the surface is outside solar beam
+
+        Arguments:
+        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
+                          upwards facing, 0 to 180, in degrees;
+        orientation    -- is the orientation angle of the inclined surface, expressed as the 
+                          geographical azimuth angle of the horizontal projection of the 
+                          inclined surface normal, -180 to 180, in degrees;
+                          
+        """
+
+        test1 = orientation - self.solar_azimuth_angle()
+        test2 = tilt - self.solar_altitude()
+
+        if (-90 > test1 or test1 > 90):
+            # surface outside solar beam
+            return 1
+        elif (-90 > test2 or test2 > 90):
+            # surface outside solar beam
+            return 1
+        else:
+            # surface intside solar beam
+            return 0
+
+    def get_segment(self):
+        """ for complex (environment) shading objects, we need to know which
+        segment the azimuth of the sun occupies at each timestep
+
+        """
+
+        azimuth = self.solar_azimuth_angle()
+
+        for segment in self.__shading_segments:
+            if (azimuth < segment["start"] and azimuth > segment["end"]):
+                return segment
+        #if not exited function yet then segment has not been found and there
+        #is some sort of error
+        sys.exit("solar segment not found. Check shading inputs")
+
+    def obstacle_shading_height(self, Hkbase, Hobst, Lkobst ):
+        """ calculates the height of the shading on the shaded surface (k),
+        from the shading obstacle in segment i at time t. Note that "obstacle"
+        has a specific meaning in ISO 52016 Annex F
+
+        Arguments:
+        Hkbase        -- is the base height of the shaded surface k, in m
+        Hobst         -- is the height of the shading obstacle, p, in segment i, in m
+        Lkobst        -- is the horizontal distance between the shaded surface k, in m 
+                         and the shading obstacle p in segment i, in m
+        """
+
+        Hshade = max(0, Hobst - Hkbase - Lkobst * tan(self.solar_altitude()))
+        return Hshade
+
+    def overhang_shading_height(self, Hk, Hkbase, Hovh, Lkovh ):
+        """ calculates the height of the shading on the shaded surface (k),
+        from the shading overhang in segment i at time t. Note that "overhang"
+        has a specific meaning in ISO 52016 Annex F
+
+        Arguments:
+        Hk            -- is the height of the shaded surface, k, in m
+        Hkbase        -- is the base height of the shaded surface k, in m
+        Hovh          -- is the lowest height of the overhang q, in segment i, in m
+        Lkovh         -- is the horizontal distance between the shaded surface k 
+                         and the shading overhang, q, in segment i, in m
+        """
+
+        Hshade = max(0, Hk + Hkbase - Hovh + Lkovh * tan(self.solar_altitude()))
+        return Hshade
+
+    def shading_reduction_factor(self, base_height, height, width, tilt, orientation):
+        # start with default assumption of no shading
+        Hshade_obst = 0
+        Hshade_ovh = 0
+        WfinR = 0
+        WfinL = 0
+
+        # first check if the surface is outside the solar beam
+        # if so then shading is complete and we stop calculation here
+        if self.outside_solar_beam(tilt, orientation):
+            return 0
+
+        #next get the shading segment we are currently in
+        segment = self.get_segment()
+        #check for any shading objects in this segment
+        if "shading" in segment.keys():
+            for shade_obj in segment["shading"]:
+                if shade_obj["type"] == "obstacle":
+                    new_shade_height = self.obstacle_shading_height \
+                    (base_height, shade_obj["height"], shade_obj["distance"])
+
+                    Hshade_obst = max(Hshade_obst, new_shade_height)
+                elif shade_obj["type"] == "overhang":
+                    new_shade_height = self.overhang_shading_height \
+                    (height, base_height, shade_obj["height"], shade_obj["distance"])
+
+                    Hshade_ovh = max(Hshade_ovh, new_shade_height)
+                else:
+                    sys.exit("shading object type" + shade_obj["type"] + "not recognised")
+
+        # The height of the shade on the shaded surface from all obstacles is the 
+        # largest of all, with as maximum value the height of the shaded object
+        Hk_obst = min(height, Hshade_obst)
+
+        # The height of the shade on the shaded surface from all overhangs is the 
+        # largest of all, with as maximum value the height of the shaded object
+        Hk_ovh = min(height, Hshade_ovh)
+
+        # The height of the remaining sunlit area on the shaded surface from 
+        # all obstacles and all overhangs
+        Hk_sun = max(0, height - (Hk_obst + Hk_ovh))
+
+        Wk_finR = min(width, WfinR)
+        Wk_finL = min(width, WfinL)
+        Wk_sun = max(0, width - (Wk_finR + Wk_finL))
+
+        Fdir = (Hk_sun * Wk_sun) / (height * width)
+
+        return Fdir
