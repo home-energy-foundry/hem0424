@@ -16,6 +16,7 @@ from core.external_conditions import ExternalConditions
 from core.schedule import expand_schedule, expand_events
 from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
+from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
@@ -406,6 +407,37 @@ class Project:
         for name, data in proj_dict['Zone'].items():
             self.__zones[name] = dict_to_zone(name, data)
 
+        def dict_to_on_site_generation(name, data):
+            """ Parse dictionary of on site generation data and
+                return approprate on site generation object """
+            on_site_generation_type = data['type']
+            if on_site_generation_type == 'PhotovoltaicSystem':
+
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                pv_system = PhotovoltaicSystem(
+                    data['peak_power'],
+                    data['ventilation_strategy'],
+                    data['pitch'],
+                    data['orientation'],
+                    self.__external_conditions,
+                    energy_supply_conn,
+                    self.__simtime,
+                    )
+            else:
+                sys.exit(name + ': on site generation type ('
+                         + on_site_generation_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return pv_system
+
+        self.__on_site_generation = {}
+        # If no on site generation have been provided, then skip.
+        if 'OnSiteGeneration' in proj_dict:
+            for name, data in proj_dict['OnSiteGeneration'].items():
+                self.__on_site_generation[name] = dict_to_on_site_generation(name, data)
+
     def run(self):
         """ Run the simulation """
 
@@ -577,6 +609,11 @@ class Project:
 
             for c_name, demand in space_cool_demand_system.items():
                 space_cool_demand_system_dict[c_name].append(demand)
+
+            #loop through on-site energy generation
+            for g_name, gen in self.__on_site_generation.items():
+                # Get energy produced for the current timestep
+                self.__on_site_generation[g_name].produce_energy()
 
         zone_dict = {'Operative temp': operative_temp_dict, 'Internal air temp': internal_air_temp_dict, 'Space heat demand': space_heat_demand_dict, 'Space cool demand': space_cool_demand_dict}
         hc_system_dict = {'Heating system': space_heat_demand_system_dict, 'Cooling system': space_cool_demand_system_dict}
