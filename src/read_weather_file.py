@@ -8,8 +8,8 @@ This module reads in an energy + weather file.
 import csv
 from enum import Enum
 
-COLUMN_LONGITUDE = 6
-COLUMN_LATITUDE = 7
+COLUMN_LONGITUDE = 7
+COLUMN_LATITUDE = 6
 COLUMN_AIR_TEMP = 6
 COLUMN_WIND_SPEED = 21
 COLUMN_DIR_RAD = 14
