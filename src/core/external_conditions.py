@@ -427,12 +427,13 @@ class ExternalConditions:
         cos_aux1 = cos_aux1_numerator / denominator 
         aux2 = degrees(asin(sin_aux1_numerator) / denominator)
 
+        # BS EN ISO 52010-1:2017. Formula 16
         if (sin_aux1 >= 0 and cos_aux1 > 0):
             solar_azimuth = 180 - aux2
         elif cos_aux1 < 0:
             solar_azimuth = aux2
         else:
-            solar_azimuth = -180 + aux2
+            solar_azimuth = -(180 + aux2)
 
         return solar_azimuth
 
