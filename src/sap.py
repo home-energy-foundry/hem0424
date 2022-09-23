@@ -92,8 +92,14 @@ if __name__ == '__main__':
         nargs='+',
         help=('path(s) to file(s) containing building specifications to run'),
         )
+    parser.add_argument(
+        '--no-parallel', '-P',
+        action='store_true',
+        default=False,
+        help='do not run calculations for different input files in parallel',
+        )
     cli_args = parser.parse_args()
-    
+
     inp_filenames = cli_args.input_file
     epw_filename = cli_args.epw_file
 
@@ -102,6 +108,14 @@ if __name__ == '__main__':
     else:
         external_conditions_dict = None
 
-    for inpfile in inp_filenames:
-        run_project(inpfile, external_conditions_dict)
+    if cli_args.no_parallel:
+        print('Running '+str(len(inp_filenames))+' cases in series')
+        for inpfile in inp_filenames:
+            run_project(inpfile, external_conditions_dict)
+    else:
+        import multiprocessing as mp
+        print('Running '+str(len(inp_filenames))+' cases in parallel')
+        run_project_args = [(inpfile, external_conditions_dict) for inpfile in inp_filenames]
+        with mp.Pool() as p:
+            p.starmap(run_project, run_project_args)
 
