@@ -93,10 +93,10 @@ if __name__ == '__main__':
         help=('path(s) to file(s) containing building specifications to run'),
         )
     parser.add_argument(
-        '--no-parallel', '-P',
+        '--parallel', '-p',
         action='store_true',
         default=False,
-        help='do not run calculations for different input files in parallel',
+        help='run calculations for different input files in parallel',
         )
     cli_args = parser.parse_args()
 
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     else:
         external_conditions_dict = None
 
-    if cli_args.no_parallel:
+    if not cli_args.parallel:
         print('Running '+str(len(inp_filenames))+' cases in series')
         for inpfile in inp_filenames:
             run_project(inpfile, external_conditions_dict)
