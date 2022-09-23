@@ -10,12 +10,12 @@ import sys
 import json
 import csv
 import os
+import argparse
 
 # Local imports
 from core.project import Project
 from read_weather_file import weather_data_to_dict
 
-# TODO Rewrite this module with argparse library
 
 def run_project(inp_filename, external_conditions_dict):
     file_path = os.path.splitext(inp_filename)
@@ -80,12 +80,28 @@ def run_project(inp_filename, external_conditions_dict):
             writer.writerow(row)
 
 if __name__ == '__main__':
-    inp_filename = sys.argv[1]
+    parser = argparse.ArgumentParser(description='SAP 11')
+    parser.add_argument(
+        '--epw-file', '-w',
+        action='store',
+        default=None,
+        help=('path to weather file in .epw format'),
+        )
+    parser.add_argument(
+        'input_file',
+        nargs='+',
+        help=('path(s) to file(s) containing building specifications to run'),
+        )
+    cli_args = parser.parse_args()
+    
+    inp_filenames = cli_args.input_file
+    epw_filename = cli_args.epw_file
 
-    if len(sys.argv) > 2:
-        external_conditions_dict = weather_data_to_dict(sys.argv[2])
+    if epw_filename is not None:
+        external_conditions_dict = weather_data_to_dict(epw_filename)
     else:
         external_conditions_dict = None
 
-    run_project(inp_filename, external_conditions_dict)
+    for inpfile in inp_filenames:
+        run_project(inpfile, external_conditions_dict)
 
