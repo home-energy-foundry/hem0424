@@ -888,7 +888,7 @@ class ExternalConditions:
             # surface outside solar beam
             return 1
         else:
-            # surface intside solar beam
+            # surface inside solar beam
             return 0
 
     def get_segment(self):
@@ -937,19 +937,31 @@ class ExternalConditions:
         Hshade = max(0, Hk + Hkbase - Hovh + Lkovh * tan(self.solar_altitude()))
         return Hshade
 
-    def shading_reduction_factor(self, base_height, height, width, tilt, orientation):
+    def direct_shading_reduction_factor(self, base_height, height, width, orientation, window_shading):
+        """ calculates the shading factor of direct radiation due to external
+        shading objects
+
+        Arguments:
+        height         -- is the height of the shaded surface (if surface is tilted then
+                          this must be the vertical projection of the height), in m
+        base_height    -- is the base height of the shaded surface k, in m
+        width          -- is the width of the shaded surface, in m
+        orientation    -- is the orientation angle of the inclined surface, expressed as the 
+                          geographical azimuth angle of the horizontal projection of the 
+                          inclined surface normal, -180 to 180, in degrees;
+        window_shading -- data on overhangs and side fins associated to this building element
+                          includes the shading object type, depth, anf distance from element
+        """
+
         # start with default assumption of no shading
         Hshade_obst = 0
         Hshade_ovh = 0
         WfinR = 0
         WfinL = 0
 
-        # first check if the surface is outside the solar beam
-        # if so then shading is complete and we stop calculation here
-        if self.outside_solar_beam(tilt, orientation):
-            return 0
+        #first process the distant (environment) shading for this building element
 
-        #next get the shading segment we are currently in
+        #get the shading segment we are currently in
         segment = self.get_segment()
         #check for any shading objects in this segment
         if "shading" in segment.keys():
@@ -967,6 +979,43 @@ class ExternalConditions:
                 else:
                     sys.exit("shading object type" + shade_obj["type"] + "not recognised")
 
+        # then check if there is any simple shading on this building element
+        # (note only applicable to transparent building elements so window_shading
+        # will always be False for other elements)
+        if window_shading:
+            altitude = self.solar_altitude()
+            azimuth = self.solar_azimuth_angle()
+            # if there is then loop through all objects and calc shading heights/widths
+            for shade_obj in window_shading:
+                depth = shade_obj["depth"]
+                distance = shade_obj["distance"]
+                if shade_obj["type"] == "overhang":
+                    new_shade_height = (depth * tan(radians(altitude)) \
+                                    / cos(radians(azimuth - orientation))) \
+                                    - distance
+
+                    Hshade_ovh = max(Hshade_ovh, new_shade_height)
+                elif shade_obj["type"] == "sidefinright":
+                    #check if the sun is in the opposite direction
+                    check = azimuth - orientation
+                    if check > 0:
+                        new_finRshade = 0
+                    else:
+                        new_finRshade = depth * tan(radians(azimuth - orientation)) \
+                                        - distance
+                    WfinR = max(WfinR, new_finRshade)
+                elif shade_obj["type"] == "sidefinleft":
+                    #check if the sun is in the opposite direction
+                    check = azimuth - orientation
+                    if check < 0:
+                        new_finLshade = 0
+                    else:
+                        new_finLshade = depth * tan(radians(azimuth - orientation)) \
+                                        - distance
+                    WfinL = max(WfinL, new_finLshade)
+                else:
+                    sys.exit("shading object type" + shade_obj["type"] + "not recognised")
+
         # The height of the shade on the shaded surface from all obstacles is the 
         # largest of all, with as maximum value the height of the shaded object
         Hk_obst = min(height, Hshade_obst)
@@ -979,10 +1028,63 @@ class ExternalConditions:
         # all obstacles and all overhangs
         Hk_sun = max(0, height - (Hk_obst + Hk_ovh))
 
+        # The width of the shade on the shaded surface from all right side fins 
+        # is the largest of all, with as maximum value the width of the shaded object
         Wk_finR = min(width, WfinR)
+
+        # The width of the shade on the shaded surface from all left side fins 
+        # is the largest of all, with as maximum value the width of the shaded object
         Wk_finL = min(width, WfinL)
+
+        # The width of the remaining sunlit area on the shaded surface from all 
+        # right hand side fins and all left hand side fins
         Wk_sun = max(0, width - (Wk_finR + Wk_finL))
 
+        # And then the direct shading reduction factor of the shaded surface for 
+        # obstacles, overhangs and side fins
         Fdir = (Hk_sun * Wk_sun) / (height * width)
 
         return Fdir
+
+    def shading_reduction_factor(self, base_height, height, width, tilt, orientation, window_shading):
+        """ calculates the shading factor due to external
+        shading objects
+
+        Arguments:
+        height         -- is the height of the shaded surface (if surface is tilted then
+                          this must be the vertical projection of the height), in m
+        base_height    -- is the base height of the shaded surface k, in m
+        width          -- is the width of the shaded surface, in m
+        orientation    -- is the orientation angle of the inclined surface, expressed as the 
+                          geographical azimuth angle of the horizontal projection of the 
+                          inclined surface normal, -180 to 180, in degrees;
+        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
+                          upwards facing, 0 to 180, in degrees;
+        window_shading -- data on overhangs and side fins associated to this building element
+                          includes the shading object type, depth, anf distance from element
+        """
+
+        # first chceck if there is any radiation. This is needed to prevent a potential 
+        # divide by zero error in the final step, but also, if there is no radiation 
+        # then shading is irrelevant and we can skip the whole calculation
+        direct = self.calculated_direct_irradiance(tilt, orientation)
+        diffuse = self.calculated_diffuse_irradiance(tilt, orientation)
+        if direct + diffuse == 0:
+            return 0
+
+        # first check if the surface is outside the solar beam
+        # if so then direct shading is complete and we don't need to
+        # calculate shading from objects
+        if self.outside_solar_beam(tilt, orientation):
+            Fdir = 0
+        else:
+            Fdir = self.direct_shading_reduction_factor \
+                    (base_height, height, width, orientation, window_shading)
+
+        # TODO sense check needed here because it seems we are using Fdir to calculate
+        # an overall shading factor for the total radiation (direct + diffuse), but
+        # when we use this shading factor to calculate solar gains etc. we only 
+        # apply it to the direct radiation. see eamil for further info
+        Fshade = (Fdir * direct + diffuse) / (direct + diffuse)
+
+        return Fshade

@@ -198,9 +198,9 @@
 					"height": 1.25,
 					"width": 4,
 					"shading": [
-						{"type": "overhang", "depth": 0.5, "distance": 0.5},
-						{"type": "sidefinleft", "depth": 0.25, "distance": 0.1},
-						{"type": "sidefinright", "depth":0.25, "distance":0.1}
+						{"type": "overhang", "depth": 1, "distance": 0.5},
+						{"type": "sidefinleft", "depth": 0.5, "distance": 0.1},
+						{"type": "sidefinright", "depth":0.5, "distance":0.1}
 					]
 				},
 				"ground":{

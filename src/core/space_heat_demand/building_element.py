@@ -252,7 +252,8 @@ class BuildingElementOpaque(BuildingElement):
     def shading_factor(self):
         """ return calculated shading factor """
         return self.__external_conditions.shading_reduction_factor( \
-                self.__base_height, self.__projected_height, self.__width, self._pitch, self.__orientation)
+                self.__base_height, self.__projected_height, self.__width, \
+                self._pitch, self.__orientation, False)
 
     def temp_ext(self):
         """ Return the temperature of the air on the other side of the building element """
@@ -573,6 +574,7 @@ class BuildingElementTransparent(BuildingElement):
         self.__calculated_area = calculate_area(height, width)
         self.__orientation = orientation
         self.__g_value = g_value
+        self.__shading = shading
         #TODO ISO 52016 offers an input option; either the frame factor directly,
         #or the glazed area of the window and then the frame factor is calculated.
         #assuming for now that frame factor is provided (default 0.25 from App B)
@@ -597,7 +599,8 @@ class BuildingElementTransparent(BuildingElement):
     def shading_factor(self):
         """ return calculated shading factor """
         return self.__external_conditions.shading_reduction_factor( \
-                self.__base_height, self.__projected_height, self.__width, self._pitch, self.__orientation)
+                self.__base_height, self.__projected_height, self.__width, \
+                self._pitch, self.__orientation, self.__shading)
 
     def convert_g_value(self):
         """return g_value corrected for angle of solar radiation"""
