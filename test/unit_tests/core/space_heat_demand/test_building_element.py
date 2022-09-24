@@ -45,11 +45,11 @@ class TestBuildingElementOpaque(unittest.TestCase):
         #TODO implement rest of external conditions in unit tests
 
         # Create an object for each mass distribution class
-        be_I = BuildingElementOpaque(20.0, 0, 0.60, 0.25, 19000.0, "I", 0, 0, 2.5, 10, ec)
-        be_E = BuildingElementOpaque(22.5, 45, 0.61, 0.50, 18000.0, "E", 180, 0, 2.5, 10, ec)
+        be_I = BuildingElementOpaque(20.0, 180, 0.60, 0.25, 19000.0, "I", 0, 0, 2.5, 10, ec)
+        be_E = BuildingElementOpaque(22.5, 135, 0.61, 0.50, 18000.0, "E", 180, 0, 2.5, 10, ec)
         be_IE = BuildingElementOpaque(25.0, 90, 0.62, 0.75, 17000.0, "IE", 90, 0, 2.5, 10, ec)
-        be_D = BuildingElementOpaque(27.5, 135, 0.63, 0.80, 16000.0, "D", -90, 0, 2.5, 10, ec)
-        be_M = BuildingElementOpaque(30.0, 180, 0.64, 0.40, 15000.0, "M", 0, 0, 2.5, 10, ec)
+        be_D = BuildingElementOpaque(27.5, 45, 0.63, 0.80, 16000.0, "D", -90, 0, 2.5, 10, ec)
+        be_M = BuildingElementOpaque(30.0, 0, 0.64, 0.40, 15000.0, "M", 0, 0, 2.5, 10, ec)
 
         # Put objects in a list that can be iterated over
         self.test_be_objs = [be_I, be_E, be_IE, be_D, be_M]
@@ -113,7 +113,7 @@ class TestBuildingElementOpaque(unittest.TestCase):
 
     def test_therm_rad_to_sky(self):
         """ Test that correct therm_rad_to_sky is returned when queried """
-        results = [45.54, 38.87082140761768, 22.77, 6.6691785923823135, 0.0]
+        results = [0.0, 6.6691785923823135, 22.77, 38.87082140761768, 45.54]
 
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
@@ -180,11 +180,11 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
                                 None
                                 )
         # Create an object for each mass distribution class
-        be_I = BuildingElementAdjacentZTC(20.0, 0, 0.25, 19000.0, "I", ec)
-        be_E = BuildingElementAdjacentZTC(22.5, 45, 0.50, 18000.0, "E", ec)
+        be_I = BuildingElementAdjacentZTC(20.0, 180, 0.25, 19000.0, "I", ec)
+        be_E = BuildingElementAdjacentZTC(22.5, 135, 0.50, 18000.0, "E", ec)
         be_IE = BuildingElementAdjacentZTC(25.0, 90, 0.75, 17000.0, "IE", ec)
-        be_D = BuildingElementAdjacentZTC(27.5, 135, 0.80, 16000.0, "D", ec)
-        be_M = BuildingElementAdjacentZTC(30.0, 180, 0.40, 15000.0, "M", ec)
+        be_D = BuildingElementAdjacentZTC(27.5, 45, 0.80, 16000.0, "D", ec)
+        be_M = BuildingElementAdjacentZTC(30.0, 0, 0.40, 15000.0, "M", ec)
 
         # Put objects in a list that can be iterated over
         self.test_be_objs = [be_I, be_E, be_IE, be_D, be_M]
@@ -337,11 +337,11 @@ class TestBuildingElementGround(unittest.TestCase):
         #TODO implement rest of external conditions in unit tests
 
         # Create an object for each mass distribution class
-        be_I = BuildingElementGround(20.0, 0, 1.5, 0.1, 19000.0, "I", 2.0, 2.5, 18.0, 0.5, ec, self.simtime)
-        be_E = BuildingElementGround(22.5, 45, 1.4, 0.2, 18000.0, "E", 2.1, 2.6, 19.0, 0.6, ec, self.simtime)
+        be_I = BuildingElementGround(20.0, 180, 1.5, 0.1, 19000.0, "I", 2.0, 2.5, 18.0, 0.5, ec, self.simtime)
+        be_E = BuildingElementGround(22.5, 135, 1.4, 0.2, 18000.0, "E", 2.1, 2.6, 19.0, 0.6, ec, self.simtime)
         be_IE = BuildingElementGround(25.0, 90, 1.33, 0.2, 17000.0, "IE", 2.2, 2.7, 20.0, 0.7, ec, self.simtime)
-        be_D = BuildingElementGround(27.5, 135, 1.25, 0.2, 16000.0, "D", 2.3, 2.8, 21.0, 0.8, ec, self.simtime)
-        be_M = BuildingElementGround(30.0, 180, 1.0, 0.3, 15000.0, "M", 2.4, 2.9, 22.0, 0.9, ec, self.simtime)
+        be_D = BuildingElementGround(27.5, 45, 1.25, 0.2, 16000.0, "D", 2.3, 2.8, 21.0, 0.8, ec, self.simtime)
+        be_M = BuildingElementGround(30.0, 0, 1.0, 0.3, 15000.0, "M", 2.4, 2.9, 22.0, 0.9, ec, self.simtime)
 
         # Put objects in a list that can be iterated over
         self.test_be_objs = [be_I, be_E, be_IE, be_D, be_M]

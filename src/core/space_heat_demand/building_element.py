@@ -70,8 +70,8 @@ class BuildingElement:
 
     # From BR 443: The values under "horizontal" apply to heat flow
     # directions +/- 30 degrees from horizontal plane.
-    __PITCH_HORIZ_LIMIT_LOWER = 60.0
-    __PITCH_HORIZ_LIMIT_UPPER = 120.0
+    __PITCH_LIMIT_HORIZ_CEILING = 60.0
+    __PITCH_LIMIT_HORIZ_FLOOR = 120.0
 
     def __init__(self, area, pitch, a_sol, f_sky):
         """ Initialisation common to all building element types
@@ -79,7 +79,8 @@ class BuildingElement:
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area  -- area (in m2) of this building element
         pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
-                 where 0 means facing down, 90 means vertical and 180 means facing directly up
+                 where 0 means the external surface is facing up, 90 means the external
+                 surface is vertical and 180 means the external surface is facing down
         a_sol -- solar absorption coefficient at the external surface (dimensionless)
         f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
 
@@ -100,14 +101,14 @@ class BuildingElement:
 
     def h_ci(self, temp_int_air, temp_int_surface):
         """ Return internal convective heat transfer coefficient, in W / (m2.K) """
-        if self._pitch >= self.__PITCH_HORIZ_LIMIT_LOWER \
-        and self._pitch <= self.__PITCH_HORIZ_LIMIT_UPPER:
+        if self._pitch >= self.__PITCH_LIMIT_HORIZ_CEILING \
+        and self._pitch <= self.__PITCH_LIMIT_HORIZ_FLOOR:
             # Horizontal heat flow
             return self.__H_CI_HORIZONTAL
         else:
             inwards_heat_flow = (temp_int_air < temp_int_surface)
-            is_floor = (self._pitch < self.__PITCH_HORIZ_LIMIT_LOWER)
-            is_ceiling = (self._pitch > self.__PITCH_HORIZ_LIMIT_UPPER)
+            is_floor = (self._pitch > self.__PITCH_LIMIT_HORIZ_FLOOR)
+            is_ceiling = (self._pitch < self.__PITCH_LIMIT_HORIZ_CEILING)
             upwards_heat_flow \
                 = ( (is_floor and inwards_heat_flow)
                  or (is_ceiling and not inwards_heat_flow)
@@ -176,8 +177,9 @@ class BuildingElementOpaque(BuildingElement):
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
-                    where 0 means facing down, 90 means vertical and 180 means facing directly up
+        pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
+                 where 0 means the external surface is facing up, 90 means the external
+                 surface is vertical and 180 means the external surface is facing down
         a_sol    -- solar absorption coefficient at the external surface (dimensionless)
         r_c      -- thermal resistance, in m2.K / W
         k_m      -- areal heat capacity, in J / (m2.K)
@@ -274,8 +276,9 @@ class BuildingElementAdjacentZTC(BuildingElement):
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
-                    where 0 means facing down, 90 means vertical and 180 means facing directly up
+        pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
+                 where 0 means the external surface is facing up, 90 means the external
+                 surface is vertical and 180 means the external surface is facing down
         r_c      -- thermal resistance, in m2.K / W
         k_m      -- areal heat capacity, in J / (m2.K)
         ext_cond -- reference to ExternalConditions object
@@ -387,8 +390,9 @@ class BuildingElementGround(BuildingElement):
     
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
-                    where 0 means facing down, 90 means vertical and 180 means facing directly up
+        pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
+                 where 0 means the external surface is facing up, 90 means the external
+                 surface is vertical and 180 means the external surface is facing down
         u_value  -- steady-state thermal transmittance of floor, including the
                     effect of the ground, in W / (m2.K)
         r_f      -- total thermal resistance of all layers in the floor construction, in (m2.K) / W
@@ -546,8 +550,9 @@ class BuildingElementTransparent(BuildingElement):
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
         area     -- area (in m2) of this building element
-        pitch    -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
-                    where 0 means facing down, 90 means vertical and 180 means facing directly up
+        pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
+                 where 0 means the external surface is facing up, 90 means the external
+                 surface is vertical and 180 means the external surface is facing down
         r_c      -- thermal resistance, in m2.K / W
         orientation -- is the orientation angle of the inclined surface, expressed 
                        as the geographical azimuth angle of the horizontal projection 
