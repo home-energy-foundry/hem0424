@@ -475,7 +475,7 @@ class TestBuildingElementTransparent(unittest.TestCase):
                                 )
         #TODO implement rest of external conditions in unit tests
 
-        self.be = BuildingElementTransparent(5.0, 90, 0.4, 180, 0.75, 0.25, 1, 1.25, 1, ec)
+        self.be = BuildingElementTransparent(5.0, 90, 0.4, 180, 0.75, 0.25, 1, 1.25, 1, False, ec)
 
     def test_no_of_nodes(self):
         """ Test that number of nodes (total and inside) have been calculated correctly """

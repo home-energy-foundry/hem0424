@@ -196,7 +196,8 @@
 					"frame_area_fraction": 0.25,
 					"base_height": 1,
 					"height": 1.25,
-					"width": 4
+					"width": 4,
+					"shading": false
 				},
 				"ground":{
 					"type": "BuildingElementGround",

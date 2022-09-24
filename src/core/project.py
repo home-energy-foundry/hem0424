@@ -318,6 +318,7 @@ class Project:
                     data['base_height'],
                     data['height'],
                     data['width'],
+                    data['shading'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementGround':

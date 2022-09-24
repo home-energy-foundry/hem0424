@@ -195,7 +195,12 @@
 					"frame_area_fraction": 0.25,
 					"base_height": 1,
 					"height": 1.25,
-					"width": 4
+					"width": 4,
+					"shading": [
+						{"type": "overhang", "depth": 0.5, "distance": 0.5},
+						{"type": "sidefinleft", "depth": 0.25, "distance": 0.1},
+						{"type": "sidefinright", "depth":0.25, "distance":0.1}
+					]
 				},
 				"ground":{
 					"type": "BuildingElementGround",

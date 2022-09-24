@@ -544,6 +544,7 @@ class BuildingElementTransparent(BuildingElement):
             base_height,
             height,
             width,
+            shading,
             ext_cond,
             ):
         """ Construct a BuildingElementTransparent object
