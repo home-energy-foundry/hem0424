@@ -201,9 +201,11 @@ class BuildingElementOpaque(BuildingElement):
         self.__base_height = base_height
         self.__width = width
         self.__projected_height = projected_height(pitch, height)
-        self.__calculated_area = calculate_area(height, width)
         self.__orientation = orientation
         self.__external_conditions = ext_cond
+
+        # calculate area from height & width for opaque elements
+        area = calculate_area(height, width)
 
         # This is the f_sky value for an unshaded surface
         f_sky = sky_view_factor(pitch)
@@ -571,7 +573,6 @@ class BuildingElementTransparent(BuildingElement):
         self.__base_height = base_height
         self.__width = width
         self.__projected_height = projected_height(pitch, height)
-        self.__calculated_area = calculate_area(height, width)
         self.__orientation = orientation
         self.__g_value = g_value
         self.__shading = shading
@@ -581,6 +582,9 @@ class BuildingElementTransparent(BuildingElement):
         #need to implement ISO 52016 E.2.1 here if other option given.
         self.__frame_area_fraction = frame_area_fraction
         self.__external_conditions = ext_cond
+
+        # calculate area from height & width for transparent elements
+        area = calculate_area(height, width)
 
         # Solar absorption coefficient is zero because element is transparent
         a_sol = 0.0
