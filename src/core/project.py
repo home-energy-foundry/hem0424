@@ -295,7 +295,6 @@ class Project:
             building_element_type = data['type']
             if building_element_type == 'BuildingElementOpaque':
                 building_element = BuildingElementOpaque(
-                    data['area'],
                     data['pitch'],
                     data['a_sol'],
                     data['r_c'],
@@ -309,7 +308,6 @@ class Project:
                     )
             elif building_element_type == 'BuildingElementTransparent':
                 building_element = BuildingElementTransparent(
-                    data['area'],
                     data['pitch'],
                     data['r_c'],
                     data['orientation'],

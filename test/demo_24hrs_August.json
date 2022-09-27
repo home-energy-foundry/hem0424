@@ -136,7 +136,6 @@
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
-					"area": 25.0,
 					"a_sol": 0.6,
 					"r_c": 0.7,
 					"k_m": 19000,
@@ -149,7 +148,6 @@
 				},
 				"wall 1":{
 					"type": "BuildingElementOpaque",
-					"area": 25.0,
 					"a_sol": 0.61,
 					"r_c": 0.71,
 					"k_m": 19100,
@@ -162,7 +160,6 @@
 				},
 				"wall 2": {
 					"type": "BuildingElementOpaque",
-					"area": 20.0,
 					"a_sol": 0.62,
 					"r_c": 0.72,
 					"k_m": 19200,
@@ -175,7 +172,6 @@
 				},
 				"wall 3":{
 					"type": "BuildingElementOpaque",
-					"area": 15.0,
 					"a_sol": 0.63,
 					"r_c": 0.73,
 					"k_m": 19300,
@@ -188,7 +184,6 @@
 				},
 				"window 0":{
 					"type": "BuildingElementTransparent",
-					"area": 5.0,
 					"r_c": 0.4,
 					"pitch": 90,
 					"orientation": 90,

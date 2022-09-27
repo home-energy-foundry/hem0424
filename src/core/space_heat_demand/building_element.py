@@ -161,7 +161,6 @@ class BuildingElementOpaque(BuildingElement):
     """ A class to represent opaque building elements (walls, roofs, etc.) """
 
     def __init__(self,
-            area,
             pitch,
             a_sol,
             r_c,
@@ -176,7 +175,6 @@ class BuildingElementOpaque(BuildingElement):
         """ Construct a BuildingElementOpaque object
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
-        area     -- area (in m2) of this building element
         pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
                  where 0 means the external surface is facing up, 90 means the external
                  surface is vertical and 180 means the external surface is facing down
@@ -186,6 +184,9 @@ class BuildingElementOpaque(BuildingElement):
         orientation -- is the orientation angle of the inclined surface, expressed as the 
                        geographical azimuth angle of the horizontal projection of the inclined 
                        surface normal, -180 to 180, in degrees
+        base_height -- is the distance between the ground and the lowest edge of the element, in m
+        height      -- is the height of the building element, in m
+        width       -- is the width of the building element, in m
         ext_cond -- reference to ExternalConditions object
         mass_distribution_class
                  -- distribution of mass in building element, one of:
@@ -538,7 +539,6 @@ class BuildingElementTransparent(BuildingElement):
     """ A class to represent transparent building elements (windows etc.) """
 
     def __init__(self,
-            area,
             pitch,
             r_c,
             orientation,
@@ -553,7 +553,6 @@ class BuildingElementTransparent(BuildingElement):
         """ Construct a BuildingElementTransparent object
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
-        area     -- area (in m2) of this building element
         pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
                  where 0 means the external surface is facing up, 90 means the external
                  surface is vertical and 180 means the external surface is facing down
@@ -561,6 +560,9 @@ class BuildingElementTransparent(BuildingElement):
         orientation -- is the orientation angle of the inclined surface, expressed 
                        as the geographical azimuth angle of the horizontal projection 
                        of the inclined surface normal, -180 to 180, in degrees
+        base_height -- is the distance between the ground and the lowest edge of the element, in m
+        height      -- is the height of the building element, in m
+        width       -- is the width of the building element, in m
         g_value -- total solar energy transmittance of the transparent part of the window
         frame_area_fraction -- is the frame area fraction of window wi, ratio of the 
                                projected frame area to the overall projected area of 
