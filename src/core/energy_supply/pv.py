@@ -2,8 +2,7 @@
 
 """ TODO Copyright & licensing notices
 
-This module contains objects that represent on-site electricity generation
-e.g. photovoltaic systems.
+This module contains objects that represent photovoltaic systems.
 """
 
 # Standard library imports
