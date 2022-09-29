@@ -8,6 +8,7 @@ mains electricity or other fuels (e.g. LPG, wood pellets).
 
 # Standard library inputs
 import sys
+from numpy.random.mtrand import beta
 
 
 class EnergySupplyConnection:
@@ -61,6 +62,9 @@ class EnergySupply:
         self.__simulation_time    = simulation_time
         self.__demand_total       = self.__init_demand_list()
         self.__demand_by_end_user = {}
+        self.__beta_factor = self.__init_demand_list() #this would be multiple columns if multiple beta factors
+        self.__supply_surplus = self.__init_demand_list()
+        self.__demand_not_met = self.__init_demand_list()
 
     def __init_demand_list(self):
         """ Initialise zeroed list of demand figures (one list entry for each timestep) """
@@ -115,3 +119,94 @@ class EnergySupply:
         Returns dictionary of lists, where dictionary keys are names of end users.
         """
         return self.__demand_by_end_user
+    
+    def get_demand_not_met(self):
+        return self.__demand_not_met
+    def get_supply_surplus(self):
+        return self.__supply_surplus
+    def get_beta_factor(self):
+        return self.__beta_factor
+    
+    def calc_demand_after_generation(self):
+        
+        """
+        calculate how much of that supply can be offset against demand. 
+        And then calculate what demand and supply is left after offsetting, which are the amount exported imported
+        """
+        
+        supplies=[]
+        demands=[]
+        t_idx = self.__simulation_time.index()
+        for user in self.__demand_by_end_user.keys():
+            demand = self.__demand_by_end_user[user][t_idx]
+            if demand < 0.0:
+                """if energy is negative that means its actually a supply, we need to separate the two"""
+                """if we had multiple different supplies they would have to be separated here"""
+                supplies.append(demand)
+            else:
+                demands.append(demand)
+        
+        """PV elec consumed within dwelling in absence of battery storage or diverter (Wh)
+        if there were multiple sources they would each have their own beta factors"""
+        supply_consumed = sum(supplies) * self.__beta_factor[t_idx]
+        """Surplus PV elec generation (kWh) - ie amount to be exported to the grid or batteries"""
+        supply_surplus = sum(supplies) * (1 - self.__beta_factor[t_idx])
+        """Elec demand not met by PV (kWh) - ie amount to be imported from the grid or batteries"""
+        demand_not_met = sum(demands) - supply_consumed
+        
+        self.__supply_surplus[t_idx] += supply_surplus
+        self.__demand_not_met[t_idx] += demand_not_met
+        
+        return supply_surplus, demand_not_met
+    
+    def calc_beta_factor(self):
+        """
+        calculates beta factor for the current timestep
+        Beta factor will at some stage need to be generalised to include Wind and Hydro
+        """
+        
+        supplies=[]
+        demands=[]
+        t_idx = self.__simulation_time.index()
+
+        for user in self.__demand_by_end_user.keys():
+            demand = self.__demand_by_end_user[user][t_idx]
+            if demand < 0.0:
+                """if energy is negative that means its actually a supply, we need to separate the two for beta factor calc"""
+                """if we had multiple different supplies they would have to be separated here"""
+                supplies.append(-demand)
+            else:
+                demands.append(demand)
+            
+        beta_factor = self.beta_factor_function(sum(supplies),sum(demands),'PV')
+        
+        self.__beta_factor[t_idx] += beta_factor
+        
+        return beta_factor
+        
+    def beta_factor_function(self,supply,demand,function):
+        """
+        wrapper that applies relevant function to obtain 
+        beta factor from energy supply+demand at a given timestep
+        """
+        
+        if supply == 0.0:
+            beta_factor = 1.0
+            return beta_factor
+        
+        if demand == 0.0:
+            beta_factor = 0.0
+            return beta_factor
+        
+        
+        demand_ratio = float(supply) / float(demand)
+        if function=='PV':
+            """TODO: come up with better fit curve for PV"""
+            beta_factor = min(0.6748 *pow(demand_ratio,-0.703),1.0)
+        elif function=='wind':
+            """example"""
+            beta_factor=1.0
+        else:
+            beta_factor=1.0
+
+        return beta_factor
