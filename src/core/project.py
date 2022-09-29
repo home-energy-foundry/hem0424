@@ -23,7 +23,8 @@ from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
     BuildingElementAdjacentZTC
-from core.space_heat_demand.ventilation_element import VentilationElementInfiltration
+from core.space_heat_demand.ventilation_element import \
+    VentilationElementInfiltration, WholeHouseExtractVentilation
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -321,18 +322,25 @@ class Project:
                 # TODO Exit just the current case instead of whole program entirely?
             return building_element
 
-        ''' TODO Reinstate this code when VentilationElement types other than infiltration
-                 have been defined.
         def dict_to_ventilation_element(name, data):
             ventilation_element_type = data['type']
-            if ventilation_element_type == '': # TODO Add ventilation element type
-                # TODO Create VentilationElement object
+            if ventilation_element_type == 'WHEV': # Whole house extract ventilation
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                ventilation_element = WholeHouseExtractVentilation(
+                    data['req_ach'],
+                    data['SFP'],
+                    energy_supply_conn,
+                    self.__external_conditions,
+                    self.__simtime,
+                    )
             else:
                 sys.exit( name + ': ventilation element type ('
                       + ventilation_element_type + ') not recognised.' )
                 # TODO Exit just the current case instead of whole program entirely?
             return ventilation_element
-        '''
 
         def dict_to_thermal_bridging(data):
             # If data is for individual thermal bridges, initialise the relevant
@@ -386,14 +394,12 @@ class Project:
             # All zones have infiltration, so start list with infiltration object
             vent_elements = [self.__infiltration]
             # Add any additional ventilation elements
-            ''' TODO Reinstate this code when VentilationElement types other than infiltration
-                     have been defined.
+            # TODO Reinstate this code when VentilationElement types other than infiltration
+            #        have been defined.
             # TODO Handle case of no additional VentilationElement objects for the zone
-            for ventilation_element_name, ventilation_element_data in data['VentilationElement'].items():
-                vent_elements.append(
-                    dict_to_ventilation_element(ventilation_element_name, ventilation_element_data)
-                    )
-            '''
+            vent_elements.append(
+                dict_to_ventilation_element('Ventilation system', proj_dict['Ventilation'])
+                )
 
             return Zone(
                 data['area'],
