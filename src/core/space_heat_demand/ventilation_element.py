@@ -12,6 +12,11 @@ from enum import IntEnum
 # Local imports
 from core.units import seconds_per_hour
 
+# Define constants
+p_a = 1.204 # Air density at 20 degrees C, in kg/m^3 , BS EN ISO 52016-1:2017, Section 6.3.6
+c_a = 1.006 # Specific heat of air at constant pressure, in J/(kg K), BS EN ISO 52016-1:2017, Section 6.3.6
+
+
 class VentilationElementInfiltration:
     """ A class to represent infiltration ventilation elements """
 
@@ -205,17 +210,14 @@ class VentilationElementInfiltration:
         Arguments:
         zone_volume -- volume of zone, in m3
         """
-        # Define constants
-        p_a = 1.204 # Air density at 20 degrees C, in kg/m^3 , BS EN ISO 52016-1:2017, Section 6.3.6
-        c_a = 1.006 # Specific heat of air at constant pressure, in J/(kg K), BS EN ISO 52016-1:2017, Section 6.3.6
-        
+
         # Apply wind speed correction factor
         wind_factor = self.__external_conditions.wind_speed() / 4.0 # 4.0 m/s represents the average wind speed
         inf_rate = self.__infiltration * wind_factor
-        
+
         # Convert infiltration rate from ach to m^3/s
         q_v = inf_rate * zone_volume / seconds_per_hour
-        
+
         # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
         h_ve = p_a * c_a * q_v
         return h_ve
