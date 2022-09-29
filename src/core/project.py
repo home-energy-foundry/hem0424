@@ -554,6 +554,8 @@ class Project:
                     gains_heat_cool
                     )
 
+                if h_name is None:
+                    space_heat_demand_system[h_name] = 'n/a'
                 if c_name is None:
                     space_cool_demand_system[c_name] = 'n/a'
 
