@@ -10,7 +10,7 @@ import sys
 from enum import IntEnum
 
 # Local imports
-from core.units import seconds_per_hour
+from core.units import seconds_per_hour, litres_per_cubic_metre, W_per_kW
 
 # Define constants
 p_a = 1.204 # Air density at 20 degrees C, in kg/m^3 , BS EN ISO 52016-1:2017, Section 6.3.6
@@ -217,6 +217,64 @@ class VentilationElementInfiltration:
 
         # Convert infiltration rate from ach to m^3/s
         q_v = inf_rate * zone_volume / seconds_per_hour
+
+        # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
+        h_ve = p_a * c_a * q_v
+        return h_ve
+        # TODO b_ztu needs to be applied in the case if ventilation element
+        #      is adjacent to a thermally unconditioned zone.
+
+    def temp_supply(self):
+        """ Calculate the supply temperature of the air flow element
+        according to ISO 52016-1:2017, Section 6.5.10.2 """
+        return self.__external_conditions.air_temp()
+        # TODO For now, this only handles ventilation elements to the outdoor
+        #      environment, not e.g. elements to adjacent zones.
+
+
+class WholeHouseExtractVentilation:
+    """ A class to represent whole house extract ventilation elements """
+
+    def __init__(
+            self,
+            required_air_change_rate,
+            specific_fan_power,
+            energy_supply_conn,
+            ext_con,
+            simulation_time
+            ):
+        """ Construct a WholeHouseExtractVentilation object
+
+        Arguments:
+        required_air_change_rate -- in ach
+        specific_fan_power -- in W / (litre / second), inclusive of any in-use factors
+        energy_supply_conn -- reference to EnergySupplyConnection object
+        ext_con -- reference to ExternalConditions object
+        """
+
+        self.__air_change_rate = required_air_change_rate
+        self.__sfp = specific_fan_power
+        self.__energy_supply_conn = energy_supply_conn
+        self.__external_conditions = ext_con
+        self.__simtime = simulation_time
+
+    def h_ve(self, zone_volume):
+        """ Calculate the heat transfer coefficient (h_ve), in W/K,
+        according to ISO 52016-1:2017, Section 6.5.10.1
+
+        Arguments:
+        zone_volume -- volume of zone, in m3
+        inf_rate -- air change rate of ventilation system
+        """
+
+        # Convert infiltration rate from ach to m^3/s
+        q_v = self.__air_change_rate * zone_volume / seconds_per_hour
+
+        # Calculate energy use by fans (does not contribute to internal gains as
+        # this is extract-only ventilation)
+        fan_power_W = self.__sfp * (q_v * litres_per_cubic_metre)
+        fan_energy_use_kWh = (fan_power_W  / W_per_kW) * self.__simtime.timestep()
+        self.__energy_supply_conn.demand_energy(fan_energy_use_kWh)
 
         # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
         h_ve = p_a * c_a * q_v

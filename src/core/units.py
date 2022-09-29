@@ -7,6 +7,7 @@ This module contains common unit conversions for use by other modules.
 
 J_per_kWh = 3600000
 W_per_kW = 1000
+litres_per_cubic_metre = 1000
 minutes_per_hour = 60
 seconds_per_hour = 3600
 hours_per_day = 24
