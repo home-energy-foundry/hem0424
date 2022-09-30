@@ -31,11 +31,19 @@ file, e.g. (assuming the working directory is the top-level folder of the reposi
 	# TODO
 
 Note that the above requires an entire year's weather data to be provided in the input file.
-Alternatively, a weather file can be provided in EnergyPlus (epw) format, as a second argument to
-the program, e.g.:
+Alternatively, a weather file can be provided in EnergyPlus (epw) format, after the appropriate
+flag, e.g.:
 
 	# RHEL 7 / CentOS 7:
-	python3 src/sap.py test/demo.json /path/to/weather_files/GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
+	python3 src/sap.py test/demo.json --epw-file /path/to/weather_files/GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
+
+	# Other systems
+	# TODO
+
+For a full list of command-line options, run the following:
+
+	# RHEL 7 / CentOS 7:
+	python3 src/sap.py --help
 
 	# Other systems
 	# TODO
