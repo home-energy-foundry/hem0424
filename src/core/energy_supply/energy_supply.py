@@ -152,7 +152,7 @@ class EnergySupply:
         """Surplus PV elec generation (kWh) - ie amount to be exported to the grid or batteries"""
         supply_surplus = sum(supplies) * (1 - self.__beta_factor[t_idx])
         """Elec demand not met by PV (kWh) - ie amount to be imported from the grid or batteries"""
-        demand_not_met = sum(demands) - supply_consumed
+        demand_not_met = sum(demands) + supply_consumed
         
         self.__supply_surplus[t_idx] += supply_surplus
         self.__demand_not_met[t_idx] += demand_not_met
@@ -208,5 +208,13 @@ class EnergySupply:
             beta_factor=1.0
         else:
             beta_factor=1.0
-
+        
+        """
+        predicted beta should not be greater than 1/demand_ratio, otherwise
+        we might predict demand fulfilled by PV/generation to be greater than
+        total demand.
+        """
+        
+        beta_factor = min(beta_factor,1/demand_ratio)
+        
         return beta_factor
