@@ -135,13 +135,13 @@ class ExternalConditions:
             o.write(",")
             o.write(str(self.extra_terrestrial_radiation()))
             o.write(",")
-            o.write(str(self.F1(tilt, orientation)))
+            o.write(str(self.F1()))
             o.write(",")
-            o.write(str(self.F2(tilt, orientation)))
+            o.write(str(self.F2()))
             o.write(",")
             o.write(str(self.dimensionless_clearness_parameter()))
             o.write(",")
-            o.write(str(self.dimensionless_sky_brightness_parameter(tilt, orientation)))
+            o.write(str(self.dimensionless_sky_brightness_parameter()))
             o.write(",")
             o.write(str(self.a_over_b(tilt, orientation)))
             o.write(",")
@@ -436,6 +436,7 @@ class ExternalConditions:
         cos_aux1 = cos_aux1_numerator / denominator 
         aux2 = degrees(asin(sin_aux1_numerator) / denominator)
 
+        # BS EN ISO 52010-1:2017. Formula 16
         if (sin_aux1 >= 0 and cos_aux1 > 0):
             solar_azimuth = 180 - aux2
             if solar_azimuth < 0:

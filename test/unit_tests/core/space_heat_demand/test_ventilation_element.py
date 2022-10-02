@@ -15,7 +15,9 @@ test_setup()
 # Local imports
 from core.external_conditions import ExternalConditions
 from core.simulation_time import SimulationTime
-from core.space_heat_demand.ventilation_element import VentilationElementInfiltration
+from core.energy_supply.energy_supply import EnergySupply
+from core.space_heat_demand.ventilation_element import \
+    VentilationElementInfiltration, WholeHouseExtractVentilation
 
 class TestVentilationElementInfiltration(unittest.TestCase):
     """ Unit tests for VentilationElementInfiltration class """
@@ -116,3 +118,56 @@ class TestVentilationElementInfiltration(unittest.TestCase):
                     "incorrect ext temp returned",
                     )
 
+
+class TestWholeHouseExtractVentilation(unittest.TestCase):
+    """ Unit tests for WholeHouseExtractVentilation class """
+
+    def setUp(self):
+        """ Create WholeHouseExtractVentilation object to be tested """
+        self.simtime = SimulationTime(0, 8, 1)
+        air_temps = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5]
+        wind_speeds = [3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4]
+        ec = ExternalConditions(self.simtime,
+                                air_temps,
+                                wind_speeds,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                                0, # Start day
+                                None,
+                                None,
+                                None,
+                                None,
+                                None
+                                )
+        self.energysupply = EnergySupply("electricity", self.simtime)
+        energysupplyconn = self.energysupply.connection("WHEV")
+        self.whev = WholeHouseExtractVentilation(0.5, 2.0, energysupplyconn, ec, self.simtime)
+
+    def test_h_ve(self):
+        """ Test that correct heat transfer coeffient (h_ve) is returned when queried """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertAlmostEqual(
+                    self.whev.h_ve(75.0),
+                    0.012616916666666667,
+                    msg="incorrect heat transfer coeffient (h_ve) returned"
+                    )
+                self.assertAlmostEqual(
+                    self.energysupply.results_by_end_user()['WHEV'][t_idx],
+                    0.020833333333333333,
+                    msg="incorrect fan energy use for WHEV",
+                    )
+
+    def test_temp_supply(self):
+        """ Test that the correct external temperature is returned when queried """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i = t_idx):
+                self.assertEqual(
+                    self.whev.temp_supply(),
+                    t_idx * 2.5,
+                    "incorrect supply temp returned",
+                    )

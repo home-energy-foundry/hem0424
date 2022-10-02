@@ -34,6 +34,9 @@ class EnergySupplyConnection:
         """ Forwards the amount of energy demanded (in kWh) to the relevant EnergySupply object """
         self.__energy_supply._EnergySupply__demand_energy(self.__end_user_name, amount_demanded)
 
+    def supply_energy(self, amount_produced):
+        """ Forwards the amount of energy produced (in kWh) to the relevant EnergySupply object """
+        self.__energy_supply._EnergySupply__supply_energy(self.__end_user_name, amount_produced)
 
 class EnergySupply:
     """ An object to represent an energy supply, and to report energy consumption """
@@ -91,6 +94,16 @@ class EnergySupply:
         self.__demand_by_end_user[end_user_name][t_idx] \
             = self.__demand_by_end_user[end_user_name][t_idx] \
             + amount_demanded
+
+    def __supply_energy(self, end_user_name, amount_produced):
+        """ Record energy produced (in kWh) for the end user specified.
+
+        Note: this is energy generated so it is subtracted from demand.
+        Treat as negative
+        """
+        #energy produced in kWh as 'negative demand'
+        amount_produced = amount_produced * -1
+        self.__demand_energy(end_user_name, amount_produced)
 
     def results_total(self):
         """ Return list of the total demand on this energy source for each timestep """

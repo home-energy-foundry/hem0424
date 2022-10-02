@@ -16,13 +16,15 @@ from core.external_conditions import ExternalConditions
 from core.schedule import expand_schedule, expand_events
 from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
+from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
     BuildingElementAdjacentZTC
-from core.space_heat_demand.ventilation_element import VentilationElementInfiltration
+from core.space_heat_demand.ventilation_element import \
+    VentilationElementInfiltration, WholeHouseExtractVentilation
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -349,18 +351,25 @@ class Project:
                 # TODO Exit just the current case instead of whole program entirely?
             return building_element
 
-        ''' TODO Reinstate this code when VentilationElement types other than infiltration
-                 have been defined.
         def dict_to_ventilation_element(name, data):
             ventilation_element_type = data['type']
-            if ventilation_element_type == '': # TODO Add ventilation element type
-                # TODO Create VentilationElement object
+            if ventilation_element_type == 'WHEV': # Whole house extract ventilation
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                ventilation_element = WholeHouseExtractVentilation(
+                    data['req_ach'],
+                    data['SFP'],
+                    energy_supply_conn,
+                    self.__external_conditions,
+                    self.__simtime,
+                    )
             else:
                 sys.exit( name + ': ventilation element type ('
                       + ventilation_element_type + ') not recognised.' )
                 # TODO Exit just the current case instead of whole program entirely?
             return ventilation_element
-        '''
 
         def dict_to_thermal_bridging(data):
             # If data is for individual thermal bridges, initialise the relevant
@@ -414,14 +423,12 @@ class Project:
             # All zones have infiltration, so start list with infiltration object
             vent_elements = [self.__infiltration]
             # Add any additional ventilation elements
-            ''' TODO Reinstate this code when VentilationElement types other than infiltration
-                     have been defined.
+            # TODO Reinstate this code when VentilationElement types other than infiltration
+            #        have been defined.
             # TODO Handle case of no additional VentilationElement objects for the zone
-            for ventilation_element_name, ventilation_element_data in data['VentilationElement'].items():
-                vent_elements.append(
-                    dict_to_ventilation_element(ventilation_element_name, ventilation_element_data)
-                    )
-            '''
+            vent_elements.append(
+                dict_to_ventilation_element('Ventilation system', proj_dict['Ventilation'])
+                )
 
             return Zone(
                 data['area'],
@@ -434,6 +441,37 @@ class Project:
         self.__zones = {}
         for name, data in proj_dict['Zone'].items():
             self.__zones[name] = dict_to_zone(name, data)
+
+        def dict_to_on_site_generation(name, data):
+            """ Parse dictionary of on site generation data and
+                return approprate on site generation object """
+            on_site_generation_type = data['type']
+            if on_site_generation_type == 'PhotovoltaicSystem':
+
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                pv_system = PhotovoltaicSystem(
+                    data['peak_power'],
+                    data['ventilation_strategy'],
+                    data['pitch'],
+                    data['orientation'],
+                    self.__external_conditions,
+                    energy_supply_conn,
+                    self.__simtime,
+                    )
+            else:
+                sys.exit(name + ': on site generation type ('
+                         + on_site_generation_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return pv_system
+
+        self.__on_site_generation = {}
+        # If no on site generation have been provided, then skip.
+        if 'OnSiteGeneration' in proj_dict:
+            for name, data in proj_dict['OnSiteGeneration'].items():
+                self.__on_site_generation[name] = dict_to_on_site_generation(name, data)
 
     def run(self):
         """ Run the simulation """
@@ -551,6 +589,8 @@ class Project:
                     gains_heat_cool
                     )
 
+                if h_name is None:
+                    space_heat_demand_system[h_name] = 'n/a'
                 if c_name is None:
                     space_cool_demand_system[c_name] = 'n/a'
 
@@ -606,6 +646,11 @@ class Project:
 
             for c_name, demand in space_cool_demand_system.items():
                 space_cool_demand_system_dict[c_name].append(demand)
+
+            #loop through on-site energy generation
+            for g_name, gen in self.__on_site_generation.items():
+                # Get energy produced for the current timestep
+                self.__on_site_generation[g_name].produce_energy()
 
         zone_dict = {'Operative temp': operative_temp_dict, 'Internal air temp': internal_air_temp_dict, 'Space heat demand': space_heat_demand_dict, 'Space cool demand': space_cool_demand_dict}
         hc_system_dict = {'Heating system': space_heat_demand_system_dict, 'Cooling system': space_cool_demand_system_dict}

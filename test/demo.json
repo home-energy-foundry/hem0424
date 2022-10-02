@@ -108,6 +108,12 @@
 			"EnergySupply": "mains elec"
 		}
 	},
+	"Ventilation": {
+		"type": "WHEV",
+		"req_ach": 0.5,
+		"SFP": 1.5,
+		"EnergySupply": "mains elec"
+	},
 	"Infiltration": {
 		"storey": 1,
 		"shelter": "normal",

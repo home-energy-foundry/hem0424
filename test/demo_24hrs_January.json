@@ -225,5 +225,15 @@
 				}
 			}
 		}
+	},
+	"OnSiteGeneration": {
+		"PV 1": {
+			"type": "PhotovoltaicSystem",
+			"peak_power": 2.5,
+			"ventilation_strategy": "moderately_ventilated",
+			"pitch": 30,
+			"orientation": 0,
+			"EnergySupply": "mains elec"
+		}
 	}
 }
