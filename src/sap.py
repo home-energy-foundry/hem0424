@@ -28,7 +28,7 @@ if len(sys.argv) > 2:
     project_dict["ExternalConditions"] = weather_data_to_dict(sys.argv[2])
 
 project = Project(project_dict)
-timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict = project.run()
+timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict, hot_water_dict = project.run()
 
 with open(output_file, 'w') as f:
     writer = csv.writer(f)
@@ -55,12 +55,17 @@ with open(output_file, 'w') as f:
                 hc_system_headings = system + ' ' + hc_name
             headings.append(hc_system_headings)
 
+    for system in hot_water_dict:
+        headings.append(system)
+
     writer.writerow(headings)
 
     for t_idx, timestep in enumerate(timestep_array):
         energy_use_row = []
         zone_row = []
         hc_system_row = []
+        hw_system_row = []
+        hw_system_row_duration = []
         i = 0
         # Loop over end use totals
         for totals_key in results_totals:
@@ -76,5 +81,9 @@ with open(output_file, 'w') as f:
             for hc_name in hc_system_dict[system]:
                 hc_system_row.append(hc_system_dict[system][hc_name][t_idx])
 
-        row = [t_idx] + energy_use_row + zone_row + hc_system_row
+        # loop over hot water demand
+        hw_system_row.append(hot_water_dict['Hot water demand']['demand'][t_idx])
+        hw_system_row_duration.append(hot_water_dict['Hot water duration']['duration'][t_idx])
+
+        row = [t_idx] + energy_use_row + zone_row + hc_system_row + hw_system_row + hw_system_row_duration
         writer.writerow(row)
