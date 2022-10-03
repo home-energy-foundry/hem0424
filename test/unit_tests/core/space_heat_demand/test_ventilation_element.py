@@ -155,6 +155,16 @@ class TestWholeHouseExtractVentilation(unittest.TestCase):
                     0.012616916666666667,
                     msg="incorrect heat transfer coeffient (h_ve) returned"
                     )
+
+    def test_fans(self):
+        """ Test that correct fan gains and energy use are calculated """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertAlmostEqual(
+                    self.whev.fans(75.0),
+                    0.0,
+                    msg="incorrect fan gains for WHEV",
+                    )
                 self.assertAlmostEqual(
                     self.energysupply.results_by_end_user()['WHEV'][t_idx],
                     0.020833333333333333,

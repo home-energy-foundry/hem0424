@@ -17,6 +17,11 @@ p_a = 1.204 # Air density at 20 degrees C, in kg/m^3 , BS EN ISO 52016-1:2017, S
 c_a = 1.006 # Specific heat of air at constant pressure, in J/(kg K), BS EN ISO 52016-1:2017, Section 6.3.6
 
 
+def air_change_rate_to_flow_rate(air_change_rate, zone_volume):
+    """ Convert infiltration rate from ach to m^3/s """
+    return air_change_rate * zone_volume / seconds_per_hour
+
+
 class VentilationElementInfiltration:
     """ A class to represent infiltration ventilation elements """
 
@@ -267,20 +272,24 @@ class WholeHouseExtractVentilation:
         inf_rate -- air change rate of ventilation system
         """
 
-        # Convert infiltration rate from ach to m^3/s
-        q_v = self.__air_change_rate * zone_volume / seconds_per_hour
-
-        # Calculate energy use by fans (does not contribute to internal gains as
-        # this is extract-only ventilation)
-        fan_power_W = self.__sfp * (q_v * litres_per_cubic_metre)
-        fan_energy_use_kWh = (fan_power_W  / W_per_kW) * self.__simtime.timestep()
-        self.__energy_supply_conn.demand_energy(fan_energy_use_kWh)
+        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume)
 
         # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
         h_ve = p_a * c_a * q_v
         return h_ve
         # TODO b_ztu needs to be applied in the case if ventilation element
         #      is adjacent to a thermally unconditioned zone.
+
+    def fans(self, zone_volume):
+        """ Calculate gains and energy use due to fans """
+        # Calculate energy use by fans (does not contribute to internal gains as
+        # this is extract-only ventilation)
+        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume)
+        fan_power_W = self.__sfp * (q_v * litres_per_cubic_metre)
+        fan_energy_use_kWh = (fan_power_W  / W_per_kW) * self.__simtime.timestep()
+
+        self.__energy_supply_conn.demand_energy(fan_energy_use_kWh)
+        return 0.0
 
     def temp_supply(self):
         """ Calculate the supply temperature of the air flow element
