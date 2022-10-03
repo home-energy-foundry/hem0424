@@ -1082,10 +1082,16 @@ class ExternalConditions:
             Fdir = self.direct_shading_reduction_factor \
                     (base_height, height, width, orientation, window_shading)
 
-        # TODO sense check needed here because it seems we are using Fdir to calculate
-        # an overall shading factor for the total radiation (direct + diffuse), but
-        # when we use this shading factor to calculate solar gains etc. we only 
-        # apply it to the direct radiation. see eamil for further info
-        Fshade = (Fdir * direct + diffuse) / (direct + diffuse)
+        return Fdir
 
-        return Fshade
+        # TODO suspected bug identified in ISO 52016 as it conflicts with ISO 52010:
+        #ISO 52010 states that (6.4.5.2.1) the total irradiance on the inclined surface is
+        #Itotal = Fdir * Idirect + Idiffuse
+        #This is how the shading factor is used with the solar gains calculation.
+        #However, ISO 52016 takes Fdir and performs the calculation below to give a "final"
+        #shading factor. This does not make sense to be applied solely to the direct radiation
+        #when calculating solar gains. Therefore we return Fdir here.
+
+        #Fshade = (Fdir * direct + diffuse) / (direct + diffuse)
+
+        #return Fshade
