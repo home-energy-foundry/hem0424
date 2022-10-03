@@ -142,6 +142,7 @@ class TestMechnicalVentilationHeatRecovery(unittest.TestCase):
                                 None,
                                 None,
                                 None,
+                                None,
                                 None
                                 )
         self.energysupply = EnergySupply("electricity", self.simtime)

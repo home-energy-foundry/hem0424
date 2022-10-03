@@ -161,6 +161,7 @@ class BuildingElementOpaque(BuildingElement):
     """ A class to represent opaque building elements (walls, roofs, etc.) """
 
     def __init__(self,
+            area,
             pitch,
             a_sol,
             r_c,
@@ -175,6 +176,7 @@ class BuildingElementOpaque(BuildingElement):
         """ Construct a BuildingElementOpaque object
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
+        area -- net area of the opaque building element (i.e. minus any windows / doors / etc.)
         pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
                  where 0 means the external surface is facing up, 90 means the external
                  surface is vertical and 180 means the external surface is facing down
@@ -204,9 +206,6 @@ class BuildingElementOpaque(BuildingElement):
         self.__projected_height = projected_height(pitch, height)
         self.__orientation = orientation
         self.__external_conditions = ext_cond
-
-        # calculate area from height & width for opaque elements
-        area = calculate_area(height, width)
 
         # This is the f_sky value for an unshaded surface
         f_sky = sky_view_factor(pitch)

@@ -151,7 +151,8 @@
 					"orientation": 90,
 					"base_height": 0,
 					"height": 2.5,
-					"width": 10
+					"width": 10,
+					"area": 20.0
 				},
 				"wall 1":{
 					"type": "BuildingElementOpaque",
@@ -163,7 +164,8 @@
 					"orientation": -90,
 					"base_height": 0,
 					"height": 2.5,
-					"width": 10
+					"width": 10,
+					"area": 25.0
 				},
 				"wall 2": {
 					"type": "BuildingElementOpaque",
@@ -175,7 +177,8 @@
 					"orientation": 180,
 					"base_height": 0,
 					"height": 2.5,
-					"width": 8
+					"width": 8,
+					"area": 20.0
 				},
 				"wall 3":{
 					"type": "BuildingElementOpaque",
@@ -187,7 +190,8 @@
 					"orientation": 0,
 					"base_height": 0,
 					"height": 2.5,
-					"width": 6
+					"width": 6,
+					"area": 15.0
 				},
 				"window 0":{
 					"type": "BuildingElementTransparent",
@@ -199,7 +203,11 @@
 					"base_height": 1,
 					"height": 1.25,
 					"width": 4,
-					"shading": false
+					"shading": [
+						{"type": "overhang", "depth": 0.5, "distance": 0.5},
+						{"type": "sidefinleft", "depth": 0.25, "distance": 0.1},
+						{"type": "sidefinright", "depth":0.25, "distance":0.1}
+					]
 				},
 				"ground":{
 					"type": "BuildingElementGround",
@@ -213,6 +221,14 @@
 					"h_pe": 2.5,
 					"perimeter": 16.0,
 					"psi_wall_floor_junc": 0.5
+				},
+				"wall 4":{
+					"type": "BuildingElementAdjacentZTC",
+					"area": 20.0,
+					"pitch": 0.0,
+					"r_c": 0.74,
+					"k_m": 19400,
+					"mass_distribution_class": "I"
 				}
 			},
 			"ThermalBridging": {
