@@ -24,7 +24,8 @@ from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
     BuildingElementAdjacentZTC
 from core.space_heat_demand.ventilation_element import \
-    VentilationElementInfiltration, WholeHouseExtractVentilation
+    VentilationElementInfiltration, WholeHouseExtractVentilation, \
+    MechnicalVentilationHeatRecovery
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -336,11 +337,30 @@ class Project:
                     self.__external_conditions,
                     self.__simtime,
                     )
+            elif ventilation_element_type == 'MVHR':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                ventilation_element = MechnicalVentilationHeatRecovery(
+                    data['req_ach'],
+                    data['SFP'],
+                    data['efficiency'],
+                    energy_supply_conn,
+                    self.__external_conditions,
+                    self.__simtime,
+                    )
             else:
                 sys.exit( name + ': ventilation element type ('
                       + ventilation_element_type + ') not recognised.' )
                 # TODO Exit just the current case instead of whole program entirely?
             return ventilation_element
+
+        if 'Ventilation' in proj_dict:
+            self.__ventilation = \
+                dict_to_ventilation_element('Ventilation system', proj_dict['Ventilation'])
+        else:
+            self.__ventilation = None
 
         def dict_to_thermal_bridging(data):
             # If data is for individual thermal bridges, initialise the relevant
@@ -394,12 +414,8 @@ class Project:
             # All zones have infiltration, so start list with infiltration object
             vent_elements = [self.__infiltration]
             # Add any additional ventilation elements
-            # TODO Reinstate this code when VentilationElement types other than infiltration
-            #        have been defined.
-            # TODO Handle case of no additional VentilationElement objects for the zone
-            vent_elements.append(
-                dict_to_ventilation_element('Ventilation system', proj_dict['Ventilation'])
-                )
+            if self.__ventilation is not None:
+                vent_elements.append(self.__ventilation)
 
             return Zone(
                 data['area'],
@@ -478,6 +494,16 @@ class Project:
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
 
+            # Calculate internal gains for each zone
+            gains_internal_zone = {}
+            for z_name, zone in self.__zones.items():
+                # Convert W/m2 to W
+                gains_internal_zone[z_name] \
+                    = self.__internal_gains.total_internal_gain() * zone.area()
+                # Add gains from ventilation fans (make sure this is only called
+                # once per timestep per zone)
+                gains_internal_zone[z_name] += self.__ventilation.fans(zone.volume())
+
             # Calculate space heating and cooling demand for each zone and sum
             # Keep track of how much is from each zone, so that energy provided
             # can be split between them in same proportion later
@@ -497,10 +523,8 @@ class Project:
                 h_name = self.__heat_system_name_for_zone[z_name]
                 c_name = self.__cool_system_name_for_zone[z_name]
 
-                # Convert W/m2 to W
-                gains_internal_zone = self.__internal_gains.total_internal_gain() * zone.area()
                 space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
-                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal_zone)
+                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal_zone[z_name])
 
                 if h_name is not None: # If the zone is heated
                     space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
@@ -550,13 +574,10 @@ class Project:
                 # Sum heating gains (+ve) and cooling gains (-ve) and convert from kWh to W
                 gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
 
-                # Convert W/m2 to W
-                gains_internal_zone = self.__internal_gains.total_internal_gain() * zone.area()
-
                 zone.update_temperatures(
                     delta_t,
                     temp_ext_air,
-                    gains_internal_zone,
+                    gains_internal_zone[z_name],
                     gains_heat_cool
                     )
 
