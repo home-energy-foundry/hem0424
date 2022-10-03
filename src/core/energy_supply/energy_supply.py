@@ -8,7 +8,6 @@ mains electricity or other fuels (e.g. LPG, wood pellets).
 
 # Standard library inputs
 import sys
-from numpy.random.mtrand import beta
 
 
 class EnergySupplyConnection:
