@@ -24,7 +24,8 @@ from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
     BuildingElementAdjacentZTC
 from core.space_heat_demand.ventilation_element import \
-    VentilationElementInfiltration, WholeHouseExtractVentilation
+    VentilationElementInfiltration, WholeHouseExtractVentilation, \
+    MechnicalVentilationHeatRecovery
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -332,6 +333,19 @@ class Project:
                 ventilation_element = WholeHouseExtractVentilation(
                     data['req_ach'],
                     data['SFP'],
+                    energy_supply_conn,
+                    self.__external_conditions,
+                    self.__simtime,
+                    )
+            elif ventilation_element_type == 'MVHR':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                ventilation_element = MechnicalVentilationHeatRecovery(
+                    data['req_ach'],
+                    data['SFP'],
+                    data['efficiency'],
                     energy_supply_conn,
                     self.__external_conditions,
                     self.__simtime,
