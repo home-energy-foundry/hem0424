@@ -76,7 +76,7 @@
 	},
 	"Bath": {
 		"medium": {
-			"size": 140,
+			"size": 100,
 			"ColdWaterSource": "mains water"
 		}
 	},
@@ -114,7 +114,6 @@
 		"Shower": {
 			"IES": [
 				{"start": 4.1, "duration": 6, "temperature": 41.0},
-				{"start": 4.5, "duration": 6, "temperature": 41.0},
 				{"start": 6, "duration": 6, "temperature": 41.0}
 			],
 			"mixer": [
