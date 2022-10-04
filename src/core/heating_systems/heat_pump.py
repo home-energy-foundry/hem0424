@@ -579,7 +579,13 @@ class HeatPumpServiceWater(HeatPumpService):
 class HeatPump:
     """ An object to represent an electric heat pump """
 
-    def __init__(self, hp_dict, energy_supply, simulation_time):
+    def __init__(
+            self,
+            hp_dict,
+            energy_supply,
+            simulation_time,
+            external_conditions,
+            ):
         """ Construct a HeatPump object
 
         Arguments:
@@ -598,6 +604,7 @@ class HeatPump:
                 - "Water"
         energy_supply -- reference to EnergySupply object
         simulation_time -- reference to SimulationTime object
+        external_conditions -- reference to ExternalConditions object
 
         Other variables:
         energy_supply_connections
@@ -607,6 +614,7 @@ class HeatPump:
         """
         self.__energy_supply = energy_supply
         self.__simulation_time = simulation_time
+        self.__external_conditions = external_conditions
 
         self.__energy_supply_connections = {}
         self.__test_data = HeatPumpTestData(hp_dict['test_data'])
@@ -643,6 +651,31 @@ class HeatPump:
             temp_limit_upper,
             cold_feed
             )
+
+    def __get_temp_source(self):
+        """ Get source temp according to rules in CALCM-01 - DAHPSE - V2.0_DRAFT13, 3.1.1 """
+        if self.__source_type == SourceType.GROUND:
+            # Subject to max source temp of 8 degC and min of 0 degC
+            temp_ext = self.__external_conditions.temperature()
+            temp_source = max(0, min(8, temp_ext * 0.25806 + 2.8387))
+        elif self.__source_type == SourceType.OUTSIDE_AIR:
+            temp_source = self.__external_conditions.temperature()
+        # elif self.__source_type == SourceType.EXHAUST_AIR_MEV:
+        #     # TODO Get from internal air temp of zone?
+        # elif self.__source_type == SourceType.EXHAUST_AIR_MVHR:
+        #     # TODO Get from internal air temp of zone?
+        # elif self.__source_type == SourceType.EXHAUST_AIR_MIXED:
+        #     # TODO
+        # elif self.__source_type == SourceType.WATER_GROUND:
+        #     # TODO
+        # elif self.__source_type == SourceType.WATER_SURFACE:
+        #     # TODO
+        else:
+            # If we reach here, then earlier input validation has failed, or a
+            # SourceType option is missing above.
+            sys.exit('SourceType not valid.')
+
+        return Celcius2Kelvin(temp_source)
 
     def __demand_energy(
             self,
