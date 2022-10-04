@@ -27,7 +27,10 @@ class OtherHotWater:
 
     def get_flowrate(self):
         return self.__flowrate
-
+        
+    def get_cold_water_source(self):
+        return(self.__cold_water_source)
+        
     def hot_water_demand(self, temp_target, total_demand_duration):
         """ Calculate volume of hot water required
 

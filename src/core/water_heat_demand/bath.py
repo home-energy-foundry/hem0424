@@ -32,6 +32,9 @@ class Bath:
     def get_size(self):
         return self.__bathsize
 
+    def get_cold_water_source(self):
+        return(self.__cold_water_source)
+
     def hot_water_demand(self, temp_target):
         """ Calculate volume of hot water required
 

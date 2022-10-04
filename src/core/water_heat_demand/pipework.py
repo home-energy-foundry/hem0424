@@ -26,6 +26,7 @@ class Pipework:
         """
         self.__E = E
         self.__L = L
+        self.__D_i = D_i
         
         """ Calculate the diameter of the pipe including the insulation (D_ins), in m"""
         self.__D_ins = D_o + (2.0 * t_i)
@@ -72,8 +73,35 @@ class Pipework:
         
         # Calculate the heat loss for the current timestep, in W
         q_rc = (T_i_K - T_o_K) / (R_tot)
+        
+        q_rc += self.cool_down_loss(T_s, T_i, T_o)
+        
         return q_rc
         
         
         # TODO - figure out the temperature drop from pipework losses, given feed temperature
         # heat capacity of water
+        
+    def temperature_drop(self, T_s, T_i, T_o):
+        
+        HEAT_CAPACITY_WATER = 4.186 # J/g°C
+
+        heat_loss_kWh = (3600 * heat_loss(self, T_s, T_i, T_o)) / units.W_per_kW
+        
+        volume = pi * (self.__D_i/2) * (self.__D_i/2) * self.__L * units.litres_per_cubic_metre
+        mass = volume * 1000 #  litres to grams
+
+        temp_drop = (heat_loss_kWh * units.J_per_kWh)/ (HEAT_CAPACITY_WATER * mass)  # Q = C m ∆t
+    
+        return(temp_drop) # returns DegC
+        
+    def cool_down_loss(self, T_s, T_i, T_o):
+
+        HEAT_CAPACITY_WATER = 4.186 # J/g°C
+        
+        volume = pi * (self.__D_i/2) * (self.__D_i/2) * self.__L * units.litres_per_cubic_metre
+        mass = volume * 1000 #  litres to grams
+
+        cool_down_loss = (HEAT_CAPACITY_WATER * mass * (T_i - T_o)) / units.J_per_kWh
+        
+        return(cool_down_loss) # returns kWh
