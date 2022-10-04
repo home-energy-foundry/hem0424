@@ -602,6 +602,9 @@ class HeatPump:
             - SinkType -- string specifying heat distribution type, one of:
                 - "Air"
                 - "Water"
+            - min_temp_diff_flow_return_for_hp_to_operate
+                -- minimum difference between flow and return temperatures
+                   required for the HP to operate, in Celsius or Kelvin
         energy_supply -- reference to EnergySupply object
         simulation_time -- reference to SimulationTime object
         external_conditions -- reference to ExternalConditions object
@@ -622,6 +625,8 @@ class HeatPump:
         # Assign hp_dict elements to member variables of this class
         self.__source_type = SourceType.from_string(hp_dict['SourceType'])
         self.__sink_type = SinkType.from_string(hp_dict['SinkType'])
+        self.__temp_diff_flow_return_min \
+            = float(hp_dict['min_temp_diff_flow_return_for_hp_to_operate'])
 
     def __create_service_connection(self, service_name):
         """ Return a HeatPumpService object """
@@ -676,6 +681,36 @@ class HeatPump:
             sys.exit('SourceType not valid.')
 
         return Celcius2Kelvin(temp_source)
+
+    def __energy_output_limited(
+            self,
+            energy_output_required,
+            temp_output,
+            temp_return_feed,
+            temp_limit_upper
+            ):
+        """ Calculate energy output limited by upper temperature """
+        if temp_output > temp_limit_upper:
+        # If required output temp is above upper limit
+            if temp_output == temp_return_feed:
+            # If flow and return temps are equal
+                return energy_output_required
+            else:
+            # If flow and return temps are not equal
+                if (temp_limit_upper - temp_return_feed) >= self.__temp_diff_flow_return_min:
+                # If max. achievable temp diff is at least the min required
+                # for the HP to operate.
+                    return \
+                          energy_output_required \
+                        * (temp_limit_upper - temp_return_feed) \
+                        / (temp_output - temp_return_feed)
+                else:
+                # If max. achievable temp diff is less than the min required
+                # for the HP to operate.
+                    return 0.0
+        else:
+        # If required output temp is below upper limit
+            return energy_output_required
 
     def __demand_energy(
             self,
