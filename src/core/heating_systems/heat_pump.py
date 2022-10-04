@@ -615,7 +615,7 @@ class HeatPump:
         self.__source_type = SourceType.from_string(hp_dict['SourceType'])
         self.__sink_type = SinkType.from_string(hp_dict['SinkType'])
 
-    def service(self, service_name, service_type):
+    def __create_service_connection(self, service_name):
         """ Return a HeatPumpService object """
         # Check that service_name is not already registered
         if service_name in self.__energy_supply_connections.keys():
@@ -626,10 +626,23 @@ class HeatPump:
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
 
-        if service_type == 'W': # Hot water cylinder/tank
-            return HeatPumpServiceWater(self, service_name)
-        else:
-            sys.exit(service_name + ': service type (' + str(service_type) + ') not recognised.')
+    def service_hot_water(self, service_name, temp_hot_water, temp_limit_upper, cold_feed):
+        """ Return a HeatPumpServiceWater object and create an EnergySupplyConnection for it
+
+        Arguments:
+        service_name -- name of the service demanding energy from the boiler
+        temp_hot_water -- temperature of the hot water to be provided, in deg C
+        temp_limit_upper -- upper operating limit for temperature, in deg C
+        cold_feed -- reference to ColdWaterSource object
+        """
+        self.__create_service_connection(service_name)
+        return HeatPumpServiceWater(
+            self,
+            service_name,
+            temp_hot_water,
+            temp_limit_upper,
+            cold_feed
+            )
 
     def __demand_energy(
             self,
