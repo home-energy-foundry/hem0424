@@ -559,13 +559,13 @@ class HeatPumpServiceWater(HeatPumpService):
         """
         super().__init__(heat_pump, service_name)
 
-        self.__temp_hot_water = temp_hot_water
-        self.__temp_limit_upper = temp_limit_upper
+        self.__temp_hot_water = Celcius2Kelvin(temp_hot_water)
+        self.__temp_limit_upper = Celcius2Kelvin(temp_limit_upper)
         self.__cold_feed = cold_feed
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat pump """
-        temp_cold_water = self.__cold_feed.temperature()
+        temp_cold_water = Celcius2Kelvin(self.__cold_feed.temperature())
 
         return self.__hp._HeatPump__demand_energy(
             self.__service_name,
