@@ -701,6 +701,9 @@ class HeatPump:
             - SinkType -- string specifying heat distribution type, one of:
                 - "Air"
                 - "Water"
+            - modulating_control -- boolean specifying whether or not the heat
+                                    has controls capable of varying the output
+                                    (as opposed to just on/off control)
             - min_temp_diff_flow_return_for_hp_to_operate
                 -- minimum difference between flow and return temperatures
                    required for the HP to operate, in Celsius or Kelvin
@@ -727,6 +730,7 @@ class HeatPump:
         # Assign hp_dict elements to member variables of this class
         self.__source_type = SourceType.from_string(hp_dict['SourceType'])
         self.__sink_type = SinkType.from_string(hp_dict['SinkType'])
+        self.__modulating_ctrl = bool(hp_dict['modulating_control'])
         self.__temp_diff_flow_return_min \
             = float(hp_dict['min_temp_diff_flow_return_for_hp_to_operate'])
         self.__var_flow_temp_ctrl_during_test = bool(hp_dict['var_flow_temp_ctrl_during_test'])
@@ -784,6 +788,24 @@ class HeatPump:
             sys.exit('SourceType not valid.')
 
         return Celcius2Kelvin(temp_source)
+
+    def __thermal_capacity_op_cond(self, temp_output, temp_source):
+        """ Calculate the thermal capacity of the heat pump at operating conditions
+
+        Based on CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.4
+        """
+        if not self.__source_type == SourceType.OUTSIDE_AIR \
+        and not self.__var_flow_temp_ctrl_during_test:
+            thermal_capacity_op_cond = self.__test_data.average_capacity(temp_output)
+        else:
+            thermal_capacity_op_cond \
+                = self.__test_data.capacity_op_cond_if_not_air_source(
+                    temp_output,
+                    temp_source,
+                    self.__modulating_ctrl,
+                    )
+
+        return thermal_capacity_op_cond
 
     def __cop_deg_coeff_op_cond(
             self,
