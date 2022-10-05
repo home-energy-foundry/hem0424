@@ -599,9 +599,13 @@ class Project:
                 internal_air_temp[z_name] = zone.temp_internal_air()
                 operative_temp[z_name] = zone.temp_operative()
 
-            return operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system
+            return gains_solar_zone, \
+                   operative_temp, internal_air_temp, \
+                   space_heat_demand_zone, space_cool_demand_zone, \
+                   space_heat_demand_system, space_cool_demand_system
 
         timestep_array = []
+        gains_solar_dict = {}
         operative_temp_dict = {}
         internal_air_temp_dict = {}
         space_heat_demand_dict = {}
@@ -611,6 +615,7 @@ class Project:
         zone_list = []
 
         for z_name in self.__zones.keys():
+            gains_solar_dict[z_name] = []
             operative_temp_dict[z_name] = []
             internal_air_temp_dict[z_name] = []
             space_heat_demand_dict[z_name] = []
@@ -629,7 +634,10 @@ class Project:
             hw_demand = hot_water_demand(t_idx)
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
-            operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system = calc_space_heating(delta_t_h)
+            gains_solar_zone, operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system = calc_space_heating(delta_t_h)
+
+            for z_name, gains_solar in gains_solar_zone.items():
+                gains_solar_dict[z_name].append(gains_solar)
 
             for z_name, temp in operative_temp.items():
                 operative_temp_dict[z_name].append(temp)
@@ -654,7 +662,13 @@ class Project:
                 # Get energy produced for the current timestep
                 self.__on_site_generation[g_name].produce_energy()
 
-        zone_dict = {'Operative temp': operative_temp_dict, 'Internal air temp': internal_air_temp_dict, 'Space heat demand': space_heat_demand_dict, 'Space cool demand': space_cool_demand_dict}
+        zone_dict = {
+            'Solar gains': gains_solar_dict,
+            'Operative temp': operative_temp_dict,
+            'Internal air temp': internal_air_temp_dict,
+            'Space heat demand': space_heat_demand_dict,
+            'Space cool demand': space_cool_demand_dict,
+            }
         hc_system_dict = {'Heating system': space_heat_demand_system_dict, 'Cooling system': space_cool_demand_system_dict}
 
         # Return results from all energy supplies
