@@ -323,28 +323,28 @@ class HeatPumpTestData:
         flow_temp = Kelvin2Celcius(flow_temp)
         return np.interp(flow_temp, self.__dsgn_flow_temps, self.__temp_spread_test_conditions)
 
+    def __find_test_record_index(self, test_condition, dsgn_flow_temp):
+        """ Find position of specified test condition in list """
+        if test_condition == 'cld':
+            # Coldest test condition is first in list
+            return 0
+        for index, test_record in enumerate(self.__testdata[dsgn_flow_temp]):
+            if test_record['test_letter'] == test_condition:
+                return index
+
     def __data_at_test_condition(self, data_item_name, test_condition, flow_temp):
         """ Return value at specified test condition, interpolated between design flow temps """
         # TODO What do we do if flow_temp is outside the range of design flow temps provided?
 
-        def find_test_record_index(dsgn_flow_temp):
-            """ Find position of specified test condition in list """
-            if test_condition == 'cld':
-                # Coldest test condition is first in list
-                return 0
-            for index, test_record in enumerate(self.__testdata[dsgn_flow_temp]):
-                if test_record['test_letter'] == test_condition:
-                    return index
-
         if len(self.__dsgn_flow_temps) == 1:
             # If there is data for only one design flow temp, use that
-            idx = find_test_record_index(self.__dsgn_flow_temps[0])
+            idx = self.__find_test_record_index(test_condition, self.__dsgn_flow_temps[0])
             return self.__testdata[self.__dsgn_flow_temps[0]][idx][data_item_name]
 
         # Interpolate between the values at each design flow temp
         data_list = []
         for dsgn_flow_temp in self.__dsgn_flow_temps:
-            idx = find_test_record_index(dsgn_flow_temp)
+            idx = self.__find_test_record_index(test_condition, dsgn_flow_temp)
             data_list.append(self.__testdata[dsgn_flow_temp][idx][data_item_name])
 
         flow_temp = Kelvin2Celcius(flow_temp)
