@@ -74,13 +74,9 @@ class Pipework:
         # Calculate the heat loss for the current timestep, in W
         q_rc = (T_i_K - T_o_K) / (R_tot)
         
-        q_rc += self.cool_down_loss(T_s, T_i, T_o)
-        
         return q_rc
-        
-        
-        # TODO - figure out the temperature drop from pipework losses, given feed temperature
-        # heat capacity of water
+
+
         
     def temperature_drop(self, T_s, T_i, T_o):
         
@@ -94,6 +90,7 @@ class Pipework:
         temp_drop = (heat_loss_kWh * units.J_per_kWh)/ (HEAT_CAPACITY_WATER * mass)  # Q = C m ∆t
     
         return(temp_drop) # returns DegC
+        
         
     def cool_down_loss(self, T_s, T_i, T_o):
 
