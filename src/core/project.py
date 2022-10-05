@@ -494,8 +494,9 @@ class Project:
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
 
-            # Calculate internal gains for each zone
+            # Calculate internal and solar gains for each zone
             gains_internal_zone = {}
+            gains_solar_zone = {}
             for z_name, zone in self.__zones.items():
                 # Convert W/m2 to W
                 gains_internal_zone[z_name] \
@@ -504,6 +505,8 @@ class Project:
                 # once per timestep per zone)
                 if self.__ventilation is not None:
                     gains_internal_zone[z_name] += self.__ventilation.fans(zone.volume())
+
+                gains_solar_zone[z_name] = zone.gains_solar()
 
             # Calculate space heating and cooling demand for each zone and sum
             # Keep track of how much is from each zone, so that energy provided
@@ -525,7 +528,12 @@ class Project:
                 c_name = self.__cool_system_name_for_zone[z_name]
 
                 space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
-                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal_zone[z_name])
+                    zone.space_heat_cool_demand(
+                        delta_t_h,
+                        temp_ext_air,
+                        gains_internal_zone[z_name],
+                        gains_solar_zone[z_name],
+                        )
 
                 if h_name is not None: # If the zone is heated
                     space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
@@ -579,6 +587,7 @@ class Project:
                     delta_t,
                     temp_ext_air,
                     gains_internal_zone[z_name],
+                    gains_solar_zone[z_name],
                     gains_heat_cool
                     )
 
