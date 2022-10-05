@@ -502,7 +502,8 @@ class Project:
                     = self.__internal_gains.total_internal_gain() * zone.area()
                 # Add gains from ventilation fans (make sure this is only called
                 # once per timestep per zone)
-                gains_internal_zone[z_name] += self.__ventilation.fans(zone.volume())
+                if self.__ventilation is not None:
+                    gains_internal_zone[z_name] += self.__ventilation.fans(zone.volume())
 
             # Calculate space heating and cooling demand for each zone and sum
             # Keep track of how much is from each zone, so that energy provided
