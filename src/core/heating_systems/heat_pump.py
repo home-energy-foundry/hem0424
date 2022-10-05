@@ -69,12 +69,21 @@ class SinkType(Enum):
             sys.exit('SinkType (' + str(strval) + ') not valid.')
             # TODO Exit just the current case instead of whole program entirely?
 
+class ServiceType(Enum):
+    WATER = auto()
+    SPACE = auto()
+
 
 # Free functions
 
-def carnot_cop(temp_source, temp_outlet):
+def carnot_cop(temp_source, temp_outlet, temp_diff_limit_low=None):
     """ Calculate Carnot CoP based on source and outlet temperatures (in Kelvin) """
-    return temp_outlet / (temp_outlet - temp_source)
+    # TODO Should temp_diff_limit_low also apply to HeatPumpTestData calculations?
+    #      If yes, should this argument be mandatory?
+    temp_diff = temp_outlet - temp_source
+    if temp_diff_limit_low is not None:
+        temp_diff = max (temp_diff, temp_diff_limit_low)
+    return temp_outlet / temp_diff
 
 
 # Classes
@@ -465,7 +474,7 @@ class HeatPumpTestData:
 
     def cop_op_cond_if_not_air_source(
             self,
-            min_temp_diff_emit,
+            temp_diff_limit_low,
             temp_ext,
             temp_source,
             temp_output,
@@ -473,9 +482,7 @@ class HeatPumpTestData:
         """ Calculate CoP at operating conditions when heat pump is not air-source
 
         Arguments:
-        min_temp_diff_emit -- minimum temperature difference above the room
-                              temperature for emitters to operate, in
-                              Celcius/Kelvin
+        temp_diff_limit_low -- minimum temperature difference between source and sink
         temp_ext           -- external temperature, in Kelvin
         temp_source        -- source temperature, in Kelvin
         temp_output        -- output temperature, in Kelvin
@@ -502,7 +509,7 @@ class HeatPumpTestData:
                   + self.__regression_coeffs[dsgn_flow_temp][2] * temp_ext ** 2 \
                   ) \
                 * temp_output * (temp_outlet_cld - temp_source_cld) \
-                / ( temp_outlet_cld * max( (temp_output - temp_source), min_temp_diff_emit))
+                / ( temp_outlet_cld * max( (temp_output - temp_source), temp_diff_limit_low))
             cop_op_cond.append(cop_operating_conditions)
 
         if len(self.__dsgn_flow_temps) == 1:
@@ -579,6 +586,13 @@ class HeatPumpServiceWater(HeatPumpService):
 class HeatPump:
     """ An object to represent an electric heat pump """
 
+    # From CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.5.3:
+    # A minimum temperature difference of 6K between the source and sink
+    # temperature is applied to prevent very high Carnot COPs entering the
+    # calculation. This only arises when the temperature difference and heating
+    # load is small and is unlikely to affect the calculated SPF.
+    __temp_diff_limit_low = 6.0 # Kelvin
+
     def __init__(
             self,
             hp_dict,
@@ -605,6 +619,9 @@ class HeatPump:
             - min_temp_diff_flow_return_for_hp_to_operate
                 -- minimum difference between flow and return temperatures
                    required for the HP to operate, in Celsius or Kelvin
+            - var_flow_temp_ctrl_during_test
+                -- boolean specifying whether or not variable flow temperature
+                   control was enabled during the EN 14825 tests
         energy_supply -- reference to EnergySupply object
         simulation_time -- reference to SimulationTime object
         external_conditions -- reference to ExternalConditions object
@@ -627,6 +644,7 @@ class HeatPump:
         self.__sink_type = SinkType.from_string(hp_dict['SinkType'])
         self.__temp_diff_flow_return_min \
             = float(hp_dict['min_temp_diff_flow_return_for_hp_to_operate'])
+        self.__var_flow_temp_ctrl_during_test = bool(hp_dict['var_flow_temp_ctrl_during_test'])
 
     def __create_service_connection(self, service_name):
         """ Return a HeatPumpService object """
@@ -681,6 +699,74 @@ class HeatPump:
             sys.exit('SourceType not valid.')
 
         return Celcius2Kelvin(temp_source)
+
+    def __cop_deg_coeff_op_cond(
+            self,
+            service_type,
+            temp_output, # Kelvin
+            temp_source, # Kelvin
+            temp_spread_correction,
+            ):
+        """ Calculate CoP and degradation coefficient at operating conditions """
+
+        # TODO Make if/elif/else chain exhaustive?
+        if not self.__source_type == SourceType.OUTSIDE_AIR \
+        and not self.__var_flow_temp_ctrl_during_test:
+            cop_op_cond \
+                = temp_spread_correction \
+                * self.__test_data.cop_op_cond_if_not_air_source(
+                    self.__temp_diff_limit_low,
+                    self.__external_conditions.temperature(),
+                    temp_source,
+                    temp_output,
+                    )
+            deg_coeff_op_cond = self.__test_data.average_degradation_coeff(temp_output)
+        else:
+            carnot_cop_op_cond = carnot_cop(temp_source, temp_output, self.__temp_diff_limit_low)
+            # Get exergy load ratio at operating conditions and exergy load ratio,
+            # exergy efficiency and degradation coeff at test conditions above and
+            # below operating conditions
+            lr_op_cond = self.__test_data.lr_op_cond(temp_output, temp_source, carnot_cop_op_cond)
+            lr_below, lr_above, eff_below, eff_above, deg_coeff_below, deg_coeff_above \
+                = self.__test_data.lr_eff_degcoeff_either_side_of_op_cond(temp_output, lr_op_cond)
+
+            # CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.5.4
+            # Get exergy efficiency by interpolating between figures above and
+            # below operating conditions
+            exer_eff_op_cond \
+                = eff_below \
+                + (eff_below - eff_above) \
+                * (lr_op_cond - lr_below) \
+                / (lr_below - lr_above)
+
+            # CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.5.5
+            # Note: DAHPSE method document section 4.5.5 doesn't have
+            # temp_spread_correction in formula below. However, section 4.5.7
+            # states that the correction factor is to be applied to the CoP.
+            cop_op_cond = max(1.0, exer_eff_op_cond * carnot_cop_op_cond * temp_spread_correction)
+
+            if self.__sink_type == SinkType.AIR and service_type != ServiceType.WATER:
+                limit_upper = 0.25
+            else:
+                limit_lower = 1.0
+
+            if self.__sink_type == SinkType.AIR and service_type != ServiceType.WATER:
+                limit_lower = 0.0
+            else:
+                limit_lower = 0.9
+
+            if lr_below == lr_above:
+                deg_coeff_op_cond = deg_coeff_below
+            else:
+                deg_coeff_op_cond \
+                    = deg_coeff_below \
+                    + (deg_coeff_below - deg_coeff_above) \
+                    * (lr_op_cond - lr_below) \
+                    / (lr_below - lr_above)
+
+            deg_coeff_op_cond = max(min(deg_coeff_op_cond, limit_upper), limit_lower)
+
+        return cop_op_cond, deg_coeff_op_cond
 
     def __energy_output_limited(
             self,

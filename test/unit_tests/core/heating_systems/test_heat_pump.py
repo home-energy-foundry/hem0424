@@ -581,7 +581,7 @@ class TestHeatPumpTestData(unittest.TestCase):
             ]
 
         i = -1
-        for min_temp_diff_emit, temp_ext, temp_source, temp_output in [
+        for temp_diff_limit_low, temp_ext, temp_source, temp_output in [
             [8.0, 0.00, 283.15, 308.15],
             [7.0, -5.0, 293.15, 313.15],
             [6.0, 5.00, 278.15, 318.15],
@@ -592,7 +592,7 @@ class TestHeatPumpTestData(unittest.TestCase):
             with self.subTest(i=i):
                 self.assertAlmostEqual(
                     self.hp_testdata.cop_op_cond_if_not_air_source(
-                        min_temp_diff_emit,
+                        temp_diff_limit_low,
                         Celcius2Kelvin(temp_ext),
                         temp_source,
                         temp_output,
