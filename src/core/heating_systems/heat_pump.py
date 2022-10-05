@@ -69,6 +69,23 @@ class SinkType(Enum):
             sys.exit('SinkType (' + str(strval) + ') not valid.')
             # TODO Exit just the current case instead of whole program entirely?
 
+class BackupCtrlType(Enum):
+    NONE = auto()
+    TOPUP = auto()
+    SUBSTITUTE = auto()
+
+    @classmethod
+    def from_string(cls, strval):
+        if strval == 'None':
+            return cls.NONE
+        elif strval == 'TopUp':
+            return cls.TOPUP
+        elif strval == 'Substitute':
+            return cls.SUBSTITUTE
+        else:
+            sys.exit('BackupType (' + str(strval) + ') not valid.')
+            # TODO Exit just the current case instead of whole program entirely?
+
 class ServiceType(Enum):
     WATER = auto()
     SPACE = auto()
@@ -639,6 +656,8 @@ class HeatPumpServiceWater(HeatPumpService):
     specific to providing hot water.
     """
 
+    __TIME_CONSTANT_WATER = 1560
+
     def __init__(self, heat_pump, service_name, temp_hot_water, temp_limit_upper, cold_feed):
         """ Construct a BoilerServiceWater object
 
@@ -661,10 +680,12 @@ class HeatPumpServiceWater(HeatPumpService):
 
         return self.__hp._HeatPump__demand_energy(
             self.__service_name,
+            ServiceType.WATER,
             energy_demand,
             self.__temp_hot_water,
             temp_cold_water,
             self.__temp_limit_upper,
+            self.__TIME_CONST_WATER,
             )
 
 
@@ -677,6 +698,11 @@ class HeatPump:
     # calculation. This only arises when the temperature difference and heating
     # load is small and is unlikely to affect the calculated SPF.
     __temp_diff_limit_low = 6.0 # Kelvin
+
+    # Fraction of the energy input dedicated to auxiliaries when on
+    # TODO This is always zero for electric heat pumps, but if we want to deal
+    #      with non-electric heat pumps then this will need to be altered.
+    __f_aux = 0.0
 
     def __init__(
             self,
@@ -701,9 +727,20 @@ class HeatPump:
             - SinkType -- string specifying heat distribution type, one of:
                 - "Air"
                 - "Water"
+            - BackupCtrlType -- string specifying control arrangement for backup
+                                heater, one of:
+                - "None" -- backup heater disabled or not present
+                - "TopUp" -- when heat pump has insufficient capacity, backup
+                             heater will supplement the heat pump
+                - "Substitute" -- when heat pump has insufficient capacity, backup
+                                  heater will provide all the heat required, and
+                                  heat pump will switch off
             - modulating_control -- boolean specifying whether or not the heat
                                     has controls capable of varying the output
                                     (as opposed to just on/off control)
+            - time_constant_onoff_operation
+                -- a characteristic parameter of the heat pump, due to the
+                   inertia of the on/off transient
             - min_temp_diff_flow_return_for_hp_to_operate
                 -- minimum difference between flow and return temperatures
                    required for the HP to operate, in Celsius or Kelvin
@@ -727,10 +764,14 @@ class HeatPump:
         self.__energy_supply_connections = {}
         self.__test_data = HeatPumpTestData(hp_dict['test_data'])
 
+        self.__total_time_running_current_timestep = 0.0
+
         # Assign hp_dict elements to member variables of this class
         self.__source_type = SourceType.from_string(hp_dict['SourceType'])
         self.__sink_type = SinkType.from_string(hp_dict['SinkType'])
+        self.__backup_ctrl = BackupCtrlType.from_string(hp_dict['BackupCtrlType'])
         self.__modulating_ctrl = bool(hp_dict['modulating_control'])
+        self.__time_constant_onoff_operation = float(hp_dict['time_constant_onoff_operation'])
         self.__temp_diff_flow_return_min \
             = float(hp_dict['min_temp_diff_flow_return_for_hp_to_operate'])
         self.__var_flow_temp_ctrl_during_test = bool(hp_dict['var_flow_temp_ctrl_during_test'])
@@ -908,14 +949,149 @@ class HeatPump:
     def __demand_energy(
             self,
             service_name,
+            service_type,
             energy_output_required,
-            temp_flow_required,
-            temp_return_feed,
-            temp_limit_upper,
+            temp_output, # Kelvin
+            temp_return_feed, # Kelvin
+            temp_limit_upper, # Kelvin
+            time_constant_for_service,
+            temp_spread_correction=1.0,
             ):
         """ Calculate energy required by heat pump to satisfy demand for the service indicated.
 
         Note: Call via a HeatPumpService object, not directly.
         """
-        # TODO Call self.__energy_supply_connections[service_name].demand_energy(energy_demand)
-        pass # TODO Implement this function
+        timestep = self.__simulation_time.timestep()
+
+        energy_output_limited = self.__energy_output_limited(
+            energy_output_required,
+            temp_output,
+            temp_return_feed,
+            temp_limit_upper,
+            )
+
+        temp_source = self.__get_temp_source() # Kelvin
+        # From here onwards, output temp to be used is subject to the upper limit
+        temp_output = min(temp_output, temp_limit_upper) # Kelvin
+
+        # Get thermal capacity, CoP and degradation coeff at operating conditions
+        thermal_capacity_op_cond = self.__thermal_capacity_op_cond(temp_output, temp_source)
+        cop_op_cond, deg_coeff_op_cond \
+            = self.__cop_deg_coeff_op_cond(temp_output, temp_source, temp_spread_correction)
+
+        # Calculate running time of HP
+        time_running_current_service = min( \
+            energy_output_limited / thermal_capacity_op_cond,
+            timestep - self.__total_time_running_current_timestep
+            )
+        self.__total_time_running_current_timestep += time_running_current_service
+
+        # Calculate load ratio
+        load_ratio = time_running_current_service / timestep
+        if self.__modulating_ctrl:
+            # Note: min modulation rates are always for 35 and 55
+            # TODO What if we only have the rate at one of these temps (e.g. a low-
+            #      temperature heat pump that does not go up to 55degC output)?
+            load_ratio_continuous_min \
+                = (min(max(temp_output, 35.0), 55.0) - 35.0) \
+                / (55.0 - 35.0) \
+                * self.__min_modulation_rate_35 \
+                + (1.0 - (min(max(temp_output, 35.0), 55.0) - 35.0)) \
+                / (55.0 - 35.0) \
+                * self.__min_modulation_rate_55
+        else:
+            # On/off heat pump cannot modulate below maximum power
+            load_ratio_continuous_min = 1.0
+
+        # Determine whether or not HP is operating in on/off mode
+        # TODO Is the condition (not self.__modulating_ctrl)
+        #      necessary/correct here? If an on/off HP is running at
+        #      full capacity, shouldn't it be considered as not
+        #      operating in on/off mode?
+        hp_operating_in_onoff_mode = load_ratio > 0.0 \
+            and (not self.__modulating_ctrl or load_ratio < load_ratio_continuous_min)
+
+        compressor_power_full_load = thermal_capacity_op_cond / cop_op_cond
+
+        # CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.5.10, step 1:
+        compressor_power_min_load \
+            = compressor_power_full_load * load_ratio_continuous_min
+        # CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.5.10, step 2:
+        # TODO The value calculated here is only used in some code branches
+        #      later. In future, rearrange this function so that this is only
+        #      calculated when needed.
+        if load_ratio >= load_ratio_continuous_min:
+            power_used_due_to_inertia_effects = 0.0
+        else:
+            power_used_due_to_inertia_effects \
+                = compressor_power_min_load \
+                * self.__time_constant_onoff_operation \
+                * load_ratio \
+                * (1.0 - load_ratio) \
+                / time_constant_for_service
+
+        # TODO Determine whether only backup heater is used. For now, assume no
+        use_backup_heater_only = False
+
+        # Calculate energy delivered by HP and energy input
+        if use_backup_heater_only:
+            energy_delivered_HP = 0.0
+            energy_input_HP = 0.0
+        else:
+            # Backup heater not providing entire energy requirement
+            energy_delivered_HP = thermal_capacity_op_cond * time_running_current_service
+
+            if hp_operating_in_onoff_mode:
+                # TODO Why does the divisor below differ for DHW from warm air HPs?
+                if service_type == ServiceType.WATER and self.__sink_type == SinkType.AIR:
+                    energy_input_HP_divisor \
+                        = 1.0 \
+                        - deg_coeff_op_cond \
+                        * (1.0 - load_ratio / load_ratio_continuous_min)
+                else:
+                    energy_input_HP_divisor = 1.0
+
+                # TODO In the eqn below, should compressor_power_full_load actually
+                #      be compressor_power_min_load? In this code branch the HP is
+                #      operating in on/off mode, so presumably cycling between off
+                #      and min load rather than full load.
+                # Note: Energy_ancillary_when_off should also be included in the
+                # energy input for on/off operation, but at this stage we have
+                # not calculated whether a lower-priority service will run
+                # instead, so this will need to be calculated later and
+                # (energy_ancillary_when_off / eqn_denom) added to the energy
+                # input
+                energy_input_HP \
+                    = ( ( compressor_power_full_load * (1.0 + self.__f_aux) \
+                        + power_used_due_to_inertia_effects \
+                        ) \
+                      * time_running_current_service \
+                      ) \
+                    / energy_input_HP_divisor
+            else:
+                # If not operating in on/off mode
+                energy_input_HP = energy_delivered_HP / cop_op_cond
+
+        # Calculate energy delivered by backup heater
+        # TODO Add a power limit for the backup heater, or call another heating
+        #      system object. For now, assume no power limit.
+        if self.__backup_ctrl == BackupCtrlType.TOPUP \
+        or self.__backup_ctrl == BackupCtrlType.SUBSTITUTE:
+            energy_delivered_backup = max(energy_output_required - energy_delivered_HP, 0.0)
+        elif self.__backup_ctrl == BackupCtrlType.NONE:
+            energy_delivered_backup = 0.0
+        else:
+            sys.exit('Invalid BackupCtrlType')
+
+        # Calculate energy input to backup heater
+        # TODO Account for backup heater efficiency, or call another heating
+        #      system object. For now, assume 100% efficiency
+        energy_input_backup = energy_delivered_backup
+
+        # Calculate total energy delivered and input
+        energy_delivered_total = energy_delivered_HP + energy_delivered_backup
+        energy_input_total = energy_input_HP + energy_input_backup
+
+        # Feed/return results to other modules
+        self.__energy_supply_connections[service_name].demand_energy(energy_input_total)
+        return energy_delivered_total
