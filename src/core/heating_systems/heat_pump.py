@@ -520,6 +520,91 @@ class HeatPumpTestData:
         flow_temp = Kelvin2Celcius(temp_output)
         return np.interp(flow_temp, self.__dsgn_flow_temps, cop_op_cond)
 
+    def capacity_op_cond_if_not_air_source(self, temp_output, temp_source, mod_ctrl):
+        """ Calculate thermal capacity at operating conditions when heat pump is not air-source
+        
+        Arguments:
+        temp_source -- source temperature, in Kelvin
+        temp_output -- output temperature, in Kelvin
+        mod_ctrl -- boolean specifying whether or not the heat has controls
+                    capable of varying the output (as opposed to just on/off
+                    control)
+        """
+        # In eqns below, method uses condition A rather than coldest. From
+        # CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.4:
+        # The Temperature Operation Limit (TOL) is defined in EN14825 as
+        # “the lowest outdoor temperature at which the unit can still
+        # deliver heating capacity and is declared by the manufacturer.
+        # Below this temperature the heat pump will not be able to
+        # deliver any heating capacity.”
+        # The weather data used within this calculation method does not
+        # feature a source temperature at or below the “TOL” test
+        # temperature (which is -7°C to -10°C). Therefore, test data at
+        # the TOL test condition is not used (Test condition “A” at -7°C
+        # is sufficient).
+        # TODO The above implies that the TOL test temperature data may
+        #      be needed if we change the weather data from that used in
+        #      DAHPSE for SAP 2012/10.2
+        therm_cap_op_cond = []
+
+        if mod_ctrl:
+            # For each design flow temperature, calculate capacity at operating conditions
+            # Note: Loop over sorted list of design flow temps and then index into
+            #       self.__testdata, rather than looping over self.__testdata,
+            #       which is unsorted and therefore may populate the lists in the
+            #       wrong order.
+            for dsgn_flow_temp in self.__dsgn_flow_temps:
+                dsgn_flow_temp_data = self.__testdata[dsgn_flow_temp]
+                # Get the source and outlet temperatures from the coldest test record
+                temp_outlet_cld = Celcius2Kelvin(dsgn_flow_temp_data[0]['temp_outlet'])
+                temp_source_cld = Celcius2Kelvin(dsgn_flow_temp_data[0]['temp_source'])
+                # Get the thermal capacity from the coldest test record
+                thermal_capacity_cld = dsgn_flow_temp_data[0]['capacity']
+
+                thermal_capacity_op_cond \
+                    = thermal_capacity_cld \
+                    * ( (temp_outlet_cld * temp_source) \
+                      / (temp_output * temp_source_cld) \
+                      ) \
+                    ** N_EXER
+                therm_cap_op_cond.append(thermal_capacity_op_cond)
+        else:
+            # For each design flow temperature, calculate capacity at operating conditions
+            # Note: Loop over sorted list of design flow temps and then index into
+            #       self.__testdata, rather than looping over self.__testdata,
+            #       which is unsorted and therefore may populate the lists in the
+            #       wrong order.
+            for dsgn_flow_temp in self.__dsgn_flow_temps:
+                dsgn_flow_temp_data = self.__testdata[dsgn_flow_temp]
+                # Get the source and outlet temperatures from the coldest test record
+                temp_outlet_cld = Celcius2Kelvin(dsgn_flow_temp_data[0]['temp_outlet'])
+                temp_source_cld = Celcius2Kelvin(dsgn_flow_temp_data[0]['temp_source'])
+                # Get the thermal capacity from the coldest test record
+                thermal_capacity_cld = dsgn_flow_temp_data[0]['capacity']
+
+                D_idx = self.__find_test_record_index('D', dsgn_flow_temp)
+                # Get the source and outlet temperatures for test condition D
+                temp_outlet_D = Celcius2Kelvin(dsgn_flow_temp_data[D_idx]['temp_outlet'])
+                temp_source_D = Celcius2Kelvin(dsgn_flow_temp_data[D_idx]['temp_source'])
+                # Get the thermal capacity for test condition D
+                thermal_capacity_D = dsgn_flow_temp_data[D_idx]['capacity']
+
+                temp_diff_cld = temp_outlet_cld - temp_source_cld
+                temp_diff_D = temp_outlet_D - temp_source_D
+                temp_diff_op_cond = temp_output - temp_source
+
+                thermal_capacity_op_cond \
+                    = thermal_capacity_cld \
+                    + (thermal_capacity_D - thermal_capacity_cld) \
+                    * ( (temp_diff_cld - temp_diff_op_cond) \
+                      / (temp_diff_cld - temp_diff_D) \
+                      )
+                therm_cap_op_cond.append(thermal_capacity_op_cond)
+
+        # Interpolate between the values found for the different design flow temperatures
+        flow_temp = Kelvin2Celcius(temp_output)
+        return np.interp(flow_temp, self.__dsgn_flow_temps, therm_cap_op_cond)
+
 
 class HeatPumpService:
     """ A base class for objects representing services (e.g. water heating) provided by a heat pump.

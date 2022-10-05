@@ -601,6 +601,36 @@ class TestHeatPumpTestData(unittest.TestCase):
                     msg="incorrect CoP at operating conditions (not air source) returned",
                     )
 
+    def test_capacity_op_cond_if_not_air_source(self):
+        """ Test that correct capacity at operating conditions (not air source) is returned """
+        results = [
+            9.26595980986965,
+            8.18090909090909,
+            8.95014809894768,
+            10.0098208201822,
+            8.84090909090909,
+            ]
+
+        i = -1
+        for mod_ctrl, temp_source, temp_output in [
+            [True, 283.15, 308.15],
+            [False, 293.15, 313.15],
+            [True, 278.15, 318.15],
+            [True, 288.15, 323.15],
+            [False, 273.15, 328.15],
+            ]:
+            i += 1
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    self.hp_testdata.capacity_op_cond_if_not_air_source(
+                        temp_output,
+                        temp_source,
+                        mod_ctrl,
+                        ),
+                    results[i],
+                    msg="incorrect capacity at operating conditions (not air source) returned",
+                    )
+
 
 class TestSourceType(unittest.TestCase):
     """ Unit tests for SourceType """
