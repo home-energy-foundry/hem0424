@@ -10,7 +10,17 @@ import sys
 from enum import IntEnum
 
 # Local imports
-from core.units import seconds_per_hour
+from core.units import seconds_per_hour, litres_per_cubic_metre, W_per_kW
+
+# Define constants
+p_a = 1.204 # Air density at 20 degrees C, in kg/m^3 , BS EN ISO 52016-1:2017, Section 6.3.6
+c_a = 1.006 # Specific heat of air at constant pressure, in J/(kg K), BS EN ISO 52016-1:2017, Section 6.3.6
+
+
+def air_change_rate_to_flow_rate(air_change_rate, zone_volume):
+    """ Convert infiltration rate from ach to m^3/s """
+    return air_change_rate * zone_volume / seconds_per_hour
+
 
 class VentilationElementInfiltration:
     """ A class to represent infiltration ventilation elements """
@@ -205,22 +215,158 @@ class VentilationElementInfiltration:
         Arguments:
         zone_volume -- volume of zone, in m3
         """
-        # Define constants
-        p_a = 1.204 # Air density at 20 degrees C, in kg/m^3 , BS EN ISO 52016-1:2017, Section 6.3.6
-        c_a = 1.006 # Specific heat of air at constant pressure, in J/(kg K), BS EN ISO 52016-1:2017, Section 6.3.6
-        
+
         # Apply wind speed correction factor
         wind_factor = self.__external_conditions.wind_speed() / 4.0 # 4.0 m/s represents the average wind speed
         inf_rate = self.__infiltration * wind_factor
-        
+
         # Convert infiltration rate from ach to m^3/s
         q_v = inf_rate * zone_volume / seconds_per_hour
-        
+
         # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
         h_ve = p_a * c_a * q_v
         return h_ve
         # TODO b_ztu needs to be applied in the case if ventilation element
         #      is adjacent to a thermally unconditioned zone.
+
+    def temp_supply(self):
+        """ Calculate the supply temperature of the air flow element
+        according to ISO 52016-1:2017, Section 6.5.10.2 """
+        return self.__external_conditions.air_temp()
+        # TODO For now, this only handles ventilation elements to the outdoor
+        #      environment, not e.g. elements to adjacent zones.
+
+
+class MechnicalVentilationHeatRecovery:
+    """ A class to represent ventilation with heat recovery (MVHR) elements """
+
+    def __init__(
+            self,
+            required_air_change_rate,
+            specific_fan_power,
+            efficiency_hr,
+            energy_supply_conn,
+            ext_con,
+            simulation_time,
+            ):
+        """ Construct a MechnicalVentilationHeatRecovery object
+
+        Arguments:
+        required_air_change_rate -- ach (l/s)m-3 calculated according to Part F
+        efficiency_hr -- heat recovery efficiency (0 to 1) allowing for in-use factor
+        ext_con -- reference to ExternalConditions object
+        """
+        self.__air_change_rate = required_air_change_rate
+        self.__sfp = specific_fan_power
+        self.__efficiency = efficiency_hr
+        self.__energy_supply_conn = energy_supply_conn
+        self.__external_conditions = ext_con
+        self.__simtime = simulation_time
+
+    def h_ve(self, zone_volume):
+        """ Calculate the heat transfer coefficient (h_ve), in W/K,
+        according to ISO 52016-1:2017, Section 6.5.10.1
+
+        Arguments:
+        zone_volume -- volume of zone, in m3
+        """
+
+        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume)
+
+        # Calculate effective flow rate of external air
+        # NOTE: Technically, the MVHR system supplies air at a higher temperature
+        # than the outside air. However, it is simpler to adjust the heat
+        # transfer coefficient h_ve to account for the heat recovery effect
+        # using an "equivalent" or "effective" flow rate of external air.
+        q_v_effective = q_v * (1 - self.__efficiency)
+
+        # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
+        h_ve = p_a * c_a * q_v_effective
+        return h_ve
+        # TODO b_ztu needs to be applied in the case if ventilation element
+        #      is adjacent to a thermally unconditioned zone.
+
+    def fans(self, zone_volume):
+        """ Calculate gains and energy use due to fans """
+        # Calculate energy use by fans (only fans on intake/supply side
+        # contribute to internal gains - assume that this is half of the fan
+        # power)
+        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume)
+        fan_power_W = self.__sfp * (q_v * litres_per_cubic_metre)
+        fan_energy_use_kWh = (fan_power_W  / W_per_kW) * self.__simtime.timestep()
+
+        self.__energy_supply_conn.demand_energy(fan_energy_use_kWh)
+        return fan_energy_use_kWh / 2.0
+
+    def temp_supply(self):
+        """ Calculate the supply temperature of the air flow element
+        according to ISO 52016-1:2017, Section 6.5.10.2 """
+        # NOTE: Technically, the MVHR system supplies air at a higher temperature
+        # than the outside air, i.e.:
+        #     temp_supply = self.__efficiency * temp_int_air \
+        #                 + (1 - self.__efficiency) * self.__external_conditions.air_temp()
+        # However, calculating this requires the internal air temperature, which
+        # has not been calculated yet. Calculating this properly would require
+        # the equation above to be added to the heat balance solver. Therefore,
+        # it is simpler to adjust the heat transfer coefficient h_ve to account
+        # for the heat recovery effect using an "equivalent" flow rate of
+        # external air.
+        return self.__external_conditions.air_temp()
+
+
+class WholeHouseExtractVentilation:
+    """ A class to represent whole house extract ventilation elements """
+
+    def __init__(
+            self,
+            required_air_change_rate,
+            specific_fan_power,
+            energy_supply_conn,
+            ext_con,
+            simulation_time
+            ):
+        """ Construct a WholeHouseExtractVentilation object
+
+        Arguments:
+        required_air_change_rate -- in ach
+        specific_fan_power -- in W / (litre / second), inclusive of any in-use factors
+        energy_supply_conn -- reference to EnergySupplyConnection object
+        ext_con -- reference to ExternalConditions object
+        """
+
+        self.__air_change_rate = required_air_change_rate
+        self.__sfp = specific_fan_power
+        self.__energy_supply_conn = energy_supply_conn
+        self.__external_conditions = ext_con
+        self.__simtime = simulation_time
+
+    def h_ve(self, zone_volume):
+        """ Calculate the heat transfer coefficient (h_ve), in W/K,
+        according to ISO 52016-1:2017, Section 6.5.10.1
+
+        Arguments:
+        zone_volume -- volume of zone, in m3
+        inf_rate -- air change rate of ventilation system
+        """
+
+        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume)
+
+        # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
+        h_ve = p_a * c_a * q_v
+        return h_ve
+        # TODO b_ztu needs to be applied in the case if ventilation element
+        #      is adjacent to a thermally unconditioned zone.
+
+    def fans(self, zone_volume):
+        """ Calculate gains and energy use due to fans """
+        # Calculate energy use by fans (does not contribute to internal gains as
+        # this is extract-only ventilation)
+        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume)
+        fan_power_W = self.__sfp * (q_v * litres_per_cubic_metre)
+        fan_energy_use_kWh = (fan_power_W  / W_per_kW) * self.__simtime.timestep()
+
+        self.__energy_supply_conn.demand_energy(fan_energy_use_kWh)
+        return 0.0
 
     def temp_supply(self):
         """ Calculate the supply temperature of the air flow element

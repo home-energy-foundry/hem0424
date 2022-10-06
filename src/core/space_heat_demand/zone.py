@@ -112,6 +112,9 @@ class Zone:
     def area(self):
         return self.__useful_area
 
+    def volume(self):
+        return self.__volume
+
     def gains_solar(self):
         """sum solar gains for all elements in the zone
         only transparent elements will have solar gains > 0 """
@@ -172,6 +175,9 @@ class Zone:
 
         # Init vector_b with zeroes (length = number of nodes + 1 for overall zone heat balance)
         vector_b = np.zeros(self.__no_of_temps)
+
+        # Calculate values before the loop below that do not change per building element or node
+        gains_solar = self.gains_solar()
 
         # One term in eqn 39 is sum from k = 1 to n of (A_elk / A_tot). Given
         # that A_tot is defined as the sum of A_elk from k = 1 to n, this term
@@ -242,7 +248,7 @@ class Zone:
             # RHS of heat balance eqn for this node
             vector_b[idx] = (eli.k_pli[i] / delta_t) * temp_prev[idx] \
                           + ( (1.0 - f_int_c) * gains_internal \
-                            + (1.0 - f_sol_c) * self.gains_solar() \
+                            + (1.0 - f_sol_c) * gains_solar \
                             + (1.0 - f_hc_c) * gains_heat_cool \
                             ) \
                           / self.__area_el_total
@@ -277,7 +283,7 @@ class Zone:
             + sum([vei.h_ve(self.__volume) * vei.temp_supply() for vei in self.__vent_elements]) \
             + self.__tb_heat_trans_coeff * temp_ext_air \
             + f_int_c * gains_internal \
-            + f_sol_c * self.gains_solar() \
+            + f_sol_c * gains_solar \
             + f_hc_c * gains_heat_cool
 
         # Solve matrix eqn A.X = B to calculate vector_x (temperatures)
