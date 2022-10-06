@@ -113,8 +113,7 @@ class TestEnergySupply(unittest.TestCase):
                 self.energysupplyconn_2.demand_energy((t_idx)*20.0)
                 energysupplyconn_3.supply_energy((t_idx)*(t_idx)*80.0)
                 
-                self.energysupply.calc_beta_factor()
-                self.energysupply.calc_demand_after_generation()
+                self.energysupply.calc_energy_import_export_betafactor()
     
                 self.assertEqual(
                     self.energysupply.get_beta_factor()[t_idx],
@@ -122,13 +121,13 @@ class TestEnergySupply(unittest.TestCase):
                     "incorrect beta factor returned",
                     )
                 self.assertEqual(
-                    self.energysupply.get_supply_surplus()[t_idx],
+                    self.energysupply.get_energy_export()[t_idx],
                     surplus[t_idx],
-                    "incorrect surplus by end user returned",
+                    "incorrect energy export returned",
                     )
                 self.assertEqual(
-                    self.energysupply.get_demand_not_met()[t_idx],
+                    self.energysupply.get_energy_import()[t_idx],
                     demandnotmet[t_idx],
-                    "incorrect surplus by end user returned",
+                    "incorrect energy import returned",
                     )
     
