@@ -138,18 +138,20 @@ class EnergySupply:
         for user in self.__demand_by_end_user.keys():
             demand = self.__demand_by_end_user[user][t_idx]
             if demand < 0.0:
-                """if energy is negative that means its actually a supply, we need to separate the two"""
-                """if we had multiple different supplies they would have to be separated here"""
+                # if energy is negative that means its actually a supply, we
+                # need to separate the two for beta factor calc. If we had
+                # multiple different supplies they would have to be separated
+                # here
                 supplies.append(demand)
             else:
                 demands.append(demand)
 
-        """PV elec consumed within dwelling in absence of battery storage or diverter (Wh)
-        if there were multiple sources they would each have their own beta factors"""
+        # PV elec consumed within dwelling in absence of battery storage or diverter (kWh)
+        # if there were multiple sources they would each have their own beta factors
         supply_consumed = sum(supplies) * self.__beta_factor[t_idx]
-        """Surplus PV elec generation (kWh) - ie amount to be exported to the grid or batteries"""
+        # Surplus PV elec generation (kWh) - ie amount to be exported to the grid or batteries
         supply_surplus = sum(supplies) * (1 - self.__beta_factor[t_idx])
-        """Elec demand not met by PV (kWh) - ie amount to be imported from the grid or batteries"""
+        # Elec demand not met by PV (kWh) - ie amount to be imported from the grid or batteries
         demand_not_met = sum(demands) + supply_consumed
 
         self.__supply_surplus[t_idx] += supply_surplus

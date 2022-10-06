@@ -91,14 +91,10 @@ class TestEnergySupply(unittest.TestCase):
                     demandtotal_2[t_idx],
                     "incorrect demand by end user returned",
                     )
+
     def test_beta_factor(self):
         """check beta factor and surplus supply/demand are calculated correctly"""
         energysupplyconn_3 = self.energysupply.connection("PV")
-    
-    
-        #demandtotal_1 = [50.0, 100.0, 150.0, 200.0, 250.0, 300.0, 350.0, 400.0]
-        #demandtotal_2 = [0.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0]
-        #supplytotal_1 = [0.0, 80.0, 80.0, 120.0, 160.0, 200.0, 240.0, 280.0]
         betafactor = [1.0, 
                       0.8973610789278808, 
                       0.4677549807236648, 
