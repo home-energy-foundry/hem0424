@@ -504,6 +504,7 @@ class Project:
             t_idx -- timestep index/count
             """
             hw_demand = 0.0
+            hw_energy_demand = 0.0
             hw_duration = 0.0
             all_events = 0.0
             pw_losses = 0.0
@@ -516,17 +517,18 @@ class Project:
 
                 # If shower is used in the current timestep, get details of use
                 # and calculate HW demand from shower
-                if usage_events is not None:
-                    for event in usage_events:
-                        shower_temp = event['temperature']
-                        shower_duration = event['duration']
-                        hw_demand += shower.hot_water_demand(shower_temp, shower_duration)
-                        hw_duration += event['duration'] # shower minutes duration
-                        all_events +=1
-                        pw_losses+=calc_pipework_losses(shower.hot_water_demand(shower_temp, shower_duration), \
-                        t_idx, delta_t_h, cold_water_temperature, event['duration'], self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour)
+                if name != 'IES':
+                    if usage_events is not None:
+                        for event in usage_events:
+                            shower_temp = event['temperature']
+                            shower_duration = event['duration']
+                            hw_demand += shower.hot_water_demand(shower_temp, shower_duration)
+                            hw_energy_demand += water_demand_to_kWh(shower.hot_water_demand(shower_temp, shower_duration), shower_temp, cold_water_temperature)
+                            hw_duration += event['duration'] # shower minutes duration
+                            all_events +=1
+                            pw_losses+=calc_pipework_losses(shower.hot_water_demand(shower_temp, shower_duration), \
+                            t_idx, delta_t_h, cold_water_temperature, event['duration'], self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour)
 
-       
             for name, other in self.__other_water_events.items():
                 # Get all other use events for the current timestep
                 usage_events = self.__event_schedules['Other'][name][t_idx]
@@ -540,6 +542,7 @@ class Project:
                         other_temp = event['temperature']
                         other_duration = event['duration']
                         hw_demand += other.hot_water_demand(other_temp, other_duration)
+                        hw_energy_demand += water_demand_to_kWh(other.hot_water_demand(other_temp, other_duration), other_temp, cold_water_temperature)
                         hw_duration += event['duration'] # other minutes duration
                         all_events +=1
                         pw_losses+=calc_pipework_losses(other.hot_water_demand(other_temp, other_duration), \
@@ -560,13 +563,14 @@ class Project:
                         bath_temp = event['temperature']
                         hw_demand += bath.hot_water_demand(bath_temp)
                         bath_duration = bath.get_size() / peak_flowrate
+                        hw_energy_demand += water_demand_to_kWh(bath.hot_water_demand(bath_temp), bath_temp, cold_water_temperature)
                         hw_duration += bath_duration
                         # litres bath  / litres per minute flowrate = minutes
                         all_events +=1
                         pw_losses+=calc_pipework_losses(bath.hot_water_demand(bath_temp ), \
                         t_idx, delta_t_h, cold_water_temperature, bath_duration, self.__water_heating_pipework) * (bath_duration/units.minutes_per_hour)
                         
-            return hw_demand, hw_duration, all_events, pw_losses  # litres hot water per timestep, minutes demand per timestep, number of events in timestep
+            return hw_demand, hw_duration, all_events, pw_losses, hw_energy_demand  # litres hot water per timestep, minutes demand per timestep, number of events in timestep
 
         def calc_pipework_losses(hw_demand, t_idx, delta_t_h, cold_water_temperature, hw_duration, hw_pipework):
             # sum up all hw_demand and allocate pipework losses also.
@@ -601,6 +605,18 @@ class Project:
             pipework_heat_loss += hw_pipework["external"].cool_down_loss(self.__external_conditions.air_temp(), demand_water_temperature, self.__external_conditions.air_temp())            
             
             return pipework_heat_loss # heat loss in kWh for the timestep
+
+        def water_demand_to_kWh(litres_demand, demand_temp, cold_temp):
+    
+            HEAT_CAPACITY_WATER = 4.186 # J/g°C
+    
+            mass = litres_demand * 1000 #  litres to grams
+            
+            temp_diff = demand_temp - cold_temp
+    
+            kWh_demand = (HEAT_CAPACITY_WATER * mass * temp_diff) / units.J_per_kWh
+            
+            return(kWh_demand)
 
 
         def calc_space_heating(delta_t_h):
@@ -714,6 +730,7 @@ class Project:
         space_cool_demand_system_dict = {}
         zone_list = []
         hot_water_demand_dict = {}
+        hot_water_energy_demand_dict = {}
         hot_water_duration_dict = {}
         hot_water_no_events_dict = {}
         hot_water_pipework_dict = {}
@@ -732,6 +749,7 @@ class Project:
             space_cool_demand_system_dict[c_name] = []
 
         hot_water_demand_dict['demand'] = []
+        hot_water_energy_demand_dict['energy_demand'] = []
         hot_water_duration_dict['duration'] = []
         hot_water_no_events_dict['no_events'] = []
         hot_water_pipework_dict['pw_losses'] = []
@@ -739,7 +757,7 @@ class Project:
         # Loop over each timestep
         for t_idx, t_current, delta_t_h in self.__simtime:
             timestep_array.append(t_current)
-            hw_demand, hw_duration, no_events, pw_losses = hot_water_demand(t_idx)
+            hw_demand, hw_duration, no_events, pw_losses, hw_energy_demand = hot_water_demand(t_idx)
             
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
@@ -764,6 +782,7 @@ class Project:
                 space_cool_demand_system_dict[c_name].append(demand)
                 
             hot_water_demand_dict['demand'].append(hw_demand)
+            hot_water_energy_demand_dict['energy_demand'].append(hw_energy_demand)
             hot_water_duration_dict['duration'].append(hw_duration)
             hot_water_no_events_dict['no_events'].append(no_events)
             hot_water_pipework_dict['pw_losses'].append(pw_losses)
@@ -775,7 +794,7 @@ class Project:
 
         zone_dict = {'Operative temp': operative_temp_dict, 'Internal air temp': internal_air_temp_dict, 'Space heat demand': space_heat_demand_dict, 'Space cool demand': space_cool_demand_dict}
         hc_system_dict = {'Heating system': space_heat_demand_system_dict, 'Cooling system': space_cool_demand_system_dict}
-        hot_water_dict = {'Hot water demand': hot_water_demand_dict, 'Hot water duration': hot_water_duration_dict, 'Hot Water Events': hot_water_no_events_dict, 'Pipework losses': hot_water_pipework_dict}
+        hot_water_dict = {'Hot water demand': hot_water_demand_dict, 'Hot water energy demand': hot_water_energy_demand_dict, 'Hot water duration': hot_water_duration_dict, 'Hot Water Events': hot_water_no_events_dict, 'Pipework losses': hot_water_pipework_dict}
 
         # Return results from all energy supplies
         results_totals = {}

@@ -64,6 +64,7 @@ def run_project(inp_filename, external_conditions_dict):
             zone_row = []
             hc_system_row = []
             hw_system_row = []
+            hw_system_row_energy = []
             hw_system_row_duration = []
             hw_system_row_events = []
             pw_losses_row = []
@@ -84,11 +85,12 @@ def run_project(inp_filename, external_conditions_dict):
 
             # loop over hot water demand
             hw_system_row.append(hot_water_dict['Hot water demand']['demand'][t_idx])
+            hw_system_row_energy.append(hot_water_dict['Hot water energy demand']['energy_demand'][t_idx])
             hw_system_row_duration.append(hot_water_dict['Hot water duration']['duration'][t_idx])
             pw_losses_row.append(hot_water_dict['Pipework losses']['pw_losses'][t_idx])
             hw_system_row_events.append(hot_water_dict['Hot Water Events']['no_events'][t_idx])
 
-            row = [t_idx] + energy_use_row + zone_row + hc_system_row + hw_system_row + hw_system_row_duration + hw_system_row_events + pw_losses_row
+            row = [t_idx] + energy_use_row + zone_row + hc_system_row + hw_system_row + hw_system_row_energy + hw_system_row_duration + hw_system_row_events + pw_losses_row
             writer.writerow(row)
 
 if __name__ == '__main__':

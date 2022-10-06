@@ -102,3 +102,16 @@ class Pipework:
         cool_down_loss = (HEAT_CAPACITY_WATER * mass * (T_i - T_o)) / units.J_per_kWh
         
         return(cool_down_loss) # returns kWh
+
+
+    def water_demand_to_kWh(self, litres_demand, demand_temp, cold_temp):
+
+        HEAT_CAPACITY_WATER = 4.186 # J/g°C
+
+        mass = litres_demand * 1000 #  litres to grams
+        
+        temp_diff = demand_temp - cold_temp
+
+        kWh_demand = (HEAT_CAPACITY_WATER * mass * temp_diff) / units.J_per_kWh
+        
+        return(kWh_demand)
