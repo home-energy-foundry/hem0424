@@ -764,6 +764,7 @@ class HeatPump:
         self.__energy_supply_connections = {}
         self.__test_data = HeatPumpTestData(hp_dict['test_data'])
 
+        self.__service_results = []
         self.__total_time_running_current_timestep = 0.0
 
         # Assign hp_dict elements to member variables of this class
@@ -1092,12 +1093,73 @@ class HeatPump:
         energy_delivered_total = energy_delivered_HP + energy_delivered_backup
         energy_input_total = energy_input_HP + energy_input_backup
 
+        # Save results that are needed later (in the timestep_end function)
+        self.__service_results.append({
+            'service_name': service_name,
+            'service_type': service_type,
+            'time_running': time_running_current_service,
+            'deg_coeff_op_cond': deg_coeff_op_cond,
+            'compressor_power_min_load': compressor_power_min_load,
+            'load_ratio_continuous_min': load_ratio_continuous_min,
+            'load_ratio': load_ratio,
+            'use_backup_heater_only': use_backup_heater_only,
+            'hp_operating_in_onoff_mode': hp_operating_in_onoff_mode,
+            'energy_input_HP_divisor': energy_input_HP_divisor,
+            })
+
         # Feed/return results to other modules
         self.__energy_supply_connections[service_name].demand_energy(energy_input_total)
         return energy_delivered_total
 
+    def __calc_ancillary_energy(self, timestep, time_remaining_current_timestep):
+        """ Calculate ancillary energy for each service """
+        for service_no, service_data in self.__service_results.enumerate():
+            # Unpack results of previous calculations for this service
+            service_name = service_data['service_name']
+            service_type = service_data['service_type']
+            time_running_current_service = service_data['time_running']
+            deg_coeff_op_cond = service_data['deg_coeff_op_cond']
+            compressor_power_min_load = service_data['compressor_power_min_load']
+            load_ratio_continuous_min = service_data['load_ratio_continuous_min']
+            load_ratio = service_data['load_ratio']
+            use_backup_heater_only = service_data['use_backup_heater_only']
+            hp_operating_in_onoff_mode = service_data['hp_operating_in_onoff_mode']
+            energy_input_HP_divisor = service_data['energy_input_HP_divisor']
+
+            time_running_subsequent_services \
+                = sum([ \
+                    data['time_running'] \
+                    for data in self.__service_results[service_no + 1 :] \
+                    ])
+
+            if time_running_current_service > 0.0 and not time_running_subsequent_services > 0.0 \
+            and not (self.__sink_type == SinkType.AIR and service_type == ServiceType.WATER):
+                energy_ancillary_when_off \
+                    = (1.0 - deg_coeff_op_cond) \
+                    * (compressor_power_min_load / load_ratio_continuous_min) \
+                    * max(
+                        ( time_remaining_current_timestep \
+                        - load_ratio / load_ratio_continuous_min * timestep
+                        ),
+                        0.0
+                        )
+            else:
+                energy_ancillary_when_off = 0.0
+
+            if not use_backup_heater_only and hp_operating_in_onoff_mode:
+                energy_input_HP = energy_ancillary_when_off / energy_input_HP_divisor
+            else:
+                energy_input_HP = 0.0
+
+            self.__energy_supply_connections[service_name].demand_energy(energy_input_HP)
+
     def timestep_end(self):
         """ Calculations to be done at the end of each timestep """
+        timestep = self.__simulation_time.timestep()
+        time_remaining_current_timestep = timestep - self.__total_time_running_current_timestep
+
+        self.__calc_ancillary_energy(timestep, time_remaining_current_timestep)
 
         # Variables below need to be reset at the end of each timestep.
         self.__total_time_running_current_timestep = 0.0
+        self.__service_results = []
