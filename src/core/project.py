@@ -599,12 +599,13 @@ class Project:
                 internal_air_temp[z_name] = zone.temp_internal_air()
                 operative_temp[z_name] = zone.temp_operative()
 
-            return gains_solar_zone, \
+            return gains_internal_zone, gains_solar_zone, \
                    operative_temp, internal_air_temp, \
                    space_heat_demand_zone, space_cool_demand_zone, \
                    space_heat_demand_system, space_cool_demand_system
 
         timestep_array = []
+        gains_internal_dict = {}
         gains_solar_dict = {}
         operative_temp_dict = {}
         internal_air_temp_dict = {}
@@ -615,6 +616,7 @@ class Project:
         zone_list = []
 
         for z_name in self.__zones.keys():
+            gains_internal_dict[z_name] = []
             gains_solar_dict[z_name] = []
             operative_temp_dict[z_name] = []
             internal_air_temp_dict[z_name] = []
@@ -634,7 +636,15 @@ class Project:
             hw_demand = hot_water_demand(t_idx)
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
-            gains_solar_zone, operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system = calc_space_heating(delta_t_h)
+
+            gains_internal_zone, gains_solar_zone, \
+                operative_temp, internal_air_temp, \
+                space_heat_demand_zone, space_cool_demand_zone, \
+                space_heat_demand_system, space_cool_demand_system \
+                = calc_space_heating(delta_t_h)
+
+            for z_name, gains_internal in gains_internal_zone.items():
+                gains_internal_dict[z_name].append(gains_internal)
 
             for z_name, gains_solar in gains_solar_zone.items():
                 gains_solar_dict[z_name].append(gains_solar)
@@ -663,6 +673,7 @@ class Project:
                 self.__on_site_generation[g_name].produce_energy()
 
         zone_dict = {
+            'Internal gains': gains_internal_dict,
             'Solar gains': gains_solar_dict,
             'Operative temp': operative_temp_dict,
             'Internal air temp': internal_air_temp_dict,
