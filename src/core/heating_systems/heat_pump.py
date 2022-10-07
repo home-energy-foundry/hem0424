@@ -1095,3 +1095,9 @@ class HeatPump:
         # Feed/return results to other modules
         self.__energy_supply_connections[service_name].demand_energy(energy_input_total)
         return energy_delivered_total
+
+    def timestep_end(self):
+        """ Calculations to be done at the end of each timestep """
+
+        # Variables below need to be reset at the end of each timestep.
+        self.__total_time_running_current_timestep = 0.0
