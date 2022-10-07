@@ -708,6 +708,7 @@ class HeatPump:
             self,
             hp_dict,
             energy_supply,
+            energy_supply_conn_name_auxiliary,
             simulation_time,
             external_conditions,
             ):
@@ -747,7 +748,13 @@ class HeatPump:
             - var_flow_temp_ctrl_during_test
                 -- boolean specifying whether or not variable flow temperature
                    control was enabled during the EN 14825 tests
+            - power_heating_circ_pump -- power (kW) of central heating circulation pump
+            - power_source_circ_pump
+                -- power (kW) of source ciculation pump or fan circulation when not
+                   implicit in CoP measurements
         energy_supply -- reference to EnergySupply object
+        energy_supply_conn_name_auxiliary
+            -- name to be used for EnergySupplyConnection object for auxiliary energy
         simulation_time -- reference to SimulationTime object
         external_conditions -- reference to ExternalConditions object
 
@@ -755,6 +762,7 @@ class HeatPump:
         energy_supply_connections
             -- dictionary with service name strings as keys and corresponding
                EnergySupplyConnection objects as values
+        energy_supply_connection_aux -- EnergySupplyConnection object for auxiliary energy
         test_data -- HeatPumpTestData object
         """
         self.__energy_supply = energy_supply
@@ -762,6 +770,8 @@ class HeatPump:
         self.__external_conditions = external_conditions
 
         self.__energy_supply_connections = {}
+        self.__energy_supply_connection_aux \
+            = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
         self.__test_data = HeatPumpTestData(hp_dict['test_data'])
 
         self.__service_results = []
@@ -776,6 +786,8 @@ class HeatPump:
         self.__temp_diff_flow_return_min \
             = float(hp_dict['min_temp_diff_flow_return_for_hp_to_operate'])
         self.__var_flow_temp_ctrl_during_test = bool(hp_dict['var_flow_temp_ctrl_during_test'])
+        self.__power_heating_circ_pump = hp_dict['power_heating_circ_pump']
+        self.__power_source_circ_pump = hp_dict['power_source_circ_pump']
 
     def __create_service_connection(self, service_name):
         """ Return a HeatPumpService object """
@@ -1153,12 +1165,23 @@ class HeatPump:
 
             self.__energy_supply_connections[service_name].demand_energy(energy_input_HP)
 
+    def __calc_auxiliary_energy(self):
+        # Energy used by pumps
+        # TODO This could be calculated separately for each service and included
+        #      in those totals, rather than auxiliary
+        energy_aux \
+            = self.__total_time_running_current_timestep \
+            * (self.__power_heating_circ_pump + self.__power_source_circ_pump)
+
+        self.__energy_supply_connection_aux.demand_energy(energy_aux)
+
     def timestep_end(self):
         """ Calculations to be done at the end of each timestep """
         timestep = self.__simulation_time.timestep()
         time_remaining_current_timestep = timestep - self.__total_time_running_current_timestep
 
         self.__calc_ancillary_energy(timestep, time_remaining_current_timestep)
+        self.__calc_auxiliary_energy()
 
         # Variables below need to be reset at the end of each timestep.
         self.__total_time_running_current_timestep = 0.0
