@@ -638,15 +638,17 @@ class HeatPumpService:
     - demand_energy(self, energy_demand)
     """
 
-    def __init__(self, heat_pump, service_name):
+    def __init__(self, heat_pump, service_name, control=None):
         """ Construct a HeatPumpService object
 
         Arguments:
         heat_pump    -- reference to the HeatPump object providing the service
         service_name -- name of the service demanding energy from the heat pump
+        control -- reference to a control object which must implement is_on() func
         """
         self.__hp = heat_pump
         self.__service_name = service_name
+        self.__control = control
 
 
 class HeatPumpServiceWater(HeatPumpService):
@@ -658,7 +660,15 @@ class HeatPumpServiceWater(HeatPumpService):
 
     __TIME_CONSTANT_WATER = 1560
 
-    def __init__(self, heat_pump, service_name, temp_hot_water, temp_limit_upper, cold_feed):
+    def __init__(
+            self,
+            heat_pump,
+            service_name,
+            temp_hot_water,
+            temp_limit_upper,
+            cold_feed,
+            control=None,
+            ):
         """ Construct a BoilerServiceWater object
 
         Arguments:
@@ -667,8 +677,9 @@ class HeatPumpServiceWater(HeatPumpService):
         temp_hot_water -- temperature of the hot water to be provided, in deg C
         temp_limit_upper -- upper operating limit for temperature, in deg C
         cold_feed -- reference to ColdWaterSource object
+        control -- reference to a control object which must implement is_on() func
         """
-        super().__init__(heat_pump, service_name)
+        super().__init__(heat_pump, service_name, control)
 
         self.__temp_hot_water = Celcius2Kelvin(temp_hot_water)
         self.__temp_limit_upper = Celcius2Kelvin(temp_limit_upper)
@@ -677,6 +688,13 @@ class HeatPumpServiceWater(HeatPumpService):
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat pump """
         temp_cold_water = Celcius2Kelvin(self.__cold_feed.temperature())
+        if self.__control is not None:
+            service_on = self.__control.is_on()
+        else:
+            service_on = True
+
+        if not service_on:
+            energy_demand = 0.0
 
         return self.__hp._HeatPump__demand_energy(
             self.__service_name,
@@ -686,6 +704,7 @@ class HeatPumpServiceWater(HeatPumpService):
             temp_cold_water,
             self.__temp_limit_upper,
             self.__TIME_CONST_WATER,
+            service_on,
             )
 
 
@@ -800,7 +819,14 @@ class HeatPump:
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
 
-    def service_hot_water(self, service_name, temp_hot_water, temp_limit_upper, cold_feed):
+    def service_hot_water(
+            self,
+            service_name,
+            temp_hot_water,
+            temp_limit_upper,
+            cold_feed,
+            control=None,
+            ):
         """ Return a HeatPumpServiceWater object and create an EnergySupplyConnection for it
 
         Arguments:
@@ -808,6 +834,7 @@ class HeatPump:
         temp_hot_water -- temperature of the hot water to be provided, in deg C
         temp_limit_upper -- upper operating limit for temperature, in deg C
         cold_feed -- reference to ColdWaterSource object
+        control -- reference to a control object which must implement is_on() func
         """
         self.__create_service_connection(service_name)
         return HeatPumpServiceWater(
@@ -815,7 +842,8 @@ class HeatPump:
             service_name,
             temp_hot_water,
             temp_limit_upper,
-            cold_feed
+            cold_feed,
+            control,
             )
 
     def __get_temp_source(self):
@@ -968,6 +996,7 @@ class HeatPump:
             temp_return_feed, # Kelvin
             temp_limit_upper, # Kelvin
             time_constant_for_service,
+            service_on, # bool - is service allowed to run?
             temp_spread_correction=1.0,
             ):
         """ Calculate energy required by heat pump to satisfy demand for the service indicated.
@@ -1047,7 +1076,7 @@ class HeatPump:
         use_backup_heater_only = False
 
         # Calculate energy delivered by HP and energy input
-        if use_backup_heater_only:
+        if use_backup_heater_only or not service_on:
             energy_delivered_HP = 0.0
             energy_input_HP = 0.0
         else:
@@ -1088,11 +1117,11 @@ class HeatPump:
         # Calculate energy delivered by backup heater
         # TODO Add a power limit for the backup heater, or call another heating
         #      system object. For now, assume no power limit.
-        if self.__backup_ctrl == BackupCtrlType.TOPUP \
+        if self.__backup_ctrl == BackupCtrlType.NONE or not service_on:
+            energy_delivered_backup = 0.0
+        elif self.__backup_ctrl == BackupCtrlType.TOPUP \
         or self.__backup_ctrl == BackupCtrlType.SUBSTITUTE:
             energy_delivered_backup = max(energy_output_required - energy_delivered_HP, 0.0)
-        elif self.__backup_ctrl == BackupCtrlType.NONE:
-            energy_delivered_backup = 0.0
         else:
             sys.exit('Invalid BackupCtrlType')
 
@@ -1109,6 +1138,7 @@ class HeatPump:
         self.__service_results.append({
             'service_name': service_name,
             'service_type': service_type,
+            'service_on': service_on,
             'time_running': time_running_current_service,
             'deg_coeff_op_cond': deg_coeff_op_cond,
             'compressor_power_min_load': compressor_power_min_load,
@@ -1129,6 +1159,7 @@ class HeatPump:
             # Unpack results of previous calculations for this service
             service_name = service_data['service_name']
             service_type = service_data['service_type']
+            service_on = service_data['service_on']
             time_running_current_service = service_data['time_running']
             deg_coeff_op_cond = service_data['deg_coeff_op_cond']
             compressor_power_min_load = service_data['compressor_power_min_load']
@@ -1144,7 +1175,8 @@ class HeatPump:
                     for data in self.__service_results[service_no + 1 :] \
                     ])
 
-            if time_running_current_service > 0.0 and not time_running_subsequent_services > 0.0 \
+            if service_on \
+            and time_running_current_service > 0.0 and not time_running_subsequent_services > 0.0 \
             and not (self.__sink_type == SinkType.AIR and service_type == ServiceType.WATER):
                 energy_ancillary_when_off \
                     = (1.0 - deg_coeff_op_cond) \
