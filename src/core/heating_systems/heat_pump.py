@@ -1197,13 +1197,41 @@ class HeatPump:
 
             self.__energy_supply_connections[service_name].demand_energy(energy_input_HP)
 
-    def __calc_auxiliary_energy(self):
+    def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
         # Energy used by pumps
         # TODO This could be calculated separately for each service and included
         #      in those totals, rather than auxiliary
         energy_aux \
             = self.__total_time_running_current_timestep \
             * (self.__power_heating_circ_pump + self.__power_source_circ_pump)
+
+        # Retrieve control settings for this timestep
+        for service_data in self.__service_results:
+            if service_data['service_type'] == ServiceType.SPACE:
+                heating_profile_on = service_data['service_on']
+            elif service_data['service_type'] == ServiceType.WATER:
+                water_profile_on = service_data['service_on']
+            else:
+                sys.exit('ServiceType not recognised')
+
+        # Energy used in standby and crankcase heater mode
+        # TODO Crankcase heater mode appears to be relevant only when HP is
+        #      available to provide space heating. Therefore, it could be added
+        #      to space heating energy consumption instead of auxiliary
+        # TODO Standby power is only relevant when at least one service is
+        #      available. Therefore, it could be split between the available
+        #      services rather than treated as auxiliary
+        if heating_profile_on and water_profile_on:
+            energy_aux \
+               += time_remaining_current_timestep \
+                * (self.__power_standby + self.__power_crankcase_heater_mode)
+        elif not heating_profile_on and water_profile_on:
+            energy_aux += time_remaining_current_timestep * self.__power_standby
+        # Energy used in off mode
+        elif not heating_profile_on and not water_profile_on:
+            energy_aux += timestep * self.__power_off_mode
+        else:
+            sys.exit('No aux energy calc defined for space heating on and water heating off')
 
         self.__energy_supply_connection_aux.demand_energy(energy_aux)
 
@@ -1213,7 +1241,7 @@ class HeatPump:
         time_remaining_current_timestep = timestep - self.__total_time_running_current_timestep
 
         self.__calc_ancillary_energy(timestep, time_remaining_current_timestep)
-        self.__calc_auxiliary_energy()
+        self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
 
         # Variables below need to be reset at the end of each timestep.
         self.__total_time_running_current_timestep = 0.0
