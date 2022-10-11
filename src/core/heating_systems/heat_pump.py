@@ -706,7 +706,7 @@ class HeatPumpServiceWater(HeatPumpService):
             self.__temp_hot_water,
             self.__temp_return_feed,
             self.__temp_limit_upper,
-            self.__TIME_CONST_WATER,
+            self.__TIME_CONSTANT_WATER,
             service_on,
             temp_used_for_scaling = temp_cold_water,
             )
