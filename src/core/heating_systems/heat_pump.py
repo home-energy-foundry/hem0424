@@ -765,6 +765,11 @@ class HeatPump:
             - time_constant_onoff_operation
                 -- a characteristic parameter of the heat pump, due to the
                    inertia of the on/off transient
+            - temp_return_feed_max -- maximum allowable temperature of the
+                                      return feed, in Celsius
+            - temp_lower_operating_limit
+                -- minimum source temperature at which the heat pump can operate,
+                   in Celsius
             - min_temp_diff_flow_return_for_hp_to_operate
                 -- minimum difference between flow and return temperatures
                    required for the HP to operate, in Celsius or Kelvin
@@ -806,6 +811,8 @@ class HeatPump:
         self.__backup_ctrl = BackupCtrlType.from_string(hp_dict['BackupCtrlType'])
         self.__modulating_ctrl = bool(hp_dict['modulating_control'])
         self.__time_constant_onoff_operation = float(hp_dict['time_constant_onoff_operation'])
+        self.__temp_return_feed_max = Celcius2Kelvin(float(hp_dict['temp_return_feed_max']))
+        self.__temp_lower_op_limit = Celcius2Kelvin(float(hp_dict['temp_lower_operating_limit']))
         self.__temp_diff_flow_return_min \
             = float(hp_dict['min_temp_diff_flow_return_for_hp_to_operate'])
         self.__var_flow_temp_ctrl_during_test = bool(hp_dict['var_flow_temp_ctrl_during_test'])
@@ -1080,8 +1087,19 @@ class HeatPump:
                 * (1.0 - load_ratio) \
                 / time_constant_for_service
 
-        # TODO Determine whether only backup heater is used. For now, assume no
-        use_backup_heater_only = False
+        # Evaluate boolean conditions that may trigger backup heater
+        # TODO Consider moving some of these checks earlier or to HeatPumpService
+        #      classes. May be able to skip a lot of the calculation.
+        below_min_ext_temp = (temp_source <= self.__temp_lower_op_limit)
+        inadequate_capacity = (energy_output_required > thermal_capacity_op_cond * timestep)
+        above_temp_return_feed_max = (temp_return_feed > self.__temp_return_feed_max)
+
+        use_backup_heater_only \
+            = self.__backup_ctrl != BackupCtrlType.NONE \
+              and ( below_min_ext_temp or above_temp_return_feed_max
+                 or (inadequate_capacity and self.__backup_ctrl == BackupCtrlType.SUBSTITUTE))
+        # TODO For hybrid HPs: Replace inadequate_capacity in use_backup_heater_only
+        #      condition with (inadequate_capacity or HP not cost effective)
 
         # Calculate energy delivered by HP and energy input
         if use_backup_heater_only or not service_on:
