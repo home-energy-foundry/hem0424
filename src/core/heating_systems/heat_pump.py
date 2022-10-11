@@ -1061,12 +1061,7 @@ class HeatPump:
             load_ratio_continuous_min = 1.0
 
         # Determine whether or not HP is operating in on/off mode
-        # TODO Is the condition (not self.__modulating_ctrl)
-        #      necessary/correct here? If an on/off HP is running at
-        #      full capacity, shouldn't it be considered as not
-        #      operating in on/off mode?
-        hp_operating_in_onoff_mode = load_ratio > 0.0 \
-            and (not self.__modulating_ctrl or load_ratio < load_ratio_continuous_min)
+        hp_operating_in_onoff_mode = (load_ratio > 0.0 and load_ratio < load_ratio_continuous_min)
 
         compressor_power_full_load = thermal_capacity_op_cond / cop_op_cond
 
