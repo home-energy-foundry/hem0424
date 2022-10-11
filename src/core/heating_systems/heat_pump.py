@@ -665,6 +665,7 @@ class HeatPumpServiceWater(HeatPumpService):
             heat_pump,
             service_name,
             temp_hot_water,
+            temp_return_feed,
             temp_limit_upper,
             cold_feed,
             control=None,
@@ -682,6 +683,8 @@ class HeatPumpServiceWater(HeatPumpService):
         super().__init__(heat_pump, service_name, control)
 
         self.__temp_hot_water = Celcius2Kelvin(temp_hot_water)
+        # TODO Should temp_return_feed be calculated per timestep?
+        self.__temp_return_feed = Celcius2Kelvin(temp_return_feed)
         self.__temp_limit_upper = Celcius2Kelvin(temp_limit_upper)
         self.__cold_feed = cold_feed
 
@@ -701,10 +704,11 @@ class HeatPumpServiceWater(HeatPumpService):
             ServiceType.WATER,
             energy_demand,
             self.__temp_hot_water,
-            temp_cold_water,
+            self.__temp_return_feed,
             self.__temp_limit_upper,
             self.__TIME_CONST_WATER,
             service_on,
+            temp_used_for_scaling = temp_cold_water,
             )
 
 
@@ -961,24 +965,24 @@ class HeatPump:
             self,
             energy_output_required,
             temp_output,
-            temp_return_feed,
+            temp_used_for_scaling,
             temp_limit_upper
             ):
         """ Calculate energy output limited by upper temperature """
         if temp_output > temp_limit_upper:
         # If required output temp is above upper limit
-            if temp_output == temp_return_feed:
+            if temp_output == temp_used_for_scaling:
             # If flow and return temps are equal
                 return energy_output_required
             else:
             # If flow and return temps are not equal
-                if (temp_limit_upper - temp_return_feed) >= self.__temp_diff_flow_return_min:
+                if (temp_limit_upper - temp_used_for_scaling) >= self.__temp_diff_flow_return_min:
                 # If max. achievable temp diff is at least the min required
                 # for the HP to operate.
                     return \
                           energy_output_required \
-                        * (temp_limit_upper - temp_return_feed) \
-                        / (temp_output - temp_return_feed)
+                        * (temp_limit_upper - temp_used_for_scaling) \
+                        / (temp_output - temp_used_for_scaling)
                 else:
                 # If max. achievable temp diff is less than the min required
                 # for the HP to operate.
@@ -998,17 +1002,21 @@ class HeatPump:
             time_constant_for_service,
             service_on, # bool - is service allowed to run?
             temp_spread_correction=1.0,
+            temp_used_for_scaling=None,
             ):
         """ Calculate energy required by heat pump to satisfy demand for the service indicated.
 
         Note: Call via a HeatPumpService object, not directly.
         """
+        if temp_used_for_scaling is None:
+            temp_used_for_scaling = temp_return_feed
+
         timestep = self.__simulation_time.timestep()
 
         energy_output_limited = self.__energy_output_limited(
             energy_output_required,
             temp_output,
-            temp_return_feed,
+            temp_used_for_scaling,
             temp_limit_upper,
             )
 
