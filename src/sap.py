@@ -25,7 +25,11 @@ def run_project(inp_filename, external_conditions_dict):
         project_dict = json.load(json_file)
 
     if external_conditions_dict is not None:
+        # Note: Shading segments are an assessor input regardless, so save them
+        # before overwriting the ExternalConditions and re-insert after
+        shading_segments = project_dict["ExternalConditions"]["shading_segments"]
         project_dict["ExternalConditions"] = external_conditions_dict
+        project_dict["ExternalConditions"]["shading_segments"] = shading_segments
 
     project = Project(project_dict)
     timestep_array, results_totals, results_end_user, \
