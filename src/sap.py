@@ -28,7 +28,10 @@ def run_project(inp_filename, external_conditions_dict):
         project_dict["ExternalConditions"] = external_conditions_dict
 
     project = Project(project_dict)
-    timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict = project.run()
+    timestep_array, results_totals, results_end_user, \
+        energy_import, energy_export, betafactor, \
+        zone_dict, zone_list, hc_system_dict \
+        = project.run()
 
     with open(output_file, 'w') as f:
         writer = csv.writer(f)
@@ -40,6 +43,9 @@ def run_project(inp_filename, external_conditions_dict):
             headings.append(totals_header)
             for end_user_key in results_end_user[totals_key].keys():
                 headings.append(end_user_key)
+            headings.append(str(totals_key) + ' import')
+            headings.append(str(totals_key) + ' export')
+            headings.append(str(totals_key) + ' beta factor')
 
         for zone in zone_list:
             for zone_outputs in zone_dict.keys():
@@ -67,6 +73,9 @@ def run_project(inp_filename, external_conditions_dict):
                 energy_use_row.append(results_totals[totals_key][t_idx])
                 for end_user_key in results_end_user[totals_key]:
                     energy_use_row.append(results_end_user[totals_key][end_user_key][t_idx])
+                energy_use_row.append(energy_import[totals_key][t_idx])
+                energy_use_row.append(energy_export[totals_key][t_idx])
+                energy_use_row.append(betafactor[totals_key][t_idx])
                 # Loop over results separated by zone
             for zone in zone_list:
                 for zone_outputs in zone_dict:

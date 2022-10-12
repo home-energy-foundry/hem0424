@@ -702,6 +702,9 @@ class Project:
                 # Get energy produced for the current timestep
                 self.__on_site_generation[g_name].produce_energy()
 
+            for _, supply in self.__energy_supplies.items():
+                supply.calc_energy_import_export_betafactor()
+
         zone_dict = {
             'Internal gains': gains_internal_dict,
             'Solar gains': gains_solar_dict,
@@ -715,7 +718,16 @@ class Project:
         # Return results from all energy supplies
         results_totals = {}
         results_end_user = {}
+        energy_import = {}
+        energy_export = {}
+        betafactor = {}
         for name, supply in self.__energy_supplies.items():
             results_totals[name] = supply.results_total()
             results_end_user[name] = supply.results_by_end_user()
-        return timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict
+            energy_import[name] = supply.get_energy_import()
+            energy_export[name] = supply.get_energy_export()
+            betafactor[name] = supply.get_beta_factor()
+        return \
+            timestep_array, results_totals, results_end_user, \
+            energy_import, energy_export, betafactor, \
+            zone_dict, zone_list, hc_system_dict

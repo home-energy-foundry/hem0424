@@ -91,3 +91,43 @@ class TestEnergySupply(unittest.TestCase):
                     demandtotal_2[t_idx],
                     "incorrect demand by end user returned",
                     )
+
+    def test_beta_factor(self):
+        """check beta factor and surplus supply/demand are calculated correctly"""
+        energysupplyconn_3 = self.energysupply.connection("PV")
+        betafactor = [1.0, 
+                      0.8973610789278808, 
+                      0.4677549807236648, 
+                      0.3297589507351858, 
+                      0.2578125, 
+                      0.2, 
+                      0.16319444444444445, 
+                      0.1377551020408163]
+        
+        surplus = [0.0, -8.21111368576954, -170.3184061684273, -482.57355547066624, -950.0, -1600.0, -2410.0, -3380.0]
+        demandnotmet = [50.0, 48.21111368576953, 40.31840616842726, 22.573555470666236, 0.0, 0.0, 0.0, 0.0]
+
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.energysupplyconn_1.demand_energy((t_idx+1.0)*50.0)
+                self.energysupplyconn_2.demand_energy((t_idx)*20.0)
+                energysupplyconn_3.supply_energy((t_idx)*(t_idx)*80.0)
+                
+                self.energysupply.calc_energy_import_export_betafactor()
+    
+                self.assertEqual(
+                    self.energysupply.get_beta_factor()[t_idx],
+                    betafactor[t_idx],
+                    "incorrect beta factor returned",
+                    )
+                self.assertEqual(
+                    self.energysupply.get_energy_export()[t_idx],
+                    surplus[t_idx],
+                    "incorrect energy export returned",
+                    )
+                self.assertEqual(
+                    self.energysupply.get_energy_import()[t_idx],
+                    demandnotmet[t_idx],
+                    "incorrect energy import returned",
+                    )
+    
