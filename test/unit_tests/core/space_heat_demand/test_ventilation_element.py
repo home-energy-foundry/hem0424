@@ -42,6 +42,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
                                 None,
                                 None,
                                 None,
+                                None,
                                 None
                                 )
         self.ve_inf = VentilationElementInfiltration(1.0, 
@@ -141,6 +142,7 @@ class TestMechnicalVentilationHeatRecovery(unittest.TestCase):
                                 None,
                                 None,
                                 None,
+                                None,
                                 None
                                 )
         self.energysupply = EnergySupply("electricity", self.simtime)
@@ -202,6 +204,7 @@ class TestWholeHouseExtractVentilation(unittest.TestCase):
                                 None,
                                 None,
                                 0, # Start day
+                                None,
                                 None,
                                 None,
                                 None,

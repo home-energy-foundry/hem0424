@@ -69,6 +69,8 @@ class Project:
         # TODO Read timezone from input file. For now, set timezone to 0 (GMT)
         # TODO Read direct_beam_conversion_needed from input file. For now,
         #      assume false (for epw files)
+        # TODO Read shading_segments from input file. For now hardcoded here
+        #      i.e. need to change here to test. input file values not being used
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
@@ -85,6 +87,28 @@ class Project:
             None, #proj_dict['ExternalConditions']['daylight_savings'],
             None, #proj_dict['ExternalConditions']['leap_day_included'],
             False, #proj_dict['ExternalConditions']['direct_beam_conversion_needed']
+            [{"number": 1, "start": 180, "end": 135},
+             {"number": 2, "start": 135, "end": 90,
+                "shading": [
+                    {"type": "overhang", "height": 2.2, "distance": 6}
+                ]
+             },
+             {"number": 3, "start": 90, "end": 45},
+             {"number": 4, "start": 45, "end": 0, 
+                "shading": [
+                    {"type": "obstacle", "height": 40, "distance": 4},
+                    {"type": "overhang", "height": 3, "distance": 7}
+                ]
+             },
+             {"number": 5, "start": 0, "end": -45,
+              "shading": [
+                    {"type": "obstacle", "height": 3, "distance": 8},
+                ]
+              },
+             {"number": 6, "start": -45, "end": -90},
+             {"number": 7, "start": -90, "end": -135},
+             {"number": 8, "start": -135, "end": -180}
+            ] # proj_dict['ExternalConditions']['shading_segments'],
             )
 
         self.__infiltration = VentilationElementInfiltration(
@@ -281,16 +305,22 @@ class Project:
                     data['k_m'],
                     data['mass_distribution_class'],
                     data['orientation'],
+                    data['base_height'],
+                    data['height'],
+                    data['width'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementTransparent':
                 building_element = BuildingElementTransparent(
-                    data['area'],
                     data['pitch'],
                     data['r_c'],
                     data['orientation'],
                     data['g_value'],
                     data['frame_area_fraction'],
+                    data['base_height'],
+                    data['height'],
+                    data['width'],
+                    data['shading'],
                     self.__external_conditions,
                     )
             elif building_element_type == 'BuildingElementGround':

@@ -202,7 +202,7 @@ class Zone:
             # RHS of heat balance eqn for this node
             vector_b[idx] = (eli.k_pli[i] / delta_t) * temp_prev[idx] \
                           + (eli.h_ce() + eli.h_re()) * eli.temp_ext() \
-                          + eli.a_sol * (eli.i_sol_dif() + eli.i_sol_dir() * eli.f_sh_obst) \
+                          + eli.a_sol * (eli.i_sol_dif() + eli.i_sol_dir() * eli.shading_factor()) \
                           - eli.therm_rad_to_sky
 
             # Inside node(s), if any (eqn 40)

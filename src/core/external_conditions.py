@@ -11,7 +11,7 @@ based on BS EN ISO 52010-1:2017.
 
 # Standard library imports
 import sys
-from math import cos, sin, pi, asin, acos, radians, degrees
+from math import cos, sin, tan, pi, asin, acos, radians, degrees
 
 class ExternalConditions:
     """ An object to store and look up data on external conditions """
@@ -31,7 +31,8 @@ class ExternalConditions:
             january_first,
             daylight_savings,
             leap_day_included,
-            direct_beam_conversion_needed
+            direct_beam_conversion_needed,
+            shading_segments
             ):
         """ Construct an ExternalConditions object
 
@@ -55,7 +56,9 @@ class ExternalConditions:
         leap_day_included   -- whether climate data includes a leap day, true or false (single value)
         direct_beam_conversion_needed -- A flag to indicate whether direct beam radiation from climate data needs to be 
                                         converted from horizontal to normal incidence. If normal direct beam radiation 
-                                        values are provided then no conversion is needed. 
+                                        values are provided then no conversion is needed.
+        shading_segments -- data splitting the ground plane into segments (8-36) and giving height
+                            and distance to shading objects surrounding the building
         """     
 
         self.__simulation_time  = simulation_time
@@ -73,6 +76,7 @@ class ExternalConditions:
         self.__daylight_savings = daylight_savings
         self.__leap_day_included = leap_day_included
         self.__direct_beam_conversion_needed = direct_beam_conversion_needed
+        self.__shading_segments = shading_segments
 
     def testoutput_setup(self,tilt,orientation):
         """ print output to a file for analysis """
@@ -109,7 +113,7 @@ class ExternalConditions:
         #write headers
         with open("test_sunpath.txt", "a") as o:
             o.write("\n")
-            o.write(str(self.__simulation_time.current_hour()))
+            o.write(str(self.__simulation_time.hour_of_day()))
             o.write(",")
             o.write(str(self.solar_time()))
             o.write(",")
@@ -174,6 +178,12 @@ class ExternalConditions:
     def ground_temp(self):
         """ Return the external ground temperature for the current timestep """
         return self.__ground_temps[self.__simulation_time.time_series_idx(self.__start_day)]
+        # TODO Assumes schedule is one entry per hour but this should be made
+        #      more flexible in the future.
+
+    def wind_speed(self):
+        """ Return the wind speed for the current timestep """
+        return self.__wind_speeds[self.__simulation_time.time_series_idx(self.__start_day)]
         # TODO Assumes schedule is one entry per hour but this should be made
         #      more flexible in the future.
 
@@ -327,7 +337,6 @@ class ExternalConditions:
         """
 
         tshift = self.timezone() - self.longitude() / 15
-
         return tshift
 
     def solar_time(self):
@@ -430,6 +439,8 @@ class ExternalConditions:
         # BS EN ISO 52010-1:2017. Formula 16
         if (sin_aux1 >= 0 and cos_aux1 > 0):
             solar_azimuth = 180 - aux2
+            if solar_azimuth < 0:
+                solar_azimuth = -solar_azimuth
         elif cos_aux1 < 0:
             solar_azimuth = aux2
         else:
@@ -850,8 +861,237 @@ class ExternalConditions:
 
         return total_irradiance
 
-    def wind_speed(self):
-        """ Return the wind speed for the current timestep """
-        return self.__wind_speeds[self.__simulation_time.time_series_idx(self.__start_day)]
-        # TODO Assumes schedule is one entry per hour but this should be made
-        #      more flexible in the future.
+    # end of sun path calculations from ISO 52010
+    # below are overshading calculations from ISO 52016
+
+    def outside_solar_beam(self, tilt, orientation):
+        """ checks if the shaded surface is in the view of the solar beam.
+        if not, then shading is complete, total direct rad = 0 and no further
+        shading calculation needed for this object for this time step. returns
+        a flag for whether the surface is outside solar beam
+
+        Arguments:
+        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
+                          upwards facing, 0 to 180, in degrees;
+        orientation    -- is the orientation angle of the inclined surface, expressed as the 
+                          geographical azimuth angle of the horizontal projection of the 
+                          inclined surface normal, -180 to 180, in degrees;
+                          
+        """
+
+        test1 = orientation - self.solar_azimuth_angle()
+        test2 = tilt - self.solar_altitude()
+
+        if (-90 > test1 or test1 > 90):
+            # surface outside solar beam
+            return 1
+        elif (-90 > test2 or test2 > 90):
+            # surface outside solar beam
+            return 1
+        else:
+            # surface inside solar beam
+            return 0
+
+    def get_segment(self):
+        """ for complex (environment) shading objects, we need to know which
+        segment the azimuth of the sun occupies at each timestep
+
+        """
+
+        azimuth = self.solar_azimuth_angle()
+
+        for segment in self.__shading_segments:
+            if (azimuth < segment["start"] and azimuth > segment["end"]):
+                return segment
+        #if not exited function yet then segment has not been found and there
+        #is some sort of error
+        sys.exit("solar segment not found. Check shading inputs")
+
+    def obstacle_shading_height(self, Hkbase, Hobst, Lkobst ):
+        """ calculates the height of the shading on the shaded surface (k),
+        from the shading obstacle in segment i at time t. Note that "obstacle"
+        has a specific meaning in ISO 52016 Annex F
+
+        Arguments:
+        Hkbase        -- is the base height of the shaded surface k, in m
+        Hobst         -- is the height of the shading obstacle, p, in segment i, in m
+        Lkobst        -- is the horizontal distance between the shaded surface k, in m 
+                         and the shading obstacle p in segment i, in m
+        """
+
+        Hshade = max(0, Hobst - Hkbase - Lkobst * tan(self.solar_altitude()))
+        return Hshade
+
+    def overhang_shading_height(self, Hk, Hkbase, Hovh, Lkovh ):
+        """ calculates the height of the shading on the shaded surface (k),
+        from the shading overhang in segment i at time t. Note that "overhang"
+        has a specific meaning in ISO 52016 Annex F
+
+        Arguments:
+        Hk            -- is the height of the shaded surface, k, in m
+        Hkbase        -- is the base height of the shaded surface k, in m
+        Hovh          -- is the lowest height of the overhang q, in segment i, in m
+        Lkovh         -- is the horizontal distance between the shaded surface k 
+                         and the shading overhang, q, in segment i, in m
+        """
+
+        Hshade = max(0, Hk + Hkbase - Hovh + Lkovh * tan(self.solar_altitude()))
+        return Hshade
+
+    def direct_shading_reduction_factor(self, base_height, height, width, orientation, window_shading):
+        """ calculates the shading factor of direct radiation due to external
+        shading objects
+
+        Arguments:
+        height         -- is the height of the shaded surface (if surface is tilted then
+                          this must be the vertical projection of the height), in m
+        base_height    -- is the base height of the shaded surface k, in m
+        width          -- is the width of the shaded surface, in m
+        orientation    -- is the orientation angle of the inclined surface, expressed as the 
+                          geographical azimuth angle of the horizontal projection of the 
+                          inclined surface normal, -180 to 180, in degrees;
+        window_shading -- data on overhangs and side fins associated to this building element
+                          includes the shading object type, depth, anf distance from element
+        """
+
+        # start with default assumption of no shading
+        Hshade_obst = 0
+        Hshade_ovh = 0
+        WfinR = 0
+        WfinL = 0
+
+        #first process the distant (environment) shading for this building element
+
+        #get the shading segment we are currently in
+        segment = self.get_segment()
+        #check for any shading objects in this segment
+        if "shading" in segment.keys():
+            for shade_obj in segment["shading"]:
+                if shade_obj["type"] == "obstacle":
+                    new_shade_height = self.obstacle_shading_height \
+                    (base_height, shade_obj["height"], shade_obj["distance"])
+
+                    Hshade_obst = max(Hshade_obst, new_shade_height)
+                elif shade_obj["type"] == "overhang":
+                    new_shade_height = self.overhang_shading_height \
+                    (height, base_height, shade_obj["height"], shade_obj["distance"])
+
+                    Hshade_ovh = max(Hshade_ovh, new_shade_height)
+                else:
+                    sys.exit("shading object type" + shade_obj["type"] + "not recognised")
+
+        # then check if there is any simple shading on this building element
+        # (note only applicable to transparent building elements so window_shading
+        # will always be False for other elements)
+        if window_shading:
+            altitude = self.solar_altitude()
+            azimuth = self.solar_azimuth_angle()
+            # if there is then loop through all objects and calc shading heights/widths
+            for shade_obj in window_shading:
+                depth = shade_obj["depth"]
+                distance = shade_obj["distance"]
+                if shade_obj["type"] == "overhang":
+                    new_shade_height = (depth * tan(radians(altitude)) \
+                                    / cos(radians(azimuth - orientation))) \
+                                    - distance
+
+                    Hshade_ovh = max(Hshade_ovh, new_shade_height)
+                elif shade_obj["type"] == "sidefinright":
+                    #check if the sun is in the opposite direction
+                    check = azimuth - orientation
+                    if check > 0:
+                        new_finRshade = 0
+                    else:
+                        new_finRshade = depth * tan(radians(azimuth - orientation)) \
+                                        - distance
+                    WfinR = max(WfinR, new_finRshade)
+                elif shade_obj["type"] == "sidefinleft":
+                    #check if the sun is in the opposite direction
+                    check = azimuth - orientation
+                    if check < 0:
+                        new_finLshade = 0
+                    else:
+                        new_finLshade = depth * tan(radians(azimuth - orientation)) \
+                                        - distance
+                    WfinL = max(WfinL, new_finLshade)
+                else:
+                    sys.exit("shading object type" + shade_obj["type"] + "not recognised")
+
+        # The height of the shade on the shaded surface from all obstacles is the 
+        # largest of all, with as maximum value the height of the shaded object
+        Hk_obst = min(height, Hshade_obst)
+
+        # The height of the shade on the shaded surface from all overhangs is the 
+        # largest of all, with as maximum value the height of the shaded object
+        Hk_ovh = min(height, Hshade_ovh)
+
+        # The height of the remaining sunlit area on the shaded surface from 
+        # all obstacles and all overhangs
+        Hk_sun = max(0, height - (Hk_obst + Hk_ovh))
+
+        # The width of the shade on the shaded surface from all right side fins 
+        # is the largest of all, with as maximum value the width of the shaded object
+        Wk_finR = min(width, WfinR)
+
+        # The width of the shade on the shaded surface from all left side fins 
+        # is the largest of all, with as maximum value the width of the shaded object
+        Wk_finL = min(width, WfinL)
+
+        # The width of the remaining sunlit area on the shaded surface from all 
+        # right hand side fins and all left hand side fins
+        Wk_sun = max(0, width - (Wk_finR + Wk_finL))
+
+        # And then the direct shading reduction factor of the shaded surface for 
+        # obstacles, overhangs and side fins
+        Fdir = (Hk_sun * Wk_sun) / (height * width)
+
+        return Fdir
+
+    def shading_reduction_factor(self, base_height, height, width, tilt, orientation, window_shading):
+        """ calculates the shading factor due to external
+        shading objects
+
+        Arguments:
+        height         -- is the height of the shaded surface (if surface is tilted then
+                          this must be the vertical projection of the height), in m
+        base_height    -- is the base height of the shaded surface k, in m
+        width          -- is the width of the shaded surface, in m
+        orientation    -- is the orientation angle of the inclined surface, expressed as the 
+                          geographical azimuth angle of the horizontal projection of the 
+                          inclined surface normal, -180 to 180, in degrees;
+        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
+                          upwards facing, 0 to 180, in degrees;
+        window_shading -- data on overhangs and side fins associated to this building element
+                          includes the shading object type, depth, anf distance from element
+        """
+
+        # first chceck if there is any radiation. This is needed to prevent a potential 
+        # divide by zero error in the final step, but also, if there is no radiation 
+        # then shading is irrelevant and we can skip the whole calculation
+        direct = self.calculated_direct_irradiance(tilt, orientation)
+        diffuse = self.calculated_diffuse_irradiance(tilt, orientation)
+        if direct + diffuse == 0:
+            return 0
+
+        # first check if the surface is outside the solar beam
+        # if so then direct shading is complete and we don't need to
+        # calculate shading from objects
+        if self.outside_solar_beam(tilt, orientation):
+            Fdir = 0
+        else:
+            Fdir = self.direct_shading_reduction_factor \
+                    (base_height, height, width, orientation, window_shading)
+
+        return Fdir
+
+        # TODO suspected bug identified in ISO 52016 as it conflicts with ISO 52010:
+        #ISO 52010 states that (6.4.5.2.1) the total irradiance on the inclined surface is
+        #Itotal = Fdir * Idirect + Idiffuse
+        #This is how the shading factor is used with the solar gains calculation.
+        #However, ISO 52016 takes Fdir and performs the calculation below to give a "final"
+        #shading factor. This does not make sense to be applied solely to the direct radiation
+        #when calculating solar gains. Therefore we return Fdir here.
+
+        #Fshade = (Fdir * direct + diffuse) / (direct + diffuse)
+
+        #return Fshade
