@@ -33,6 +33,31 @@ def run_project(inp_filename, external_conditions_dict):
         zone_dict, zone_list, hc_system_dict \
         = project.run()
 
+    write_core_output_file(
+        output_file,
+        timestep_array,
+        results_totals,
+        results_end_user,
+        energy_import,
+        energy_export,
+        betafactor,
+        zone_dict,
+        zone_list,
+        hc_system_dict,
+        )
+
+def write_core_output_file(
+        output_file,
+        timestep_array,
+        results_totals,
+        results_end_user,
+        energy_import,
+        energy_export,
+        betafactor,
+        zone_dict,
+        zone_list,
+        hc_system_dict,
+        ):
     with open(output_file, 'w') as f:
         writer = csv.writer(f)
 
