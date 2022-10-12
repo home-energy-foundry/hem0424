@@ -25,10 +25,6 @@ class Bath:
         self.__bathsize          = size # TODO entire capacity or typical usage?
         self.__cold_water_source = cold_water_source
 
-# find bath temperature required
-
-# SAP 10- 60-40 hot cold. 100l in total, bath 170lites total
-
     def get_size(self):
         return self.__bathsize
 
@@ -46,8 +42,9 @@ class Bath:
         temp_cold = self.__cold_water_source.temperature()
         temp_hot  = 52.0 # TODO Get hot temp from somewhere rather than hard-coding
 
-        vol_warm_water = self.__bathsize # we may wish to modify the volume of water compared to the size of the bath
-        # ^^^ litres
+        vol_warm_water = self.__bathsize # in litres. we may wish to modify the volume of water
+        # compared to the size of the bath
+
         vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, temp_cold)
 
         return vol_hot_water # litres

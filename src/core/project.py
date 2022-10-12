@@ -33,6 +33,7 @@ from core.water_heat_demand.bath import Bath
 from core.water_heat_demand.other_hot_water_uses import OtherHotWater
 from core.space_heat_demand.internal_gains import InternalGains
 from core.water_heat_demand.pipework import Pipework
+import core.material_properties as material_properties
 
 class Project:
     """ An object to represent the overall model to be simulated """
@@ -523,11 +524,20 @@ class Project:
                             shower_temp = event['temperature']
                             shower_duration = event['duration']
                             hw_demand += shower.hot_water_demand(shower_temp, shower_duration)
-                            hw_energy_demand += water_demand_to_kWh(shower.hot_water_demand(shower_temp, shower_duration), shower_temp, cold_water_temperature)
+                            hw_energy_demand += water_demand_to_kWh(
+                                shower.hot_water_demand(shower_temp, shower_duration),
+                                shower_temp,
+                                cold_water_temperature
+                                )
                             hw_duration += event['duration'] # shower minutes duration
                             all_events +=1
-                            pw_losses+=calc_pipework_losses(shower.hot_water_demand(shower_temp, shower_duration), \
-                            t_idx, delta_t_h, cold_water_temperature, event['duration'], self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour)
+                            pw_losses+=calc_pipework_losses(
+                                shower.hot_water_demand(shower_temp, shower_duration),
+                                t_idx,
+                                delta_t_h,
+                                cold_water_temperature,
+                                event['duration'],
+                                self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour)
 
             for name, other in self.__other_water_events.items():
                 # Get all other use events for the current timestep
@@ -542,11 +552,21 @@ class Project:
                         other_temp = event['temperature']
                         other_duration = event['duration']
                         hw_demand += other.hot_water_demand(other_temp, other_duration)
-                        hw_energy_demand += water_demand_to_kWh(other.hot_water_demand(other_temp, other_duration), other_temp, cold_water_temperature)
+                        hw_energy_demand += water_demand_to_kWh(
+                            other.hot_water_demand(other_temp, other_duration),
+                            other_temp,
+                            cold_water_temperature
+                            )
                         hw_duration += event['duration'] # other minutes duration
                         all_events +=1
-                        pw_losses+=calc_pipework_losses(other.hot_water_demand(other_temp, other_duration), \
-                        t_idx, delta_t_h, cold_water_temperature, event['duration'], self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour)
+                        pw_losses+=calc_pipework_losses(
+                            other.hot_water_demand(other_temp, other_duration),
+                            t_idx,
+                            delta_t_h,
+                            cold_water_temperature,
+                            event['duration'],
+                            self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour
+                            )
 
             for name, bath in self.__baths.items():
                 # Get all bath use events for the current timestep
@@ -563,12 +583,21 @@ class Project:
                         bath_temp = event['temperature']
                         hw_demand += bath.hot_water_demand(bath_temp)
                         bath_duration = bath.get_size() / peak_flowrate
-                        hw_energy_demand += water_demand_to_kWh(bath.hot_water_demand(bath_temp), bath_temp, cold_water_temperature)
+                        hw_energy_demand += water_demand_to_kWh(
+                            bath.hot_water_demand(bath_temp),
+                            bath_temp,
+                            cold_water_temperature
+                            )
                         hw_duration += bath_duration
                         # litres bath  / litres per minute flowrate = minutes
                         all_events +=1
-                        pw_losses+=calc_pipework_losses(bath.hot_water_demand(bath_temp ), \
-                        t_idx, delta_t_h, cold_water_temperature, bath_duration, self.__water_heating_pipework) * (bath_duration/units.minutes_per_hour)
+                        pw_losses+=calc_pipework_losses(
+                            bath.hot_water_demand(bath_temp),
+                            t_idx,
+                            delta_t_h,
+                            cold_water_temperature,
+                            bath_duration,
+                            self.__water_heating_pipework) * (bath_duration/units.minutes_per_hour)
                         
             return hw_demand, hw_duration, all_events, pw_losses, hw_energy_demand  # litres hot water per timestep, minutes demand per timestep, number of events in timestep
 
@@ -595,26 +624,35 @@ class Project:
                 hot_water_time_fraction = 1
             
             # note - treating insulation surface temperature as the same as the temperature outside the pipe - should be similar over longer timesteps
-            pipework_watts_heat_loss = hw_pipework["internal"].heat_loss(internal_air_temperature , demand_water_temperature, internal_air_temperature) + \
-            hw_pipework["external"].heat_loss(self.__external_conditions.air_temp(), demand_water_temperature, self.__external_conditions.air_temp()) 
+            pipework_watts_heat_loss = hw_pipework["internal"].heat_loss(
+                internal_air_temperature ,
+                demand_water_temperature,
+                internal_air_temperature) + \
+            hw_pipework["external"].heat_loss(
+                self.__external_conditions.air_temp(),
+                demand_water_temperature,
+                self.__external_conditions.air_temp()
+                ) 
 
             # only calculate loss for times when there is hot water in the pipes - multiply by time fraction to get to kWh
             pipework_heat_loss = pipework_watts_heat_loss * hot_water_time_fraction * (delta_t_h * units.seconds_per_hour) / 1000 # convert to kWh
             
-            pipework_heat_loss += hw_pipework["internal"].cool_down_loss(internal_air_temperature, demand_water_temperature, internal_air_temperature)
-            pipework_heat_loss += hw_pipework["external"].cool_down_loss(self.__external_conditions.air_temp(), demand_water_temperature, self.__external_conditions.air_temp())            
+            pipework_heat_loss += hw_pipework["internal"].cool_down_loss(
+                internal_air_temperature,
+                demand_water_temperature,
+                internal_air_temperature
+                )
+            pipework_heat_loss += hw_pipework["external"].cool_down_loss(
+                self.__external_conditions.air_temp(),
+                demand_water_temperature,
+                self.__external_conditions.air_temp()
+                )            
             
             return pipework_heat_loss # heat loss in kWh for the timestep
 
         def water_demand_to_kWh(litres_demand, demand_temp, cold_temp):
-    
-            HEAT_CAPACITY_WATER = 4.186 # J/g°C
-    
-            mass = litres_demand * 1000 #  litres to grams
-            
-            temp_diff = demand_temp - cold_temp
-    
-            kWh_demand = (HEAT_CAPACITY_WATER * mass * temp_diff) / units.J_per_kWh
+
+            kWh_demand = (material_properties.WATER.volumetric_energy_content_kWh_per_litre(demand_temp, cold_temp) * litres_demand)
             
             return(kWh_demand)
 

@@ -6,6 +6,9 @@ This module provides object(s) to represent pipework
 from math import pi, log
 # Local imports
 import core.units as units
+import core.material_properties as material_properties
+
+
 class Pipework:
     """ An object to represent steady state heat transfer in a hollow cyclinder (pipe)
     with radial heat flow. Method taken from 2021 ASHRAE Handbook, Section 4.4.2 """
@@ -75,43 +78,57 @@ class Pipework:
         q_rc = (T_i_K - T_o_K) / (R_tot)
         
         return q_rc
-
-
+        
         
     def temperature_drop(self, T_s, T_i, T_o):
+        """
+        Calculates by how much the temperature of water in a full pipe will fall
+        over the timestep.
         
-        HEAT_CAPACITY_WATER = 4.186 # J/g°C
+                Arguments:
+        T_s    -- insulation surface temperature, in degrees C
+        T_i    -- temperature of water (or air) inside the pipe, in degrees C
+        T_o    -- temperature outside the pipe, in degrees C
+        """
 
-        heat_loss_kWh = (3600 * heat_loss(self, T_s, T_i, T_o)) / units.W_per_kW
+        heat_loss_kWh = (units.seconds_per_hour * heat_loss(T_s, T_i, T_o)) / units.W_per_kW # heat loss for the one hour timestep in kWh
         
-        volume = pi * (self.__D_i/2) * (self.__D_i/2) * self.__L * units.litres_per_cubic_metre
-        mass = volume * 1000 #  litres to grams
+        litres = pi * (self.__D_i/2) * (self.__D_i/2) * self.__L * units.litres_per_cubic_metre
 
-        temp_drop = (heat_loss_kWh * units.J_per_kWh)/ (HEAT_CAPACITY_WATER * mass)  # Q = C m ∆t
+        temp_drop = max((heat_loss_kWh * units.J_per_kWh)/ (material_properties.WATER.volumetric_heat_capacity() * litres), T_i-T_o)  # Q = C m ∆t
+        # temperature cannot drop below outside temperature
     
         return(temp_drop) # returns DegC
         
         
     def cool_down_loss(self, T_s, T_i, T_o):
+        """
+        Calculates the total heat loss from a full pipe from demand temp to ambient
+        temp in kWh
+         
+                Arguments:
+        T_s    -- insulation surface temperature, in degrees C
+        T_i    -- temperature of water (or air) inside the pipe, in degrees C
+        T_o    -- temperature outside the pipe, in degrees C
+        """
 
-        HEAT_CAPACITY_WATER = 4.186 # J/g°C
-        
-        volume = pi * (self.__D_i/2) * (self.__D_i/2) * self.__L * units.litres_per_cubic_metre
-        mass = volume * 1000 #  litres to grams
+        litres = pi * (self.__D_i/2) * (self.__D_i/2) * self.__L * units.litres_per_cubic_metre
 
-        cool_down_loss = (HEAT_CAPACITY_WATER * mass * (T_i - T_o)) / units.J_per_kWh
+        cool_down_loss = (material_properties.WATER.volumetric_energy_content_kWh_per_litre(T_i, T_o) * litres)
         
         return(cool_down_loss) # returns kWh
 
 
     def water_demand_to_kWh(self, litres_demand, demand_temp, cold_temp):
-
-        HEAT_CAPACITY_WATER = 4.186 # J/g°C
-
-        mass = litres_demand * 1000 #  litres to grams
+        """
+        Calculates the kWh energy content of the hot water demand. 
+         
+                Arguments:
+        litres_demand  -- hot water demand in litres
+        demand_temp    -- temperature of hot water inside the pipe, in degrees C
+        cold_temp      -- temperature outside the pipe, in degrees C
+        """
         
-        temp_diff = demand_temp - cold_temp
-
-        kWh_demand = (HEAT_CAPACITY_WATER * mass * temp_diff) / units.J_per_kWh
+        kWh_demand = (material_properties.WATER.volumetric_energy_content_kWh_per_litre(demand_temp, cold_temp) * litres_demand)
         
         return(kWh_demand)
