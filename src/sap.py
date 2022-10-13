@@ -15,9 +15,11 @@ import argparse
 # Local imports
 from core.project import Project
 from read_weather_file import weather_data_to_dict
+from wrappers.future_homes_standard.future_homes_standard import \
+    apply_fhs_preprocessing, apply_fhs_postprocessing
 
 
-def run_project(inp_filename, external_conditions_dict):
+def run_project(inp_filename, external_conditions_dict, fhs_assumptions=False):
     file_path = os.path.splitext(inp_filename)
     output_file = file_path[0] + '_results.csv'
 
@@ -30,6 +32,10 @@ def run_project(inp_filename, external_conditions_dict):
         shading_segments = project_dict["ExternalConditions"]["shading_segments"]
         project_dict["ExternalConditions"] = external_conditions_dict
         project_dict["ExternalConditions"]["shading_segments"] = shading_segments
+
+    # Apply required preprocessing steps, if any
+    if fhs_assumptions:
+        project_dict = apply_fhs_preprocessing(project_dict)
 
     project = Project(project_dict)
     timestep_array, results_totals, results_end_user, \
@@ -49,6 +55,10 @@ def run_project(inp_filename, external_conditions_dict):
         zone_list,
         hc_system_dict,
         )
+
+    # Apply required postprocessing steps, if any
+    if fhs_assumptions:
+        apply_fhs_postprocessing()
 
 def write_core_output_file(
         output_file,
@@ -136,10 +146,17 @@ if __name__ == '__main__':
         default=False,
         help='run calculations for different input files in parallel',
         )
+    parser.add_argument(
+        '--future-homes-standard',
+        action='store_true',
+        default=False,
+        help='use Future Homes Standard calculation assumptions',
+        )
     cli_args = parser.parse_args()
 
     inp_filenames = cli_args.input_file
     epw_filename = cli_args.epw_file
+    fhs_assumptions = cli_args.future_homes_standard
 
     if epw_filename is not None:
         external_conditions_dict = weather_data_to_dict(epw_filename)
@@ -149,11 +166,14 @@ if __name__ == '__main__':
     if not cli_args.parallel:
         print('Running '+str(len(inp_filenames))+' cases in series')
         for inpfile in inp_filenames:
-            run_project(inpfile, external_conditions_dict)
+            run_project(inpfile, external_conditions_dict, fhs_assumptions)
     else:
         import multiprocessing as mp
         print('Running '+str(len(inp_filenames))+' cases in parallel')
-        run_project_args = [(inpfile, external_conditions_dict) for inpfile in inp_filenames]
+        run_project_args = [
+            (inpfile, external_conditions_dict, fhs_assumptions)
+            for inpfile in inp_filenames
+            ]
         with mp.Pool() as p:
             p.starmap(run_project, run_project_args)
 
