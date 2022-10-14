@@ -88,26 +88,22 @@
 	},
 	"Distribution": {
 		"internal": {
+			"internal_diameter": 0.025,
+			"external_diameter": 0.027,
 			"length": 8.0,
-			"heat_transfer_coefficient_inside": 5.0,
-			"internal_diameter": 0.22,
-			"external_diameter": 0.30,
-			"pipe_thermal_conductivity": 30.0,
 			"insulation_thermal_conductivity": 0.035,
-			"insulation_thickness": 0.10,
-			"heat_transfer_coefficient_outside": 8.0,
-			"emissivity": 0.01
+			"insulation_thickness": 0.038,
+			"surface_reflectivity": "false",
+			"pipe_contents": "water"
 		},
 		"external": {
+			"internal_diameter": 0.025,
+			"external_diameter": 0.027,
 			"length": 8.0,
-			"heat_transfer_coefficient_inside": 0.01,
-			"internal_diameter": 0.05,
-			"external_diameter": 0.07,
-			"pipe_thermal_conductivity": 30.0,
 			"insulation_thermal_conductivity": 0.035,
-			"insulation_thickness": 0.10,
-			"heat_transfer_coefficient_outside": 8.0,
-			"emissivity": 0.01
+			"insulation_thickness": 0.038,
+			"surface_reflectivity": "false",
+			"pipe_contents": "water"
 		}
 	},
 	"Events": {
@@ -122,12 +118,12 @@
 		},
 		"Bath":{
 			"medium": [
-			    {"start": 6, "temperature": 41.0}
+				{"start": 6, "temperature": 41.0}
 			]
 		},
 		"Other": {
 			"other": [
-			{"start": 7, "duration": 1, "temperature": 41.0}
+				{"start": 7, "duration": 1, "temperature": 41.0}
 			]
 		}
 	},

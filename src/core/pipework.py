@@ -13,6 +13,7 @@ import sys
 import core.units as units
 import core.material_properties as material_properties
 
+
 class Pipework:
     """ An object to represent steady state heat transfer in a hollow cyclinder (pipe)
     with radial heat flow. Method taken from 2021 ASHRAE Handbook, Section 4.4.2 """
@@ -108,15 +109,3 @@ class Pipework:
 
         return(cool_down_loss) # returns kWh
 
-    def water_demand_to_kWh(self, litres_demand, demand_temp, cold_temp):
-        """
-        Calculates the kWh energy content of the hot water demand. 
-         
-        Arguments:
-        litres_demand  -- hot water demand in litres
-        demand_temp    -- temperature of hot water inside the pipe, in degrees C
-        cold_temp      -- temperature outside the pipe, in degrees C
-        """
-        kWh_demand = (material_properties.WATER.volumetric_energy_content_kWh_per_litre(demand_temp, cold_temp) * litres_demand)
-
-        return(kWh_demand)
