@@ -21,55 +21,68 @@ class TestDuctwork(unittest.TestCase):
 
     def setUp(self):
         """ Create Ductwork objects to be tested """
-        self.ductwork = Ductwork(0.025, 0.027, 0.4, 0.2, 0.15, "false" ,"intake", "inside")
+        self.ductwork = Ductwork(0.025, 0.027, 0.4, 0.02, 0.022, False, "inside")
         self.simtime = SimulationTime(0, 8, 1)
 
     def test_D_ins(self):
         """ Test that correct D_ins value is returned when queried """
         self.assertAlmostEqual(
             self.ductwork._Ductwork__D_ins,
-            0.327,
+            0.071,
             3,
             "incorrect D_ins returned"
             )
 
-    def test_R1(self):
-        """ Test that correct R1 value is returned when queried """
+    def test_internal_surface_resistance(self):
+        """ Test that correct internal surface resistance value is returned when queried """
         self.assertAlmostEqual(
-            self.ductwork._Ductwork__R1,
+            self.ductwork._Ductwork__internal_surface_resistance ,
             0.82144,
             5,
-            "incorrect R1 returned"
+            "incorrect internal surface resistance returned"
             )
 
-    def test_R2(self):
-        """ Test that correct R2 value is returned when queried """
+    def test_insulation_resistance(self):
+        """ Test that correct insulation resistance value is returned when queried """
         self.assertAlmostEqual(
-            self.ductwork._Ductwork__R2,
-            2.04600,
+            self.ductwork._Ductwork__insulation_resistance,
+            8.30633,
             5,
-            "incorrect R2 returned"
+            "incorrect insulation resistance returned"
             )
 
-    def test_R3(self):
-        """ Test that correct R3 value is returned when queried """
+    def test_external_surface_resistance(self):
+        """ Test that correct external surface resistance value is returned when queried """
         self.assertAlmostEqual(
-            self.ductwork._Ductwork__R3,
-            0.09734,
+            self.ductwork._Ductwork__external_surface_resistance,
+            0.44832,
             5,
-            "incorrect R3 returned"
+            "incorrect external surface resistance returned"
             )
 
-    def test_heat_loss(self):
-        """ Test that correct heat loss (q value) is returned when queried """
-        T_o = [20.0, 19.5, 19.0, 18.5, 19.0, 19.5, 20.0, 20.5]
-        T_i = [5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+    def test_duct_heat_loss(self):
+        """ Test that correct heat loss is returned when queried """
+        outside_temp = [20.0, 19.5, 19.0, 18.5, 19.0, 19.5, 20.0, 20.5]
+        inside_temp = [5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
         for t_idx, _, _ in self.simtime:
             with self.subTest(i = t_idx):
                 self.assertAlmostEqual(
-                    self.ductwork.heat_loss(T_i[t_idx], T_o[t_idx]),
-                    [-2.02375, -1.82138, -1.61900, -1.41663, -1.34917, -1.28171, -1.21425, -1.14679][t_idx],
+                    self.ductwork.duct_heat_loss(inside_temp[t_idx], outside_temp[t_idx]),
+                    [-0.62656, -0.56390, -0.50125, -0.43859, -0.41771, -0.39682, -0.37594, -0.35505][t_idx],
                     5,
                     "incorrect heat loss returned",
                     )
 
+    def test_total_duct_heat_loss(self):
+        """ Test that correct total duct heat loss is returned when queried """
+        outside_temp = [20.0, 19.5, 19.0, 18.5, 19.0, 19.5, 20.0, 20.5]
+        intake_temp = [5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+        exhaust_temp = [6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0]
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i = t_idx):
+                self.assertAlmostEqual(
+                    self.ductwork.total_duct_heat_loss(outside_temp[t_idx], None, None, intake_temp[t_idx], exhaust_temp[t_idx],),
+                    [-1.21135, -1.08604, -0.96073, -0.83541, -0.79364, -0.75187, -0.71010, -0.66833][t_idx],
+                    5,
+                    "incorrect total heat loss returned",
+                    )
