@@ -104,7 +104,8 @@ class TestVentilationElementInfiltration(unittest.TestCase):
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.ve_inf.h_ve(75.0),
-                    [0.0829331, 0.0851745, 0.0874159, 0.0896574, 0.0918988, 0.0941402, 0.0963817, 0.0986231][t_idx],
+                    [82.9330531547619, 85.17448702380952, 87.41592089285714, 89.65735476190476,
+                     91.89878863095237, 94.14022249999998, 96.3816563690476, 98.62309023809523][t_idx],
                     7,
                     "incorrect heat transfer coeffient (h_ve) returned"
                     )
@@ -156,7 +157,7 @@ class TestMechnicalVentilationHeatRecovery(unittest.TestCase):
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.mvhr.h_ve(75.0),
-                    0.00428975166666666,
+                    4.28975166666666,
                     msg="incorrect heat transfer coeffient (h_ve) returned"
                     )
 
@@ -221,7 +222,7 @@ class TestWholeHouseExtractVentilation(unittest.TestCase):
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.whev.h_ve(75.0),
-                    0.012616916666666667,
+                    12.616916666666667,
                     msg="incorrect heat transfer coeffient (h_ve) returned"
                     )
 
