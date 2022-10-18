@@ -741,6 +741,12 @@ class HeatPumpServiceSpace(HeatPumpService):
         self.__temp_limit_upper = Celcius2Kelvin(temp_limit_upper)
         self.__temp_diff_emit_dsgn = temp_diff_emit_dsgn
 
+    def energy_output_max(self, temp_output):
+        """ Calculate the maximum energy output of the HP, accounting for time
+            spent on higher-priority services
+        """
+        self.__hp._HeatPump__energy_output_max(temp_output)
+
     def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the heat pump
 
@@ -981,6 +987,18 @@ class HeatPump:
                     )
 
         return thermal_capacity_op_cond
+
+    def __energy_output_max(self, temp_output):
+        """ Calculate the maximum energy output of the HP, accounting for time
+            spent on higher-priority services
+
+        Note: Call via a HeatPumpService object, not directly.
+        """
+        timestep = self.__simulation_time.timestep()
+        time_available = timestep - self.__total_time_running_current_timestep
+        temp_source = self.__get_temp_source()
+        power_max = self.__thermal_capacity_op_cond(temp_output, temp_source)
+        return power_max * time_available
 
     def __cop_deg_coeff_op_cond(
             self,
