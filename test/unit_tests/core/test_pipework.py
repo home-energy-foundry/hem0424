@@ -22,19 +22,19 @@ class TestPipework(unittest.TestCase):
     def setUp(self):
         """ Create Pipework object to be tested """
         self.simtime = SimulationTime(0, 8, 1)
-        self.pipework = Pipework(0.025, 0.027, 1.0, 0.035, 0.038, 'false', 'water')
+        self.pipework = Pipework(0.025, 0.027, 1.0, 0.035, 0.038, False, 'water')
 
-    def test_R1(self):
-        """ Test that correct R1 is returned when queried """
-        self.assertAlmostEqual(self.pipework._Pipework__R1, 0.00849, 5, msg="incorrect R1 returned")
+    def test_interior_surface_resistance(self):
+        """ Test that correct interior surface resistance is returned when queried """
+        self.assertAlmostEqual(self.pipework._Pipework__interior_surface_resistance, 0.00849, 5, msg="incorrect R1 returned")
 
-    def test_R2(self):
-        """ Test that correct R2 is returned when queried """
-        self.assertAlmostEqual(self.pipework._Pipework__R2, 6.43829, 5, msg="incorrect R2 returned")
+    def test_insulation_resistance(self):
+        """ Test that correct insulation resistance is returned when queried """
+        self.assertAlmostEqual(self.pipework._Pipework__insulation_resistance, 6.43829, 5, msg="incorrect R2 returned")
 
-    def test_R3(self):
-        """ Test that correct R3 is returned when queried """
-        self.assertAlmostEqual(self.pipework._Pipework__R3, 0.30904, 5, msg="incorrect R3 returned")
+    def test_external_surface_resistance(self):
+        """ Test that correct external surface resistance is returned when queried """
+        self.assertAlmostEqual(self.pipework._Pipework__external_surface_resistance, 0.30904, 5, msg="incorrect R3 returned")
 
     def test_heat_loss(self):
         """ Test that correct heat_loss is returned when queried """
@@ -68,15 +68,3 @@ class TestPipework(unittest.TestCase):
                                  [0.01997, 0.01997, 0.01997, 0.01940, 0.01826, 0.01712, 0.01712, 0.01769][t_idx],
                                  5,
                                  msg="incorrect cool down loss returned")
-
-    def test_water_demand_to_kWh(self):
-        """ Test that correct water demand to kWh is returned when queried """
-        litres_demand = [5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0]
-        demand_temp = [40.0, 35.0, 37.0, 39.0, 40.0, 38.0, 39.0, 40.0]
-        cold_temp = [5.0, 4.0, 5.0, 6.0, 5.0, 4.0, 3.0, 4.0]
-        for t_idx, _, _ in self.simtime:
-            with self.subTest(i = t_idx):
-                self.assertAlmostEqual(self.pipework.water_demand_to_kWh(litres_demand[t_idx], demand_temp[t_idx], cold_temp[t_idx]),
-                               [0.20339, 0.36029, 0.55787, 0.76707, 1.01694, 1.18547, 1.46440, 1.67360][t_idx],
-                               5,
-                               msg="incorrect water demand to kWh returned")
