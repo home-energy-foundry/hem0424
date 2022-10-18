@@ -888,7 +888,7 @@ class HeatPump:
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
 
-    def service_hot_water(
+    def create_service_hot_water(
             self,
             service_name,
             temp_hot_water,
@@ -915,7 +915,7 @@ class HeatPump:
             control,
             )
 
-    def service_space_heating(
+    def create_service_space_heating(
             self,
             service_name,
             temp_limit_upper,
