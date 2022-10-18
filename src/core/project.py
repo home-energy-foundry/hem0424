@@ -13,14 +13,24 @@ import sys
 import core.units as units
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
+from core.schedule import expand_schedule, expand_events
 from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
+from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
-from core.space_heat_demand.building_element import BuildingElementOpaque
+from core.space_heat_demand.building_element import \
+    BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
+    BuildingElementAdjacentZTC
+from core.space_heat_demand.ventilation_element import \
+    VentilationElementInfiltration, WholeHouseExtractVentilation, \
+    MechnicalVentilationHeatRecovery
+from core.space_heat_demand.thermal_bridge import \
+    ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.water_heat_demand.shower import MixerShower, InstantElecShower
+from core.space_heat_demand.internal_gains import InternalGains
 
 
 class Project:
@@ -54,25 +64,100 @@ class Project:
             proj_dict['SimulationTime']['step'],
             )
 
+        # TODO Some inputs are not currently used, so set to None here rather
+        #      than requiring them in input file.
+        # TODO Read timezone from input file. For now, set timezone to 0 (GMT)
+        # TODO Read direct_beam_conversion_needed from input file. For now,
+        #      assume false (for epw files)
+        # TODO Read shading_segments from input file. For now hardcoded here
+        #      i.e. need to change here to test. input file values not being used
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
+            proj_dict['ExternalConditions']['wind_speeds'],
+            proj_dict['ExternalConditions']['diffuse_horizontal_radiation'],
+            proj_dict['ExternalConditions']['direct_beam_radiation'],
+            proj_dict['ExternalConditions']['solar_reflectivity_of_ground'],
+            proj_dict['ExternalConditions']['latitude'],
+            proj_dict['ExternalConditions']['longitude'],
+            0, #proj_dict['ExternalConditions']['timezone'],
+            0, #proj_dict['ExternalConditions']['start_day'],
+            365, #proj_dict['ExternalConditions']['end_day'],
+            None, #proj_dict['ExternalConditions']['january_first'],
+            None, #proj_dict['ExternalConditions']['daylight_savings'],
+            None, #proj_dict['ExternalConditions']['leap_day_included'],
+            False, #proj_dict['ExternalConditions']['direct_beam_conversion_needed']
+            [{"number": 1, "start": 180, "end": 135},
+             {"number": 2, "start": 135, "end": 90,
+                "shading": [
+                    {"type": "overhang", "height": 2.2, "distance": 6}
+                ]
+             },
+             {"number": 3, "start": 90, "end": 45},
+             {"number": 4, "start": 45, "end": 0, 
+                "shading": [
+                    {"type": "obstacle", "height": 40, "distance": 4},
+                    {"type": "overhang", "height": 3, "distance": 7}
+                ]
+             },
+             {"number": 5, "start": 0, "end": -45,
+              "shading": [
+                    {"type": "obstacle", "height": 3, "distance": 8},
+                ]
+              },
+             {"number": 6, "start": -45, "end": -90},
+             {"number": 7, "start": -90, "end": -135},
+             {"number": 8, "start": -135, "end": -180}
+            ] # proj_dict['ExternalConditions']['shading_segments'],
+            )
+
+        self.__infiltration = VentilationElementInfiltration(
+            proj_dict['Infiltration']['storey'],
+            proj_dict['Infiltration']['shelter'],
+            proj_dict['Infiltration']['build_type'],
+            proj_dict['Infiltration']['test_result'],
+            proj_dict['Infiltration']['test_type'],
+            proj_dict['Infiltration']['env_area'],
+            proj_dict['Infiltration']['volume'],
+            proj_dict['Infiltration']['sheltered_sides'],
+            proj_dict['Infiltration']['open_chimneys'],
+            proj_dict['Infiltration']['open_flues'],
+            proj_dict['Infiltration']['closed_fire'],
+            proj_dict['Infiltration']['flues_d'],
+            proj_dict['Infiltration']['flues_e'],
+            proj_dict['Infiltration']['blocked_chimneys'],
+            proj_dict['Infiltration']['extract_fans'],
+            proj_dict['Infiltration']['passive_vents'],
+            proj_dict['Infiltration']['gas_fires'],
+            self.__external_conditions,
             )
 
         self.__cold_water_sources = {}
         for name, data in proj_dict['ColdWaterSource'].items():
-            self.__cold_water_sources[name] = ColdWaterSource(data['temperatures'], self.__simtime)
+            self.__cold_water_sources[name] \
+                = ColdWaterSource(data['temperatures'], self.__simtime, data['start_day'])
 
         self.__energy_supplies = {}
         for name, data in proj_dict['EnergySupply'].items():
             self.__energy_supplies[name] = EnergySupply(data['fuel'], self.__simtime)
             # TODO Consider replacing fuel type string with fuel type object
 
+        self.__internal_gains = InternalGains(
+            expand_schedule(
+                float,
+                proj_dict['InternalGains']['schedule_total_internal_gains'],
+                "main",
+                ),
+            self.__simtime,
+            proj_dict['InternalGains']['start_day']
+            )
+
         def dict_to_ctrl(name, data):
             """ Parse dictionary of control data and return approprate control object """
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
-                ctrl = OnOffTimeControl(data['schedule'], self.__simtime)
+                sched = expand_schedule(bool, data['schedule'], "main")
+                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'])
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -160,6 +245,19 @@ class Project:
         for name, data in proj_dict['Shower'].items():
             self.__showers[name] = dict_to_shower(name, data)
 
+        def dict_to_event_schedules(data):
+            """ Process list of events (for hot water draw-offs, appliance use etc.) """
+            sim_timestep = self.__simtime.timestep()
+            tot_timesteps = self.__simtime.total_steps()
+            return expand_events(data, sim_timestep, tot_timesteps)
+
+        self.__event_schedules = {}
+        for sched_type, schedules in proj_dict['Events'].items():
+            if sched_type not in self.__event_schedules:
+                self.__event_schedules[sched_type] = {}
+            for name, data in schedules.items():
+                self.__event_schedules[sched_type][name] = dict_to_event_schedules(data)
+
         def dict_to_space_heat_system(name, data):
             space_heater_type = data['type']
             if space_heater_type == 'InstantElecHeater':
@@ -185,20 +283,65 @@ class Project:
                 # TODO Exit just the current case instead of whole program entirely?
             return space_heater
 
+        # If one or more space heating systems have been provided, add them to the project
         self.__space_heat_systems = {}
-        for name, data in proj_dict['SpaceHeatSystem'].items():
-            self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
+        # If no space heating systems have been provided, then skip. This
+        # facilitates running the simulation with no heating systems at all
+        if 'SpaceHeatSystem' in proj_dict:
+            for name, data in proj_dict['SpaceHeatSystem'].items():
+                self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
+
+        self.__space_cool_systems = {}
+        # TODO Read in space cooling systems and populate dict
 
         def dict_to_building_element(name, data):
             building_element_type = data['type']
             if building_element_type == 'BuildingElementOpaque':
                 building_element = BuildingElementOpaque(
                     data['area'],
-                    data['h_ci'],
-                    data['h_ri'],
-                    data['h_ce'],
-                    data['h_re'],
+                    data['pitch'],
                     data['a_sol'],
+                    data['r_c'],
+                    data['k_m'],
+                    data['mass_distribution_class'],
+                    data['orientation'],
+                    data['base_height'],
+                    data['height'],
+                    data['width'],
+                    self.__external_conditions,
+                    )
+            elif building_element_type == 'BuildingElementTransparent':
+                building_element = BuildingElementTransparent(
+                    data['pitch'],
+                    data['r_c'],
+                    data['orientation'],
+                    data['g_value'],
+                    data['frame_area_fraction'],
+                    data['base_height'],
+                    data['height'],
+                    data['width'],
+                    data['shading'],
+                    self.__external_conditions,
+                    )
+            elif building_element_type == 'BuildingElementGround':
+                building_element = BuildingElementGround(
+                    data['area'],
+                    data['pitch'],
+                    data['u_value'],
+                    data['r_f'],
+                    data['k_m'],
+                    data['mass_distribution_class'],
+                    data['h_pi'],
+                    data['h_pe'],
+                    data['perimeter'],
+                    data['psi_wall_floor_junc'],
+                    self.__external_conditions,
+                    self.__simtime,
+                    )
+            elif building_element_type == 'BuildingElementAdjacentZTC':
+                building_element = BuildingElementAdjacentZTC(
+                    data['area'],
+                    data['pitch'],
                     data['r_c'],
                     data['k_m'],
                     data['mass_distribution_class'],
@@ -210,7 +353,83 @@ class Project:
                 # TODO Exit just the current case instead of whole program entirely?
             return building_element
 
+        def dict_to_ventilation_element(name, data):
+            ventilation_element_type = data['type']
+            if ventilation_element_type == 'WHEV': # Whole house extract ventilation
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                ventilation_element = WholeHouseExtractVentilation(
+                    data['req_ach'],
+                    data['SFP'],
+                    energy_supply_conn,
+                    self.__external_conditions,
+                    self.__simtime,
+                    )
+            elif ventilation_element_type == 'MVHR':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                ventilation_element = MechnicalVentilationHeatRecovery(
+                    data['req_ach'],
+                    data['SFP'],
+                    data['efficiency'],
+                    energy_supply_conn,
+                    self.__external_conditions,
+                    self.__simtime,
+                    )
+            else:
+                sys.exit( name + ': ventilation element type ('
+                      + ventilation_element_type + ') not recognised.' )
+                # TODO Exit just the current case instead of whole program entirely?
+            return ventilation_element
+
+        if 'Ventilation' in proj_dict:
+            self.__ventilation = \
+                dict_to_ventilation_element('Ventilation system', proj_dict['Ventilation'])
+        else:
+            self.__ventilation = None
+
+        def dict_to_thermal_bridging(data):
+            # If data is for individual thermal bridges, initialise the relevant
+            # objects and return a list of them. Otherwise, just use the overall
+            # figure given.
+            if isinstance(data, dict):
+                thermal_bridging = []
+                for tb_name, tb_data in data.items():
+                    tb_type = tb_data['type']
+                    if tb_type == 'ThermalBridgeLinear':
+                        tb = ThermalBridgeLinear(
+                                tb_data['linear_thermal_transmittance'],
+                                tb_data['length']
+                                )
+                    elif tb_type == 'ThermalBridgePoint':
+                        tb = ThermalBridgePoint(tb_data['heat_transfer_coeff'])
+                    else:
+                        sys.exit( tb_name + ': thermal bridge type ('
+                                + tb_type + ') not recognised.' )
+                        # TODO Exit just the current case instead of whole program entirely?
+                    thermal_bridging.append(tb)
+            else:
+                thermal_bridging = data
+            return thermal_bridging
+
+        self.__heat_system_name_for_zone = {}
+        self.__cool_system_name_for_zone = {}
+
         def dict_to_zone(name, data):
+            # Record which heating and cooling system this zone is heated/cooled by (if applicable)
+            if 'SpaceHeatSystem' in data:
+                self.__heat_system_name_for_zone[name] = data['SpaceHeatSystem']
+            else:
+                self.__heat_system_name_for_zone[name] = None
+            if 'SpaceCoolSystem' in data:
+                self.__cool_system_name_for_zone[name] = data['SpaceCoolSystem']
+            else:
+                self.__cool_system_name_for_zone[name] = None
+
             # Read in building elements and add to list
             building_elements = []
             for building_element_name, building_element_data in data['BuildingElement'].items():
@@ -218,26 +437,81 @@ class Project:
                     dict_to_building_element(building_element_name, building_element_data)
                     )
 
-            # TODO Calculate thermal bridging rather than hard-coding to zero (i.e. ignoring them)
-            tb_heat_trans_coeff = 0.0
-            # TODO Implement ventilation elements rather than using empty list (i.e. ignoring them)
-            vent_elements = []
+            # Read in thermal bridging data
+            thermal_bridging = dict_to_thermal_bridging(data['ThermalBridging'])
 
-            return Zone(data['area'], building_elements, tb_heat_trans_coeff, vent_elements)
+            # Read in ventilation elements and add to list
+            # All zones have infiltration, so start list with infiltration object
+            vent_elements = [self.__infiltration]
+            # Add any additional ventilation elements
+            if self.__ventilation is not None:
+                vent_elements.append(self.__ventilation)
+
+            return Zone(
+                data['area'],
+                data['volume'],
+                building_elements,
+                thermal_bridging,
+                vent_elements
+                )
 
         self.__zones = {}
         for name, data in proj_dict['Zone'].items():
             self.__zones[name] = dict_to_zone(name, data)
 
+        def dict_to_on_site_generation(name, data):
+            """ Parse dictionary of on site generation data and
+                return approprate on site generation object """
+            on_site_generation_type = data['type']
+            if on_site_generation_type == 'PhotovoltaicSystem':
+
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                pv_system = PhotovoltaicSystem(
+                    data['peak_power'],
+                    data['ventilation_strategy'],
+                    data['pitch'],
+                    data['orientation'],
+                    self.__external_conditions,
+                    energy_supply_conn,
+                    self.__simtime,
+                    )
+            else:
+                sys.exit(name + ': on site generation type ('
+                         + on_site_generation_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return pv_system
+
+        self.__on_site_generation = {}
+        # If no on site generation have been provided, then skip.
+        if 'OnSiteGeneration' in proj_dict:
+            for name, data in proj_dict['OnSiteGeneration'].items():
+                self.__on_site_generation[name] = dict_to_on_site_generation(name, data)
+
     def run(self):
         """ Run the simulation """
 
-        def hot_water_demand():
-            """ Calculate the hot water demand for the current timestep """
+        def hot_water_demand(t_idx):
+            """ Calculate the hot water demand for the current timestep
+
+            Arguments:
+            t_idx -- timestep index/count
+            """
             hw_demand = 0.0
             for name, shower in self.__showers.items():
-                hw_demand = hw_demand + shower.hot_water_demand(41.0, 6.0)
-                # TODO Remove hard-coding of shower temperature and duration
+                # Get all shower use events for the current timestep
+                usage_events = self.__event_schedules['Shower'][name][t_idx]
+
+                # If shower is used in the current timestep, get details of use
+                # and calculate HW demand from shower
+                if usage_events is not None:
+                    for event in usage_events:
+                        shower_temp = event['temperature']
+                        shower_duration = event['duration']
+                        hw_demand += shower.hot_water_demand(shower_temp, shower_duration)
+
             return hw_demand
 
         def calc_space_heating(delta_t_h):
@@ -250,68 +524,210 @@ class Project:
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
 
+            # Calculate internal and solar gains for each zone
+            gains_internal_zone = {}
+            gains_solar_zone = {}
+            for z_name, zone in self.__zones.items():
+                # Convert W/m2 to W
+                gains_internal_zone[z_name] \
+                    = self.__internal_gains.total_internal_gain() * zone.area()
+                # Add gains from ventilation fans (make sure this is only called
+                # once per timestep per zone)
+                if self.__ventilation is not None:
+                    gains_internal_zone[z_name] += self.__ventilation.fans(zone.volume())
+
+                gains_solar_zone[z_name] = zone.gains_solar()
+
             # Calculate space heating and cooling demand for each zone and sum
             # Keep track of how much is from each zone, so that energy provided
             # can be split between them in same proportion later
-            space_heat_demand_total = 0.0 # in kWh
-            space_cool_demand_total = 0.0 # in kWh
+
+            space_heat_demand_system = {} # in kWh
+            for heat_system_name in self.__space_heat_systems.keys():
+                space_heat_demand_system[heat_system_name] = 0.0
+
+            space_cool_demand_system = {} # in kWh
+            for cool_system_name in self.__space_cool_systems.keys():
+                space_cool_demand_system[cool_system_name] = 0.0
+
             space_heat_demand_zone = {}
             space_cool_demand_zone = {}
-            for name, zone in self.__zones.items():
-                # TODO Calculate the gains rather than hard-coding to zero (i.e. ignoring them)
-                gains_internal = 0.0
-                gains_solar = 0.0
+            for z_name, zone in self.__zones.items():
+                # Look up names of relevant heating and cooling systems for this zone
+                h_name = self.__heat_system_name_for_zone[z_name]
+                c_name = self.__cool_system_name_for_zone[z_name]
 
-                space_heat_demand_zone[name], space_cool_demand_zone[name] = \
-                    zone.space_heat_cool_demand(delta_t_h, temp_ext_air, gains_internal, gains_solar)
-                space_heat_demand_total = space_heat_demand_total + space_heat_demand_zone[name]
-                space_cool_demand_total = space_cool_demand_total + space_cool_demand_zone[name]
+                space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
+                    zone.space_heat_cool_demand(
+                        delta_t_h,
+                        temp_ext_air,
+                        gains_internal_zone[z_name],
+                        gains_solar_zone[z_name],
+                        )
 
-            # Calculate how much heating/cooling the systems can provide
-            space_heat_provided = \
-                self.__space_heat_systems['main'].demand_energy(space_heat_demand_total)
-                # TODO Remove hard-coding of space heating system name and handle multiple systems
-            space_cool_provided = 0.0 # TODO Handle cooling (values should be <= 0.0
+                if h_name is not None: # If the zone is heated
+                    space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
+                if c_name is not None: # If the zone is cooled
+                    space_cool_demand_system[c_name] += space_cool_demand_zone[z_name]
+
+            # Calculate how much heating the systems can provide
+            space_heat_provided = {}
+            for heat_system_name, heat_system in self.__space_heat_systems.items():
+                space_heat_provided[heat_system_name] = \
+                    heat_system.demand_energy(space_heat_demand_system[heat_system_name])
+
+            # Calculate how much cooling the systems can provide
+            space_cool_provided = {}
+            for cool_system_name, cool_system in self.__space_cool_systems.items():
+                space_cool_provided[cool_system_name] = \
+                    cool_system.demand_energy(space_cool_demand_system[cool_system_name])
 
             # Apportion the provided heating/cooling between the zones in
             # proportion to the heating/cooling demand in each zone. Then
             # update resultant temperatures in zones.
-            for name, zone in self.__zones.items():
-                if space_heat_demand_total == 0.0:
-                    frac_heat_zone = 0.0
-                else:
-                    frac_heat_zone = space_heat_demand_zone[name] / space_heat_demand_total
+            internal_air_temp = {}
+            operative_temp = {}
+            for z_name, zone in self.__zones.items():
+                # Look up names of relevant heating and cooling systems for this zone
+                h_name = self.__heat_system_name_for_zone[z_name]
+                c_name = self.__cool_system_name_for_zone[z_name]
 
-                if space_cool_demand_total == 0.0:
-                    frac_cool_zone = 0.0
+                # If zone is unheated or there was no demand on heating system,
+                # set heating gains for zone to zero, else calculate
+                if h_name is None or space_heat_demand_system[h_name] == 0.0:
+                    gains_heat = 0.0
                 else:
-                    frac_cool_zone = space_cool_demand_zone[name] / space_cool_demand_total
+                    frac_heat_zone = space_heat_demand_zone[z_name] \
+                                   / space_heat_demand_system[h_name]
+                    gains_heat = space_heat_provided[h_name] * frac_heat_zone
 
-                gains_heat_cool = ( space_heat_provided * frac_heat_zone \
-                                  + space_cool_provided * frac_cool_zone \
-                                  ) \
-                                * units.W_per_kW / delta_t_h # Convert from kWh to W
+                # If zone is uncooled or there was no demand on cooling system,
+                # set cooling gains for zone to zero, else calculate
+                if c_name is None or space_cool_demand_system[c_name] == 0.0:
+                    gains_cool = 0.0
+                else:
+                    frac_cool_zone = space_cool_demand_zone[z_name] \
+                                   / space_cool_demand_system[c_name]
+                    gains_cool = space_cool_provided[c_name] * frac_cool_zone
+
+                # Sum heating gains (+ve) and cooling gains (-ve) and convert from kWh to W
+                gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
 
                 zone.update_temperatures(
                     delta_t,
                     temp_ext_air,
-                    gains_internal,
-                    gains_solar,
+                    gains_internal_zone[z_name],
+                    gains_solar_zone[z_name],
                     gains_heat_cool
                     )
 
+                if h_name is None:
+                    space_heat_demand_system[h_name] = 'n/a'
+                if c_name is None:
+                    space_cool_demand_system[c_name] = 'n/a'
+
+                internal_air_temp[z_name] = zone.temp_internal_air()
+                operative_temp[z_name] = zone.temp_operative()
+
+            return gains_internal_zone, gains_solar_zone, \
+                   operative_temp, internal_air_temp, \
+                   space_heat_demand_zone, space_cool_demand_zone, \
+                   space_heat_demand_system, space_cool_demand_system
+
+        timestep_array = []
+        gains_internal_dict = {}
+        gains_solar_dict = {}
+        operative_temp_dict = {}
+        internal_air_temp_dict = {}
+        space_heat_demand_dict = {}
+        space_cool_demand_dict = {}
+        space_heat_demand_system_dict = {}
+        space_cool_demand_system_dict = {}
+        zone_list = []
+
+        for z_name in self.__zones.keys():
+            gains_internal_dict[z_name] = []
+            gains_solar_dict[z_name] = []
+            operative_temp_dict[z_name] = []
+            internal_air_temp_dict[z_name] = []
+            space_heat_demand_dict[z_name] = []
+            space_cool_demand_dict[z_name] = []
+            zone_list.append(z_name)
+
+        for z_name, h_name in self.__heat_system_name_for_zone.items():
+            space_heat_demand_system_dict[h_name] = []
+
+        for z_name, c_name in self.__cool_system_name_for_zone.items():
+            space_cool_demand_system_dict[c_name] = []
+
         # Loop over each timestep
         for t_idx, t_current, delta_t_h in self.__simtime:
-            hw_demand = hot_water_demand()
+            timestep_array.append(t_current)
+            hw_demand = hot_water_demand(t_idx)
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
 
-            calc_space_heating(delta_t_h)
+            gains_internal_zone, gains_solar_zone, \
+                operative_temp, internal_air_temp, \
+                space_heat_demand_zone, space_cool_demand_zone, \
+                space_heat_demand_system, space_cool_demand_system \
+                = calc_space_heating(delta_t_h)
+
+            for z_name, gains_internal in gains_internal_zone.items():
+                gains_internal_dict[z_name].append(gains_internal)
+
+            for z_name, gains_solar in gains_solar_zone.items():
+                gains_solar_dict[z_name].append(gains_solar)
+
+            for z_name, temp in operative_temp.items():
+                operative_temp_dict[z_name].append(temp)
+
+            for z_name, temp in internal_air_temp.items():
+                internal_air_temp_dict[z_name].append(temp)
+
+            for z_name, demand in space_heat_demand_zone.items():
+                space_heat_demand_dict[z_name].append(demand)
+
+            for z_name, demand in space_cool_demand_zone.items():
+                space_cool_demand_dict[z_name].append(demand)
+
+            for h_name, demand in space_heat_demand_system.items():
+                space_heat_demand_system_dict[h_name].append(demand)
+
+            for c_name, demand in space_cool_demand_system.items():
+                space_cool_demand_system_dict[c_name].append(demand)
+
+            #loop through on-site energy generation
+            for g_name, gen in self.__on_site_generation.items():
+                # Get energy produced for the current timestep
+                self.__on_site_generation[g_name].produce_energy()
+
+            for _, supply in self.__energy_supplies.items():
+                supply.calc_energy_import_export_betafactor()
+
+        zone_dict = {
+            'Internal gains': gains_internal_dict,
+            'Solar gains': gains_solar_dict,
+            'Operative temp': operative_temp_dict,
+            'Internal air temp': internal_air_temp_dict,
+            'Space heat demand': space_heat_demand_dict,
+            'Space cool demand': space_cool_demand_dict,
+            }
+        hc_system_dict = {'Heating system': space_heat_demand_system_dict, 'Cooling system': space_cool_demand_system_dict}
 
         # Return results from all energy supplies
         results_totals = {}
         results_end_user = {}
+        energy_import = {}
+        energy_export = {}
+        betafactor = {}
         for name, supply in self.__energy_supplies.items():
             results_totals[name] = supply.results_total()
             results_end_user[name] = supply.results_by_end_user()
-        return results_totals, results_end_user
+            energy_import[name] = supply.get_energy_import()
+            energy_export[name] = supply.get_energy_export()
+            betafactor[name] = supply.get_beta_factor()
+        return \
+            timestep_array, results_totals, results_end_user, \
+            energy_import, energy_export, betafactor, \
+            zone_dict, zone_list, hc_system_dict

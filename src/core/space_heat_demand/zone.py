@@ -6,7 +6,7 @@ This module provides objects to represent the thermal zones in the building,
 and to calculate the temperatures in the zone and associated building elements.
 """
 
-# Standard library imports
+# Third-party imports
 import numpy as np
 
 # Local imports
@@ -30,14 +30,17 @@ class Zone:
     in this object by solving a matrix equation.
     """
 
-    def __init__(self, area, building_elements, tb_heat_trans_coeff, vent_elements):
+    def __init__(self, area, volume, building_elements, thermal_bridging, vent_elements):
         """ Construct a Zone object
 
         Arguments:
         area              -- useful floor area of the zone, in m2
+        volume            -- total volume of the zone, m3
         building_elements -- list of BuildingElement objects (walls, floors, windows etc.)
-        tb_heat_trans_coeff -- overall heat transfer coefficient for thermal
+        thermal_bridging  -- Either:
+                             - overall heat transfer coefficient for thermal
                                bridges in the zone, in W / K
+                             - list of ThermalBridge objects for this zone
         vent_elements     -- list of ventilation elements (infiltration, mech vent etc.)
 
         Other variables:
@@ -67,9 +70,19 @@ class Zone:
                              self.__element_positions and self.__zone_idx
         """
         self.__useful_area = area
+        self.__volume = volume
         self.__building_elements = building_elements
         self.__vent_elements     = vent_elements
-        self.__tb_heat_trans_coeff = tb_heat_trans_coeff
+
+        # If thermal_bridging is a list of ThermalBridge objects, calculate the
+        # overall heat transfer coefficient for thermal bridges, otherwise just
+        # use the coefficient given
+        if isinstance(thermal_bridging, list):
+            self.__tb_heat_trans_coeff = 0.0
+            for tb in thermal_bridging:
+                self.__tb_heat_trans_coeff += tb.heat_trans_coeff()
+        else:
+            self.__tb_heat_trans_coeff = thermal_bridging
 
         # TODO Make the temperature setpoints inputs for each timestep
         self.__temp_setpnt_heat = 21.0
@@ -95,6 +108,22 @@ class Zone:
         # Set starting point for temperatures (self.__temp_prev)
         # TODO Currently hard-coded to 10.0 deg C - make this configurable?
         self.__temp_prev = [10.0] * self.__no_of_temps
+
+    def area(self):
+        return self.__useful_area
+
+    def volume(self):
+        return self.__volume
+
+    def gains_solar(self):
+        """sum solar gains for all elements in the zone
+        only transparent elements will have solar gains > 0 """
+
+        solar_gains = 0
+        for eli in self.__building_elements:
+            solar_gains += eli.solar_gains()
+
+        return solar_gains
 
     def __calc_temperatures(self,
             delta_t,
@@ -162,15 +191,18 @@ class Zone:
         # - Calculate RHS of node energy balance eqn and add to vector_b
         for eli in self.__building_elements:
             # External surface node (eqn 41)
+            # Get position (row == column) in matrix previously calculated for the first (external) node
             idx = self.__element_positions[eli][0]
+            # Position of first (external) node within element is zero
+            i = 0
             # Coeff for temperature of this node
-            matrix_a[idx][idx] = (eli.k_pli[0] / delta_t) + eli.h_ce + eli.h_re + eli.h_pli[0]
+            matrix_a[idx][idx] = (eli.k_pli[i] / delta_t) + eli.h_ce() + eli.h_re() + eli.h_pli[i]
             # Coeff for temperature of next node
-            matrix_a[idx][idx + 1] = - eli.h_pli[0]
+            matrix_a[idx][idx + 1] = - eli.h_pli[i]
             # RHS of heat balance eqn for this node
-            vector_b[idx] = (eli.k_pli[0] / delta_t) * temp_prev[idx] \
-                          + (eli.h_ce + eli.h_re) * eli.temp_ext() \
-                          + eli.a_sol * (eli.i_sol_dif + eli.i_sol_dir * eli.f_sh_obst) \
+            vector_b[idx] = (eli.k_pli[i] / delta_t) * temp_prev[idx] \
+                          + (eli.h_ce() + eli.h_re()) * eli.temp_ext() \
+                          + eli.a_sol * (eli.i_sol_dif() + eli.i_sol_dir() * eli.shading_factor()) \
                           - eli.therm_rad_to_sky
 
             # Inside node(s), if any (eqn 40)
@@ -189,11 +221,16 @@ class Zone:
             idx = idx + 1
             assert idx == self.__element_positions[eli][1]
             i = i + 1
+            assert i == eli.no_of_nodes() - 1
+            # Get internal convective surface heat transfer coefficient, which
+            # depends on direction of heat flow, which depends in temperature of
+            # zone and internal surface
+            h_ci = eli.h_ci(temp_prev[self.__zone_idx], temp_prev[idx])
             # Coeff for temperature of prev node
             matrix_a[idx][idx - 1] = - eli.h_pli[i - 1]
             # Coeff for temperature of this node
-            matrix_a[idx][idx] = (eli.k_pli[i] / delta_t) + eli.h_ci \
-                               + eli.h_ri * sum_area_frac + eli.h_pli[i - 1]
+            matrix_a[idx][idx] = (eli.k_pli[i] / delta_t) + h_ci \
+                               + eli.h_ri() * sum_area_frac + eli.h_pli[i - 1]
             # Add final sum term for LHS of eqn 39 in loop below.
             # These are coeffs for temperatures of internal surface nodes of
             # all building elements in the zone
@@ -204,9 +241,9 @@ class Zone:
                 # already partially set the value of the matrix element above
                 # (before this loop) and do not want to overwrite it)
                 matrix_a[idx][col] = matrix_a[idx][col] \
-                                   - (elk.area / self.__area_el_total) * eli.h_ri
+                                   - (elk.area / self.__area_el_total) * eli.h_ri()
             # Coeff for temperature of thermal zone
-            matrix_a[idx][self.__zone_idx] = - eli.h_ci
+            matrix_a[idx][self.__zone_idx] = - h_ci
             # RHS of heat balance eqn for this node
             vector_b[idx] = (eli.k_pli[i] / delta_t) * temp_prev[idx] \
                           + ( (1.0 - f_int_c) * gains_internal \
@@ -222,25 +259,33 @@ class Zone:
         # Coeff for temperature of thermal zone
         matrix_a[self.__zone_idx][self.__zone_idx] \
             = (self.__c_int / delta_t) \
-            + sum([eli.area * eli.h_ci for eli in self.__building_elements]) \
-            + sum([vei.h_ve for vei in self.__vent_elements]) \
+            + sum([ eli.area
+                  * eli.h_ci(
+                      temp_prev[self.__zone_idx],
+                      temp_prev[self.__element_positions[eli][1]]
+                      )
+                  for eli in self.__building_elements
+                  ]) \
+            + sum([vei.h_ve(self.__volume) for vei in self.__vent_elements]) \
             + self.__tb_heat_trans_coeff
         # Add final sum term for LHS of eqn 38 in loop below.
         # These are coeffs for temperatures of internal surface nodes of
         # all building elements in the zone
         for eli in self.__building_elements:
             col = self.__element_positions[eli][1] # Column for internal surface node temperature
-            matrix_a[self.__zone_idx][col] = - eli.area * eli.h_ci
+            matrix_a[self.__zone_idx][col] \
+                = - eli.area \
+                * eli.h_ci(temp_prev[self.__zone_idx], temp_prev[self.__element_positions[eli][1]])
         # RHS of heat balance eqn for zone
         vector_b[self.__zone_idx] \
             = (self.__c_int / delta_t) * temp_prev[self.__zone_idx] \
-            + sum([vei.h_ve * vei.temp_supply for vei in self.__vent_elements]) \
+            + sum([vei.h_ve(self.__volume) * vei.temp_supply() for vei in self.__vent_elements]) \
             + self.__tb_heat_trans_coeff * temp_ext_air \
             + f_int_c * gains_internal \
             + f_sol_c * gains_solar \
             + f_hc_c * gains_heat_cool
 
-        # Solve matrix eqn M.X = B to calculate vector_x (temperatures)
+        # Solve matrix eqn A.X = B to calculate vector_x (temperatures)
         vector_x = np.linalg.solve(matrix_a, vector_b)
         return vector_x
 
@@ -261,6 +306,14 @@ class Zone:
 
         return (temp_int_air + temp_mean_radiant) / 2.0
 
+    def temp_operative(self):
+        """ Return operative temperature, in deg C """
+        return self.__temp_operative(self.__temp_prev)
+
+    def temp_internal_air(self):
+        """ Return internal air temperature, in deg C """
+        return self.__temp_prev[self.__zone_idx]
+
     def space_heat_cool_demand(self, delta_t_h, temp_ext_air, gains_internal, gains_solar):
         """ Calculate heating and cooling demand in the zone for the current timestep
 
@@ -270,7 +323,7 @@ class Zone:
         delta_t_h -- calculation timestep, in hours
         temp_ext_air -- temperature of the external air for the current timestep, in deg C
         gains_internal -- internal gains for the current timestep, in W
-        gains_solar -- solar gains for the current timestep, in W
+        gains_solar -- directly transmitted solar gains, in W
         """
         # Calculate timestep in seconds
         delta_t = delta_t_h * units.seconds_per_hour

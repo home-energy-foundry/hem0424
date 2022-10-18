@@ -34,6 +34,9 @@ class EnergySupplyConnection:
         """ Forwards the amount of energy demanded (in kWh) to the relevant EnergySupply object """
         self.__energy_supply._EnergySupply__demand_energy(self.__end_user_name, amount_demanded)
 
+    def supply_energy(self, amount_produced):
+        """ Forwards the amount of energy produced (in kWh) to the relevant EnergySupply object """
+        self.__energy_supply._EnergySupply__supply_energy(self.__end_user_name, amount_produced)
 
 class EnergySupply:
     """ An object to represent an energy supply, and to report energy consumption """
@@ -58,6 +61,9 @@ class EnergySupply:
         self.__simulation_time    = simulation_time
         self.__demand_total       = self.__init_demand_list()
         self.__demand_by_end_user = {}
+        self.__beta_factor = self.__init_demand_list() #this would be multiple columns if multiple beta factors
+        self.__supply_surplus = self.__init_demand_list()
+        self.__demand_not_met = self.__init_demand_list()
 
     def __init_demand_list(self):
         """ Initialise zeroed list of demand figures (one list entry for each timestep) """
@@ -92,6 +98,16 @@ class EnergySupply:
             = self.__demand_by_end_user[end_user_name][t_idx] \
             + amount_demanded
 
+    def __supply_energy(self, end_user_name, amount_produced):
+        """ Record energy produced (in kWh) for the end user specified.
+
+        Note: this is energy generated so it is subtracted from demand.
+        Treat as negative
+        """
+        #energy produced in kWh as 'negative demand'
+        amount_produced = amount_produced * -1
+        self.__demand_energy(end_user_name, amount_produced)
+
     def results_total(self):
         """ Return list of the total demand on this energy source for each timestep """
         return self.__demand_total
@@ -102,3 +118,84 @@ class EnergySupply:
         Returns dictionary of lists, where dictionary keys are names of end users.
         """
         return self.__demand_by_end_user
+
+    def get_energy_import(self):
+        return self.__demand_not_met
+
+    def get_energy_export(self):
+        return self.__supply_surplus
+
+    def get_beta_factor(self):
+        return self.__beta_factor
+
+    def calc_energy_import_export_betafactor(self):
+        """
+        calculate how much of that supply can be offset against demand.
+        And then calculate what demand and supply is left after offsetting, which are the amount exported imported
+        """
+
+        supplies=[]
+        demands=[]
+        t_idx = self.__simulation_time.index()
+        for user in self.__demand_by_end_user.keys():
+            demand = self.__demand_by_end_user[user][t_idx]
+            if demand < 0.0:
+                # if energy is negative that means its actually a supply, we
+                # need to separate the two for beta factor calc. If we had
+                # multiple different supplies they would have to be separated
+                # here
+                supplies.append(demand)
+            else:
+                demands.append(demand)
+
+        self.__beta_factor[t_idx] = self.beta_factor_function(- sum(supplies), sum(demands), 'PV')
+
+        # PV elec consumed within dwelling in absence of battery storage or diverter (kWh)
+        # if there were multiple sources they would each have their own beta factors
+        supply_consumed = sum(supplies) * self.__beta_factor[t_idx]
+        # Surplus PV elec generation (kWh) - ie amount to be exported to the grid or batteries
+        supply_surplus = sum(supplies) * (1 - self.__beta_factor[t_idx])
+        # Elec demand not met by PV (kWh) - ie amount to be imported from the grid or batteries
+        demand_not_met = sum(demands) + supply_consumed
+
+        self.__supply_surplus[t_idx] += supply_surplus
+        self.__demand_not_met[t_idx] += demand_not_met
+
+    def beta_factor_function(self,supply,demand,beta_factor_function):
+        """
+        wrapper that applies relevant function to obtain
+        beta factor from energy supply+demand at a given timestep
+        """
+
+        if supply == 0.0:
+            beta_factor = 1.0
+            return beta_factor
+
+        if demand == 0.0:
+            beta_factor = 0.0
+            return beta_factor
+
+
+        demand_ratio = float(supply) / float(demand)
+        if beta_factor_function=='PV':
+            # Equation for beta factor below is based on hourly data from four
+            # dwellings, which gives a similar monthly beta factor to that
+            # calculated from the beta factor equation in SAP 10.2, which was
+            # based on monthly data from 15 dwellings.
+            # TODO: come up with better fit curve for PV
+            beta_factor = min(0.6748 *pow(demand_ratio,-0.703),1.0)
+        # TODO
+        # elif function=='wind':
+        #     beta_factor=1.0
+        else:
+            sys.exit('Invalid value for beta_factor_function')
+
+        """
+        predicted beta should not be greater than 1/demand_ratio, otherwise
+        we might predict demand fulfilled by PV/generation to be greater than
+        total demand.
+        """
+
+        beta_factor = min(beta_factor,1/demand_ratio)
+
+        return beta_factor

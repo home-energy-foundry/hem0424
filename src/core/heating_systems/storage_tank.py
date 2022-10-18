@@ -6,6 +6,9 @@ This module provides objects to model heat storage vessels e.g. hot water
 cylinder with immersion heater.
 """
 
+# Standard library imports
+import sys
+
 # Local imports
 from core.material_properties import WATER
 
@@ -61,10 +64,12 @@ class StorageTank:
         # TODO Should demand be in terms of volume or energy? Or option for both?
         #      In terms of volume is simpler because cold water temperature
         #      (and therefore baseline energy) is variable.
-        # TODO Account for case where tank cannot provide enough hot water?
         # TODO Account for standing loss
 
         self.__vol_hot = self.__vol_hot - volume_demanded
+        # Exit with error message if tank cannot provide enough hot water
+        if self.__vol_hot < 0:
+            sys.exit('volume of hot water is less than zero')
 
         energy_content_kWh_per_litre = self.__contents.volumetric_energy_content_kWh_per_litre(
             self.__temp_hot,
