@@ -94,7 +94,7 @@
 			"length": 8.0,
 			"insulation_thermal_conductivity": 0.035,
 			"insulation_thickness": 0.038,
-			"surface_reflectivity": "false",
+			"surface_reflectivity": false,
 			"pipe_contents": "water"
 		},
 		"external": {
@@ -103,7 +103,7 @@
 			"length": 8.0,
 			"insulation_thermal_conductivity": 0.035,
 			"insulation_thickness": 0.038,
-			"surface_reflectivity": "false",
+			"surface_reflectivity": false,
 			"pipe_contents": "water"
 		}
 	},
