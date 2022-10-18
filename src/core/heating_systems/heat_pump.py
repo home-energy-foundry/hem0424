@@ -710,6 +710,66 @@ class HeatPumpServiceWater(HeatPumpService):
             )
 
 
+class HeatPumpServiceSpace(HeatPumpService):
+    """ An object to represent a space heating service provided by a heat pump to e.g. radiators.
+
+    This object contains the parts of the heat pump calculation that are
+    specific to providing space heating.
+    """
+
+    __TIME_CONSTANT_SPACE = 1370
+
+    def __init__(
+            self,
+            heat_pump,
+            service_name,
+            temp_limit_upper,
+            temp_diff_emit_dsgn,
+            control=None,
+            ):
+        """ Construct a BoilerServiceSpace object
+
+        Arguments:
+        heat_pump -- reference to the HeatPump object providing the service
+        service_name -- name of the service demanding energy from the heat pump
+        temp_limit_upper -- upper operating limit for temperature, in deg C
+        temp_diff_emit_dsgn -- design temperature difference across the emitters, in deg C or K
+        control -- reference to a control object which must implement is_on() func
+        """
+        super().__init__(heat_pump, service_name, control)
+
+        self.__temp_limit_upper = Celcius2Kelvin(temp_limit_upper)
+        self.__temp_diff_emit_dsgn = temp_diff_emit_dsgn
+
+    def demand_energy(self, energy_demand, temp_flow, temp_return):
+        """ Demand energy (in kWh) from the heat pump
+
+        Arguments:
+        energy_demand -- space heating energy demand, in kWh
+        temp_flow -- flow temperature for emitters, in deg C
+        temp_return -- return temperature for emitters, in deg C
+        """
+        if self.__control is not None:
+            service_on = self.__control.is_on()
+        else:
+            service_on = True
+
+        if not service_on:
+            energy_demand = 0.0
+
+        return self.__hp._HeatPump__demand_energy(
+            self.__service_name,
+            ServiceType.SPACE,
+            energy_demand,
+            Celcius2Kelvin(temp_flow),
+            Celcius2Kelvin(temp_return),
+            self.__temp_limit_upper,
+            self.__TIME_CONSTANT_SPACE,
+            service_on,
+            # TODO temp_spread_correction
+            )
+
+
 class HeatPump:
     """ An object to represent an electric heat pump """
 
@@ -852,6 +912,30 @@ class HeatPump:
             temp_hot_water,
             temp_limit_upper,
             cold_feed,
+            control,
+            )
+
+    def service_space_heating(
+            self,
+            service_name,
+            temp_limit_upper,
+            temp_diff_emit_dsgn,
+            control=None,
+            ):
+        """ Return a HeatPumpServiceSpace object and create an EnergySupplyConnection for it
+
+        Arguments:
+        service_name -- name of the service demanding energy from the heat pump
+        temp_limit_upper -- upper operating limit for temperature, in deg C
+        temp_diff_emit_dsgn -- design temperature difference across the emitters, in deg C or K
+        control -- reference to a control object which must implement is_on() func
+        """
+        self.__create_service_connection(service_name)
+        return HeatPumpServiceSpace(
+            self,
+            service_name,
+            temp_limit_upper,
+            temp_diff_emit_dsgn,
             control,
             )
 
