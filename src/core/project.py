@@ -229,8 +229,9 @@ class Project:
             """ Parse dictionary of bath data and return approprate bath object """
             cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
             # TODO Need to handle error if ColdWaterSource name is invalid.
+            flowrate = self.__cold_water_sources[data['ColdWaterSource']]
 
-            bath = Bath(data['size'], cold_water_source)
+            bath = Bath(data['size'], cold_water_source, data['flowrate'])
 
             return bath
 
@@ -517,13 +518,15 @@ class Project:
 
                 # If shower is used in the current timestep, get details of use
                 # and calculate HW demand from shower
-                if isinstance(shower, InstantElecShower):
-                    # TODO revisit structure and eliminate the branch on the type
-                    if usage_events is not None:
-                        for event in usage_events:
-                            shower_temp = event['temperature']
-                            shower_duration = event['duration']
-                            hw_demand_i = shower.hot_water_demand(shower_temp, shower_duration)
+                
+                # TODO revisit structure and eliminate the branch on the type
+                if usage_events is not None:
+                    for event in usage_events:
+                        shower_temp = event['temperature']
+                        shower_duration = event['duration']
+                        hw_demand_i = shower.hot_water_demand(shower_temp, shower_duration)
+                        if not isinstance(shower, InstantElecShower):
+                            # don't add hw demand and pipework loss from electric shower
                             hw_demand += hw_demand_i
                             hw_energy_demand += misc.water_demand_to_kWh(
                                 hw_demand_i,
@@ -576,7 +579,7 @@ class Project:
                 cold_water_temperature = the_cold_water_temp.temperature()
 
                 # Assume flow rate for bath event is the same as other hot water events
-                peak_flowrate = self.__other_water_events['other'].get_flowrate()
+                peak_flowrate = bath.get_flowrate()
 
                 # If bath is used in the current timestep, get details of use
                 # and calculate HW demand from bath

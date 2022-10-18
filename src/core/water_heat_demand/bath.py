@@ -14,7 +14,7 @@ from core.water_heat_demand.misc import frac_hot_water
 class Bath:
     """ An object to model a bath """
 
-    def __init__(self, size, cold_water_source):
+    def __init__(self, size, cold_water_source, flowrate):
         """ Construct a Bath object
 
         Arguments:
@@ -24,12 +24,16 @@ class Bath:
         """
         self.__bathsize          = size # TODO entire capacity or typical usage?
         self.__cold_water_source = cold_water_source
+        self.__flowrate = flowrate
 
     def get_size(self):
         return self.__bathsize
 
     def get_cold_water_source(self):
         return(self.__cold_water_source)
+
+    def get_flowrate(self):
+        return self.__flowrate
 
     def hot_water_demand(self, temp_target):
         """ Calculate volume of hot water required

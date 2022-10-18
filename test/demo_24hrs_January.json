@@ -78,7 +78,8 @@
 	"Bath": {
 		"medium": {
 			"size": 100,
-			"ColdWaterSource": "mains water"
+			"ColdWaterSource": "mains water",
+			"flowrate": 8.0
 		}
 	},
 	"Other": {
