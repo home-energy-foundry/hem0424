@@ -95,8 +95,6 @@ class ServiceType(Enum):
 
 def carnot_cop(temp_source, temp_outlet, temp_diff_limit_low=None):
     """ Calculate Carnot CoP based on source and outlet temperatures (in Kelvin) """
-    # TODO Should temp_diff_limit_low also apply to HeatPumpTestData calculations?
-    #      If yes, should this argument be mandatory?
     temp_diff = temp_outlet - temp_source
     if temp_diff_limit_low is not None:
         temp_diff = max (temp_diff, temp_diff_limit_low)
