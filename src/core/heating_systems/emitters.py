@@ -162,7 +162,9 @@ class Emitters:
         energy_req_from_heat_source = energy_req_to_warm_emitters + energy_demand
 
         # Calculate emitter temp that can be achieved if heating on full power
-        heating_sys_power_max = self.__heat_source.thermal_capacity_max(temp_flow_req)
+        # (adjusted for time spent on higher-priority services)
+        heating_sys_energy_max = self.__heat_source.energy_output_max(temp_flow_req)
+        heating_sys_power_max = heating_sys_energy_max / timestep
         temp_emitter_max = self.temp_emitter(
             0.0,
             timestep,
