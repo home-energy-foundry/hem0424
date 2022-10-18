@@ -112,6 +112,9 @@ class Zone:
     def area(self):
         return self.__useful_area
 
+    def volume(self):
+        return self.__volume
+
     def gains_solar(self):
         """sum solar gains for all elements in the zone
         only transparent elements will have solar gains > 0 """
