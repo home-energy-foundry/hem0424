@@ -14,7 +14,7 @@ from core.units import seconds_per_hour, litres_per_cubic_metre, W_per_kW
 
 # Define constants
 p_a = 1.204 # Air density at 20 degrees C, in kg/m^3 , BS EN ISO 52016-1:2017, Section 6.3.6
-c_a = 1.006 # Specific heat of air at constant pressure, in J/(kg K), BS EN ISO 52016-1:2017, Section 6.3.6
+c_a = 1006.0 # Specific heat of air at constant pressure, in J/(kg K), BS EN ISO 52016-1:2017, Section 6.3.6
 
 
 def air_change_rate_to_flow_rate(air_change_rate, zone_volume):

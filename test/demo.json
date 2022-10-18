@@ -18,7 +18,22 @@
 		"january_first": 1,
 		"daylight_savings": "not applicable",
 		"leap_day_included": false,
-		"direct_beam_conversion_needed": false
+		"direct_beam_conversion_needed": false,
+		"shading_segments": [
+			{"number": 1, "start": 180, "end": 135},
+			{"number": 2, "start": 135, "end": 90},
+			{"number": 3, "start": 90, "end": 45},
+			{"number": 4, "start": 45, "end": 0, 
+				"shading": [
+					{"type": "obstacle", "height": 10.5, "distance": 12}
+				]
+			},
+			{"number": 5, "start": 0, "end": -45},
+			{"number": 6, "start": -45, "end": -90},
+			{"number": 7, "start": -90, "end": -135},
+			{"number": 8, "start": -135, "end": -180}
+		]
+		
 	},
 	"InternalGains": {
 		"start_day": 0,
@@ -168,52 +183,71 @@
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
-					"area": 25.0,
 					"a_sol": 0.6,
 					"r_c": 0.7,
 					"k_m": 19000,
 					"mass_distribution_class": "IE",
 					"pitch": 90,
-					"orientation": 90
+					"orientation": 90,
+					"base_height": 0,
+					"height": 2.5,
+					"width": 10,
+					"area": 20.0
 				},
 				"wall 1":{
 					"type": "BuildingElementOpaque",
-					"area": 25.0,
 					"a_sol": 0.61,
 					"r_c": 0.71,
 					"k_m": 19100,
 					"mass_distribution_class": "M",
 					"pitch": 90,
-					"orientation": -90
+					"orientation": -90,
+					"base_height": 0,
+					"height": 2.5,
+					"width": 10,
+					"area": 25.0
 				},
 				"wall 2": {
 					"type": "BuildingElementOpaque",
-					"area": 20.0,
 					"a_sol": 0.62,
 					"r_c": 0.72,
 					"k_m": 19200,
 					"mass_distribution_class": "E",
 					"pitch": 90,
-					"orientation": 180
+					"orientation": 180,
+					"base_height": 0,
+					"height": 2.5,
+					"width": 8,
+					"area": 20.0
 				},
 				"wall 3":{
 					"type": "BuildingElementOpaque",
-					"area": 15.0,
 					"a_sol": 0.63,
 					"r_c": 0.73,
 					"k_m": 19300,
 					"mass_distribution_class": "I",
 					"pitch": 90,
-					"orientation": 0
+					"orientation": 0,
+					"base_height": 0,
+					"height": 2.5,
+					"width": 6,
+					"area": 15.0
 				},
 				"window 0":{
 					"type": "BuildingElementTransparent",
-					"area": 5.0,
 					"r_c": 0.4,
 					"pitch": 90,
 					"orientation": 90,
 					"g_value": 0.75,
-					"frame_area_fraction": 0.25
+					"frame_area_fraction": 0.25,
+					"base_height": 1,
+					"height": 1.25,
+					"width": 4,
+					"shading": [
+						{"type": "overhang", "depth": 0.5, "distance": 0.5},
+						{"type": "sidefinleft", "depth": 0.25, "distance": 0.1},
+						{"type": "sidefinright", "depth":0.25, "distance":0.1}
+					]
 				},
 				"ground":{
 					"type": "BuildingElementGround",

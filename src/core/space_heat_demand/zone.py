@@ -130,6 +130,7 @@ class Zone:
             temp_prev,
             temp_ext_air,
             gains_internal,
+            gains_solar,
             gains_heat_cool
             ):
         """ Calculate temperatures according to procedure in BS EN ISO 52016-1:2017, section 6.5.6
@@ -139,6 +140,7 @@ class Zone:
         temp_prev       -- temperature vector X (see below) from previous timestep
         temp_ext_air    -- temperature of external air, in deg C
         gains_internal  -- total internal heat gains, in W
+        gains_solar     -- directly transmitted solar gains, in W
         gains_heat_cool -- gains from heating (positive) or cooling (negative), in W
 
         Temperatures are calculated by solving (for X) a matrix equation A.X = B, where:
@@ -176,9 +178,6 @@ class Zone:
         # Init vector_b with zeroes (length = number of nodes + 1 for overall zone heat balance)
         vector_b = np.zeros(self.__no_of_temps)
 
-        # Calculate values before the loop below that do not change per building element or node
-        gains_solar = self.gains_solar()
-
         # One term in eqn 39 is sum from k = 1 to n of (A_elk / A_tot). Given
         # that A_tot is defined as the sum of A_elk from k = 1 to n, this term
         # will always evaluate to 1.
@@ -203,7 +202,7 @@ class Zone:
             # RHS of heat balance eqn for this node
             vector_b[idx] = (eli.k_pli[i] / delta_t) * temp_prev[idx] \
                           + (eli.h_ce() + eli.h_re()) * eli.temp_ext() \
-                          + eli.a_sol * (eli.i_sol_dif() + eli.i_sol_dir() * eli.f_sh_obst) \
+                          + eli.a_sol * (eli.i_sol_dif() + eli.i_sol_dir() * eli.shading_factor()) \
                           - eli.therm_rad_to_sky
 
             # Inside node(s), if any (eqn 40)
@@ -315,7 +314,7 @@ class Zone:
         """ Return internal air temperature, in deg C """
         return self.__temp_prev[self.__zone_idx]
 
-    def space_heat_cool_demand(self, delta_t_h, temp_ext_air, gains_internal):
+    def space_heat_cool_demand(self, delta_t_h, temp_ext_air, gains_internal, gains_solar):
         """ Calculate heating and cooling demand in the zone for the current timestep
 
         According to the procedure in BS EN ISO 52016-1:2017, section 6.5.5.2, steps 1 to 4.
@@ -324,6 +323,7 @@ class Zone:
         delta_t_h -- calculation timestep, in hours
         temp_ext_air -- temperature of the external air for the current timestep, in deg C
         gains_internal -- internal gains for the current timestep, in W
+        gains_solar -- directly transmitted solar gains, in W
         """
         # Calculate timestep in seconds
         delta_t = delta_t_h * units.seconds_per_hour
@@ -337,6 +337,7 @@ class Zone:
             self.__temp_prev,
             temp_ext_air,
             gains_internal,
+            gains_solar,
             gains_heat_cool,
             )
 
@@ -367,6 +368,7 @@ class Zone:
             self.__temp_prev,
             temp_ext_air,
             gains_internal,
+            gains_solar,
             heat_cool_load_upper,
             )
 
@@ -394,6 +396,7 @@ class Zone:
             delta_t,
             temp_ext_air,
             gains_internal,
+            gains_solar,
             gains_heat_cool,
             ):
         """ Update node and internal air temperatures for calculation of next timestep
@@ -402,6 +405,7 @@ class Zone:
         delta_t         -- calculation timestep, in seconds
         temp_ext_air    -- temperature of external air, in deg C
         gains_internal  -- total internal heat gains, in W
+        gains_solar     -- directly transmitted solar gains, in W
         gains_heat_cool -- gains from heating (positive) or cooling (negative), in W
         """
 
@@ -412,5 +416,6 @@ class Zone:
             self.__temp_prev,
             temp_ext_air,
             gains_internal,
+            gains_solar,
             gains_heat_cool,
             )

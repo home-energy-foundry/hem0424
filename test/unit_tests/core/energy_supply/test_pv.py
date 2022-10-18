@@ -40,7 +40,28 @@ class TestPhotovoltaicSystem(unittest.TestCase):
                 "january_first": 1,
                 "daylight_savings": "not applicable",
                 "leap_day_included": False,
-                "direct_beam_conversion_needed": False
+                "direct_beam_conversion_needed": False,
+                "shading_segments":[{"number": 1, "start": 180, "end": 135},
+                                    {"number": 2, "start": 135, "end": 90,
+                                     "shading": [
+                                         {"type": "overhang", "height": 2.2, "distance": 6}
+                                         ]
+                                     },
+                                    {"number": 3, "start": 90, "end": 45},
+                                    {"number": 4, "start": 45, "end": 0, 
+                                     "shading": [
+                                         {"type": "obstacle", "height": 40, "distance": 4},
+                                         {"type": "overhang", "height": 3, "distance": 7}
+                                         ]
+                                     },
+                                    {"number": 5, "start": 0, "end": -45,
+                                     "shading": [
+                                         {"type": "obstacle", "height": 3, "distance": 8},
+                                         ]
+                                     },
+                                    {"number": 6, "start": -45, "end": -90},
+                                    {"number": 7, "start": -90, "end": -135},
+                                    {"number": 8, "start": -135, "end": -180}],
             }
         }
         self.__external_conditions = ExternalConditions(
@@ -58,7 +79,8 @@ class TestPhotovoltaicSystem(unittest.TestCase):
             proj_dict['ExternalConditions']['january_first'],
             proj_dict['ExternalConditions']['daylight_savings'],
             proj_dict['ExternalConditions']['leap_day_included'],
-            proj_dict['ExternalConditions']['direct_beam_conversion_needed']
+            proj_dict['ExternalConditions']['direct_beam_conversion_needed'],
+            proj_dict['ExternalConditions']['shading_segments']
             )
         self.energysupply = EnergySupply("electricity", self.simtime)
         energysupplyconn = self.energysupply.connection("pv generation")
