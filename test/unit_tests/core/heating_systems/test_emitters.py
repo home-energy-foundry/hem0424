@@ -27,7 +27,7 @@ class TestEmitters(unittest.TestCase):
         class HeatSource:
             def thermal_capacity_max(self, temp_flow):
                 return 10.0
-            def demand_energy(self, energy_req_from_heating_system, temp_flow_achievable):
+            def demand_energy(self, energy_req_from_heating_system, temp_flow, temp_return):
                 return max(0, min(2.5, energy_req_from_heating_system))
         heat_source = HeatSource()
 

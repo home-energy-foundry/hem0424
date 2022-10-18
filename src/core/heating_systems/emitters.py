@@ -41,11 +41,14 @@ class Emitters:
         # Set initial values
         self.__temp_emitter_prev = 20.0
 
-    def temp_flow(self, temp_emitter):
-        """ Calculate flow temperature from emitter temperature """
+    def temp_flow_return(self, temp_emitter):
+        """ Calculate flow and return temperature from emitter temperature """
         # TODO The calc of temp_flow_req below is for no weather comp. Add
         #      weather comp case as well
-        return temp_emitter + self.__temp_diff_emit_dsgn / 2.0
+        return (
+            temp_emitter + self.__temp_diff_emit_dsgn / 2.0,
+            temp_emitter - self.__temp_diff_emit_dsgn / 2.0,
+            )
 
     def temp_emitter_req(self, power_emitter_req, temp_rm):
         """ Calculate emitter temperature that gives required power output at given room temp
@@ -151,7 +154,7 @@ class Emitters:
         # TODO Apply upper limit to emitter temperature (or is this dealt
         #      with in HP/boiler module?)
         temp_emitter_req = self.temp_emitter_req(power_emitter_req, temp_rm_prev)
-        temp_flow_req = self.temp_flow(temp_emitter_req)
+        temp_flow_req, _ = self.temp_flow_return(temp_emitter_req)
 
         # Calculate energy input required
         energy_req_to_warm_emitters \
@@ -171,13 +174,16 @@ class Emitters:
         # Calculate target emitter and flow temperature, accounting for the
         # max power of the heat source
         temp_emitter_target = min(temp_emitter_req, temp_emitter_max)
-        temp_flow_target = self.temp_flow(temp_emitter_target)
+        temp_flow_target, temp_return_target = self.temp_flow_return(temp_emitter_target)
 
         # Get energy output of heat source (i.e. energy input to emitters)
         # TODO Instead of passing temp_flow_req into heating system module,
         #      calculate average flow temp achieved across timestep?
-        energy_provided_by_heat_source \
-            = self.__heat_source.demand_energy(energy_req_from_heat_source, temp_flow_target)
+        energy_provided_by_heat_source = self.__heat_source.demand_energy(
+            energy_req_from_heat_source,
+            temp_flow_target,
+            temp_return_target,
+            )
         return energy_provided_by_heat_source
 
     def demand_energy(self, energy_demand):
