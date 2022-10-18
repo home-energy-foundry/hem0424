@@ -59,6 +59,7 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
         zone_dict,
         zone_list,
         hc_system_dict,
+        hot_water_dict,
         )
 
     # Apply required postprocessing steps, if any
@@ -77,6 +78,7 @@ def write_core_output_file(
         zone_dict,
         zone_list,
         hc_system_dict,
+        hot_water_dict,
         ):
     with open(output_file, 'w') as f:
         writer = csv.writer(f)
