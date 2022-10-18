@@ -17,6 +17,7 @@ from core.schedule import expand_schedule, expand_events
 from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
+from core.heating_systems.emitters import Emitters
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
@@ -442,6 +443,21 @@ class Project:
                     self.__simtime,
                     ctrl,
                     )
+            # TODO For wet distribution, look up relevant heat source and set
+            #      heat_source variable. The Emitter object will not work
+            #      without it, so the code below should remain commented out
+            #      until at least one heat source type has been defined.
+            # elif space_heater_type == 'WetDistribution':
+            #     zone = self.__zones[data['Zone']]
+            #     space_heater = Emitters(
+            #         data['thermal_mass'],
+            #         data['c'],
+            #         data['n'],
+            #         data['temp_diff_emit_dsgn'],
+            #         heat_source,
+            #         zone,
+            #         self.__simtime,
+            #         )
             else:
                 sys.exit(name + ': space heating system type (' \
                        + space_heater_type + ') not recognised.')
