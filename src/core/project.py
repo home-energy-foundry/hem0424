@@ -28,7 +28,7 @@ from core.space_heat_demand.thermal_bridge import \
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.water_heat_demand.shower import MixerShower, InstantElecShower
 from core.space_heat_demand.internal_gains import InternalGains
-
+from core.ductwork import Ductwork
 
 class Project:
     """ An object to represent the overall model to be simulated """
@@ -267,6 +267,24 @@ class Project:
         self.__space_cool_systems = {}
         # TODO Read in space cooling systems and populate dict
 
+
+        def dict_to_MVHR_distribution_system(name, data):
+            ductwork = Ductwork(
+                data["internal_diameter"],
+                data["external_diameter"],
+                data["length"],
+                data["insulation_thermal_conductivity"],
+                data["insulation_thickness"],
+                data["reflective"],
+                data["MVHR_location"])
+                
+            return(ductwork)
+
+        self.__space_heating_ductwork = {}
+        for name, data in proj_dict['MVHR'].items():
+            self.__space_heating_ductwork[name] = dict_to_MVHR_distribution_system(name, data)
+
+
         def dict_to_building_element(name, data):
             building_element_type = data['type']
             if building_element_type == 'BuildingElementOpaque':
@@ -406,6 +424,9 @@ class Project:
         for name, data in proj_dict['Zone'].items():
             self.__zones[name] = dict_to_zone(name, data)
 
+
+
+
     def run(self):
         """ Run the simulation """
 
@@ -430,6 +451,49 @@ class Project:
 
             return hw_demand
 
+        def calc_ductwork_losses(t_idx, delta_t_h):
+            # assume 100% efficiency 
+            # i.e. temp inside the supply and extract ducts is room temp and temp inside exhaust and intake is external temp
+            # assume MVHR unit is running 100% of the time
+    
+            # Initialise internal air temperature and total area of all zones
+            internal_air_temperature = 0
+            overall_area = 0
+    
+            # Calculate internal air temperature
+            # TODO here we are treating overall indoor temperature as average of all zones
+            for z_name, zone in self.__zones.items():
+                internal_air_temperature += zone.temp_internal_air() * zone.area()
+                overall_area += zone.area()
+            internal_air_temperature /= overall_area # average internal temperature
+    
+            # Calculate heat loss from ducts when unit is outside - I think we are only interested in when the unit is inside for space heating
+            # Air temp inside ducts decreases, heat lost to external environment
+            '''if MVHR_location == "outside":
+                ductwork_watts_heat_loss = ductwork["MVHR"].total_duct_heat_loss(
+                                                            self.__external_conditions.air_temp(),
+                                                            internal_air_temperature,
+                                                            internal_air_temperature,
+                                                            None,
+                                                            None)'''
+    
+            # Calculate heat loss from ducts when unit is inside
+            # Air temp inside ducts increases, heat lost from dwelling
+            ductwork =self.__space_heating_ductwork['ductwork']
+
+            ductwork_watts_heat_loss = \
+                ductwork.total_duct_heat_loss(
+                internal_air_temperature,
+                None,
+                None,
+                self.__external_conditions.air_temp(),
+                self.__external_conditions.air_temp())
+    
+            # Convert to kWh - summation of heating gains and losses is in kWh
+            ductwork_heat_loss = ductwork_watts_heat_loss / units.W_per_kW
+    
+            return ductwork_heat_loss # heat loss in kWh for the timestep
+
         def calc_space_heating(delta_t_h):
             """ Calculate space heating demand, heating system output and temperatures
 
@@ -451,6 +515,10 @@ class Project:
             space_cool_demand_system = {} # in kWh
             for cool_system_name in self.__space_cool_systems.keys():
                 space_cool_demand_system[cool_system_name] = 0.0
+
+            ductwork_gains = 0.0
+            # ductwork gains
+            ductwork_gains = calc_ductwork_losses(0, delta_t_h)
 
             space_heat_demand_zone = {}
             space_cool_demand_zone = {}
@@ -528,7 +596,7 @@ class Project:
                 internal_air_temp[z_name] = zone.temp_internal_air()
                 operative_temp[z_name] = zone.temp_operative()
 
-            return operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system
+            return operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system, ductwork_gains
 
         timestep_array = []
         operative_temp_dict = {}
@@ -558,7 +626,7 @@ class Project:
             hw_demand = hot_water_demand(t_idx)
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
-            operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system = calc_space_heating(delta_t_h)
+            operative_temp, internal_air_temp, space_heat_demand_zone, space_cool_demand_zone, space_heat_demand_system, space_cool_demand_system, ductwork_gains = calc_space_heating(delta_t_h)
 
             for z_name, temp in operative_temp.items():
                 operative_temp_dict[z_name].append(temp)
@@ -587,4 +655,4 @@ class Project:
         for name, supply in self.__energy_supplies.items():
             results_totals[name] = supply.results_total()
             results_end_user[name] = supply.results_by_end_user()
-        return timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict
+        return timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict, ductwork_gains

@@ -1,204 +1,216 @@
 {
-	"SimulationTime": {
-		"start": 5088,
-		"end": 5112,
-		"step": 1
-	},
-	"ExternalConditions": {
-		"air_temperatures": [19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0],
-		"ground_temperatures": [8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7, 8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7, 8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7],
-		"diffuse_horizontal_radiation": [0, 0, 0, 0, 35, 73, 139, 244, 320, 361, 369, 348, 318, 249, 225, 198, 121, 68, 19, 0, 0, 0, 0, 0],
-		"direct_beam_radiation": [0, 0, 0, 0, 0, 0, 7, 53, 63, 164, 339, 242, 315, 577, 385, 285, 332, 126, 7, 0, 0, 0, 0, 0],
-		"solar_reflectivity_of_ground": [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
-		"latitude": 51.383,
-		"longitude": -0.783,
-		"timezone": 0,
-		"start_day": 212,
-		"end_day": 212,
-		"january_first": 1,
-		"daylight_savings": "not applicable",
-		"leap_day_included": false,
-		"direct_beam_conversion_needed": false
-		
-	},
-	"InternalGains": {
-		"start_day": 212,
-		"schedule_total_internal_gains": {
-			"main": [3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1]
-		}
-	},
-	"ColdWaterSource": {
-		"mains water": {
-			"start_day": 212,
-			"temperatures": [3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7]
-		}
-	},
-	"EnergySupply": {
-		"mains elec": {
-			"fuel": "electricity"
-		}
-	},
-	"Control": {
-		"hw timer": {
-			"type": "OnOffTimeControl",
-			"start_day": 212,
-			"schedule": {
-				"main": [{"value": true, "repeat": 24}]
-			}
-		}
-	},
-	"HotWaterSource": {
-		"hw cylinder": {
-			"type": "StorageTank",
-			"volume": 80.0,
-			"ColdWaterSource": "mains water",
-			"HeatSource": {
-				"immersion": {
-					"type": "ImmersionHeater",
-					"power": 3.0,
-					"EnergySupply": "mains elec",
-					"Control": "hw timer"
-				}
-			}
-		}
-	},
-	"Shower": {
-		"mixer": {
-			"type": "MixerShower",
-			"flowrate": 8.0,
-			"ColdWaterSource": "mains water"
-		},
-		"IES": {
-			"type": "InstantElecShower",
-			"rated_power": 9.0,
-			"ColdWaterSource": "mains water",
-			"EnergySupply": "mains elec"
-		}
-	},
-	"Events": {
-		"Shower": {
-			"IES": [
-				{"start": 4.1, "duration": 6, "temperature": 41.0},
-				{"start": 4.5, "duration": 6, "temperature": 41.0},
-				{"start": 6, "duration": 6, "temperature": 41.0}
-			],
-			"mixer": [
-				{"start": 7, "duration": 6, "temperature": 41.0}
-			]
-		}
-	},
-	"SpaceHeatSystem": {
-		"main": {
-			"type": "InstantElecHeater",
-			"rated_power": 6.0,
-			"EnergySupply": "mains elec",
-			"Control": "hw timer"
-		}
-	},
-	"Infiltration": {
-		"storey": 1,
-		"shelter": "normal",
-		"build_type": "house",
-		"test_result": 4.0,
-		"test_type": "4Pa",
-		"env_area": 105.0,
-		"volume": 250.0,
-		"sheltered_sides": 1,
-		"open_chimneys": 1,
-		"open_flues": 1,
-		"closed_fire": 2,
-		"flues_d": 1,
-		"flues_e": 1,
-		"blocked_chimneys": 1,
-		"extract_fans": 2,
-		"passive_vents": 2,
-		"gas_fires": 1
-	},
-	"Zone": {
-		"zone 1": {
-			"SpaceHeatSystem": "main",
-			"area": 80.0,
-			"volume": 250.0,
-			"BuildingElement": {
-				"wall 0": {
-					"type": "BuildingElementOpaque",
-					"area": 25.0,
-					"a_sol": 0.6,
-					"r_c": 0.7,
-					"k_m": 19000,
-					"mass_distribution_class": "IE",
-					"pitch": 90,
-					"orientation": 90
-				},
-				"wall 1":{
-					"type": "BuildingElementOpaque",
-					"area": 25.0,
-					"a_sol": 0.61,
-					"r_c": 0.71,
-					"k_m": 19100,
-					"mass_distribution_class": "M",
-					"pitch": 90,
-					"orientation": -90
-				},
-				"wall 2": {
-					"type": "BuildingElementOpaque",
-					"area": 20.0,
-					"a_sol": 0.62,
-					"r_c": 0.72,
-					"k_m": 19200,
-					"mass_distribution_class": "E",
-					"pitch": 90,
-					"orientation": 180
-				},
-				"wall 3":{
-					"type": "BuildingElementOpaque",
-					"area": 15.0,
-					"a_sol": 0.63,
-					"r_c": 0.73,
-					"k_m": 19300,
-					"mass_distribution_class": "I",
-					"pitch": 90,
-					"orientation": 0
-				},
-				"window 0":{
-					"type": "BuildingElementTransparent",
-					"area": 5.0,
-					"r_c": 0.4,
-					"pitch": 90,
-					"orientation": 90,
-					"g_value": 0.75,
-					"frame_area_fraction": 0.25
-				},
-				"ground":{
-					"type": "BuildingElementGround",
-					"area": 15.0,
-					"pitch": 180.0,
-					"u_value": 1.4,
-					"r_f": 0.2,
-					"k_m": 19300,
-					"mass_distribution_class": "D",
-					"h_pi": 2.0,
-					"h_pe": 2.5,
-					"perimeter": 16.0,
-					"psi_wall_floor_junc": 0.5
-				}
-			},
-			"ThermalBridging": {
-				"TB1": {
-					"type": "ThermalBridgeLinear",
-					"linear_thermal_transmittance": 1.0,
-					"length": 3.0
-				},
-				"TB2": {
-					"type": "ThermalBridgeLinear",
-					"linear_thermal_transmittance": 0.1,
-					"length": 2.0
-				},
-				"TB3": {
-					"type": "ThermalBridgePoint",
-					"heat_transfer_coeff": 2.0
-				}
-			}
-		}
-	}
+    "SimulationTime": {
+        "start": 5088,
+        "end": 5112,
+        "step": 1
+    },
+    "ExternalConditions": {
+        "air_temperatures": [19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0],
+        "ground_temperatures": [8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7, 8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7, 8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7],
+        "diffuse_horizontal_radiation": [0, 0, 0, 0, 35, 73, 139, 244, 320, 361, 369, 348, 318, 249, 225, 198, 121, 68, 19, 0, 0, 0, 0, 0],
+        "direct_beam_radiation": [0, 0, 0, 0, 0, 0, 7, 53, 63, 164, 339, 242, 315, 577, 385, 285, 332, 126, 7, 0, 0, 0, 0, 0],
+        "solar_reflectivity_of_ground": [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
+        "latitude": 51.383,
+        "longitude": -0.783,
+        "timezone": 0,
+        "start_day": 212,
+        "end_day": 212,
+        "january_first": 1,
+        "january_first": 1,
+        "daylight_savings": "not applicable",
+        "leap_day_included": false,
+        "direct_beam_conversion_needed": false
+        
+    },
+    "InternalGains": {
+        "start_day": 212,
+        "schedule_total_internal_gains": {
+            "main": [3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1]
+        }
+    },
+    "ColdWaterSource": {
+        "mains water": {
+            "start_day": 212,
+            "temperatures": [3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7]
+        }
+    },
+    "EnergySupply": {
+        "mains elec": {
+            "fuel": "electricity"
+        }
+    },
+    "Control": {
+        "hw timer": {
+            "type": "OnOffTimeControl",
+            "start_day": 212,
+            "schedule": {
+                "main": [{"value": true, "repeat": 24}]
+            }
+        }
+    },
+    "HotWaterSource": {
+        "hw cylinder": {
+            "type": "StorageTank",
+            "volume": 80.0,
+            "ColdWaterSource": "mains water",
+            "HeatSource": {
+                "immersion": {
+                    "type": "ImmersionHeater",
+                    "power": 3.0,
+                    "EnergySupply": "mains elec",
+                    "Control": "hw timer"
+                }
+            }
+        }
+    },
+    "Shower": {
+        "mixer": {
+            "type": "MixerShower",
+            "flowrate": 8.0,
+            "ColdWaterSource": "mains water"
+        },
+        "IES": {
+            "type": "InstantElecShower",
+            "rated_power": 9.0,
+            "ColdWaterSource": "mains water",
+            "EnergySupply": "mains elec"
+        }
+    },
+    "Events": {
+        "Shower": {
+            "IES": [
+                {"start": 4.1, "duration": 6, "temperature": 41.0},
+                {"start": 4.5, "duration": 6, "temperature": 41.0},
+                {"start": 6, "duration": 6, "temperature": 41.0}
+            ],
+            "mixer": [
+                {"start": 7, "duration": 6, "temperature": 41.0}
+            ]
+        }
+    },
+    "MVHR": {
+        "ductwork": {
+             "internal_diameter": 0.2,
+             "external_diameter": 0.3,
+             "length": 10.0,
+             "insulation_thermal_conductivity": 0.023,
+             "insulation_thickness": 0.1,
+             "reflective": false,
+             "MVHR_location": "inside"
+        }
+    },
+    "SpaceHeatSystem": {
+        "main": {
+            "type": "InstantElecHeater",
+            "rated_power": 6.0,
+            "EnergySupply": "mains elec",
+            "Control": "hw timer"
+        }
+    },
+    "Infiltration": {
+        "storey": 1,
+        "shelter": "normal",
+        "build_type": "house",
+        "test_result": 4.0,
+        "test_type": "4Pa",
+        "env_area": 105.0,
+        "volume": 250.0,
+        "sheltered_sides": 1,
+        "open_chimneys": 1,
+        "open_flues": 1,
+        "closed_fire": 2,
+        "flues_d": 1,
+        "flues_e": 1,
+        "blocked_chimneys": 1,
+        "extract_fans": 2,
+        "passive_vents": 2,
+        "gas_fires": 1
+    },
+    "Zone": {
+        "zone 1": {
+            "SpaceHeatSystem": "main",
+            "area": 80.0,
+            "volume": 250.0,
+            "BuildingElement": {
+                "wall 0": {
+                    "type": "BuildingElementOpaque",
+                    "area": 25.0,
+                    "a_sol": 0.6,
+                    "r_c": 0.7,
+                    "k_m": 19000,
+                    "mass_distribution_class": "IE",
+                    "pitch": 90,
+                    "orientation": 90
+                },
+                "wall 1":{
+                    "type": "BuildingElementOpaque",
+                    "area": 25.0,
+                    "a_sol": 0.61,
+                    "r_c": 0.71,
+                    "k_m": 19100,
+                    "mass_distribution_class": "M",
+                    "pitch": 90,
+                    "orientation": -90
+                },
+                "wall 2": {
+                    "type": "BuildingElementOpaque",
+                    "area": 20.0,
+                    "a_sol": 0.62,
+                    "r_c": 0.72,
+                    "k_m": 19200,
+                    "mass_distribution_class": "E",
+                    "pitch": 90,
+                    "orientation": 180
+                },
+                "wall 3":{
+                    "type": "BuildingElementOpaque",
+                    "area": 15.0,
+                    "a_sol": 0.63,
+                    "r_c": 0.73,
+                    "k_m": 19300,
+                    "mass_distribution_class": "I",
+                    "pitch": 90,
+                    "orientation": 0
+                },
+                "window 0":{
+                    "type": "BuildingElementTransparent",
+                    "area": 5.0,
+                    "r_c": 0.4,
+                    "pitch": 90,
+                    "orientation": 90,
+                    "g_value": 0.75,
+                    "frame_area_fraction": 0.25
+                },
+                "ground":{
+                    "type": "BuildingElementGround",
+                    "area": 15.0,
+                    "pitch": 180.0,
+                    "u_value": 1.4,
+                    "r_f": 0.2,
+                    "k_m": 19300,
+                    "mass_distribution_class": "D",
+                    "h_pi": 2.0,
+                    "h_pe": 2.5,
+                    "perimeter": 16.0,
+                    "psi_wall_floor_junc": 0.5
+                }
+            },
+            "ThermalBridging": {
+                "TB1": {
+                    "type": "ThermalBridgeLinear",
+                    "linear_thermal_transmittance": 1.0,
+                    "length": 3.0
+                },
+                "TB2": {
+                    "type": "ThermalBridgeLinear",
+                    "linear_thermal_transmittance": 0.1,
+                    "length": 2.0
+                },
+                "TB3": {
+                    "type": "ThermalBridgePoint",
+                    "heat_transfer_coeff": 2.0
+                }
+            }
+        }
+    }
 }

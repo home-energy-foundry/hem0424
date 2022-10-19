@@ -28,7 +28,7 @@ if len(sys.argv) > 2:
     project_dict["ExternalConditions"] = weather_data_to_dict(sys.argv[2])
 
 project = Project(project_dict)
-timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict = project.run()
+timestep_array, results_totals, results_end_user, zone_dict, zone_list, hc_system_dict, ductwork_gains = project.run()
 
 with open(output_file, 'w') as f:
     writer = csv.writer(f)
@@ -54,6 +54,7 @@ with open(output_file, 'w') as f:
             else:
                 hc_system_headings = system + ' ' + hc_name
             headings.append(hc_system_headings)
+    headings.append('ductwork gains')
 
     writer.writerow(headings)
 
@@ -61,6 +62,7 @@ with open(output_file, 'w') as f:
         energy_use_row = []
         zone_row = []
         hc_system_row = []
+        ductwork_row = []
         i = 0
         # Loop over end use totals
         for totals_key in results_totals:
@@ -75,6 +77,8 @@ with open(output_file, 'w') as f:
         for system in hc_system_dict:
             for hc_name in hc_system_dict[system]:
                 hc_system_row.append(hc_system_dict[system][hc_name][t_idx])
+        
+        ductwork_row.append(ductwork_gains)
 
-        row = [t_idx] + energy_use_row + zone_row + hc_system_row
+        row = [t_idx] + energy_use_row + zone_row + hc_system_row + ductwork_row
         writer.writerow(row)

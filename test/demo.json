@@ -86,6 +86,17 @@
 			]
 		}
 	},
+	"MVHR": {
+		"ductwork": {
+			 "internal_diameter": 0.2,
+             "external_diameter": 0.3,
+             "length": 10.0,
+             "insulation_thermal_conductivity": 0.023,
+             "insulation_thickness": 0.1,
+             "reflective": false,
+             "MVHR_location": "inside"
+		}
+	},
 	"SpaceHeatSystem": {
 		"main": {
 			"type": "InstantElecHeater",
