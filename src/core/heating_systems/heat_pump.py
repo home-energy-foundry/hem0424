@@ -956,10 +956,10 @@ class HeatPump:
         """ Get source temp according to rules in CALCM-01 - DAHPSE - V2.0_DRAFT13, 3.1.1 """
         if self.__source_type == SourceType.GROUND:
             # Subject to max source temp of 8 degC and min of 0 degC
-            temp_ext = self.__external_conditions.temperature()
+            temp_ext = self.__external_conditions.air_temp()
             temp_source = max(0, min(8, temp_ext * 0.25806 + 2.8387))
         elif self.__source_type == SourceType.OUTSIDE_AIR:
-            temp_source = self.__external_conditions.temperature()
+            temp_source = self.__external_conditions.air_temp()
         # elif self.__source_type == SourceType.EXHAUST_AIR_MEV:
         #     # TODO Get from internal air temp of zone?
         # elif self.__source_type == SourceType.EXHAUST_AIR_MVHR:
