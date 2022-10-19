@@ -362,9 +362,6 @@ class Project:
                 # TODO Need to handle error if EnergySupply name is invalid.
                 energy_supply_conn = energy_supply.connection(name)
 
-                for i in data:
-                    print(i)
-
                 ventilation_element = WholeHouseExtractVentilation(
                     data['req_ach'],
                     data['SFP'],
@@ -372,16 +369,9 @@ class Project:
                     self.__external_conditions,
                     self.__simtime,
                     )
+                    
+                ductwork = None
 
-                ductwork = Ductwork(
-                    data['ductwork']['internal_diameter'],
-                    data['ductwork']['external_diameter'],
-                    data['ductwork']['length'],
-                    data['ductwork']['insulation_thermal_conductivity'],
-                    data['ductwork']['insulation_thickness'],
-                    data['ductwork']['reflective'],
-                    data['ductwork']['MVHR_location']
-                    )
             elif ventilation_element_type == 'MVHR':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
@@ -623,8 +613,9 @@ class Project:
                 space_cool_demand_system[cool_system_name] = 0.0
 
             ductwork_gains = 0.0
-            # ductwork gains
-            ductwork_gains = calc_ductwork_losses(0, delta_t_h)
+            # ductwork gains only for MVHR
+            if isinstance(self.__ventilation, MechnicalVentilationHeatRecovery):
+                ductwork_gains = calc_ductwork_losses(0, delta_t_h)
 
             space_heat_demand_zone = {}
             space_cool_demand_zone = {}
