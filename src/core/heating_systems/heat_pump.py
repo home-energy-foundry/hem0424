@@ -452,7 +452,10 @@ class HeatPumpTestData:
             # and the previous load ratio are the values either side of
             # operating conditions.
             for idx, test_record in enumerate(dsgn_flow_temp_data):
-                if test_record['theoretical_load_ratio'] >= exergy_lr_op_cond:
+                # Note: Changed the condition below from ">=" to ">" because
+                # otherwise when exergy_lr_op_cond == test_record['theoretical_load_ratio']
+                # for the first record, idx == 0 which is not allowed
+                if test_record['theoretical_load_ratio'] > exergy_lr_op_cond:
                     assert idx > 0
                     found = True
                     # Current value of idx will be used later, so break out of loop
