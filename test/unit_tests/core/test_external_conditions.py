@@ -67,6 +67,16 @@ class TestExternalConditions(unittest.TestCase):
         self.daylight_savings = "not applicable"
         self.leap_day_included = False
         self.direct_beam_conversion_needed = False
+        self.shading_segments = [
+            {"number": 1, "start": 180, "end": 135},
+            {"number": 2, "start": 135, "end": 90},
+            {"number": 3, "start": 90, "end": 45},
+            {"number": 4, "start": 45, "end": 0},
+            {"number": 5, "start": 0, "end": -45},
+            {"number": 6, "start": -45, "end": -90},
+            {"number": 7, "start": -90, "end": -135},
+            {"number": 8, "start": -135, "end": -180}
+        ]
 
         self.extcond = ExternalConditions(self.simtime,
                                           self.airtemp,
@@ -82,7 +92,8 @@ class TestExternalConditions(unittest.TestCase):
                                           self.january_first,
                                           self.daylight_savings,
                                           self.leap_day_included,
-                                          self.direct_beam_conversion_needed
+                                          self.direct_beam_conversion_needed,
+                                          self.shading_segments
                                         )
 
     def test_air_temp(self):

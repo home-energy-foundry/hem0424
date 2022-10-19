@@ -40,15 +40,16 @@ class TestBuildingElementOpaque(unittest.TestCase):
                                 None,
                                 None,
                                 None,
+                                None
                                 )
         #TODO implement rest of external conditions in unit tests
 
         # Create an object for each mass distribution class
-        be_I = BuildingElementOpaque(20.0, 180, 0.60, 0.25, 19000.0, "I", 0, ec)
-        be_E = BuildingElementOpaque(22.5, 135, 0.61, 0.50, 18000.0, "E", 180, ec)
-        be_IE = BuildingElementOpaque(25.0, 90, 0.62, 0.75, 17000.0, "IE", 90, ec)
-        be_D = BuildingElementOpaque(27.5, 45, 0.63, 0.80, 16000.0, "D", -90, ec)
-        be_M = BuildingElementOpaque(30.0, 0, 0.64, 0.40, 15000.0, "M", 0, ec)
+        be_I = BuildingElementOpaque(20, 180, 0.60, 0.25, 19000.0, "I", 0, 0, 2, 10, ec)
+        be_E = BuildingElementOpaque(22.5, 135, 0.61, 0.50, 18000.0, "E", 180, 0, 2.25, 10, ec)
+        be_IE = BuildingElementOpaque(25, 90, 0.62, 0.75, 17000.0, "IE", 90, 0, 2.5, 10, ec)
+        be_D = BuildingElementOpaque(27.5, 45, 0.63, 0.80, 16000.0, "D", -90, 0, 2.75, 10, ec)
+        be_M = BuildingElementOpaque(30, 0, 0.64, 0.40, 15000.0, "M", 0, 0, 3, 10, ec)
 
         # Put objects in a list that can be iterated over
         self.test_be_objs = [be_I, be_E, be_IE, be_D, be_M]
@@ -171,6 +172,7 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
                                 None,
                                 None,
                                 0, # Start day
+                                None,
                                 None,
                                 None,
                                 None,
@@ -329,6 +331,7 @@ class TestBuildingElementGround(unittest.TestCase):
                                 None,
                                 None,
                                 None,
+                                None,
                                 None
                                 )
         #TODO implement rest of external conditions in unit tests
@@ -468,10 +471,11 @@ class TestBuildingElementTransparent(unittest.TestCase):
                                 None,
                                 None,
                                 None,
+                                None
                                 )
         #TODO implement rest of external conditions in unit tests
 
-        self.be = BuildingElementTransparent(5.0, 90, 0.4, 180, 0.75, 0.25, ec)
+        self.be = BuildingElementTransparent(90, 0.4, 180, 0.75, 0.25, 1, 1.25, 4, False, ec)
 
     def test_no_of_nodes(self):
         """ Test that number of nodes (total and inside) have been calculated correctly """

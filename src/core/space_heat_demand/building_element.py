@@ -13,7 +13,7 @@ method described in BS EN ISO 52016-1:2017, section 6.5.6.
 
 # Standard library imports
 import sys
-from math import cos, pi
+from math import cos, sin, pi, radians
 
 # Local imports
 import core.external_conditions as external_conditions
@@ -30,6 +30,16 @@ def sky_view_factor(pitch):
     pitch_rads = pitch*pi/180
     return 0.5 * (1 + cos(pitch_rads))
     
+def projected_height(tilt, height):
+    """ calc the vertically projected height of a surface from
+    the actual height and tilt of the surface """
+    ph = height * sin(radians(tilt))
+    return ph
+
+def calculate_area(height, width):
+    """ calculate area from height and width """
+    area = height * width
+    return area
 
 class BuildingElement:
     """ A base class with common functionality for building elements
@@ -79,17 +89,13 @@ class BuildingElement:
                      of the solar irradiance on the element, in W / m2
         i_sol_dir -- direct part (INCLUDING circumsolar, as specified in ISO 52010) 
                      of the solar irradiance on the element, in W / m2
-        f_sh_obst -- shading reduction_factor for external obstacles for the element
+        shading_factor -- shading reduction_factor for shading objects for the element
         therm_rad_to_sky -- thermal radiation to the sky, in W / m2, calculated
                             according to BS EN ISO 52016-1:2017, section 6.5.13.3
         """
         self.area  = area
         self._pitch = pitch
         self.a_sol = a_sol
-
-        # TODO f_sh_obst should be calculated. Set to 1.0 for now (i.e. ignore
-        #      shading) until this has been implemented.
-        self.f_sh_obst = 1.0
 
         self.therm_rad_to_sky = f_sky * self.h_re() * temp_diff_sky
 
@@ -138,6 +144,10 @@ class BuildingElement:
         """ Return default of zero for solar gains """
         return 0
 
+    def shading_factor(self):
+        """ Return default of one for shading factor (no shading) """
+        return 1
+
     def no_of_nodes(self):
         """ Return number of nodes including external and internal layers """
         return len(self.k_pli)
@@ -158,12 +168,15 @@ class BuildingElementOpaque(BuildingElement):
             k_m,
             mass_distribution_class,
             orientation,
+            base_height,
+            height,
+            width,
             ext_cond,
             ):
         """ Construct a BuildingElementOpaque object
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
-        area     -- area (in m2) of this building element
+        area -- net area of the opaque building element (i.e. minus any windows / doors / etc.)
         pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
                  where 0 means the external surface is facing up, 90 means the external
                  surface is vertical and 180 means the external surface is facing down
@@ -173,6 +186,9 @@ class BuildingElementOpaque(BuildingElement):
         orientation -- is the orientation angle of the inclined surface, expressed as the 
                        geographical azimuth angle of the horizontal projection of the inclined 
                        surface normal, -180 to 180, in degrees
+        base_height -- is the distance between the ground and the lowest edge of the element, in m
+        height      -- is the height of the building element, in m
+        width       -- is the width of the building element, in m
         ext_cond -- reference to ExternalConditions object
         mass_distribution_class
                  -- distribution of mass in building element, one of:
@@ -185,6 +201,9 @@ class BuildingElementOpaque(BuildingElement):
         Other variables:
         f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
         """
+        self.__base_height = base_height
+        self.__width = width
+        self.__projected_height = projected_height(pitch, height)
         self.__orientation = orientation
         self.__external_conditions = ext_cond
 
@@ -231,6 +250,12 @@ class BuildingElementOpaque(BuildingElement):
     def i_sol_dif(self):
         """ Return calculated i_sol_dif using pitch and orientation of element """
         return self.__external_conditions.calculated_diffuse_irradiance(self._pitch, self.__orientation)
+
+    def shading_factor(self):
+        """ return calculated shading factor """
+        return self.__external_conditions.shading_reduction_factor( \
+                self.__base_height, self.__projected_height, self.__width, \
+                self._pitch, self.__orientation, False)
 
     def temp_ext(self):
         """ Return the temperature of the air on the other side of the building element """
@@ -513,18 +538,20 @@ class BuildingElementTransparent(BuildingElement):
     """ A class to represent transparent building elements (windows etc.) """
 
     def __init__(self,
-            area,
             pitch,
             r_c,
             orientation,
             g_value,
             frame_area_fraction,
+            base_height,
+            height,
+            width,
+            shading,
             ext_cond,
             ):
         """ Construct a BuildingElementTransparent object
 
         Arguments (names based on those in BS EN ISO 52016-1:2017):
-        area     -- area (in m2) of this building element
         pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
                  where 0 means the external surface is facing up, 90 means the external
                  surface is vertical and 180 means the external surface is facing down
@@ -532,6 +559,9 @@ class BuildingElementTransparent(BuildingElement):
         orientation -- is the orientation angle of the inclined surface, expressed 
                        as the geographical azimuth angle of the horizontal projection 
                        of the inclined surface normal, -180 to 180, in degrees
+        base_height -- is the distance between the ground and the lowest edge of the element, in m
+        height      -- is the height of the building element, in m
+        width       -- is the width of the building element, in m
         g_value -- total solar energy transmittance of the transparent part of the window
         frame_area_fraction -- is the frame area fraction of window wi, ratio of the 
                                projected frame area to the overall projected area of 
@@ -541,14 +571,21 @@ class BuildingElementTransparent(BuildingElement):
         Other variables:
         f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
         """
+        self.__base_height = base_height
+        self.__width = width
+        self.__projected_height = projected_height(pitch, height)
         self.__orientation = orientation
         self.__g_value = g_value
+        self.__shading = shading
         #TODO ISO 52016 offers an input option; either the frame factor directly,
         #or the glazed area of the window and then the frame factor is calculated.
         #assuming for now that frame factor is provided (default 0.25 from App B)
         #need to implement ISO 52016 E.2.1 here if other option given.
         self.__frame_area_fraction = frame_area_fraction
         self.__external_conditions = ext_cond
+
+        # calculate area from height & width for transparent elements
+        area = calculate_area(height, width)
 
         # Solar absorption coefficient is zero because element is transparent
         a_sol = 0.0
@@ -564,9 +601,11 @@ class BuildingElementTransparent(BuildingElement):
         self.h_pli = [1.0 / r_c]
         self.k_pli = [0.0, 0.0]
 
-    #TODO f_sh_obst set to zero in main Building Element set up.
-    #calculate that properly here when implementing shading.
-    #self.f_sh_obst
+    def shading_factor(self):
+        """ return calculated shading factor """
+        return self.__external_conditions.shading_reduction_factor( \
+                self.__base_height, self.__projected_height, self.__width, \
+                self._pitch, self.__orientation, self.__shading)
 
     def convert_g_value(self):
         """return g_value corrected for angle of solar radiation"""
@@ -594,7 +633,7 @@ class BuildingElementTransparent(BuildingElement):
         i_sol_dif = self.__external_conditions.calculated_diffuse_irradiance(self._pitch, self.__orientation)
         g_value = self.convert_g_value()
 
-        solar_gains = g_value * (i_sol_dif + i_sol_dir * self.f_sh_obst) \
+        solar_gains = g_value * (i_sol_dif + i_sol_dir * self.shading_factor()) \
                     * self.area * (1 - self.__frame_area_fraction)
 
         return solar_gains
