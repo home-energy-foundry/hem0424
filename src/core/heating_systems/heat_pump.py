@@ -651,6 +651,14 @@ class HeatPumpService:
         self.__service_name = service_name
         self.__control = control
 
+    def is_on(self):
+        if self.__control is not None:
+            service_on = self.__control.is_on()
+        else:
+            service_on = True
+        return service_on
+
+
 
 class HeatPumpServiceWater(HeatPumpService):
     """ An object to represent a water heating service provided by a heat pump to e.g. a cylinder.
@@ -692,11 +700,8 @@ class HeatPumpServiceWater(HeatPumpService):
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat pump """
         temp_cold_water = Celcius2Kelvin(self.__cold_feed.temperature())
-        if self.__control is not None:
-            service_on = self.__control.is_on()
-        else:
-            service_on = True
 
+        service_on = self.is_on()
         if not service_on:
             energy_demand = 0.0
 
@@ -758,11 +763,7 @@ class HeatPumpServiceSpace(HeatPumpService):
         temp_flow -- flow temperature for emitters, in deg C
         temp_return -- return temperature for emitters, in deg C
         """
-        if self.__control is not None:
-            service_on = self.__control.is_on()
-        else:
-            service_on = True
-
+        service_on = self.is_on()
         if not service_on:
             energy_demand = 0.0
 
