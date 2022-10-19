@@ -874,9 +874,9 @@ class HeatPump:
         self.__total_time_running_current_timestep = 0.0
 
         # Assign hp_dict elements to member variables of this class
-        self.__source_type = SourceType.from_string(hp_dict['SourceType'])
-        self.__sink_type = SinkType.from_string(hp_dict['SinkType'])
-        self.__backup_ctrl = BackupCtrlType.from_string(hp_dict['BackupCtrlType'])
+        self.__source_type = SourceType.from_string(hp_dict['source_type'])
+        self.__sink_type = SinkType.from_string(hp_dict['sink_type'])
+        self.__backup_ctrl = BackupCtrlType.from_string(hp_dict['backup_ctrl_type'])
         self.__modulating_ctrl = bool(hp_dict['modulating_control'])
         if self.__modulating_ctrl:
             self.__min_modulation_rate_35 = float(hp_dict['min_modulation_rate_35'])
