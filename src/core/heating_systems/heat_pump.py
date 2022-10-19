@@ -1140,8 +1140,12 @@ class HeatPump:
 
         # Get thermal capacity, CoP and degradation coeff at operating conditions
         thermal_capacity_op_cond = self.__thermal_capacity_op_cond(temp_output, temp_source)
-        cop_op_cond, deg_coeff_op_cond \
-            = self.__cop_deg_coeff_op_cond(temp_output, temp_source, temp_spread_correction)
+        cop_op_cond, deg_coeff_op_cond = self.__cop_deg_coeff_op_cond(
+            service_type,
+            temp_output,
+            temp_source,
+            temp_spread_correction,
+            )
 
         # Calculate running time of HP
         time_running_current_service = min( \
