@@ -705,8 +705,8 @@ class HeatPumpServiceWater(HeatPumpService):
         if not service_on:
             energy_demand = 0.0
 
-        return self.__hp._HeatPump__demand_energy(
-            self.__service_name,
+        return self._HeatPumpService__hp._HeatPump__demand_energy(
+            self._HeatPumpService__service_name,
             ServiceType.WATER,
             energy_demand,
             self.__temp_hot_water,
@@ -753,7 +753,7 @@ class HeatPumpServiceSpace(HeatPumpService):
         """ Calculate the maximum energy output of the HP, accounting for time
             spent on higher-priority services
         """
-        self.__hp._HeatPump__energy_output_max(temp_output)
+        return self._HeatPumpService__hp._HeatPump__energy_output_max(temp_output)
 
     def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the heat pump
@@ -767,8 +767,8 @@ class HeatPumpServiceSpace(HeatPumpService):
         if not service_on:
             energy_demand = 0.0
 
-        return self.__hp._HeatPump__demand_energy(
-            self.__service_name,
+        return self._HeatPumpService__hp._HeatPump__demand_energy(
+            self._HeatPumpService__service_name,
             ServiceType.SPACE,
             energy_demand,
             Celcius2Kelvin(temp_flow),
