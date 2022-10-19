@@ -17,6 +17,7 @@ from core.schedule import expand_schedule, expand_events
 from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
+from core.heating_systems.emitters import Emitters
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
@@ -258,42 +259,6 @@ class Project:
             for name, data in schedules.items():
                 self.__event_schedules[sched_type][name] = dict_to_event_schedules(data)
 
-        def dict_to_space_heat_system(name, data):
-            space_heater_type = data['type']
-            if space_heater_type == 'InstantElecHeater':
-                if 'Control' in data.keys():
-                    ctrl = self.__controls[data['Control']]
-                    # TODO Need to handle error if Control name is invalid.
-                else:
-                    ctrl = None
-
-                energy_supply = self.__energy_supplies[data['EnergySupply']]
-                # TODO Need to handle error if EnergySupply name is invalid.
-                energy_supply_conn = energy_supply.connection(name)
-
-                space_heater = InstantElecHeater(
-                    data['rated_power'],
-                    energy_supply_conn,
-                    self.__simtime,
-                    ctrl,
-                    )
-            else:
-                sys.exit(name + ': space heating system type (' \
-                       + space_heater_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
-            return space_heater
-
-        # If one or more space heating systems have been provided, add them to the project
-        self.__space_heat_systems = {}
-        # If no space heating systems have been provided, then skip. This
-        # facilitates running the simulation with no heating systems at all
-        if 'SpaceHeatSystem' in proj_dict:
-            for name, data in proj_dict['SpaceHeatSystem'].items():
-                self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
-
-        self.__space_cool_systems = {}
-        # TODO Read in space cooling systems and populate dict
-
         def dict_to_building_element(name, data):
             building_element_type = data['type']
             if building_element_type == 'BuildingElementOpaque':
@@ -458,6 +423,57 @@ class Project:
         self.__zones = {}
         for name, data in proj_dict['Zone'].items():
             self.__zones[name] = dict_to_zone(name, data)
+
+        def dict_to_space_heat_system(name, data):
+            space_heater_type = data['type']
+            if space_heater_type == 'InstantElecHeater':
+                if 'Control' in data.keys():
+                    ctrl = self.__controls[data['Control']]
+                    # TODO Need to handle error if Control name is invalid.
+                else:
+                    ctrl = None
+
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                space_heater = InstantElecHeater(
+                    data['rated_power'],
+                    energy_supply_conn,
+                    self.__simtime,
+                    ctrl,
+                    )
+            # TODO For wet distribution, look up relevant heat source and set
+            #      heat_source variable. The Emitter object will not work
+            #      without it, so the code below should remain commented out
+            #      until at least one heat source type has been defined.
+            # elif space_heater_type == 'WetDistribution':
+            #     zone = self.__zones[data['Zone']]
+            #     space_heater = Emitters(
+            #         data['thermal_mass'],
+            #         data['c'],
+            #         data['n'],
+            #         data['temp_diff_emit_dsgn'],
+            #         heat_source,
+            #         zone,
+            #         self.__simtime,
+            #         )
+            else:
+                sys.exit(name + ': space heating system type (' \
+                       + space_heater_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return space_heater
+
+        # If one or more space heating systems have been provided, add them to the project
+        self.__space_heat_systems = {}
+        # If no space heating systems have been provided, then skip. This
+        # facilitates running the simulation with no heating systems at all
+        if 'SpaceHeatSystem' in proj_dict:
+            for name, data in proj_dict['SpaceHeatSystem'].items():
+                self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
+
+        self.__space_cool_systems = {}
+        # TODO Read in space cooling systems and populate dict
 
         def dict_to_on_site_generation(name, data):
             """ Parse dictionary of on site generation data and
