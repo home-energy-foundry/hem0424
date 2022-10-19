@@ -45,7 +45,8 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
     project = Project(project_dict)
     timestep_array, results_totals, results_end_user, \
         energy_import, energy_export, betafactor, \
-        zone_dict, zone_list, hc_system_dict \
+        zone_dict, zone_list, hc_system_dict, \
+        ductwork_gains \
         = project.run()
 
     write_core_output_file(
@@ -59,6 +60,7 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
         zone_dict,
         zone_list,
         hc_system_dict,
+        ductwork_gains
         )
 
     # Apply required postprocessing steps, if any
@@ -76,6 +78,7 @@ def write_core_output_file(
         zone_dict,
         zone_list,
         hc_system_dict,
+        ductwork_gains
         ):
     with open(output_file, 'w') as f:
         writer = csv.writer(f)
