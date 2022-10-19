@@ -878,6 +878,9 @@ class HeatPump:
         self.__sink_type = SinkType.from_string(hp_dict['SinkType'])
         self.__backup_ctrl = BackupCtrlType.from_string(hp_dict['BackupCtrlType'])
         self.__modulating_ctrl = bool(hp_dict['modulating_control'])
+        if self.__modulating_ctrl:
+            self.__min_modulation_rate_35 = float(hp_dict['min_modulation_rate_35'])
+            self.__min_modulation_rate_55 = float(hp_dict['min_modulation_rate_55'])
         self.__time_constant_onoff_operation = float(hp_dict['time_constant_onoff_operation'])
         self.__temp_return_feed_max = Celcius2Kelvin(float(hp_dict['temp_return_feed_max']))
         self.__temp_lower_op_limit = Celcius2Kelvin(float(hp_dict['temp_lower_operating_limit']))
