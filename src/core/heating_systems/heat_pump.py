@@ -1211,6 +1211,7 @@ class HeatPump:
         if use_backup_heater_only or not service_on:
             energy_delivered_HP = 0.0
             energy_input_HP = 0.0
+            energy_input_HP_divisor = None
         else:
             # Backup heater not providing entire energy requirement
             energy_delivered_HP = thermal_capacity_op_cond * time_running_current_service
@@ -1245,6 +1246,7 @@ class HeatPump:
             else:
                 # If not operating in on/off mode
                 energy_input_HP = energy_delivered_HP / cop_op_cond
+                energy_input_HP_divisor = None
 
         # Calculate energy delivered by backup heater
         # TODO Add a power limit for the backup heater, or call another heating
