@@ -1055,7 +1055,7 @@ class HeatPump:
             if self.__sink_type == SinkType.AIR and service_type != ServiceType.WATER:
                 limit_upper = 0.25
             else:
-                limit_lower = 1.0
+                limit_upper = 1.0
 
             if self.__sink_type == SinkType.AIR and service_type != ServiceType.WATER:
                 limit_lower = 0.0
