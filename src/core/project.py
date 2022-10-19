@@ -540,14 +540,14 @@ class Project:
     
             # Initialise internal air temperature and total area of all zones
             internal_air_temperature = 0
-            overall_area = 0
+            overall_volume = 0
     
             # Calculate internal air temperature
             # TODO here we are treating overall indoor temperature as average of all zones
             for z_name, zone in self.__zones.items():
-                internal_air_temperature += zone.temp_internal_air() * zone.area()
-                overall_area += zone.area()
-            internal_air_temperature /= overall_area # average internal temperature
+                internal_air_temperature += zone.temp_internal_air() * zone.volume()
+                overall_volume += zone.volume()
+            internal_air_temperature /= overall_volume # average internal temperature
     
             # Calculate heat loss from ducts when unit is outside - I think we are only interested in when the unit is inside for space heating
             # Air temp inside ducts decreases, heat lost to external environment
@@ -562,6 +562,8 @@ class Project:
             # Calculate heat loss from ducts when unit is inside
             # Air temp inside ducts increases, heat lost from dwelling
             ductwork =self.__space_heating_ductwork
+            if ductwork == None:
+                return 0
 
             ductwork_watts_heat_loss = \
                 ductwork.total_duct_heat_loss(
