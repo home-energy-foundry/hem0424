@@ -38,6 +38,10 @@ class MaterialProperties:
         """ Return specific heat capacity, in J / (kg.K) """
         return self.__specific_heat_capacity
 
+    def specific_heat_capacity_kWh(self):
+        """ Return specific heat capacity, in kWh / (kg.K) """
+        return self.__specific_heat_capacity / units.J_per_kWh
+
     def volumetric_heat_capacity(self):
         """ Return volumetric heat capacity, in J / (litre.K) """
         return self.__volumetric_heat_capacity

@@ -201,9 +201,10 @@ class Project:
 
                 hw_source = StorageTank(
                     data['volume'],
-                    1.0,  # TODO Remove hard-coding of initial hot fraction
+                    data['daily_losses'],
                     55.0, # TODO Remove hard-coding of hot water temp
                     cold_water_source,
+                    self.__simtime,
                     )
 
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
