@@ -296,23 +296,6 @@ class Project:
         # TODO Read in space cooling systems and populate dict
 
 
-        def dict_to_MVHR_distribution_system(name, data):
-            ductwork = Ductwork(
-                data["internal_diameter"],
-                data["external_diameter"],
-                data["length"],
-                data["insulation_thermal_conductivity"],
-                data["insulation_thickness"],
-                data["reflective"],
-                data["MVHR_location"])
-                
-            return(ductwork)
-
-        self.__space_heating_ductwork = {}
-        for name, data in proj_dict['MVHR'].items():
-            self.__space_heating_ductwork[name] = dict_to_MVHR_distribution_system(name, data)
-
-
         def dict_to_building_element(name, data):
             building_element_type = data['type']
             if building_element_type == 'BuildingElementOpaque':
@@ -379,12 +362,25 @@ class Project:
                 # TODO Need to handle error if EnergySupply name is invalid.
                 energy_supply_conn = energy_supply.connection(name)
 
+                for i in data:
+                    print(i)
+
                 ventilation_element = WholeHouseExtractVentilation(
                     data['req_ach'],
                     data['SFP'],
                     energy_supply_conn,
                     self.__external_conditions,
                     self.__simtime,
+                    )
+
+                ductwork = Ductwork(
+                    data['ductwork']['internal_diameter'],
+                    data['ductwork']['external_diameter'],
+                    data['ductwork']['length'],
+                    data['ductwork']['insulation_thermal_conductivity'],
+                    data['ductwork']['insulation_thickness'],
+                    data['ductwork']['reflective'],
+                    data['ductwork']['MVHR_location']
                     )
             elif ventilation_element_type == 'MVHR':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
@@ -399,17 +395,28 @@ class Project:
                     self.__external_conditions,
                     self.__simtime,
                     )
+                    
+                ductwork = Ductwork(
+                    data['ductwork']['internal_diameter'],
+                    data['ductwork']['external_diameter'],
+                    data['ductwork']['length'],
+                    data['ductwork']['insulation_thermal_conductivity'],
+                    data['ductwork']['insulation_thickness'],
+                    data['ductwork']['reflective'],
+                    data['ductwork']['MVHR_location']
+                    )
             else:
                 sys.exit( name + ': ventilation element type ('
                       + ventilation_element_type + ') not recognised.' )
                 # TODO Exit just the current case instead of whole program entirely?
-            return ventilation_element
+            return ventilation_element, ductwork
+
 
         if 'Ventilation' in proj_dict:
-            self.__ventilation = \
+            self.__ventilation, self.__space_heating_ductwork = \
                 dict_to_ventilation_element('Ventilation system', proj_dict['Ventilation'])
         else:
-            self.__ventilation = None
+            self.__ventilation, self.__space_heating_ductwork = None, None
 
         def dict_to_thermal_bridging(data):
             # If data is for individual thermal bridges, initialise the relevant
@@ -564,7 +571,7 @@ class Project:
     
             # Calculate heat loss from ducts when unit is inside
             # Air temp inside ducts increases, heat lost from dwelling
-            ductwork =self.__space_heating_ductwork['ductwork']
+            ductwork =self.__space_heating_ductwork
 
             ductwork_watts_heat_loss = \
                 ductwork.total_duct_heat_loss(

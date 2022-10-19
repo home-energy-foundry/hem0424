@@ -107,7 +107,7 @@ def write_core_output_file(
                 else:
                     hc_system_headings = system + ' ' + hc_name
                 headings.append(hc_system_headings)
-        headings.append('ductwork gains')
+        headings.append('Ductwork gains')
 
         writer.writerow(headings)
 
