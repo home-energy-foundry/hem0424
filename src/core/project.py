@@ -18,6 +18,7 @@ from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.emitters import Emitters
+from core.heating_systems.heat_pump import HeatPump
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
@@ -424,6 +425,31 @@ class Project:
         for name, data in proj_dict['Zone'].items():
             self.__zones[name] = dict_to_zone(name, data)
 
+        def dict_to_heat_source_wet(name, data):
+            heat_source_type = data['type']
+            if heat_source_type == 'HeatPump':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                energy_supply_conn_name_auxiliary = 'HeatPump_auxiliary: ' + name
+                heat_source = HeatPump(
+                    data,
+                    energy_supply,
+                    energy_supply_conn_name_auxiliary,
+                    self.__simtime,
+                    self.__external_conditions,
+                    )
+            else:
+                sys.exit(name + ': heat source type (' \
+                       + heat_source_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return heat_source
+
+        # If one or more wet distribution heat sources have been provided, add them to the project
+        self.__heat_sources_wet = {}
+        # If no wet distribution heat sources have been provided, then skip.
+        if 'HeatSourceWet' in proj_dict:
+            for name, data in proj_dict['HeatSourceWet'].items():
+                self.__heat_sources_wet[name] = dict_to_heat_source_wet(name, data)
+
         def dict_to_space_heat_system(name, data):
             if 'Control' in data.keys():
                 ctrl = self.__controls[data['Control']]
@@ -443,21 +469,28 @@ class Project:
                     self.__simtime,
                     ctrl,
                     )
-            # TODO For wet distribution, look up relevant heat source and set
-            #      heat_source variable. The Emitter object will not work
-            #      without it, so the code below should remain commented out
-            #      until at least one heat source type has been defined.
-            # elif space_heater_type == 'WetDistribution':
-            #     zone = self.__zones[data['Zone']]
-            #     space_heater = Emitters(
-            #         data['thermal_mass'],
-            #         data['c'],
-            #         data['n'],
-            #         data['temp_diff_emit_dsgn'],
-            #         heat_source,
-            #         zone,
-            #         self.__simtime,
-            #         )
+            elif space_heater_type == 'WetDistribution':
+                heat_source = self.__heat_sources_wet[data['HeatSource']['name']]
+                if isinstance(heat_source, HeatPump):
+                    heat_source_service = heat_source.create_service_space_heating(
+                        data['HeatSource']['name'] + '_space_heating',
+                        data['HeatSource']['temp_flow_limit_upper'],
+                        data['temp_diff_emit_dsgn'],
+                        ctrl,
+                        )
+                else:
+                    sys.exit(name + ': HeatSource type not recognised')
+                    # TODO Exit just the current case instead of whole program entirely?
+
+                space_heater = Emitters(
+                    data['thermal_mass'],
+                    data['c'],
+                    data['n'],
+                    data['temp_diff_emit_dsgn'],
+                    heat_source_service,
+                    self.__zones[data['Zone']],
+                    self.__simtime,
+                    )
             else:
                 sys.exit(name + ': space heating system type (' \
                        + space_heater_type + ') not recognised.')

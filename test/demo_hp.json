@@ -87,10 +87,23 @@
 			]
 		}
 	},
-	"SpaceHeatSystem": {
-		"main": {
+	"HeatSourceWet": {
+		"hp": {
 			"type": "HeatPump",
 			"EnergySupply": "mains elec",
+			"source_type": "OutsideAir",
+			"sink_type": "Water",
+			"backup_ctrl_type": "TopUp",
+			"modulating_control": true,
+			"min_modulation_rate_35": 0.35,
+			"min_modulation_rate_55": 0.4,
+			"time_constant_onoff_operation": 140,
+			"temp_return_feed_max": 70.0,
+			"temp_lower_operating_limit": -5.0,
+			"min_temp_diff_flow_return_for_hp_to_operate": 0.0,
+			"var_flow_temp_ctrl_during_test": true,
+			"power_heating_circ_pump": 0.015,
+			"power_source_circ_pump": 0.010,
 			"test_data": [
 				{
 					"test_letter": "A",
@@ -193,6 +206,20 @@
 					"temp_test": -7
 				}
 			]
+		}
+	},
+	"SpaceHeatSystem": {
+		"main": {
+			"type": "WetDistribution",
+			"thermal_mass": 0.14,
+			"c": 0.08,
+			"n": 1.2,
+			"temp_diff_emit_dsgn": 10.0,
+			"HeatSource": {
+				"name": "hp",
+				"temp_flow_limit_upper": 65.0
+			},
+			"Zone": "zone 1"
 		}
 	},
 	"Infiltration": {
