@@ -425,14 +425,14 @@ class Project:
             self.__zones[name] = dict_to_zone(name, data)
 
         def dict_to_space_heat_system(name, data):
+            if 'Control' in data.keys():
+                ctrl = self.__controls[data['Control']]
+                # TODO Need to handle error if Control name is invalid.
+            else:
+                ctrl = None
+
             space_heater_type = data['type']
             if space_heater_type == 'InstantElecHeater':
-                if 'Control' in data.keys():
-                    ctrl = self.__controls[data['Control']]
-                    # TODO Need to handle error if Control name is invalid.
-                else:
-                    ctrl = None
-
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
                 energy_supply_conn = energy_supply.connection(name)
