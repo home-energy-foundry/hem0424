@@ -108,7 +108,8 @@
 			"c": 0.08,
 			"n": 1.2,
 			"temp_diff_emit_dsgn": 10.0,
-			"HeatSource": "hp"
+			"HeatSource": "hp",
+			"Zone": "zone 1"
 		}
 	},
 	"Ventilation": {
