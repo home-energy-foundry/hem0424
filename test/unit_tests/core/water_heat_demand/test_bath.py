@@ -25,7 +25,7 @@ class TestBath(unittest.TestCase):
         self.simtime         = SimulationTime(0, 3, 1)
         coldwatertemps       = [2.0, 3.0, 4.0]
         self.coldwatersource = ColdWaterSource(coldwatertemps, self.simtime, 0)
-        self.bath            = Bath(100.0, self.coldwatersource)
+        self.bath            = Bath(100.0, self.coldwatersource, 4.5)
 
     def test_get_size(self):
         """ Test that Bath object returns correct size of bath """
@@ -44,6 +44,16 @@ class TestBath(unittest.TestCase):
             self.bath.get_cold_water_source(),
             "cold water source not returned"
             )
+
+    def test_get_flowrate(self):
+        """ Test that Bath object returns correct flow rate """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertEqual(
+                    self.bath.get_flowrate(),
+                    4.5,
+                    "incorrect flow rate returned"
+                    )
 
     def test_hot_water_demand(self):
         """ Test that Bath object returns correct hot water demand """

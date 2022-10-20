@@ -34,7 +34,7 @@ class TestOtherHotWater(unittest.TestCase):
                 self.assertEqual(
                     self.otherhotwater.get_flowrate(),
                     5.0,
-                    "incorrect flow ratereturned"
+                    "incorrect flow rate returned"
                     )
 
     def test_get_cold_water_source(self):

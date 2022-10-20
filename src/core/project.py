@@ -254,7 +254,6 @@ class Project:
             """ Parse dictionary of bath data and return approprate bath object """
             cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
             # TODO Need to handle error if ColdWaterSource name is invalid.
-            flowrate = self.__cold_water_sources[data['ColdWaterSource']]
 
             bath = Bath(data['size'], cold_water_source, data['flowrate'])
 
@@ -662,13 +661,13 @@ class Project:
             
             # Initialise internal air temperature and total area of all zones
             internal_air_temperature = 0
-            overall_area = 0
+            overall_volume = 0
             
             # TODO here we are treating overall indoor temperature as average of all zones
             for z_name, zone in self.__zones.items():
-                internal_air_temperature += zone.temp_internal_air() * zone.area()
-                overall_area += zone.area()
-            internal_air_temperature /= overall_area # average internal temperature
+                internal_air_temperature += zone.temp_internal_air() * zone.volume()
+                overall_volume += zone.volume()
+            internal_air_temperature /= overall_volume # average internal temperature
             
             hot_water_time_fraction = hw_duration / (delta_t_h * units.minutes_per_hour)
             

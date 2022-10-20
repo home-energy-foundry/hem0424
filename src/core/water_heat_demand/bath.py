@@ -18,9 +18,10 @@ class Bath:
         """ Construct a Bath object
 
         Arguments:
-        size        -- bath size in litres - may not be needed but here but retained for flexibility
+        size            -- bath size in litres - may not be needed but here but retained for flexibility
         cold_water_feed -- reference to ColdWaterSource object representing the
                            cold water feed attached to the shower
+        flowrate        -- tap/outlet flow rate, in litres/minute
         """
         self.__bathsize          = size # TODO entire capacity or typical usage?
         self.__cold_water_source = cold_water_source
