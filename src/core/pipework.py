@@ -13,6 +13,15 @@ import sys
 import core.units as units
 import core.material_properties as material_properties
 
+
+# Set default values for the heat transfer coefficients inside the pipe, in W / m^2 K
+INTERNAL_HTC_AIR = 15.5 # CIBSE Guide C, Table 3.25, air flow rate approx 3 m/s
+INTERNAL_HTC_WATER = 1500.0 # CIBSE Guide C, Table 3.32
+
+# Set default values for the heat transfer coefficient at the outer surface, in W / m^2 K
+EXTERNAL_REFLECTIVE_HTC = 5.7 # low emissivity reflective surface, CIBSE Guide C, Table 3.25
+EXTERNAL_NONREFLECTIVE_HTC = 10.0 # high emissivity non-reflective surface, CIBSE Guide C, Table 3.25
+
 # Set default values for the heat transfer coefficients inside the pipe, in W / m^2 K
 INTERNAL_HTC_AIR = 15.5 # CIBSE Guide C, Table 3.25, air flow rate approx 3 m/s
 INTERNAL_HTC_WATER = 1500.0 # CIBSE Guide C, Table 3.32

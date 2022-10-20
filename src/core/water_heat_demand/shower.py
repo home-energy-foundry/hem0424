@@ -25,6 +25,9 @@ class MixerShower:
         self.__flowrate          = flowrate
         self.__cold_water_source = cold_water_source
 
+    def get_cold_water_source(self):
+        return(self.__cold_water_source)
+        
     def hot_water_demand(self, temp_target, total_shower_duration):
         """ Calculate volume of hot water required
 
@@ -78,6 +81,9 @@ class InstantElecShower:
         #      electric showers work, or do they modulate their power output?
         self.__cold_water_source = cold_water_source
         self.__elec_supply_conn  = elec_supply_conn
+
+    def get_cold_water_source(self):
+        return(self.__cold_water_source)
 
     def hot_water_demand(self, temp_target, total_shower_duration):
         """ Calculate electrical energy required

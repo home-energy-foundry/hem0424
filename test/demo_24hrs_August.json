@@ -90,6 +90,39 @@
 			"EnergySupply": "mains elec"
 		}
 	},
+	"Bath": {
+		"medium": {
+			"size": 100,
+			"ColdWaterSource": "mains water",
+			"flowrate": 8.0
+		}
+	},
+	"Other": {
+		"other": {
+			"flowrate": 8.0,
+			"ColdWaterSource": "mains water"
+		}
+	},
+	"Distribution": {
+		"internal": {
+			"internal_diameter": 0.025,
+			"external_diameter": 0.027,
+			"length": 8.0,
+			"insulation_thermal_conductivity": 0.035,
+			"insulation_thickness": 0.038,
+			"surface_reflectivity": false,
+			"pipe_contents": "water"
+		},
+		"external": {
+			"internal_diameter": 0.025,
+			"external_diameter": 0.027,
+			"length": 8.0,
+			"insulation_thermal_conductivity": 0.035,
+			"insulation_thickness": 0.038,
+			"surface_reflectivity": false,
+			"pipe_contents": "water"
+		}
+	},
 	"Events": {
 		"Shower": {
 			"IES": [
@@ -99,6 +132,16 @@
 			],
 			"mixer": [
 				{"start": 7, "duration": 6, "temperature": 41.0}
+			]
+		},
+		"Bath":{
+			"medium": [
+				{"start": 6, "temperature": 41.0}
+			]
+		},
+		"Other": {
+			"other": [
+				{"start": 7, "duration": 1, "temperature": 41.0}
 			]
 		}
 	},
