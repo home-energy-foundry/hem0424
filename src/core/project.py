@@ -142,15 +142,18 @@ class Project:
             self.__energy_supplies[name] = EnergySupply(data['fuel'], self.__simtime)
             # TODO Consider replacing fuel type string with fuel type object
 
-        self.__internal_gains = InternalGains(
-            expand_schedule(
-                float,
-                proj_dict['InternalGains']['schedule_total_internal_gains'],
-                "main",
-                ),
-            self.__simtime,
-            proj_dict['InternalGains']['start_day']
-            )
+        self.__internal_gains = {}
+        for name, data in proj_dict['InternalGains'].items():
+            self.__internal_gains[name] = InternalGains(
+                                             expand_schedule(
+                                                 float,
+                                                 data['schedule'],
+                                                 "main",
+                                                 ),
+                                             self.__simtime,
+                                             data['start_day']
+                                             )
+                                         
 
         def dict_to_ctrl(name, data):
             """ Parse dictionary of control data and return approprate control object """
@@ -528,11 +531,14 @@ class Project:
             gains_internal_zone = {}
             gains_solar_zone = {}
             for z_name, zone in self.__zones.items():
-                # Convert W/m2 to W
-                gains_internal_zone[z_name] \
-                    = self.__internal_gains.total_internal_gain() * zone.area()
-                # Add gains from ventilation fans (make sure this is only called
-                # once per timestep per zone)
+                gains_internal_zone_inner = 0.0
+                for internal_gains_name, internal_gains_object in self.__internal_gains.items():
+                    # Convert W/m2 to W
+                    gains_internal_zone_inner\
+                        += internal_gains_object.total_internal_gain() * zone.area()
+                    # Add gains from ventilation fans (make sure this is only called
+                    # once per timestep per zone)
+                gains_internal_zone[z_name] = gains_internal_zone_inner
                 if self.__ventilation is not None:
                     gains_internal_zone[z_name] += self.__ventilation.fans(zone.volume())
 

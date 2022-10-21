@@ -36,9 +36,17 @@
 		
 	},
 	"InternalGains": {
-		"start_day": 0,
-		"schedule_total_internal_gains": {
-			"main": [3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1]
+		"metabolic gains": {
+			"start_day": 0,
+			"schedule": {
+				"main": [3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1]
+			}
+		},
+		"appliance gains": {
+			"start_day": 0,
+			"schedule": {
+				"main": [1.1, 2.5, 2.3, 4.7, 7.2, 6.8, 9.1, 7.6]
+			}
 		}
 	},
 	"ColdWaterSource": {
