@@ -53,6 +53,10 @@ class Ductwork:
         """ Calculate the exterior linear surface resistance, in K m / W  """
         self.__external_surface_resistance = 1.0 / (external_htc * pi * self.__D_ins)
 
+    def get_MVHR_location(self):
+        return self.__MVHR_location
+        
+        return 
     def duct_heat_loss(self, inside_temp, outside_temp):
         """" Return the heat loss for air inside the duct for the current timestep
         Arguments:

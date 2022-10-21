@@ -548,21 +548,14 @@ class Project:
                 internal_air_temperature += zone.temp_internal_air() * zone.volume()
                 overall_volume += zone.volume()
             internal_air_temperature /= overall_volume # average internal temperature
-    
-            # Calculate heat loss from ducts when unit is outside - I think we are only interested in when the unit is inside for space heating
-            # Air temp inside ducts decreases, heat lost to external environment
-            '''if MVHR_location == "outside":
-                ductwork_watts_heat_loss = ductwork["MVHR"].total_duct_heat_loss(
-                                                            self.__external_conditions.air_temp(),
-                                                            internal_air_temperature,
-                                                            internal_air_temperature,
-                                                            None,
-                                                            None)'''
-    
+
             # Calculate heat loss from ducts when unit is inside
             # Air temp inside ducts increases, heat lost from dwelling
-            ductwork =self.__space_heating_ductwork
+            ductwork = self.__space_heating_ductwork
             if ductwork == None:
+                return 0
+
+            if ductwork.get_MVHR_location == "outside":
                 return 0
 
             ductwork_watts_heat_loss = \
@@ -576,7 +569,7 @@ class Project:
             # Convert to kWh - summation of heating gains and losses is in kWh
             ductwork_heat_loss = ductwork_watts_heat_loss / units.W_per_kW
     
-            return ductwork_heat_loss # heat loss in kWh for the timestep
+            return ductwork_heat_loss, overall_volume # heat loss in kWh for the timestep
 
         def calc_space_heating(delta_t_h):
             """ Calculate space heating demand, heating system output and temperatures
@@ -587,6 +580,13 @@ class Project:
             temp_ext_air = self.__external_conditions.air_temp()
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
+
+            ductwork_gains = 0.0
+            # ductwork gains only for MVHR
+            if isinstance(self.__ventilation, MechnicalVentilationHeatRecovery):
+                ductwork_gains, overall_zone_volume = calc_ductwork_losses(0, delta_t_h)
+            
+            ductwork_gains_per_m3 = ductwork_gains/overall_zone_volume
 
             # Calculate internal and solar gains for each zone
             gains_internal_zone = {}
@@ -599,6 +599,7 @@ class Project:
                 # once per timestep per zone)
                 if self.__ventilation is not None:
                     gains_internal_zone[z_name] += self.__ventilation.fans(zone.volume())
+                    gains_internal_zone[z_name] += ductwork_gains_per_m3 * zone.volume()
 
                 gains_solar_zone[z_name] = zone.gains_solar()
 
@@ -614,10 +615,6 @@ class Project:
             for cool_system_name in self.__space_cool_systems.keys():
                 space_cool_demand_system[cool_system_name] = 0.0
 
-            ductwork_gains = 0.0
-            # ductwork gains only for MVHR
-            if isinstance(self.__ventilation, MechnicalVentilationHeatRecovery):
-                ductwork_gains = calc_ductwork_losses(0, delta_t_h)
 
             space_heat_demand_zone = {}
             space_cool_demand_zone = {}
