@@ -111,10 +111,21 @@
 		}
 	},
 	"Ventilation": {
-		"type": "WHEV",
+		"type": "MVHR",
 		"req_ach": 0.5,
 		"SFP": 1.5,
-		"EnergySupply": "mains elec"
+		"efficiency" : 0.80,
+		"EnergySupply": "mains elec",
+		"ductwork": {
+			 "internal_diameter": 0.2,
+			 "external_diameter": 0.3,
+			 "length_in": 10.0,
+			 "length_out": 10.0,
+			 "insulation_thermal_conductivity": 0.023,
+			 "insulation_thickness": 0.1,
+			 "reflective": false,
+			 "MVHR_location": "outside"
+		}
 	},
 	"Infiltration": {
 		"storey": 1,
