@@ -23,7 +23,7 @@ class TestColdWaterSource(unittest.TestCase):
         """ Create ColdWaterSource object to be tested """
         self.simtime   = SimulationTime(0, 8, 1)
         self.watertemp = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
-        self.coldwater = ColdWaterSource(self.watertemp, self.simtime, 0)
+        self.coldwater = ColdWaterSource(self.watertemp, self.simtime, 0, 1)
 
     def test_temperature(self):
         """ Test that ColdWaterSource object returns correct water temperatures """

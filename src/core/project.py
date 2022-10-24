@@ -83,6 +83,7 @@ class Project:
             0, #proj_dict['ExternalConditions']['timezone'],
             0, #proj_dict['ExternalConditions']['start_day'],
             365, #proj_dict['ExternalConditions']['end_day'],
+            1, #proj_dict['ExternalConditions']['time_series_step'],
             None, #proj_dict['ExternalConditions']['january_first'],
             None, #proj_dict['ExternalConditions']['daylight_savings'],
             None, #proj_dict['ExternalConditions']['leap_day_included'],
@@ -135,7 +136,7 @@ class Project:
         self.__cold_water_sources = {}
         for name, data in proj_dict['ColdWaterSource'].items():
             self.__cold_water_sources[name] \
-                = ColdWaterSource(data['temperatures'], self.__simtime, data['start_day'])
+                = ColdWaterSource(data['temperatures'], self.__simtime, data['start_day'], data['time_series_step'])
 
         self.__energy_supplies = {}
         for name, data in proj_dict['EnergySupply'].items():
@@ -151,7 +152,8 @@ class Project:
                                                  "main",
                                                  ),
                                              self.__simtime,
-                                             data['start_day']
+                                             data['start_day'],
+                                             data['time_series_step']
                                              )
                                          
 
@@ -160,7 +162,7 @@ class Project:
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
                 sched = expand_schedule(bool, data['schedule'], "main")
-                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'])
+                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'], data['time_series_step'])
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
