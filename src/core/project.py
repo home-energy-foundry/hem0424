@@ -538,9 +538,9 @@ class Project:
                     # Convert W/m2 to W
                     gains_internal_zone_inner\
                         += internal_gains_object.total_internal_gain() * zone.area()
-                    # Add gains from ventilation fans (make sure this is only called
-                    # once per timestep per zone)
                 gains_internal_zone[z_name] = gains_internal_zone_inner
+                # Add gains from ventilation fans (make sure this is only called
+                # once per timestep per zone)
                 if self.__ventilation is not None:
                     gains_internal_zone[z_name] += self.__ventilation.fans(zone.volume())
 
