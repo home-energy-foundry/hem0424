@@ -452,7 +452,9 @@ class Project:
                 data['volume'],
                 building_elements,
                 thermal_bridging,
-                vent_elements
+                vent_elements,
+                data['temp_setpnt_heat'],
+                data['temp_setpnt_cool'],
                 )
 
         self.__zones = {}
