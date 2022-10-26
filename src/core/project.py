@@ -86,6 +86,7 @@ class Project:
             0, #proj_dict['ExternalConditions']['timezone'],
             0, #proj_dict['ExternalConditions']['start_day'],
             365, #proj_dict['ExternalConditions']['end_day'],
+            1, #proj_dict['ExternalConditions']['time_series_step'],
             None, #proj_dict['ExternalConditions']['january_first'],
             None, #proj_dict['ExternalConditions']['daylight_savings'],
             None, #proj_dict['ExternalConditions']['leap_day_included'],
@@ -117,29 +118,33 @@ class Project:
         self.__cold_water_sources = {}
         for name, data in proj_dict['ColdWaterSource'].items():
             self.__cold_water_sources[name] \
-                = ColdWaterSource(data['temperatures'], self.__simtime, data['start_day'])
+                = ColdWaterSource(data['temperatures'], self.__simtime, data['start_day'], data['time_series_step'])
 
         self.__energy_supplies = {}
         for name, data in proj_dict['EnergySupply'].items():
             self.__energy_supplies[name] = EnergySupply(data['fuel'], self.__simtime)
             # TODO Consider replacing fuel type string with fuel type object
 
-        self.__internal_gains = InternalGains(
-            expand_schedule(
-                float,
-                proj_dict['InternalGains']['schedule_total_internal_gains'],
-                "main",
-                ),
-            self.__simtime,
-            proj_dict['InternalGains']['start_day']
-            )
+        self.__internal_gains = {}
+        for name, data in proj_dict['InternalGains'].items():
+            self.__internal_gains[name] = InternalGains(
+                                             expand_schedule(
+                                                 float,
+                                                 data['schedule'],
+                                                 "main",
+                                                 ),
+                                             self.__simtime,
+                                             data['start_day'],
+                                             data['time_series_step']
+                                             )
+                                         
 
         def dict_to_ctrl(name, data):
             """ Parse dictionary of control data and return approprate control object """
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
                 sched = expand_schedule(bool, data['schedule'], "main")
-                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'])
+                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'], data['time_series_step'])
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -699,9 +704,12 @@ class Project:
             gains_internal_zone = {}
             gains_solar_zone = {}
             for z_name, zone in self.__zones.items():
-                # Convert W/m2 to W
-                gains_internal_zone[z_name] \
-                    = self.__internal_gains.total_internal_gain() * zone.area()
+                gains_internal_zone_inner = 0.0
+                for internal_gains_name, internal_gains_object in self.__internal_gains.items():
+                    # Convert W/m2 to W
+                    gains_internal_zone_inner\
+                        += internal_gains_object.total_internal_gain() * zone.area()
+                gains_internal_zone[z_name] = gains_internal_zone_inner
                 # Add gains from ventilation fans (make sure this is only called
                 # once per timestep per zone)
                 if self.__ventilation is not None:

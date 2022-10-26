@@ -27,12 +27,13 @@ class Test_StorageTank(unittest.TestCase):
         """ Create StorageTank object to be tested """
         coldwatertemps   = [1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4]
         self.simtime     = SimulationTime(0, 8, 1)
-        coldfeed         = ColdWaterSource(coldwatertemps, self.simtime, 0)
+        coldfeed         = ColdWaterSource(coldwatertemps, self.simtime, 0, 1)
         self.storagetank = StorageTank(150.0, 0.9, 55.0, coldfeed, WATER)
         control          = OnOffTimeControl(
                                [True, False, False, False, True, True, True, True],
                                self.simtime,
                                0,
+                               1
                                )
         energysupply     = EnergySupply("gas", self.simtime)
         energysupplyconn = energysupply.connection("shower")
@@ -57,7 +58,7 @@ class Test_ImmersionHeater(unittest.TestCase):
         self.simtime          = SimulationTime(0, 4, 1)
         energysupply          = EnergySupply("gas", self.simtime)
         energysupplyconn      = energysupply.connection("shower")
-        control               = OnOffTimeControl([True, True, False, True], self.simtime, 0)
+        control               = OnOffTimeControl([True, True, False, True], self.simtime, 0, 1)
         self.immersionheater  = ImmersionHeater(50, energysupplyconn, self.simtime, control)
 
     def test_demand_energy(self):
