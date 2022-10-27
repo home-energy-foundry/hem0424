@@ -342,11 +342,9 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
     }
 
 def create_cooking_gains(project_dict, N_occupants):
-
-    '''
-    no cooking type in project dict yet, using dummy
-    '''
-    cooking_type = 'gasonly'
+    
+    #should there be a default here if no type in project dict?
+    cooking_type = project_dict["Appliances"]["Cooking"]["type"]
 
     cooking_profile_fhs = [
         0.001192419, 0.000825857, 0.000737298, 0.000569196,
@@ -385,12 +383,30 @@ def create_cooking_gains(project_dict, N_occupants):
     cooking_gas_profile_W = [(1000 / 2) * 0.75 * annual_cooking_gas_kWh / 365
                              * halfhr for halfhr in cooking_profile_fhs]
     #need separate gas and electric schedule objects
+    if cooking_type == 'eleconly':
+        cooking_profile_W = cooking_elec_profile_W
+    elif cooking_type == 'gasonly':
+        cooking_profile_W = cooking_gas_profile_W
+    elif cooking_type == 'gaselecmix':
+        cooking_profile_W = [
+            elec+gas for gas,elec in 
+            zip(cooking_gas_profile_W,cooking_elec_profile_W)
+        ]
+    
     project_dict['InternalGains']['CookingGains'] = {
         "start_day" : 0,
         "time_series_step": 0.5,
         "schedule": {
-            "Watts_Gas": cooking_elec_profile_W, #need this per square meter!
-            "Watts_Elec": cooking_gas_profile_W
+            "main":[{"repeat": 365, "value": cooking_profile_W}]
+        s}
+    }
+    
+    project_dict['Appliances']['Cooking'] = {
+        "type": cooking_type,
+        "start_day" : 0,
+        "time_series_step": 0.5,
+        "schedule": {
+            "main":[{"repeat": 365, "value": cooking_profile_W}]
         }
     }
 
