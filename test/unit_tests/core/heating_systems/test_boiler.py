@@ -166,25 +166,25 @@ class TestBoilerServiceSpace(unittest.TestCase):
         self.simtime                = SimulationTime(0, 2, 1)
         self.energysupply           = EnergySupply("mains_gas", self.simtime)
         self.energy_demanded        = [10.0, 2.0]
-        self.temp_return_feed       = [51.05, 60.00]
+        self.temp_flow              = [55.0, 65.0]
+        self.temp_return_feed       = [50.0, 60.0]
         airtemp                     = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
         extcond                     = ExternalConditions(self.simtime, airtemp)
-        self.boiler                 = Boiler(boiler_dict, self.energysupply, extcond)
+        self.boiler                 = Boiler(boiler_dict, self.energysupply, extcond, self.simtime)
         self.boiler._Boiler__create_service_connection("boiler test")
-        return_temp      = 60
         self.boiler_service_space     = BoilerServiceSpace(
             boilerservicespace_dict,\
             self.boiler, \
-            "boiler test", \
-            return_temp, \
-            self.simtime)
+            "boiler test")
         
     def test_boiler_service_space(self):
         """ Test that Boiler object returns correct space heating energy demand """
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
-                    self.boiler_service_space.demand_energy(self.energy_demanded[t_idx]),
+                    self.boiler_service_space.demand_energy(self.energy_demanded[t_idx],
+                                                            self.temp_flow[t_idx],
+                                                            self.temp_return_feed[t_idx] ),
                     [10.0, 2.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )

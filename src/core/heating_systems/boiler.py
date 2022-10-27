@@ -180,7 +180,7 @@ class BoilerServiceSpace(BoilerService):
     This object contains the parts of the boiler calculation that are
     specific to providing space heating-.
     """
-    def __init__(self, boiler, service_name, return_temperature):
+    def __init__(self, boilerservicespace_dict, boiler, service_name):
         """ Construct a BoilerServiceSpace object
 
         Arguments:
@@ -189,16 +189,15 @@ class BoilerServiceSpace(BoilerService):
         """
         super().__init__(boiler, service_name)
         self.__service_name = service_name
-        self.__return_temperature = return_temperature
 
 
-    def demand_energy(self, energy_demand):
+    def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the boiler """
 
         return self._boiler._Boiler__demand_energy(
             self.__service_name,
             energy_demand,
-            self.__return_temperature
+            temp_return
             )
 
 
@@ -227,7 +226,7 @@ class Boiler:
 
         # boiler properties
         self.__boiler_location = boiler_dict["boiler_location"]
-        self.__modulation_load = boiler_dict["modulation_load"]
+        self.__min_modulation_load = boiler_dict["modulation_load"]
         self.__boiler_power = boiler_dict["rated_power"]
         full_load_gross = boiler_dict["efficiency_full_load"]
         part_load_gross = boiler_dict["efficiency_part_load"]
@@ -303,11 +302,11 @@ class Boiler:
 
     def __cycling_adjustment(self, energy_output_required, temp_return_feed, timestep):
         prop_of_timestep_at_min_rate = min(energy_output_required \
-                                       / (self.__boiler_power * self.__modulation_load * timestep)
+                                       / (self.__boiler_power * self.__min_modulation_load * timestep)
                                        , 1.0)
         ton_toff = (1.0 - prop_of_timestep_at_min_rate) / prop_of_timestep_at_min_rate
         cycling_adjustment = 0.0
-        if prop_of_timestep_at_min_rate != 1.0:
+        if prop_of_timestep_at_min_rate < 1.0:
             cycling_adjustment = self.__standing_loss \
                                  * ton_toff \
                                  * ((temp_return_feed - self.__temp_boiler_loc) \
