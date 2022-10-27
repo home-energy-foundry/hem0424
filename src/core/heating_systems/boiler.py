@@ -180,30 +180,24 @@ class BoilerServiceSpace(BoilerService):
     This object contains the parts of the boiler calculation that are
     specific to providing space heating-.
     """
-    def __init__(self, boiler, service_name, temp_limit_upper):
+    def __init__(self, boiler, service_name, return_temperature):
         """ Construct a BoilerServiceWater object
 
         Arguments:
         boiler       -- reference to the Boiler object providing the service
         service_name -- name of the service demanding energy from the boiler
-        temp_limit_upper -- upper operating limit for temperature, in deg C
         """
         super().__init__(boiler, service_name)
+        self.__return_temperature = return_temperature
 
-        self.__temp_hot_water = temp_hot_water
-        self.__temp_limit_upper = temp_limit_upper
-        self.__cold_feed = cold_feed
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the boiler """
-        temp_cold_water = self.__cold_feed.temperature()
 
         return self.__boiler._Boiler__demand_energy(
             self.__service_name,
             energy_demand,
-            self.__temp_hot_water,
-            temp_cold_water,
-            self.__temp_limit_upper,
+            self.__return_temperature
             )
 
 
