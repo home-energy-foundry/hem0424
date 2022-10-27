@@ -15,7 +15,7 @@ test_setup()
 # Local imports
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
-from core.heating_systems.boiler import Boiler, BoilerServiceWaterCombi
+from core.heating_systems.boiler import Boiler, BoilerServiceWaterCombi, BoilerServiceSpace
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.energy_supply.energy_supply import EnergySupply
 from core.material_properties import WATER, MaterialProperties
@@ -27,16 +27,16 @@ class TestBoiler(unittest.TestCase):
     def setUp(self):
         """ Create Boiler object to be tested """
         boiler_dict = {"type": "Boiler",
-                       "rated_power": 16.85,
+                       "rated_power": 24.0,
                        "EnergySupply": "mains_gas",
-                       "efficiency_full_load": 0.868,
-                       "efficiency_part_load": 0.952,
+                       "efficiency_full_load": 0.88,
+                       "efficiency_part_load": 0.986,
                        "boiler_location": "internal",
-                       "modulation_load" : 1
+                       "modulation_load" : 0.2
                       }
         self.simtime                = SimulationTime(0, 2, 1)
         self.energysupply           = EnergySupply("mains_gas", self.simtime)
-        self.energy_output_required = [2, 10]
+        self.energy_output_required = [2.0, 10.0]
         self.temp_return_feed       = [51.05, 60.00]
         airtemp                     = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
         extcond                     = ExternalConditions(self.simtime, airtemp)
@@ -51,12 +51,12 @@ class TestBoiler(unittest.TestCase):
                     self.boiler._Boiler__demand_energy("boiler test", 
                                                        self.energy_output_required[t_idx],
                                                        self.temp_return_feed[t_idx]),
-                    [0.1186944, 0.5934718][t_idx],
+                    [2.0, 10.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )
                 self.assertAlmostEqual(
                     self.energysupply.results_by_end_user()["boiler test"][t_idx],
-                    [0.1474993, 0.6984658][t_idx],
+                    [2.3350612, 11.5067107][t_idx],
                     msg="incorrect fuel demand"
                     )
 
@@ -119,7 +119,7 @@ class TestBoilerServiceWaterCombi(unittest.TestCase):
                       }
         self.simtime                = SimulationTime(0, 2, 1)
         self.energysupply           = EnergySupply("mains_gas", self.simtime)
-        self.energy_output_required = [10, 2]
+        self.volume_demanded        = [10, 2]
         self.temp_return_feed       = [51.05, 60.00]
         airtemp                     = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
         extcond                     = ExternalConditions(self.simtime, airtemp)
@@ -142,7 +142,50 @@ class TestBoilerServiceWaterCombi(unittest.TestCase):
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
-                    self.boiler_service_water.demand_hot_water(self.energy_output_required[t_idx]),
-                    [0.0429757, 0.0103791][t_idx],
+                    self.boiler_service_water.demand_hot_water(self.volume_demanded[t_idx]),
+                    [0.7241412, 0.1748878][t_idx],
                     msg="incorrect energy_output_provided"
                     )
+                
+class TestBoilerServiceSpace(unittest.TestCase):
+    """ Unit tests for Boiler class """
+
+    def setUp(self):
+        """ Create Boiler object to be tested """
+        boiler_dict = {"type": "Boiler",
+                       "rated_power": 16.85,
+                       "EnergySupply": "mains_gas",
+                       "efficiency_full_load": 0.868,
+                       "efficiency_part_load": 0.952,
+                       "boiler_location": "internal",
+                       "modulation_load" : 1
+                      }
+        boilerservicespace_dict = {
+                    "weather_compensation" : "on"
+                      }
+        self.simtime                = SimulationTime(0, 2, 1)
+        self.energysupply           = EnergySupply("mains_gas", self.simtime)
+        self.energy_demanded        = [10.0, 2.0]
+        self.temp_return_feed       = [51.05, 60.00]
+        airtemp                     = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
+        extcond                     = ExternalConditions(self.simtime, airtemp)
+        self.boiler                 = Boiler(boiler_dict, self.energysupply, extcond)
+        self.boiler._Boiler__create_service_connection("boiler test")
+        return_temp      = 60
+        self.boiler_service_space     = BoilerServiceSpace(
+            boilerservicespace_dict,\
+            self.boiler, \
+            "boiler test", \
+            return_temp, \
+            self.simtime)
+        
+    def test_boiler_service_space(self):
+        """ Test that Boiler object returns correct space heating energy demand """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertAlmostEqual(
+                    self.boiler_service_space.demand_energy(self.energy_demanded[t_idx]),
+                    [10.0, 2.0][t_idx],
+                    msg="incorrect energy_output_provided"
+                    )
+

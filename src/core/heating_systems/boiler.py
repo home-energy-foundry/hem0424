@@ -181,20 +181,21 @@ class BoilerServiceSpace(BoilerService):
     specific to providing space heating-.
     """
     def __init__(self, boiler, service_name, return_temperature):
-        """ Construct a BoilerServiceWater object
+        """ Construct a BoilerServiceSpace object
 
         Arguments:
         boiler       -- reference to the Boiler object providing the service
         service_name -- name of the service demanding energy from the boiler
         """
         super().__init__(boiler, service_name)
+        self.__service_name = service_name
         self.__return_temperature = return_temperature
 
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the boiler """
 
-        return self.__boiler._Boiler__demand_energy(
+        return self._boiler._Boiler__demand_energy(
             self.__service_name,
             energy_demand,
             self.__return_temperature
