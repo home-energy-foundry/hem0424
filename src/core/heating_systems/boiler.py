@@ -325,12 +325,9 @@ class Boiler:
         timestep = self.__simulation_time.timestep()
         
         boiler_eff = self.effvsreturntemp(temp_return_feed, self.__offset)
-        #Proportion of time interval at minimum rate
-        uncapped_modulation_proportion = energy_output_required / \
-                                    (self.__boiler_power * self.__modulation_load * timestep)
-        energy_output_provided = uncapped_modulation_proportion
-        modulation_proportion = min(uncapped_modulation_proportion, 1.0)
-        ton_toff = (1.0- modulation_proportion)/ modulation_proportion
+                                    
+        energy_output_max_power = self.__boiler_power * timestep
+        energy_output_provided = min(energy_output_required, energy_output_max_power)
         
         cycling_adjustment = self.__cycling_adjustment(energy_output_required, temp_return_feed, timestep)
 
