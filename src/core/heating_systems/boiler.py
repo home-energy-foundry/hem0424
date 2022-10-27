@@ -301,17 +301,19 @@ class Boiler:
 
 
     def __cycling_adjustment(self, energy_output_required, temp_return_feed, timestep):
-        uncapped_modulation_proportion = energy_output_required \
+        prop_of_timestep_at_min_rate = min(energy_output_required \
                                        / (self.__boiler_power * self.__modulation_load * timestep)
-        modulation_proportion = min(uncapped_modulation_proportion, 1.0)
-        ton_toff = (1.0 - modulation_proportion) / modulation_proportion
+                                       , 1.0)
+        ton_toff = (1.0 - prop_of_timestep_at_min_rate) / prop_of_timestep_at_min_rate
         cycling_adjustment = 0.0
-        if modulation_proportion > 0.0:
-            cycling_adjustment = (self.__standing_loss * ton_toff \
-                                 * (temp_return_feed - self.__temp_boiler_loc) \
+        if prop_of_timestep_at_min_rate != 1.0:
+            cycling_adjustment = self.__standing_loss \
+                                 * ton_toff \
+                                 * ((temp_return_feed - self.__temp_boiler_loc) \
                                  / (self.__standby_loss) \
                                  ) \
                                  ** self.__sby_loss_idx
+        
         return cycling_adjustment
 
     def __demand_energy(
