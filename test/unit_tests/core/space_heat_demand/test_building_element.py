@@ -36,6 +36,7 @@ class TestBuildingElementOpaque(unittest.TestCase):
                                 None,
                                 0, # Start day
                                 None,
+                                1, # Time-series step,
                                 None,
                                 None,
                                 None,
@@ -173,6 +174,7 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
                                 None,
                                 0, # Start day
                                 None,
+                                1, # Time-series step
                                 None,
                                 None,
                                 None,
@@ -328,6 +330,7 @@ class TestBuildingElementGround(unittest.TestCase):
                                 None,
                                 0, # Start day
                                 None,
+                                1, # Time-series step
                                 None,
                                 None,
                                 None,
@@ -467,6 +470,7 @@ class TestBuildingElementTransparent(unittest.TestCase):
                                 None,
                                 0, # Start day
                                 None,
+                                1, # Time-series step
                                 None,
                                 None,
                                 None,

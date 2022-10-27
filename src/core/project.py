@@ -17,6 +17,7 @@ from core.schedule import expand_schedule, expand_events
 from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
+from core.heating_systems.emitters import Emitters
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
@@ -73,8 +74,6 @@ class Project:
         # TODO Read timezone from input file. For now, set timezone to 0 (GMT)
         # TODO Read direct_beam_conversion_needed from input file. For now,
         #      assume false (for epw files)
-        # TODO Read shading_segments from input file. For now hardcoded here
-        #      i.e. need to change here to test. input file values not being used
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
@@ -87,32 +86,12 @@ class Project:
             0, #proj_dict['ExternalConditions']['timezone'],
             0, #proj_dict['ExternalConditions']['start_day'],
             365, #proj_dict['ExternalConditions']['end_day'],
+            1, #proj_dict['ExternalConditions']['time_series_step'],
             None, #proj_dict['ExternalConditions']['january_first'],
             None, #proj_dict['ExternalConditions']['daylight_savings'],
             None, #proj_dict['ExternalConditions']['leap_day_included'],
             False, #proj_dict['ExternalConditions']['direct_beam_conversion_needed']
-            [{"number": 1, "start": 180, "end": 135},
-             {"number": 2, "start": 135, "end": 90,
-                "shading": [
-                    {"type": "overhang", "height": 2.2, "distance": 6}
-                ]
-             },
-             {"number": 3, "start": 90, "end": 45},
-             {"number": 4, "start": 45, "end": 0, 
-                "shading": [
-                    {"type": "obstacle", "height": 40, "distance": 4},
-                    {"type": "overhang", "height": 3, "distance": 7}
-                ]
-             },
-             {"number": 5, "start": 0, "end": -45,
-              "shading": [
-                    {"type": "obstacle", "height": 3, "distance": 8},
-                ]
-              },
-             {"number": 6, "start": -45, "end": -90},
-             {"number": 7, "start": -90, "end": -135},
-             {"number": 8, "start": -135, "end": -180}
-            ] # proj_dict['ExternalConditions']['shading_segments'],
+            proj_dict['ExternalConditions']['shading_segments'],
             )
 
         self.__infiltration = VentilationElementInfiltration(
@@ -139,29 +118,33 @@ class Project:
         self.__cold_water_sources = {}
         for name, data in proj_dict['ColdWaterSource'].items():
             self.__cold_water_sources[name] \
-                = ColdWaterSource(data['temperatures'], self.__simtime, data['start_day'])
+                = ColdWaterSource(data['temperatures'], self.__simtime, data['start_day'], data['time_series_step'])
 
         self.__energy_supplies = {}
         for name, data in proj_dict['EnergySupply'].items():
             self.__energy_supplies[name] = EnergySupply(data['fuel'], self.__simtime)
             # TODO Consider replacing fuel type string with fuel type object
 
-        self.__internal_gains = InternalGains(
-            expand_schedule(
-                float,
-                proj_dict['InternalGains']['schedule_total_internal_gains'],
-                "main",
-                ),
-            self.__simtime,
-            proj_dict['InternalGains']['start_day']
-            )
+        self.__internal_gains = {}
+        for name, data in proj_dict['InternalGains'].items():
+            self.__internal_gains[name] = InternalGains(
+                                             expand_schedule(
+                                                 float,
+                                                 data['schedule'],
+                                                 "main",
+                                                 ),
+                                             self.__simtime,
+                                             data['start_day'],
+                                             data['time_series_step']
+                                             )
+                                         
 
         def dict_to_ctrl(name, data):
             """ Parse dictionary of control data and return approprate control object """
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
                 sched = expand_schedule(bool, data['schedule'], "main")
-                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'])
+                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'], data['time_series_step'])
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -307,42 +290,6 @@ class Project:
                 self.__event_schedules[sched_type] = {}
             for name, data in schedules.items():
                 self.__event_schedules[sched_type][name] = dict_to_event_schedules(data)
-
-        def dict_to_space_heat_system(name, data):
-            space_heater_type = data['type']
-            if space_heater_type == 'InstantElecHeater':
-                if 'Control' in data.keys():
-                    ctrl = self.__controls[data['Control']]
-                    # TODO Need to handle error if Control name is invalid.
-                else:
-                    ctrl = None
-
-                energy_supply = self.__energy_supplies[data['EnergySupply']]
-                # TODO Need to handle error if EnergySupply name is invalid.
-                energy_supply_conn = energy_supply.connection(name)
-
-                space_heater = InstantElecHeater(
-                    data['rated_power'],
-                    energy_supply_conn,
-                    self.__simtime,
-                    ctrl,
-                    )
-            else:
-                sys.exit(name + ': space heating system type (' \
-                       + space_heater_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
-            return space_heater
-
-        # If one or more space heating systems have been provided, add them to the project
-        self.__space_heat_systems = {}
-        # If no space heating systems have been provided, then skip. This
-        # facilitates running the simulation with no heating systems at all
-        if 'SpaceHeatSystem' in proj_dict:
-            for name, data in proj_dict['SpaceHeatSystem'].items():
-                self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
-
-        self.__space_cool_systems = {}
-        # TODO Read in space cooling systems and populate dict
 
         def dict_to_building_element(name, data):
             building_element_type = data['type']
@@ -508,6 +455,57 @@ class Project:
         self.__zones = {}
         for name, data in proj_dict['Zone'].items():
             self.__zones[name] = dict_to_zone(name, data)
+
+        def dict_to_space_heat_system(name, data):
+            space_heater_type = data['type']
+            if space_heater_type == 'InstantElecHeater':
+                if 'Control' in data.keys():
+                    ctrl = self.__controls[data['Control']]
+                    # TODO Need to handle error if Control name is invalid.
+                else:
+                    ctrl = None
+
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                space_heater = InstantElecHeater(
+                    data['rated_power'],
+                    energy_supply_conn,
+                    self.__simtime,
+                    ctrl,
+                    )
+            # TODO For wet distribution, look up relevant heat source and set
+            #      heat_source variable. The Emitter object will not work
+            #      without it, so the code below should remain commented out
+            #      until at least one heat source type has been defined.
+            # elif space_heater_type == 'WetDistribution':
+            #     zone = self.__zones[data['Zone']]
+            #     space_heater = Emitters(
+            #         data['thermal_mass'],
+            #         data['c'],
+            #         data['n'],
+            #         data['temp_diff_emit_dsgn'],
+            #         heat_source,
+            #         zone,
+            #         self.__simtime,
+            #         )
+            else:
+                sys.exit(name + ': space heating system type (' \
+                       + space_heater_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return space_heater
+
+        # If one or more space heating systems have been provided, add them to the project
+        self.__space_heat_systems = {}
+        # If no space heating systems have been provided, then skip. This
+        # facilitates running the simulation with no heating systems at all
+        if 'SpaceHeatSystem' in proj_dict:
+            for name, data in proj_dict['SpaceHeatSystem'].items():
+                self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
+
+        self.__space_cool_systems = {}
+        # TODO Read in space cooling systems and populate dict
 
         def dict_to_on_site_generation(name, data):
             """ Parse dictionary of on site generation data and
@@ -706,9 +704,12 @@ class Project:
             gains_internal_zone = {}
             gains_solar_zone = {}
             for z_name, zone in self.__zones.items():
-                # Convert W/m2 to W
-                gains_internal_zone[z_name] \
-                    = self.__internal_gains.total_internal_gain() * zone.area()
+                gains_internal_zone_inner = 0.0
+                for internal_gains_name, internal_gains_object in self.__internal_gains.items():
+                    # Convert W/m2 to W
+                    gains_internal_zone_inner\
+                        += internal_gains_object.total_internal_gain() * zone.area()
+                gains_internal_zone[z_name] = gains_internal_zone_inner
                 # Add gains from ventilation fans (make sure this is only called
                 # once per timestep per zone)
                 if self.__ventilation is not None:
