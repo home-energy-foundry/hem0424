@@ -87,21 +87,28 @@ class Ductwork:
         # Loses energy to outside in extract duct - losses must be X by the efficiency of heat recovery
         # Loses energy to outside in supply duct - lose all because after MVHR unit
         if self.__MVHR_location == 'outside':
-            outside_temp = intake_duct_temp
-            supply_heat_loss = self.duct_heat_loss(supply_duct_temp, outside_temp, self.__length_in)
-            extract_heat_loss = self.duct_heat_loss(extract_duct_temp, outside_temp,self.__length_out)
-            total_duct_heat_loss = supply_heat_loss + (extract_heat_loss * efficiency)
+            if intake_duct_temp is not None and exhaust_duct_temp is not None:
+                outside_temp = intake_duct_temp
+                supply_heat_loss = self.duct_heat_loss(supply_duct_temp, outside_temp, self.__length_in)
+                extract_heat_loss = self.duct_heat_loss(extract_duct_temp, outside_temp,self.__length_out)
+                total_duct_heat_loss = -(supply_heat_loss + (extract_heat_loss * efficiency))
+            else:
+                sys.exit('duct temperatures not provided for outside MVHR.')                
 
         # Inside location
         # This will be a negative heat loss i.e. air inside the duct gains heat, dwelling loses heat
         # Gains energy from zone in intake duct - benefit of gain must be X by the efficiency of heat recovery
         # Gains energy from zone in exhaust duct
         elif self.__MVHR_location == 'inside':
-            outside_temp = extract_duct_temp,
-            intake_heat_loss = self.duct_heat_loss(intake_duct_temp, outside_temp,self.__length_in)
-            exhaust_heat_loss = self.duct_heat_loss(exhaust_duct_temp, outside_temp,self.__length_out)
-            total_duct_heat_loss = (intake_heat_loss * efficiency) + exhaust_heat_loss
+            if supply_duct_temp is not None and extract_duct_temp is not None:
+                outside_temp = extract_duct_temp
+                intake_heat_loss = self.duct_heat_loss(intake_duct_temp, outside_temp, self.__length_in)
 
+                exhaust_heat_loss = self.duct_heat_loss(exhaust_duct_temp, outside_temp, self.__length_out)
+
+                total_duct_heat_loss = (intake_heat_loss * efficiency) + exhaust_heat_loss
+            else:
+                sys.exit('duct temperatures not provided for outside MVHR.')
         else:
             sys.exit('MVHR location not valid.')
             # TODO Exit just the current case instead of whole program entirely?
