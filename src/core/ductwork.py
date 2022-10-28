@@ -19,7 +19,7 @@ EXTERNAL_NONREFLECTIVE_HTC = 10.0 # high emissivity non-reflective surface, CIBS
 class Ductwork:
     """ An object to represent ductwork for mechanical ventilation with heat recovery 
     (MVHR), assuming steady state heat transfer in a hollow cyclinder (duct)
-    with radial heat flow. """
+    with radial heat flow. ISO 12241:2022 """
 
     def __init__(self, internal_diameter, external_diameter, length_in, length_out, k_insulation, thickness_insulation, reflective, MVHR_location):
         """Construct a ductwork object
