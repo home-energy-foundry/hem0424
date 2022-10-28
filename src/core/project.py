@@ -580,7 +580,7 @@ class Project:
             ductwork_watts_heat_loss = \
                 ductwork.total_duct_heat_loss(
                 internal_air_temperature,
-                self.__external_conditions.air_temp(),
+                supply_duct_temp,
                 internal_air_temperature,
                 self.__external_conditions.air_temp(),
                 exhaust_duct_temp,
