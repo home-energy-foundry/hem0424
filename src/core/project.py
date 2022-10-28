@@ -31,7 +31,7 @@ from core.space_heat_demand.thermal_bridge import \
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.water_heat_demand.shower import MixerShower, InstantElecShower
 from core.space_heat_demand.internal_gains import InternalGains
-
+from core.heating_systems.wwhrs import WWHRS_InstantaneousSystemB
 
 class Project:
     """ An object to represent the overall model to be simulated """
@@ -219,6 +219,29 @@ class Project:
         for name, data in proj_dict['HotWaterSource'].items():
             self.__hot_water_sources[name] = dict_to_hot_water_source(name, data)
 
+
+        def dict_to_wwhrs(name, data):
+            """ Parse dictionary of HW source data and return approprate HW source object """
+            wwhrs_source_type = data['type']
+            if wwhrs_source_type == 'WWHRS_InstantaneousSystemB':
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                # TODO Need to handle error if ColdWaterSource name is invalid.
+
+                the_wwhrs = WWHRS_InstantaneousSystemB(
+                    data['flow_rates'],
+                    data['efficiencies'],
+                    cold_water_source
+                    )
+            else:
+                sys.exit(name + ': WWHRS (' + hw_source_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return the_wwhrs
+
+        self.__wwhrs = {}
+        for name, data in proj_dict['WWHRS'].items():
+            self.__wwhrs[name] = dict_to_wwhrs(name, data)
+
+
         def dict_to_shower(name, data):
             """ Parse dictionary of shower data and return approprate shower object """
             cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
@@ -226,7 +249,8 @@ class Project:
 
             shower_type = data['type']
             if shower_type == 'MixerShower':
-                shower = MixerShower(data['flowrate'], cold_water_source)
+                wwhrs_instance = self.__wwhrs[data['WWHRS']]
+                shower = MixerShower(data['flowrate'], cold_water_source, wwhrs_instance)
             elif shower_type == 'InstantElecShower':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
