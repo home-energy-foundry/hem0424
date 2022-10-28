@@ -21,7 +21,7 @@ class TestDuctwork(unittest.TestCase):
 
     def setUp(self):
         """ Create Ductwork objects to be tested """
-        self.ductwork = Ductwork(0.025, 0.027, 0.4, 0.02, 0.022, False, "inside")
+        self.ductwork = Ductwork(0.025, 0.027, 0.4, 0.02, 0.022, 0.02, False, "inside")
         self.simtime = SimulationTime(0, 8, 1)
 
     def test_D_ins(self):

@@ -97,7 +97,7 @@ class Ductwork:
         # Gains energy from zone in intake duct - benefit of gain must be X by the efficiency of heat recovery
         # Gains energy from zone in exhaust duct
         elif self.__MVHR_location == 'inside':
-            outside_temp = exhaust_duct_temp,
+            outside_temp = extract_duct_temp,
             intake_heat_loss = self.duct_heat_loss(intake_duct_temp, outside_temp,self.__length_in)
             exhaust_heat_loss = self.duct_heat_loss(exhaust_duct_temp, outside_temp,self.__length_out)
             total_duct_heat_loss = (intake_heat_loss * efficiency) + exhaust_heat_loss

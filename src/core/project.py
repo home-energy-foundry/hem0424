@@ -598,12 +598,11 @@ class Project:
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
 
-            ductwork_losses, overall_zone_volume = 0.0, 0.0
+            ductwork_losses, overall_zone_volume, ductwork_losses_per_m3 = 0.0, 0.0, 0.0
             # ductwork gains/losses only for MVHR
             if isinstance(self.__ventilation, MechnicalVentilationHeatRecovery):
                 ductwork_losses, overall_zone_volume = calc_ductwork_losses(0, delta_t_h, self.__ventilation.efficiency())
-            
-            ductwork_losses_per_m3 = ductwork_losses / overall_zone_volume
+                ductwork_losses_per_m3 = ductwork_losses / overall_zone_volume
 
             # Calculate internal and solar gains for each zone
             gains_internal_zone = {}
