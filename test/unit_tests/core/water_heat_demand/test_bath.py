@@ -24,7 +24,7 @@ class TestBath(unittest.TestCase):
         """ Create Bath object to be tested """
         self.simtime         = SimulationTime(0, 3, 1)
         coldwatertemps       = [2.0, 3.0, 4.0]
-        self.coldwatersource = ColdWaterSource(coldwatertemps, self.simtime, 0)
+        self.coldwatersource = ColdWaterSource(coldwatertemps, self.simtime, 0, 1)
         self.bath            = Bath(100.0, self.coldwatersource, 4.5)
 
     def test_get_size(self):

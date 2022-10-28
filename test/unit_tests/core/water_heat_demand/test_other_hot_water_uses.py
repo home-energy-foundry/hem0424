@@ -24,7 +24,7 @@ class TestOtherHotWater(unittest.TestCase):
         """ Create OtherWaterUses object to be tested """
         self.simtime         = SimulationTime(0, 3, 1)
         coldwatertemps       = [2.0, 3.0, 4.0]
-        self.coldwatersource = ColdWaterSource(coldwatertemps, self.simtime, 0)
+        self.coldwatersource = ColdWaterSource(coldwatertemps, self.simtime, 0, 1)
         self.otherhotwater   = OtherHotWater(5.0, self.coldwatersource)
 
     def test_get_flowrate(self):
