@@ -18,8 +18,10 @@ the Virtual Environment by running:
 	source ./venv/bin/activate
 	pip install -r requirements.txt
 
-	# Other systems:
-	# TODO
+	# Windows 10:
+	python -m venv venv
+	venv\Scripts\activate.bat
+	pip install -r requirements.txt
 
 To run the program, activate the Virtual Environment if it is not active already, and run the sap.py
 file, e.g. (assuming the working directory is the top-level folder of the repository):
@@ -27,8 +29,8 @@ file, e.g. (assuming the working directory is the top-level folder of the reposi
 	# RHEL 7 / CentOS 7:
 	python3 src/sap.py test/demo.json
 
-	# Other systems
-	# TODO
+	# Windows 10:
+	python src\sap.py test\demo.json
 
 Note that the above requires an entire year's weather data to be provided in the input file.
 Alternatively, a weather file can be provided in EnergyPlus (epw) format, after the appropriate
@@ -37,16 +39,16 @@ flag, e.g.:
 	# RHEL 7 / CentOS 7:
 	python3 src/sap.py test/demo.json --epw-file /path/to/weather_files/GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
 
-	# Other systems
-	# TODO
+	# Windows 10:
+	python src\sap.py test\demo.json --epw-file C:\path\to\weather_files\GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
 
 For a full list of command-line options, run the following:
 
 	# RHEL 7 / CentOS 7:
 	python3 src/sap.py --help
 
-	# Other systems
-	# TODO
+	# Windows 10:
+	python src\sap.py --help
 
 
 # Build and Test
@@ -58,8 +60,8 @@ To run all unit tests (with the top level of the repository as your working dire
 	# RHEL 7 / CentOS 7:
 	python3 -m unittest discover test/
 	
-	# Other systems:
-	# TODO
+	# Windows 10:
+	python -m unittest discover test\
 
 If the tests were successful, you should see output that looks similar to the below:
 

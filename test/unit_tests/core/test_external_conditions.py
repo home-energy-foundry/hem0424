@@ -63,6 +63,7 @@ class TestExternalConditions(unittest.TestCase):
         self.timezone = 0
         self.start_day = 0
         self.end_day = 0
+        self.time_series_step = 1
         self.january_first = 1
         self.daylight_savings = "not applicable"
         self.leap_day_included = False
@@ -89,6 +90,7 @@ class TestExternalConditions(unittest.TestCase):
                                           self.timezone,
                                           self.start_day,
                                           self.end_day,
+                                          self.time_series_step,
                                           self.january_first,
                                           self.daylight_savings,
                                           self.leap_day_included,

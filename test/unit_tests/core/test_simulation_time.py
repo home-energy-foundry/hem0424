@@ -70,7 +70,7 @@ class TestSimulationTime(unittest.TestCase):
                     "incorrect current day returned"
                     )
                 self.assertEqual(
-                    self.simtime.time_series_idx(0),
+                    self.simtime.time_series_idx(0, 1),
                     [742, 742, 743, 743, 744, 744, 745, 745][i],
                     "incorrect time series index returned"
                     )
