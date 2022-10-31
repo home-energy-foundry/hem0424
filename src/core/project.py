@@ -33,7 +33,7 @@ from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.water_heat_demand.shower import MixerShower, InstantElecShower
 from core.water_heat_demand.bath import Bath
 from core.water_heat_demand.other_hot_water_uses import OtherHotWater
-from core.space_heat_demand.internal_gains import InternalGains
+from core.space_heat_demand.internal_gains import InternalGains, ApplianceGains
 from core.pipework import Pipework
 import core.water_heat_demand.misc as misc
 
@@ -137,7 +137,6 @@ class Project:
                                              data['start_day'],
                                              data['time_series_step']
                                              )
-                                         
 
         def dict_to_ctrl(name, data):
             """ Parse dictionary of control data and return approprate control object """
@@ -458,6 +457,29 @@ class Project:
         for name, data in proj_dict['Zone'].items():
             self.__zones[name] = dict_to_zone(name, data)
 
+        total_floor_area = sum(zone.area() for zone in self.__zones.values())
+
+        # Add internal gains from applicances to the internal gains dictionary and
+        # create an energy supply connection for appliances
+        for name, data in proj_dict['ApplianceGains'].items():
+            energy_supply = self.__energy_supplies[data['EnergySupply']]
+            # TODO Need to handle error if EnergySupply name is invalid.
+            energy_supply_conn = energy_supply.connection(name)
+            
+            # Convert energy supplied to appliances from W to W / m2
+            total_energy_supply = []
+            for energy_data in expand_schedule(float, data['schedule'], "main"):
+                total_energy_supply.append(energy_data / total_floor_area)
+
+            self.__internal_gains[name] = ApplianceGains(
+                                             total_energy_supply,
+                                             energy_supply_conn,
+                                             data['gains_fraction'],
+                                             self.__simtime,
+                                             data['start_day'],
+                                             data['time_series_step']
+                                             )
+
         def dict_to_space_heat_system(name, data):
             space_heater_type = data['type']
             if space_heater_type == 'InstantElecHeater':
@@ -708,9 +730,8 @@ class Project:
             for z_name, zone in self.__zones.items():
                 gains_internal_zone_inner = 0.0
                 for internal_gains_name, internal_gains_object in self.__internal_gains.items():
-                    # Convert W/m2 to W
                     gains_internal_zone_inner\
-                        += internal_gains_object.total_internal_gain() * zone.area()
+                        += internal_gains_object.total_internal_gain(zone.area())
                 gains_internal_zone[z_name] = gains_internal_zone_inner
                 # Add gains from ventilation fans (make sure this is only called
                 # once per timestep per zone)
