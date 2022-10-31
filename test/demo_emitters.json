@@ -15,6 +15,7 @@
 		"timezone": 0,
 		"start_day": 0,
 		"end_day": 0,
+		"time_series_step": 1,
 		"january_first": 1,
 		"daylight_savings": "not applicable",
 		"leap_day_included": false,
