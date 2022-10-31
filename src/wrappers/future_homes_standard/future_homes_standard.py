@@ -36,14 +36,14 @@ def apply_fhs_preprocessing(project_dict):
         schedule_occupancy_weekday, 
         schedule_occupancy_weekend)
     
-    #create_heating_pattern(project_dict)
-    #create_evaporative_losses(project_dict, N_occupants)
-    #create_lighting_gains(project_dict, TFA, N_occupants)
-    #create_cooking_gains(project_dict, N_occupants)
-    #create_appliance_gains(project_dict, TFA, N_occupants)
+    create_heating_pattern(project_dict)
+    create_evaporative_losses(project_dict, N_occupants)
+    create_lighting_gains(project_dict, TFA, N_occupants)
+    create_cooking_gains(project_dict, N_occupants)
+    create_appliance_gains(project_dict, TFA, N_occupants)
     #create_hot_water_use_pattern(project_dict, TFA, N_occupants)
-    #create_cooling(project_dict)
-    #create_cold_water_feed_temps(project_dict)
+    create_cooling(project_dict)
+    create_cold_water_feed_temps(project_dict)
     
     #weather_dict = weather_data_to_dict(WEATHER_FILE_PATH)
     #for key in weather_dict:
@@ -112,15 +112,18 @@ def create_metabolic_gains(project_dict,
     #note divide by TFA. units are Wm^-2
     schedule_metabolic_gains_weekday = [occupancy * gains / TFA for occupancy, gains in zip(schedule_occupancy_weekday, metabolic_gains_fhs)]
     schedule_metabolic_gains_weekend = [occupancy * gains / TFA for occupancy, gains in zip(schedule_occupancy_weekend, metabolic_gains_fhs)]
-
-    project_dict['InternalGains']['MetabolicGains'] = {
+    project_dict['InternalGains']['metabolic gains'].clear()
+    project_dict['InternalGains']['metabolic gains'] = {
         "start_day": 0,
         "time_series_step": 1,
         "schedule": {
             #watts m^-2
             "main": [{"repeat": 53, "value": "week"}],
-            "week": [{"repeat": 5, "value": schedule_metabolic_gains_weekday},
-                     {"repeat": 2, "value": schedule_metabolic_gains_weekend}]
+            "week": [{"repeat": 5, "value": "weekday"},
+                     {"repeat": 2, "value": "weekend"}],
+            "weekday": schedule_metabolic_gains_weekday,
+            "weekend": schedule_metabolic_gains_weekend
+
         }
     }
 
@@ -159,29 +162,35 @@ def create_heating_pattern(project_dict):
     so the evening heating period would also start at 16:30 on weekdays.
     '''
     for zone in project_dict['Zone']:
-        if "SpaceHeatControl" in zone:
+        if "SpaceHeatControl" in project_dict["Zone"][zone].keys():
             if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom":
-                project_dict['Zone'][zone]['heating_setpoint'] = livingroom_setpoint_fhs
+                project_dict['Zone'][zone]['temp_setpnt_heat'] = livingroom_setpoint_fhs
                 project_dict['Control']['HeatingPattern_LivingRoom'] = {
+                    "type": "OnOffTimeControl",
                     "start_day" : 0,
                     "time_series_step":0.5,
                     "schedule": {
                         "main": [{"repeat": 53, "value": "week"}],
-                        "week": [{"repeat": 5, "value": heating_fhs_weekday},
-                                 {"repeat": 2, "value": heating_fhs_weekend}]
+                        "week": [{"repeat": 5, "value": "weekday"},
+                                 {"repeat": 2, "value": "weekend"}],
+                        "weekday": heating_fhs_weekday,
+                        "weekend": heating_fhs_weekend
                     }
                 }
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling":
-                project_dict['Zone'][zone]['heating_setpoint'] = restofdwelling_setpoint_fhs
+                project_dict['Zone'][zone]['temp_setpnt_heat'] = restofdwelling_setpoint_fhs
                 project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
+                    "type": "OnOffTimeControl",
                     "start_day" : 0,
                     "time_series_step":0.5,
                     '''schedules need to be specified in Zone inputs'''
                     "setpoint":restofdwelling_setpoint_fhs,
                     "schedule":{
                         "main": [{"repeat": 53, "value": "week"}],
-                        "week": [{"repeat": 5, "value": heating_nonlivingarea_fhs_weekday},
-                                 {"repeat": 2, "value": heating_fhs_weekend}]
+                        "week": [{"repeat": 5, "value": "weekday"},
+                                 {"repeat": 2, "value": "weekend"}],
+                        "weekday": heating_nonlivingarea_fhs_weekday,
+                        "weekend": heating_fhs_weekend
                     }
                 }
 
@@ -208,11 +217,12 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
     '''
     here we calculate an overall lighting efficacy as
     the average of zone lighting efficacies weighted by zone
-    floor area.
+    floor area. What assumptions to make if no efficacies are supplied?
     '''
     lighting_efficacy = 0
     for zone in project_dict["Zone"]:
-        lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
+        if "Lighting" in project_dict["Zone"][zone].keys():
+            lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
 
 
     '''seems quite silly having these inline...'''
@@ -306,11 +316,13 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
         (e.g. outdoor security lights or lights in unheated spaces like garages and sheds)
         a factor of 0.85 is also applied to get the internal gains from lighting.
         '''
-        lighting_gains_W.append([0.85 * (frac * kWhperday) * 2 * 1000 for frac in monthly_profile])
+        lighting_gains_W.append([(frac * kWhperday) * 2 * 1000 for frac in monthly_profile])
 
-    project_dict['InternalGains']['LightingGains'] = {
+    project_dict['ApplianceGains']['lighting'] = {
         "start_day": 0,
-        "times_series_step" :0.5,
+        "time_series_step" : 0.5,
+        "gains_fraction": 0.85,
+        "EnergySupply": "mains elec",
         "schedule": {
             "main": [{"value": "jan", "repeat": 31},
                     {"value": "feb", "repeat": 28},
@@ -326,8 +338,8 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
                     {"value": "dec", "repeat": 31}
                      ],
             "jan":lighting_gains_W[0],
-            "feb:":lighting_gains_W[1],
-            "mar:":lighting_gains_W[2],
+            "feb":lighting_gains_W[1],
+            "mar":lighting_gains_W[2],
             "apr":lighting_gains_W[3],
             "may":lighting_gains_W[4],
             "jun":lighting_gains_W[5],
@@ -344,7 +356,7 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
 def create_cooking_gains(project_dict, N_occupants):
     
     #should there be a default here if no type in project dict?
-    cooking_type = project_dict["Appliances"]["Cooking"]["type"]
+    cooking_type = project_dict["ApplianceGains"]["cooking"]["EnergySupply"]
 
     cooking_profile_fhs = [
         0.001192419, 0.000825857, 0.000737298, 0.000569196,
@@ -364,17 +376,17 @@ def create_cooking_gains(project_dict, N_occupants):
     EC2elec = 0
     EC2gas = 0
         
-    if cooking_type == 'eleconly':
+    if cooking_type == "mains elec":
         EC1elec = 275
         EC1gas = 55
         EC2elec = 0
         EC2gas = 0
-    elif cooking_type == 'gasonly':
+    elif cooking_type == "mains gas":
         EC1elec = 0
         EC1gas = 0
         EC2elec = 481
         EC2gas = 96
-    elif cooking_type == 'gaselecmix':
+    elif cooking_type == "mains gas & elec":
         EC1elec = 138
         EC1gas = 28
         EC2elec = 241
@@ -389,30 +401,24 @@ def create_cooking_gains(project_dict, N_occupants):
     cooking_gas_profile_W = [(1000 / 2) * 0.75 * annual_cooking_gas_kWh / 365
                              * halfhr for halfhr in cooking_profile_fhs]
     #need separate gas and electric schedule objects
-    if cooking_type == 'eleconly':
+    if cooking_type == "mains elec":
         cooking_profile_W = cooking_elec_profile_W
-    elif cooking_type == 'gasonly':
+    elif cooking_type == "mains gas":
         cooking_profile_W = cooking_gas_profile_W
-    elif cooking_type == 'gaselecmix':
+    elif cooking_type == "mains gas & elec":
         cooking_profile_W = [
             elec+gas for gas,elec in 
             zip(cooking_gas_profile_W,cooking_elec_profile_W)
         ]
     
-    project_dict['InternalGains']['CookingGains'] = {
+    project_dict['ApplianceGains']['cooking'] = {
+        "EnergySupply": cooking_type,
         "start_day" : 0,
         "time_series_step": 0.5,
+        "gains_fraction": 1,
         "schedule": {
-            "main":[{"repeat": 365, "value": cooking_profile_W}]
-        }
-    }
-    
-    project_dict['Appliances']['Cooking'] = {
-        "type": cooking_type,
-        "start_day" : 0,
-        "time_series_step": 0.5,
-        "schedule": {
-            "main":[{"repeat": 365, "value": cooking_profile_W}]
+            "main": [{"repeat": 365, "value": "day"}],
+            "day": cooking_profile_W
         }
     }
 
@@ -439,9 +445,11 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         appliance_gains_W.append([1000 * EA_annual_kWh * frac / 365
                                   for frac in monthly_profile])
 
-    project_dict['InternalGains']['ApplianceGains'] = {
+    project_dict['ApplianceGains']['appliances'] = {
+        "EnergySupply": "mains elec",
         "start_day": 0,
         "time_series_step": 1,
+        "gains_fraction": 1,
         "schedule": {
             #watts
             #"Watts_appliances_monthly": appliance_gains_W
@@ -459,8 +467,8 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
                     {"value": "dec", "repeat": 31}
                      ],
             "jan": appliance_gains_W[0],
-            "feb:": appliance_gains_W[1],
-            "mar:": appliance_gains_W[2],
+            "feb": appliance_gains_W[1],
+            "mar": appliance_gains_W[2],
             "apr": appliance_gains_W[3],
             "may": appliance_gains_W[4],
             "jun": appliance_gains_W[5],
@@ -549,7 +557,40 @@ def create_hot_water_use_pattern(project_dict,TFA,N_occupants):
 
         HW_events_valuesdict = {key : FHW * HW_events_valuesdict[key] for key in HW_events_valuesdict.keys()}
 
-    project_dict['InternalGains']['HWGains'] = {"kWh_per_HW_event": HW_events_valuesdict}
+    '''
+    now create lists of events
+    Shower events should be  evenly spread across all showers in dwelling
+    and so on for baths etc.
+    
+    energy adjustment factor FHW is applied to duration of event.
+    Durations of non shower events are obtained by finding ratio
+    of energy consumption vs showers, which have to be 6 mins long.
+    (so we are assuming temperature is always 41C and duration is
+    directly proportional to energy)
+    '''
+    #project_dict["Events"].clear()
+    
+    for i, event in enumerate(annual_HW_events):
+        if event != "None":
+            if event == "Shower":
+                project_dict["Events"].append(
+                    {"Shower": {
+                        "mixer":[{"start": HW_events_dict["Time"][i % 24], "duration": 6 * FHW, "temperature": 41.0}]
+                    }}
+                )
+            elif event =="Bath":
+                project_dict["Events"]["Bath"]["medium"].append(
+                    {"start": HW_events_dict["Time"][i % 24], "duration": 6 * FHW, "temperature": 41.0}
+                )
+            else:
+                project_dict["Events"]["Other"].append(
+                    {event:[{"start": HW_events_dict["Time"][i % 24],
+                     "duration": 6 * (HW_events_valuesdict[event] / 1.4) * FHW, "temperature": 41.0}]
+                     }
+                )
+        
+
+    #project_dict['InternalGains']['HWGains'] = {"kWh_per_HW_event": HW_events_valuesdict}
 
 
 def create_cooling(project_dict):
@@ -568,7 +609,7 @@ def create_cooling(project_dict):
         if "SpaceHeatControl" in project_dict['Zone'][zone]:
             if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom" and "Cooling" in project_dict['Zone'][zone]:
                 cooling_schedule_livingroom = project_dict['Control']['HeatingPattern_LivingRoom']['schedule']
-                project_dict['Zone'][zone]['cooling_setpoint'] = cooling_setpoint
+                project_dict['Zone'][zone]['temp_setpnt_cool'] = cooling_setpoint
                 project_dict['Control']['Cooling_LivingRoom'] = {
                     "start_day" : 0,
                     "time_series_step":0.5,
@@ -576,7 +617,7 @@ def create_cooling(project_dict):
                 }
                 
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" and "Cooling" in project_dict['Zone'][zone]:
-                project_dict['Zone'][zone]['cooling_setpoint'] = cooling_setpoint
+                project_dict['Zone'][zone]['temp_setpnt_cool'] = cooling_setpoint
                 project_dict['Control']['Cooling_RestOfDwelling'] = {
                     "start_day" : 0,
                     "time_series_step":0.5,
@@ -614,7 +655,39 @@ def create_cold_water_feed_temps(project_dict):
         Teveningm - delta * t/6 for t in range(0,6)]+
         [Teveningm - (15-t) * delta /9 for t in range(6,15)]+
         [Teveningm for t in range(15,24)]]
+        
+    outputfeedtemp=[]
+    for i in range(31):
+        outputfeedtemp.extend(cold_feed_schedulem[0])
+    for i in range(28):
+        outputfeedtemp.extend(cold_feed_schedulem[1])
+    for i in range(31):
+        outputfeedtemp.extend(cold_feed_schedulem[2])
+    for i in range(30):
+        outputfeedtemp.extend(cold_feed_schedulem[3])
+    for i in range(31):
+        outputfeedtemp.extend(cold_feed_schedulem[4])
+    for i in range(30):
+        outputfeedtemp.extend(cold_feed_schedulem[5])
+    for i in range(31):
+        outputfeedtemp.extend(cold_feed_schedulem[6])
+    for i in range(31):
+        outputfeedtemp.extend(cold_feed_schedulem[7])
+    for i in range(30):
+        outputfeedtemp.extend(cold_feed_schedulem[8])
+    for i in range(31):
+        outputfeedtemp.extend(cold_feed_schedulem[9])
+    for i in range(30):
+        outputfeedtemp.extend(cold_feed_schedulem[10])
+    for i in range(31):
+        outputfeedtemp.extend(cold_feed_schedulem[11])
     
+    project_dict['ColdWaterSource'][feedtype] = {
+        "start_day": 0,
+        "time_series_step": 1,
+        "temperatures": outputfeedtemp
+    }
+    '''
     project_dict['ColdWaterSource'][feedtype] = {
         "start_day": 0,
         "time_series_step": 1,
@@ -633,8 +706,8 @@ def create_cold_water_feed_temps(project_dict):
                     {"value": "dec", "repeat": 31}
                      ],
             "jan":cold_feed_schedulem[0],
-            "feb:":cold_feed_schedulem[1],
-            "mar:":cold_feed_schedulem[2],
+            "feb":cold_feed_schedulem[1],
+            "mar":cold_feed_schedulem[2],
             "apr":cold_feed_schedulem[3],
             "may":cold_feed_schedulem[4],
             "jun":cold_feed_schedulem[5],
@@ -646,4 +719,5 @@ def create_cold_water_feed_temps(project_dict):
             "dec":cold_feed_schedulem[11]
         }
     }
+    '''
 
