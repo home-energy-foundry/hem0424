@@ -7,10 +7,10 @@ steps for the Future Homes Standard.
 """
 
 import math
-from src.core import project
-#from src.core.simulation_time import SimulationTime
-#import src.core.units
+from core import project
+from read_weather_file import weather_data_to_dict
 
+WEATHER_FILE_PATH = '/home/batesonj/Documents/SAP11weather/Leeds_TRY_2020High50_.csv'
 
 def apply_fhs_preprocessing(project_dict):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
@@ -36,13 +36,19 @@ def apply_fhs_preprocessing(project_dict):
         schedule_occupancy_weekday, 
         schedule_occupancy_weekend)
     
-    create_heating_pattern(project_dict)
-    create_evaporative_losses(project_dict, N_occupants)
-    create_lighting_gains(project_dict, TFA, N_occupants)
-    create_cooking_gains(project_dict, N_occupants)
-    create_appliance_gains(project_dict, TFA, N_occupants)
-    create_hot_water_use_pattern(project_dict, TFA, N_occupants)
-    create_cooling(project_dict)
+    #create_heating_pattern(project_dict)
+    #create_evaporative_losses(project_dict, N_occupants)
+    #create_lighting_gains(project_dict, TFA, N_occupants)
+    #create_cooking_gains(project_dict, N_occupants)
+    #create_appliance_gains(project_dict, TFA, N_occupants)
+    #create_hot_water_use_pattern(project_dict, TFA, N_occupants)
+    #create_cooling(project_dict)
+    #create_cold_water_feed_temps(project_dict)
+    
+    #weather_dict = weather_data_to_dict(WEATHER_FILE_PATH)
+    #for key in weather_dict:
+    #    project_dict["ExternalConditions"][key]=weather_dict[key]
+    
 
     return project_dict
 
@@ -154,7 +160,7 @@ def create_heating_pattern(project_dict):
     '''
     for zone in project_dict['Zone']:
         if "SpaceHeatControl" in zone:
-            if zone["SpaceHeatControl"] == "livingroom":
+            if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom":
                 project_dict['Zone'][zone]['heating_setpoint'] = livingroom_setpoint_fhs
                 project_dict['Control']['HeatingPattern_LivingRoom'] = {
                     "start_day" : 0,
@@ -165,7 +171,7 @@ def create_heating_pattern(project_dict):
                                  {"repeat": 2, "value": heating_fhs_weekend}]
                     }
                 }
-            elif zone["SpaceHeatControl"] == "restofdwelling":
+            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling":
                 project_dict['Zone'][zone]['heating_setpoint'] = restofdwelling_setpoint_fhs
                 project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
                     "start_day" : 0,
@@ -206,7 +212,7 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
     '''
     lighting_efficacy = 0
     for zone in project_dict["Zone"]:
-        lighting_efficacy += zone["Lighting"]["efficacy"] * zone["area"] / TFA
+        lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
 
 
     '''seems quite silly having these inline...'''
@@ -306,40 +312,34 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
         "start_day": 0,
         "times_series_step" :0.5,
         "schedule": {
-            "main": [{"value": lighting_gains_W[0], "repeat": 31},
-                     {"value": lighting_gains_W[1], "repeat": 28},
-                     {"value": lighting_gains_W[2], "repeat": 31},
-                     {"value": lighting_gains_W[3], "repeat": 30},
-                     {"value": lighting_gains_W[4], "repeat": 31},
-                     {"value": lighting_gains_W[5], "repeat": 30},
-                     {"value": lighting_gains_W[6], "repeat": 31},
-                     {"value": lighting_gains_W[7], "repeat": 31},
-                     {"value": lighting_gains_W[8], "repeat": 30},
-                     {"value": lighting_gains_W[9], "repeat": 31},
-                     {"value": lighting_gains_W[10], "repeat": 30},
-                     {"value": lighting_gains_W[11], "repeat": 31}
-                     ]
+            "main": [{"value": "jan", "repeat": 31},
+                    {"value": "feb", "repeat": 28},
+                    {"value": "mar", "repeat": 31},
+                    {"value": "apr", "repeat": 30},
+                    {"value": "may", "repeat": 31},
+                    {"value": "jun", "repeat": 30},
+                    {"value": "jul", "repeat": 31},
+                    {"value": "aug", "repeat": 31},
+                    {"value": "sep", "repeat": 30},
+                    {"value": "oct", "repeat": 31},
+                    {"value": "nov", "repeat": 30},
+                    {"value": "dec", "repeat": 31}
+                     ],
+            "jan":lighting_gains_W[0],
+            "feb:":lighting_gains_W[1],
+            "mar:":lighting_gains_W[2],
+            "apr":lighting_gains_W[3],
+            "may":lighting_gains_W[4],
+            "jun":lighting_gains_W[5],
+            "jul":lighting_gains_W[6],
+            "aug":lighting_gains_W[7],
+            "sep":lighting_gains_W[8],
+            "oct":lighting_gains_W[9],
+            "nov":lighting_gains_W[10],
+            "dec":lighting_gains_W[11]
         }
     }
-    project_dict['Appliances']['LightingConsumption'] = {
-        "start_day": 0,
-        "times_series_step": 0.5,
-        "schedule": {
-            "main": [{"value": lighting_gains_W[0], "repeat": 31},
-                     {"value": lighting_gains_W[1], "repeat": 28},
-                     {"value": lighting_gains_W[2], "repeat": 31},
-                     {"value": lighting_gains_W[3], "repeat": 30},
-                     {"value": lighting_gains_W[4], "repeat": 31},
-                     {"value": lighting_gains_W[5], "repeat": 30},
-                     {"value": lighting_gains_W[6], "repeat": 31},
-                     {"value": lighting_gains_W[7], "repeat": 31},
-                     {"value": lighting_gains_W[8], "repeat": 30},
-                     {"value": lighting_gains_W[9], "repeat": 31},
-                     {"value": lighting_gains_W[10], "repeat": 30},
-                     {"value": lighting_gains_W[11], "repeat": 31}
-                     ]
-        }
-    }
+
 
 def create_cooking_gains(project_dict, N_occupants):
     
@@ -358,7 +358,12 @@ def create_cooking_gains(project_dict, N_occupants):
         0.024924648, 0.014783978, 0.009192004, 0.005617715, 0.0049381,
         0.003529689, 0.002365773, 0.001275927, 0.001139293
     ]
-
+    
+    EC1elec = 0
+    EC1gas = 0
+    EC2elec = 0
+    EC2gas = 0
+        
     if cooking_type == 'eleconly':
         EC1elec = 275
         EC1gas = 55
@@ -377,7 +382,8 @@ def create_cooking_gains(project_dict, N_occupants):
 
     annual_cooking_elec_kWh = EC1elec + EC2elec * N_occupants
     annual_cooking_gas_kWh = EC1gas + EC2gas * N_occupants
-
+    
+    cooking_profile_W = [0 for index in cooking_profile_fhs]
     cooking_elec_profile_W = [(1000 / 2) * 0.9 * annual_cooking_elec_kWh / 365
                               * halfhr for halfhr in cooking_profile_fhs]
     cooking_gas_profile_W = [(1000 / 2) * 0.75 * annual_cooking_gas_kWh / 365
@@ -398,7 +404,7 @@ def create_cooking_gains(project_dict, N_occupants):
         "time_series_step": 0.5,
         "schedule": {
             "main":[{"repeat": 365, "value": cooking_profile_W}]
-        s}
+        }
     }
     
     project_dict['Appliances']['Cooking'] = {
@@ -439,43 +445,35 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         "schedule": {
             #watts
             #"Watts_appliances_monthly": appliance_gains_W
-            "main": [{"value": appliance_gains_W[0], "repeat": 31},
-                     {"value": appliance_gains_W[1], "repeat": 28},
-                     {"value": appliance_gains_W[2], "repeat": 31},
-                     {"value": appliance_gains_W[3], "repeat": 30},
-                     {"value": appliance_gains_W[4], "repeat": 31},
-                     {"value": appliance_gains_W[5], "repeat": 30},
-                     {"value": appliance_gains_W[6], "repeat": 31},
-                     {"value": appliance_gains_W[7], "repeat": 31},
-                     {"value": appliance_gains_W[8], "repeat": 30},
-                     {"value": appliance_gains_W[9], "repeat": 31},
-                     {"value": appliance_gains_W[10], "repeat": 30},
-                     {"value": appliance_gains_W[11], "repeat": 31}
-                     ]
+            "main": [{"value": "jan", "repeat": 31},
+                    {"value": "feb", "repeat": 28},
+                    {"value": "mar", "repeat": 31},
+                    {"value": "apr", "repeat": 30},
+                    {"value": "may", "repeat": 31},
+                    {"value": "jun", "repeat": 30},
+                    {"value": "jul", "repeat": 31},
+                    {"value": "aug", "repeat": 31},
+                    {"value": "sep", "repeat": 30},
+                    {"value": "oct", "repeat": 31},
+                    {"value": "nov", "repeat": 30},
+                    {"value": "dec", "repeat": 31}
+                     ],
+            "jan": appliance_gains_W[0],
+            "feb:": appliance_gains_W[1],
+            "mar:": appliance_gains_W[2],
+            "apr": appliance_gains_W[3],
+            "may": appliance_gains_W[4],
+            "jun": appliance_gains_W[5],
+            "jul": appliance_gains_W[6],
+            "aug": appliance_gains_W[7],
+            "sep": appliance_gains_W[8],
+            "oct": appliance_gains_W[9],
+            "nov": appliance_gains_W[10],
+            "dec": appliance_gains_W[11]
         }
     }
 
-    project_dict['Appliances']['ApplianceConsumption'] = {
-        "start_day": 0,
-        "time_series_step": 1,
-        "schedule": {
-            #watts
-            #"Watts_appliances_monthly": appliance_gains_W
-            "main": [{"value": appliance_gains_W[0], "repeat": 31},
-                      {"value": appliance_gains_W[1], "repeat": 28},
-                      {"value": appliance_gains_W[2], "repeat": 31},
-                      {"value": appliance_gains_W[3], "repeat": 30},
-                      {"value": appliance_gains_W[4], "repeat": 31},
-                      {"value": appliance_gains_W[5], "repeat": 30},
-                      {"value": appliance_gains_W[6], "repeat": 31},
-                      {"value": appliance_gains_W[7], "repeat": 31},
-                      {"value": appliance_gains_W[8], "repeat": 30},
-                      {"value": appliance_gains_W[9], "repeat": 31},
-                      {"value": appliance_gains_W[10], "repeat": 30},
-                      {"value": appliance_gains_W[11], "repeat": 31}
-                      ]
-        }
-    }
+
 
 def create_hot_water_use_pattern(project_dict,TFA,N_occupants):
 
@@ -559,32 +557,93 @@ def create_cooling(project_dict):
     TODO - only do this if there is a cooling system
     '''
     cooling_setpoint = 24.0
-    cooling_schedule_livingroom = project_dict['HeatingPattern']['schedule_heating']['onoff_livingroom_weekday']
-    cooling_schedule_restofdwelling = (
-        #22:00-07:00 - taking this to mean nighttime only?
+    cooling_subschedule_restofdwelling = (
+        #22:00-07:00 - ie nighttime only
         [True for x in range(14)] +
         [False for x in range(30)] +
         [True for x in range(4)]
     )
 
+    for zone in project_dict['Zone']:
+        if "SpaceHeatControl" in project_dict['Zone'][zone]:
+            if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom" and "Cooling" in project_dict['Zone'][zone]:
+                cooling_schedule_livingroom = project_dict['Control']['HeatingPattern_LivingRoom']['schedule']
+                project_dict['Zone'][zone]['cooling_setpoint'] = cooling_setpoint
+                project_dict['Control']['Cooling_LivingRoom'] = {
+                    "start_day" : 0,
+                    "time_series_step":0.5,
+                    "schedule": cooling_schedule_livingroom
+                }
+                
+            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" and "Cooling" in project_dict['Zone'][zone]:
+                project_dict['Zone'][zone]['cooling_setpoint'] = cooling_setpoint
+                project_dict['Control']['Cooling_RestOfDwelling'] = {
+                    "start_day" : 0,
+                    "time_series_step":0.5,
+                    "schedule": {
+                        "main": [{"repeat": 365, "value": cooling_subschedule_restofdwelling}]
+                    }
+                }
+        
 
-    project_dict['Zone']['LivingRoom']['cooling_setpoint'] = cooling_setpoint
-    project_dict['Control']['Cooling_LivingRoom'] = {
-        "type": "OnOffTimeControl",
+def create_cold_water_feed_temps(project_dict):
+    
+    #24 hour average feed temperature (degreees Celsius) per month m. SAP 10.2 Table J1
+    T24m_header_tank = [11.1, 11.3, 12.3, 14.5, 16.2, 18.8, 21.3, 19.3, 18.7, 16.2, 13.2, 11.2]
+    T24m_mains = [8, 8.2, 9.3, 12.7, 14.6, 16.7, 18.4, 17.6, 16.6, 14.3, 11.1, 8.5]
+    T24m=[]
+    feedtype=""
+    #typical fall in feed temp from midnight to 6am
+    delta = 1.5
+    
+    if "header tank" in project_dict["ColdWaterSource"]:
+        T24m = T24m_header_tank
+        feedtype="header tank"
+    else:
+        T24m = T24m_mains
+        feedtype="mains water"
+    
+    cold_feed_schedulem=[]
+    
+    for T in T24m:
+        #typical cold feed temp between 3pm and midnight
+        Teveningm = T + (delta * 15 /48)
+        
+        #variation throughout the day
+        cold_feed_schedulem += [[
+        Teveningm - delta * t/6 for t in range(0,6)]+
+        [Teveningm - (15-t) * delta /9 for t in range(6,15)]+
+        [Teveningm for t in range(15,24)]]
+    
+    project_dict['ColdWaterSource'][feedtype] = {
         "start_day": 0,
-        "time_series_step": 0.5,
-        "schedule": {
-            "main": [{"repeat": 365, "value": cooling_schedule_livingroom}]
+        "time_series_step": 1,
+        "temperatures": {
+            "main": [{"value": "jan", "repeat": 31},
+                    {"value": "feb", "repeat": 28},
+                    {"value": "mar", "repeat": 31},
+                    {"value": "apr", "repeat": 30},
+                    {"value": "may", "repeat": 31},
+                    {"value": "jun", "repeat": 30},
+                    {"value": "jul", "repeat": 31},
+                    {"value": "aug", "repeat": 31},
+                    {"value": "sep", "repeat": 30},
+                    {"value": "oct", "repeat": 31},
+                    {"value": "nov", "repeat": 30},
+                    {"value": "dec", "repeat": 31}
+                     ],
+            "jan":cold_feed_schedulem[0],
+            "feb:":cold_feed_schedulem[1],
+            "mar:":cold_feed_schedulem[2],
+            "apr":cold_feed_schedulem[3],
+            "may":cold_feed_schedulem[4],
+            "jun":cold_feed_schedulem[5],
+            "jul":cold_feed_schedulem[6],
+            "aug":cold_feed_schedulem[7],
+            "sep":cold_feed_schedulem[8],
+            "oct":cold_feed_schedulem[9],
+            "nov":cold_feed_schedulem[10],
+            "dec":cold_feed_schedulem[11]
         }
     }
-    project_dict['Zone']['RestOfDwelling']['cooling_setpoint'] = cooling_setpoint
-    project_dict['Control']['Cooling_RestOfDwelling'] = {
-        "type" : "OnOffTimeControl",
-        "start_day": 0,
-        "time_series_step": 0.5,
-        "schedule": {
-            "main": [{"repeat": 365, "value": cooling_schedule_restofdwelling}]
-        }
-    }
-
 
