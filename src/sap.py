@@ -44,10 +44,10 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
 
     project = Project(project_dict)
     timestep_array, results_totals, results_end_user, \
-        energy_import, energy_export, betafactor, \
-        zone_dict, zone_list, hc_system_dict \
-        = project.run()
-
+    energy_import, energy_export, betafactor, \
+    zone_dict, zone_list, hc_system_dict, hot_water_dict \
+    = project.run()
+    
     write_core_output_file(
         output_file,
         timestep_array,
@@ -59,11 +59,13 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
         zone_dict,
         zone_list,
         hc_system_dict,
+        hot_water_dict,
         )
 
     # Apply required postprocessing steps, if any
     if fhs_assumptions:
         apply_fhs_postprocessing()
+   
 
 def write_core_output_file(
         output_file,
@@ -76,6 +78,7 @@ def write_core_output_file(
         zone_dict,
         zone_list,
         hc_system_dict,
+        hot_water_dict,
         ):
     with open(output_file, 'w') as f:
         writer = csv.writer(f)
@@ -104,13 +107,20 @@ def write_core_output_file(
                 else:
                     hc_system_headings = system + ' ' + hc_name
                 headings.append(hc_system_headings)
-
+        for system in hot_water_dict:
+            headings.append(system)
+            
         writer.writerow(headings)
 
         for t_idx, timestep in enumerate(timestep_array):
             energy_use_row = []
             zone_row = []
             hc_system_row = []
+            hw_system_row = []
+            hw_system_row_energy = []
+            hw_system_row_duration = []
+            hw_system_row_events = []
+            pw_losses_row = []
             i = 0
             # Loop over end use totals
             for totals_key in results_totals:
@@ -129,7 +139,14 @@ def write_core_output_file(
                 for hc_name in hc_system_dict[system]:
                     hc_system_row.append(hc_system_dict[system][hc_name][t_idx])
 
-            row = [t_idx] + energy_use_row + zone_row + hc_system_row
+            # loop over hot water demand
+            hw_system_row.append(hot_water_dict['Hot water demand']['demand'][t_idx])
+            hw_system_row_energy.append(hot_water_dict['Hot water energy demand']['energy_demand'][t_idx])
+            hw_system_row_duration.append(hot_water_dict['Hot water duration']['duration'][t_idx])
+            pw_losses_row.append(hot_water_dict['Pipework losses']['pw_losses'][t_idx])
+            hw_system_row_events.append(hot_water_dict['Hot Water Events']['no_events'][t_idx])
+
+            row = [t_idx] + energy_use_row + zone_row + hc_system_row + hw_system_row + hw_system_row_energy + hw_system_row_duration + hw_system_row_events + pw_losses_row
             writer.writerow(row)
 
 if __name__ == '__main__':

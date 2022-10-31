@@ -39,6 +39,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
                                 None,
                                 0, # Start day
                                 None,
+                                1, # Time-series step
                                 None,
                                 None,
                                 None,
@@ -140,6 +141,7 @@ class TestMechnicalVentilationHeatRecovery(unittest.TestCase):
                                 None,
                                 0, # Start day
                                 None,
+                                1, # Time-series step
                                 None,
                                 None,
                                 None,
@@ -206,6 +208,7 @@ class TestWholeHouseExtractVentilation(unittest.TestCase):
                                 None,
                                 0, # Start day
                                 None,
+                                1, # Time-series step
                                 None,
                                 None,
                                 None,
