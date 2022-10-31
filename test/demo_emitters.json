@@ -44,6 +44,7 @@
 			}
 		}
 	},
+	"ApplianceGains": {},
 	"ColdWaterSource": {
 		"mains water": {
 			"start_day": 0,
@@ -94,6 +95,9 @@
 			"EnergySupply": "mains elec"
 		}
 	},
+	"Bath": {},
+	"Other": {},
+	"Distribution": {},
 	"Events": {
 		"Shower": {
 			"IES": [
