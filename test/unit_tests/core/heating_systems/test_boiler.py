@@ -32,7 +32,11 @@ class TestBoiler(unittest.TestCase):
                        "efficiency_full_load": 0.88,
                        "efficiency_part_load": 0.986,
                        "boiler_location": "internal",
-                       "modulation_load" : 0.2
+                       "modulation_load" : 0.2,
+                       "electricity_circ_pump": 0.0600,
+                       "electricity_part_load" : 0.0131,
+                       "electricity_full_load" : 0.0388,
+                       "electricity_standby" : 0.0244,
                       }
         self.simtime                = SimulationTime(0, 2, 1)
         self.energysupply           = EnergySupply("mains_gas", self.simtime)
@@ -104,7 +108,11 @@ class TestBoilerServiceWaterCombi(unittest.TestCase):
                        "efficiency_full_load": 0.868,
                        "efficiency_part_load": 0.952,
                        "boiler_location": "internal",
-                       "modulation_load" : 1
+                       "modulation_load" : 1,
+                        "electricity_circ_pump": 0.0600,
+                       "electricity_part_load" : 0.0131,
+                       "electricity_full_load" : 0.0388,
+                       "electricity_standby" : 0.0244,
                       }
         boilerservicewatercombi_dict = {
                         "separate_DHW_tests": "M&L",
@@ -158,7 +166,11 @@ class TestBoilerServiceSpace(unittest.TestCase):
                        "efficiency_full_load": 0.868,
                        "efficiency_part_load": 0.952,
                        "boiler_location": "internal",
-                       "modulation_load" : 1
+                       "modulation_load" : 1,
+                       "electricity_circ_pump": 0.0600,
+                       "electricity_part_load" : 0.0131,
+                       "electricity_full_load" : 0.0388,
+                       "electricity_standby" : 0.0244,
                       }
         boilerservicespace_dict = {
                     "weather_compensation" : "on"

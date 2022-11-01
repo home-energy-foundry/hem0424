@@ -20,6 +20,7 @@ from enum import Enum, auto
 from core.energy_supply.energy_supply import Fuel_code
 from core.material_properties import WATER
 import core.units as units
+from numpy import interp
 
 
 class Boiler_HW_test(Enum):
@@ -232,6 +233,12 @@ class Boiler:
         part_load_gross = boiler_dict["efficiency_part_load"]
         self.__fuel_code = self.__energy_supply.fuel_type()
         
+        # electricity properties
+        self.__power_circ_pump = boiler_dict["electricity_circ_pump"]
+        self.__power_part_load = boiler_dict["electricity_part_load"]
+        self.__power_full_load = boiler_dict["electricity_full_load"]
+        self.__power_standby = boiler_dict["electricity_standby"]
+        self.__total_time_running_current_timestep = 0.0
         
         # high value correction 
         net_to_gross = self.net_to_gross()
@@ -254,7 +261,7 @@ class Boiler:
         self.__standing_loss = round(4.0 * (8.8)** - 0.4 / 100.0, 3) 
         #30 is the nominal temperature difference between boiler and test room 
         #during standby loss test (EN15502-1 or EN15034)
-        self.__standby_loss = 30.0
+        self.__temp_rise_standby_loss = 30.0
         #boiler standby heat loss power law index
         self.__sby_loss_idx = 1.25 
         self.__temp_boiler_loc = 19.5 
@@ -310,7 +317,7 @@ class Boiler:
             cycling_adjustment = self.__standing_loss \
                                  * ton_toff \
                                  * ((temp_return_feed - self.__temp_boiler_loc) \
-                                 / (self.__standby_loss) \
+                                 / (self.__temp_rise_standby_loss) \
                                  ) \
                                  ** self.__sby_loss_idx
         
@@ -349,8 +356,59 @@ class Boiler:
         
         self.__energy_supply_connections[service_name].demand_energy(fuel_demand)
         
+        self.__power = self.__boiler_power 
+        if self.__min_modulation_load < 1:
+            min_power = self.__boiler_power * self.__min_modulation_load
+            self.__power = max(energy_output_required / timestep , min_power)
+
+        # Calculate running time of Boiler
+        time_running_current_service = min(
+            energy_output_provided / self.__power,
+            timestep - self.__total_time_running_current_timestep
+            )
+        self.__total_time_running_current_timestep  += time_running_current_service
+        self.timestep_end()
+        
         return energy_output_provided
     
+    def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
+        # Calculation of boiler electrical consumption
+        modulation_percent = min(self.__power / self.__boiler_power , 1.0)
+        #Energy used by circulation pump
+        energy_aux = self.__total_time_running_current_timestep \
+            * self.__power_circ_pump
+        
+        #Energy used in standby mode
+        energy_aux  += self.__power_standby * time_remaining_current_timestep
+        
+        #Energy used by flue fan
+        #Flue fan electricity for on-off boilers
+        elec_energy_flue_fan = self.__total_time_running_current_timestep \
+            * self.__power_full_load
+
+        #Overwrite flue fan electricity if boiler modulates
+        #TODO does cycling below part load decrease elec consumption
+        if self.__min_modulation_load < 1:
+            x_axis = [0.3, 1.0]
+            y_axis = [self.__power_part_load, self.__power_full_load]
+            
+            # Uses numpy interp
+            flue_fan_el = interp(modulation_percent, x_axis, y_axis)
+            elec_energy_flue_fan = self.__total_time_running_current_timestep \
+                                 * flue_fan_el
+                                 
+        energy_aux += elec_energy_flue_fan
+        #TODO: Connect to Energysupply object
+    
+    def timestep_end(self):
+        """" Calculations to be done at the end of each timestep"""
+        timestep  = self.__simulation_time.timestep()
+        time_remaining_current_timestep = timestep - self.__total_time_running_current_timestep
+        
+        self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
+        
+        #Variabales below need to be reset at the end of each timestep
+        self.__total_time_running_current_timestep = 0.0
     
     def effvsreturntemp(self, return_temp, offset):
         """ Return boiler efficiency at different return temperatures """
