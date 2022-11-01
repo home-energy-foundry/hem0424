@@ -312,7 +312,9 @@ class MechnicalVentilationHeatRecovery:
         # for the heat recovery effect using an "equivalent" flow rate of
         # external air.
         return self.__external_conditions.air_temp()
-
+        
+    def efficiency(self):
+        return self.__efficiency
 
 class WholeHouseExtractVentilation:
     """ A class to represent whole house extract ventilation elements """

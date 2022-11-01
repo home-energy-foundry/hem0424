@@ -36,6 +36,7 @@ from core.water_heat_demand.other_hot_water_uses import OtherHotWater
 from core.space_heat_demand.internal_gains import InternalGains, ApplianceGains
 from core.pipework import Pipework
 import core.water_heat_demand.misc as misc
+from core.ductwork import Ductwork
 
 
 class Project:
@@ -232,7 +233,7 @@ class Project:
         for name, data in proj_dict['Shower'].items():
             self.__showers[name] = dict_to_shower(name, data)
             
-            
+           
         def dict_to_baths(name, data):
             """ Parse dictionary of bath data and return approprate bath object """
             cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
@@ -277,7 +278,7 @@ class Project:
         self.__water_heating_pipework = {}
         for name, data in proj_dict['Distribution'].items():
             self.__water_heating_pipework[name] = dict_to_water_distribution_system(name, data)
-            
+           
         def dict_to_event_schedules(data):
             """ Process list of events (for hot water draw-offs, appliance use etc.) """
             sim_timestep = self.__simtime.timestep()
@@ -290,7 +291,7 @@ class Project:
                 self.__event_schedules[sched_type] = {}
             for name, data in schedules.items():
                 self.__event_schedules[sched_type][name] = dict_to_event_schedules(data)
-
+ 
         def dict_to_building_element(name, data):
             building_element_type = data['type']
             if building_element_type == 'BuildingElementOpaque':
@@ -364,6 +365,9 @@ class Project:
                     self.__external_conditions,
                     self.__simtime,
                     )
+                    
+                ductwork = None
+
             elif ventilation_element_type == 'MVHR':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
@@ -377,17 +381,29 @@ class Project:
                     self.__external_conditions,
                     self.__simtime,
                     )
+                    
+                ductwork = Ductwork(
+                    data['ductwork']['internal_diameter'],
+                    data['ductwork']['external_diameter'],
+                    data['ductwork']['length_in'],
+                    data['ductwork']['length_out'],
+                    data['ductwork']['insulation_thermal_conductivity'],
+                    data['ductwork']['insulation_thickness'],
+                    data['ductwork']['reflective'],
+                    data['ductwork']['MVHR_location']
+                    )
             else:
                 sys.exit( name + ': ventilation element type ('
                       + ventilation_element_type + ') not recognised.' )
                 # TODO Exit just the current case instead of whole program entirely?
-            return ventilation_element
+            return ventilation_element, ductwork
+
 
         if 'Ventilation' in proj_dict:
-            self.__ventilation = \
+            self.__ventilation, self.__space_heating_ductwork = \
                 dict_to_ventilation_element('Ventilation system', proj_dict['Ventilation'])
         else:
-            self.__ventilation = None
+            self.__ventilation, self.__space_heating_ductwork = None, None
 
         def dict_to_thermal_bridging(data):
             # If data is for individual thermal bridges, initialise the relevant
@@ -715,6 +731,60 @@ class Project:
             
             return pipework_heat_loss # heat loss in kWh for the timestep
 
+        def calc_ductwork_losses(t_idx, delta_t_h, efficiency):
+            """ Calculate the losses/gains in the MVHR ductwork
+
+            Arguments:
+            t_idx -- timestep index/count
+            delta_t_h -- calculation timestep, in hours
+            efficiency - MVHR heat recovery efficiency
+            """
+            # assume 100% efficiency 
+            # i.e. temp inside the supply and extract ducts is room temp and temp inside exhaust and intake is external temp
+            # assume MVHR unit is running 100% of the time
+    
+            # Initialise internal air temperature and total area of all zones
+            internal_air_temperature = 0
+            overall_volume = 0
+    
+            # Calculate internal air temperature
+            # TODO here we are treating overall indoor temperature as average of all zones
+            for z_name, zone in self.__zones.items():
+                internal_air_temperature += zone.temp_internal_air() * zone.volume()
+                overall_volume += zone.volume()
+            internal_air_temperature /= overall_volume # average internal temperature
+
+            # Calculate heat loss from ducts when unit is inside
+            # Air temp inside ducts increases, heat lost from dwelling
+            ductwork = self.__space_heating_ductwork
+            if ductwork == None:
+                return 0
+
+            ductwork_watts_heat_loss = 0.0
+
+            # MVHR duct temperatures:
+            # extract_duct_temp - indoor air temperature 
+            # intake_duct_temp - outside air temperature
+            
+            temp_diff = internal_air_temperature - self.__external_conditions.air_temp()
+            
+            # Supply duct contains what the MVHR could recover
+            supply_duct_temp = self.__external_conditions.air_temp() + (efficiency * temp_diff)
+            
+            # Exhaust duct contans the heat that couldn't be recovered
+            exhaust_duct_temp = self.__external_conditions.air_temp() + ((1- efficiency) * temp_diff)
+            
+            ductwork_watts_heat_loss = \
+                ductwork.total_duct_heat_loss(
+                internal_air_temperature,
+                supply_duct_temp,
+                internal_air_temperature,
+                self.__external_conditions.air_temp(),
+                exhaust_duct_temp,
+                efficiency)
+    
+            return ductwork_watts_heat_loss, overall_volume # heat loss in Watts for the timestep
+
         def calc_space_heating(delta_t_h):
             """ Calculate space heating demand, heating system output and temperatures
 
@@ -724,6 +794,12 @@ class Project:
             temp_ext_air = self.__external_conditions.air_temp()
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
+
+            ductwork_losses, overall_zone_volume, ductwork_losses_per_m3 = 0.0, 0.0, 0.0
+            # ductwork gains/losses only for MVHR
+            if isinstance(self.__ventilation, MechnicalVentilationHeatRecovery):
+                ductwork_losses, overall_zone_volume = calc_ductwork_losses(0, delta_t_h, self.__ventilation.efficiency())
+                ductwork_losses_per_m3 = ductwork_losses / overall_zone_volume
 
             # Calculate internal and solar gains for each zone
             gains_internal_zone = {}
@@ -738,6 +814,7 @@ class Project:
                 # once per timestep per zone)
                 if self.__ventilation is not None:
                     gains_internal_zone[z_name] += self.__ventilation.fans(zone.volume())
+                    gains_internal_zone[z_name] += ductwork_losses_per_m3 * zone.volume()
 
                 gains_solar_zone[z_name] = zone.gains_solar()
 
@@ -835,7 +912,8 @@ class Project:
             return gains_internal_zone, gains_solar_zone, \
                    operative_temp, internal_air_temp, \
                    space_heat_demand_zone, space_cool_demand_zone, \
-                   space_heat_demand_system, space_cool_demand_system
+                   space_heat_demand_system, space_cool_demand_system, \
+                   ductwork_losses
 
         timestep_array = []
         gains_internal_dict = {}
@@ -881,11 +959,12 @@ class Project:
             
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
-
+            
             gains_internal_zone, gains_solar_zone, \
                 operative_temp, internal_air_temp, \
                 space_heat_demand_zone, space_cool_demand_zone, \
-                space_heat_demand_system, space_cool_demand_system \
+                space_heat_demand_system, space_cool_demand_system, \
+                ductwork_gains \
                 = calc_space_heating(delta_t_h)
 
             for z_name, gains_internal in gains_internal_zone.items():
@@ -952,4 +1031,5 @@ class Project:
         return \
             timestep_array, results_totals, results_end_user, \
             energy_import, energy_export, betafactor, \
-            zone_dict, zone_list, hc_system_dict, hot_water_dict
+            zone_dict, zone_list, hc_system_dict, hot_water_dict, \
+            ductwork_gains
