@@ -631,6 +631,34 @@ class TestHeatPumpTestData(unittest.TestCase):
                     msg="incorrect capacity at operating conditions (not air source) returned",
                     )
 
+    def test_temp_spread_correction(self):
+        """ Test that correct temperature spread correction factor is returned """
+        results = [
+            1.1219512195122,
+            1.08394607843137,
+            1.05822498586772,
+            1.03966445733223,
+            1.02564102564103,
+            ]
+        temp_source = 275.15
+        temp_diff_evaporator = - 15.0
+        temp_diff_condenser = 5.0
+        temp_spread_emitter = 10.0
+
+        for i, temp_output in enumerate([308.15, 313.15, 318.15, 323.15, 328.15]):
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    self.hp_testdata.temp_spread_correction(
+                        temp_source,
+                        temp_output,
+                        temp_diff_evaporator,
+                        temp_diff_condenser,
+                        temp_spread_emitter,
+                        ),
+                    results[i],
+                    msg="incorrect temperature spread correction factor returned",
+                    )
+
 
 class TestSourceType(unittest.TestCase):
     """ Unit tests for SourceType """

@@ -623,6 +623,44 @@ class HeatPumpTestData:
         flow_temp = Kelvin2Celcius(temp_output)
         return np.interp(flow_temp, self.__dsgn_flow_temps, therm_cap_op_cond)
 
+    def temp_spread_correction(
+            self,
+            temp_source,
+            temp_output,
+            temp_diff_evaporator,
+            temp_diff_condenser,
+            temp_spread_emitter,
+            ):
+        """ Calculate temperature spread correction factor
+
+        Arguments:
+        temp_source -- source temperature, in Kelvin
+        temp_output -- output temperature, in Kelvin
+        temp_diff_evaporator
+            -- average temperature difference between heat transfer medium and
+               refrigerant in evaporator, in deg C or Kelvin
+        temp_diff_condenser
+            -- average temperature difference between heat transfer medium and
+               refrigerant in condenser, in deg C or Kelvin
+        temp_spread_emitter
+            -- temperature spread on condenser side in operation due to design
+               of heat emission system
+        """
+        temp_spread_correction_list = []
+        for i, dsgn_flow_temp in enumerate(self.__dsgn_flow_temps):
+            temp_spread_test_cond = self.__temp_spread_test_conditions[i]
+            temp_spread_correction \
+                = 1.0 \
+                - ((temp_spread_test_cond - temp_spread_emitter) / 2.0) \
+                / ( temp_output - temp_spread_test_cond / 2.0 + temp_diff_condenser \
+                  - temp_source + temp_diff_evaporator
+                  )
+            temp_spread_correction_list.append(temp_spread_correction)
+
+        # Interpolate between the values found for the different design flow temperatures
+        flow_temp = Kelvin2Celcius(temp_output)
+        return np.interp(flow_temp, self.__dsgn_flow_temps, temp_spread_correction_list)
+
 
 class HeatPumpService:
     """ A base class for objects representing services (e.g. water heating) provided by a heat pump.
