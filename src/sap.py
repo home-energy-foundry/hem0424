@@ -43,6 +43,7 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
         return # Skip actual calculation if preproc only option has been selected
 
     project = Project(project_dict)
+
     timestep_array, results_totals, results_end_user, \
         energy_import, energy_export, betafactor, \
         zone_dict, zone_list, hc_system_dict, \

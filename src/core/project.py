@@ -255,7 +255,7 @@ class Project:
         for name, data in proj_dict['Shower'].items():
             self.__showers[name] = dict_to_shower(name, data)
             
-            
+           
         def dict_to_baths(name, data):
             """ Parse dictionary of bath data and return approprate bath object """
             cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
@@ -300,7 +300,7 @@ class Project:
         self.__water_heating_pipework = {}
         for name, data in proj_dict['Distribution'].items():
             self.__water_heating_pipework[name] = dict_to_water_distribution_system(name, data)
-            
+           
         def dict_to_event_schedules(data):
             """ Process list of events (for hot water draw-offs, appliance use etc.) """
             sim_timestep = self.__simtime.timestep()
@@ -313,39 +313,8 @@ class Project:
                 self.__event_schedules[sched_type] = {}
             for name, data in schedules.items():
                 self.__event_schedules[sched_type][name] = dict_to_event_schedules(data)
+ 
 
-        def dict_to_space_heat_system(name, data):
-            space_heater_type = data['type']
-            if space_heater_type == 'InstantElecHeater':
-                if 'Control' in data.keys():
-                    ctrl = self.__controls[data['Control']]
-                    # TODO Need to handle error if Control name is invalid.
-                else:
-                    ctrl = None
-
-                energy_supply = self.__energy_supplies[data['EnergySupply']]
-                # TODO Need to handle error if EnergySupply name is invalid.
-                energy_supply_conn = energy_supply.connection(name)
-
-                space_heater = InstantElecHeater(
-                    data['rated_power'],
-                    energy_supply_conn,
-                    self.__simtime,
-                    ctrl,
-                    )
-            else:
-                sys.exit(name + ': space heating system type (' \
-                       + space_heater_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
-            return space_heater
-
-        # If one or more space heating systems have been provided, add them to the project
-        self.__space_heat_systems = {}
-        # If no space heating systems have been provided, then skip. This
-        # facilitates running the simulation with no heating systems at all
-        if 'SpaceHeatSystem' in proj_dict:
-            for name, data in proj_dict['SpaceHeatSystem'].items():
-                self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
 
         self.__space_cool_systems = {}
         # TODO Read in space cooling systems and populate dict
@@ -533,40 +502,6 @@ class Project:
         for name, data in proj_dict['Zone'].items():
             self.__zones[name] = dict_to_zone(name, data)
 
-
-
-
-        def dict_to_on_site_generation(name, data):
-            """ Parse dictionary of on site generation data and
-                return approprate on site generation object """
-            on_site_generation_type = data['type']
-            if on_site_generation_type == 'PhotovoltaicSystem':
-
-                energy_supply = self.__energy_supplies[data['EnergySupply']]
-                # TODO Need to handle error if EnergySupply name is invalid.
-                energy_supply_conn = energy_supply.connection(name)
-
-                pv_system = PhotovoltaicSystem(
-                    data['peak_power'],
-                    data['ventilation_strategy'],
-                    data['pitch'],
-                    data['orientation'],
-                    self.__external_conditions,
-                    energy_supply_conn,
-                    self.__simtime,
-                    )
-            else:
-                sys.exit(name + ': on site generation type ('
-                         + on_site_generation_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
-            return pv_system
-
-        self.__on_site_generation = {}
-        # If no on site generation have been provided, then skip.
-        if 'OnSiteGeneration' in proj_dict:
-            for name, data in proj_dict['OnSiteGeneration'].items():
-                self.__on_site_generation[name] = dict_to_on_site_generation(name, data)
-
         total_floor_area = sum(zone.area() for zone in self.__zones.values())
 
         # Add internal gains from applicances to the internal gains dictionary and
@@ -674,6 +609,7 @@ class Project:
 
     def run(self):
         """ Run the simulation """
+
 
         def hot_water_demand(t_idx):
             """ Calculate the hot water demand for the current timestep
@@ -897,6 +833,7 @@ class Project:
             # Calculate internal and solar gains for each zone
             gains_internal_zone = {}
             gains_solar_zone = {}
+            print(self.__internal_gains)
             for z_name, zone in self.__zones.items():
                 # Convert W/m2 to W
                 gains_internal_zone[z_name] \
