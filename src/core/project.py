@@ -75,8 +75,6 @@ class Project:
         # TODO Read timezone from input file. For now, set timezone to 0 (GMT)
         # TODO Read direct_beam_conversion_needed from input file. For now,
         #      assume false (for epw files)
-        # TODO Read shading_segments from input file. For now hardcoded here
-        #      i.e. need to change here to test. input file values not being used
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
@@ -94,28 +92,7 @@ class Project:
             None, #proj_dict['ExternalConditions']['daylight_savings'],
             None, #proj_dict['ExternalConditions']['leap_day_included'],
             False, #proj_dict['ExternalConditions']['direct_beam_conversion_needed']
-            [{"number": 1, "start": 180, "end": 135},
-             {"number": 2, "start": 135, "end": 90,
-                "shading": [
-                    {"type": "overhang", "height": 2.2, "distance": 6}
-                ]
-             },
-             {"number": 3, "start": 90, "end": 45},
-             {"number": 4, "start": 45, "end": 0, 
-                "shading": [
-                    {"type": "obstacle", "height": 40, "distance": 4},
-                    {"type": "overhang", "height": 3, "distance": 7}
-                ]
-             },
-             {"number": 5, "start": 0, "end": -45,
-              "shading": [
-                    {"type": "obstacle", "height": 3, "distance": 8},
-                ]
-              },
-             {"number": 6, "start": -45, "end": -90},
-             {"number": 7, "start": -90, "end": -135},
-             {"number": 8, "start": -135, "end": -180}
-            ] # proj_dict['ExternalConditions']['shading_segments'],
+            proj_dict['ExternalConditions']['shading_segments'],
             )
 
         self.__infiltration = VentilationElementInfiltration(
@@ -211,9 +188,10 @@ class Project:
 
                 hw_source = StorageTank(
                     data['volume'],
-                    1.0,  # TODO Remove hard-coding of initial hot fraction
+                    data['daily_losses'],
                     55.0, # TODO Remove hard-coding of hot water temp
                     cold_water_source,
+                    self.__simtime,
                     )
 
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
@@ -314,12 +292,6 @@ class Project:
             for name, data in schedules.items():
                 self.__event_schedules[sched_type][name] = dict_to_event_schedules(data)
  
-
-
-        self.__space_cool_systems = {}
-        # TODO Read in space cooling systems and populate dict
-
-
         def dict_to_building_element(name, data):
             building_element_type = data['type']
             if building_element_type == 'BuildingElementOpaque':
@@ -610,7 +582,6 @@ class Project:
     def run(self):
         """ Run the simulation """
 
-
         def hot_water_demand(t_idx):
             """ Calculate the hot water demand for the current timestep
 
@@ -833,11 +804,12 @@ class Project:
             # Calculate internal and solar gains for each zone
             gains_internal_zone = {}
             gains_solar_zone = {}
-            print(self.__internal_gains)
             for z_name, zone in self.__zones.items():
-                # Convert W/m2 to W
-                gains_internal_zone[z_name] \
-                    = self.__internal_gains.total_internal_gain() * zone.area()
+                gains_internal_zone_inner = 0.0
+                for internal_gains_name, internal_gains_object in self.__internal_gains.items():
+                    gains_internal_zone_inner\
+                        += internal_gains_object.total_internal_gain(zone.area())
+                gains_internal_zone[z_name] = gains_internal_zone_inner
                 # Add gains from ventilation fans (make sure this is only called
                 # once per timestep per zone)
                 if self.__ventilation is not None:
@@ -857,7 +829,6 @@ class Project:
             space_cool_demand_system = {} # in kWh
             for cool_system_name in self.__space_cool_systems.keys():
                 space_cool_demand_system[cool_system_name] = 0.0
-
 
             space_heat_demand_zone = {}
             space_cool_demand_zone = {}
@@ -1034,14 +1005,6 @@ class Project:
             for _, supply in self.__energy_supplies.items():
                 supply.calc_energy_import_export_betafactor()
 
-            #loop through on-site energy generation
-            for g_name, gen in self.__on_site_generation.items():
-                # Get energy produced for the current timestep
-                self.__on_site_generation[g_name].produce_energy()
-
-            for _, supply in self.__energy_supplies.items():
-                supply.calc_energy_import_export_betafactor()
-
         zone_dict = {
             'Internal gains': gains_internal_dict,
             'Solar gains': gains_solar_dict,
@@ -1062,7 +1025,6 @@ class Project:
         for name, supply in self.__energy_supplies.items():
             results_totals[name] = supply.results_total()
             results_end_user[name] = supply.results_by_end_user()
-
             energy_import[name] = supply.get_energy_import()
             energy_export[name] = supply.get_energy_export()
             betafactor[name] = supply.get_beta_factor()

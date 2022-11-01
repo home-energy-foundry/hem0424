@@ -43,10 +43,9 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
         return # Skip actual calculation if preproc only option has been selected
 
     project = Project(project_dict)
-
     timestep_array, results_totals, results_end_user, \
         energy_import, energy_export, betafactor, \
-        zone_dict, zone_list, hc_system_dict, \
+        zone_dict, zone_list, hc_system_dict, hot_water_dict,\
         ductwork_gains \
         = project.run()
 
@@ -68,6 +67,7 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
     # Apply required postprocessing steps, if any
     if fhs_assumptions:
         apply_fhs_postprocessing()
+
 
 def write_core_output_file(
         output_file,

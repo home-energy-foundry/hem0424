@@ -113,4 +113,3 @@ class Ductwork:
             # TODO Add code to log an error
 
         return total_duct_heat_loss
-
