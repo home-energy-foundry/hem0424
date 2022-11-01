@@ -457,14 +457,14 @@ class Project:
 
         def dict_to_heat_source(name, data):
             """ Parse dictionary of heat source data and return approprate heat source object """
+            if 'Control' in data.keys():
+                ctrl = self.__controls[data['Control']]
+                # TODO Need to handle error if Control name is invalid.
+            else:
+                ctrl = None
+
             heat_source_type = data['type']
             if heat_source_type == 'ImmersionHeater':
-                if 'Control' in data.keys():
-                    ctrl = self.__controls[data['Control']]
-                    # TODO Need to handle error if Control name is invalid.
-                else:
-                    ctrl = None
-
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
                 energy_supply_conn = energy_supply.connection(name)
