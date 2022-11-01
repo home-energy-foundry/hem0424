@@ -475,6 +475,26 @@ class Project:
                     self.__simtime,
                     ctrl,
                     )
+            elif heat_source_type == 'HeatSourceWet':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+
+                heat_source_wet = self.__heat_sources_wet[data['name']]
+                if isinstance(heat_source_wet, HeatPump):
+                    heat_source = heat_source_wet.create_service_hot_water(
+                        data['name'] + '_water_heating',
+                        55, # TODO Remove hard-coding of HW temp
+                        50, # TODO Remove hard-coding of return temp
+                        data['temp_flow_limit_upper'],
+                        cold_water_source,
+                        ctrl,
+                        )
+                else:
+                    sys.exit(name + ': HeatSource type not recognised')
+                    # TODO Exit just the current case instead of whole program entirely?
             else:
                 sys.exit(name + ': heat source type (' + heat_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?

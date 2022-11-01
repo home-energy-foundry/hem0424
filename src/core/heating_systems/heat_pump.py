@@ -697,6 +697,12 @@ class HeatPumpServiceWater(HeatPumpService):
         self.__temp_limit_upper = Celcius2Kelvin(temp_limit_upper)
         self.__cold_feed = cold_feed
 
+    def energy_output_max(self):
+        """ Calculate the maximum energy output of the HP, accounting for time
+            spent on higher-priority services
+        """
+        return self._HeatPumpService__hp._HeatPump__energy_output_max(self.__temp_hot_water)
+
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat pump """
         temp_cold_water = Celcius2Kelvin(self.__cold_feed.temperature())
@@ -905,6 +911,7 @@ class HeatPump:
             self,
             service_name,
             temp_hot_water,
+            temp_return_feed,
             temp_limit_upper,
             cold_feed,
             control=None,
@@ -923,6 +930,7 @@ class HeatPump:
             self,
             service_name,
             temp_hot_water,
+            temp_return_feed,
             temp_limit_upper,
             cold_feed,
             control,
