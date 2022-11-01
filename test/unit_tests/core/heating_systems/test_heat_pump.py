@@ -320,8 +320,8 @@ class TestHeatPumpTestData(unittest.TestCase):
         self.assertEqual(
             self.hp_testdata._HeatPumpTestData__regression_coeffs,
             {
-                35: [4.810017281274474, 0.03677543129969711, 0.0009914765238219576],
-                55: [3.4857982546529755, 0.050636568790103566, 0.001410495558351414]
+                35: [4.810017281274474, 0.03677543129969712, 0.0009914765238219557],
+                55: [3.4857982546529747, 0.050636568790103545, 0.0014104955583514216]
             },
             "list of regression coefficients populated incorrectly"
             )
