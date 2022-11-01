@@ -1061,12 +1061,16 @@ class HeatPump:
             temp_spread_correction,
             ):
         """ Calculate CoP and degradation coefficient at operating conditions """
+        if callable(temp_spread_correction):
+            temp_spread_correction_factor = temp_spread_correction(temp_output, temp_source)
+        else:
+            temp_spread_correction_factor = temp_spread_correction
 
         # TODO Make if/elif/else chain exhaustive?
         if not self.__source_type == SourceType.OUTSIDE_AIR \
         and not self.__var_flow_temp_ctrl_during_test:
             cop_op_cond \
-                = temp_spread_correction \
+                = temp_spread_correction_factor \
                 * self.__test_data.cop_op_cond_if_not_air_source(
                     self.__temp_diff_limit_low,
                     self.__external_conditions.temperature(),
@@ -1094,9 +1098,12 @@ class HeatPump:
 
             # CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.5.5
             # Note: DAHPSE method document section 4.5.5 doesn't have
-            # temp_spread_correction in formula below. However, section 4.5.7
+            # temp_spread_correction_factor in formula below. However, section 4.5.7
             # states that the correction factor is to be applied to the CoP.
-            cop_op_cond = max(1.0, exer_eff_op_cond * carnot_cop_op_cond * temp_spread_correction)
+            cop_op_cond = max(
+                1.0,
+                exer_eff_op_cond * carnot_cop_op_cond * temp_spread_correction_factor,
+                )
 
             if self.__sink_type == SinkType.AIR and service_type != ServiceType.WATER:
                 limit_upper = 0.25
