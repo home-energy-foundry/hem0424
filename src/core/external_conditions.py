@@ -28,11 +28,12 @@ class ExternalConditions:
             timezone,
             start_day,
             end_day,
+            time_series_step,
             january_first,
             daylight_savings,
             leap_day_included,
             direct_beam_conversion_needed,
-            shading_segments
+            shading_segments,
             ):
         """ Construct an ExternalConditions object
 
@@ -48,6 +49,7 @@ class ExternalConditions:
         timezone        -- timezone of weather station, -12 to 12 (single value)
         start_day       -- first day of the time series, day of the year, 0 to 365 (single value)
         end_day         -- last day of the time series, day of the year, 0 to 365 (single value)
+        time_series_step -- timestep of the time series data, in hours
         january_first   -- day of the week for January 1st, monday to sunday, 1 to 7 (single value)
         daylight_savings    -- handling of daylight savings time, (single value)
                             e.g. applicable and taken into account, 
@@ -77,6 +79,7 @@ class ExternalConditions:
         self.__leap_day_included = leap_day_included
         self.__direct_beam_conversion_needed = direct_beam_conversion_needed
         self.__shading_segments = shading_segments
+        self.__time_series_step = time_series_step
 
     def testoutput_setup(self,tilt,orientation):
         """ print output to a file for analysis """
@@ -157,9 +160,7 @@ class ExternalConditions:
 
     def air_temp(self):
         """ Return the external air temperature for the current timestep """
-        return self.__air_temps[self.__simulation_time.time_series_idx(self.__start_day)]
-        # TODO Assumes schedule is one entry per hour but this should be made
-        #      more flexible in the future.
+        return self.__air_temps[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
 
     def air_temp_annual(self):
         """ Return the average air temperature for the year """
@@ -177,25 +178,19 @@ class ExternalConditions:
 
     def ground_temp(self):
         """ Return the external ground temperature for the current timestep """
-        return self.__ground_temps[self.__simulation_time.time_series_idx(self.__start_day)]
-        # TODO Assumes schedule is one entry per hour but this should be made
-        #      more flexible in the future.
+        return self.__ground_temps[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
 
     def wind_speed(self):
         """ Return the wind speed for the current timestep """
-        return self.__wind_speeds[self.__simulation_time.time_series_idx(self.__start_day)]
-        # TODO Assumes schedule is one entry per hour but this should be made
-        #      more flexible in the future.
+        return self.__wind_speeds[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
 
     def diffuse_horizontal_radiation(self):
         """ Return the diffuse_horizontal_radiation for the current timestep """
-        return self.__diffuse_horizontal_radiation[self.__simulation_time.time_series_idx(self.__start_day)]
-        # TODO Assumes schedule is one entry per hour but this should be made
-        #      more flexible in the future.
+        return self.__diffuse_horizontal_radiation[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
 
     def direct_beam_radiation(self):
         """ Return the direct_beam_radiation for the current timestep """
-        raw_value = self.__direct_beam_radiation[self.__simulation_time.time_series_idx(self.__start_day)]
+        raw_value = self.__direct_beam_radiation[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
         # if the climate data to only provide direct horizontal (rather than normal:
         # If only direct (beam) solar irradiance at horizontal plane is available in the climatic data set,
         # it shall be converted to normal incidence by dividing the value by the sine of the solar altitude.
@@ -212,15 +207,10 @@ class ExternalConditions:
             Gsol_b = raw_value
 
         return Gsol_b
-        # TODO Assumes schedule is one entry per hour but this should be made
-        #      more flexible in the future.
-
 
     def solar_reflectivity_of_ground(self):
         """ Return the solar_reflectivity_of_ground for the current timestep """
-        return self.__solar_reflectivity_of_ground[self.__simulation_time.time_series_idx(self.__start_day)]
-        # TODO Assumes schedule is one entry per hour but this should be made
-        #      more flexible in the future.
+        return self.__solar_reflectivity_of_ground[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
 
     def latitude(self):
         """ Return the latitude """

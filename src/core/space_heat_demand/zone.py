@@ -30,7 +30,16 @@ class Zone:
     in this object by solving a matrix equation.
     """
 
-    def __init__(self, area, volume, building_elements, thermal_bridging, vent_elements):
+    def __init__(
+            self,
+            area,
+            volume,
+            building_elements,
+            thermal_bridging,
+            vent_elements,
+            temp_setpnt_heat,
+            temp_setpnt_cool,
+            ):
         """ Construct a Zone object
 
         Arguments:
@@ -42,10 +51,10 @@ class Zone:
                                bridges in the zone, in W / K
                              - list of ThermalBridge objects for this zone
         vent_elements     -- list of ventilation elements (infiltration, mech vent etc.)
-
-        Other variables:
         temp_setpnt_heat  -- temperature setpoint for heating, in deg C
         temp_setpnt_cool  -- temperature setpoint for cooling, in deg C
+
+        Other variables:
         area_el_total     -- total area of all building elements associated
                              with this zone, in m2
         c_int             -- internal thermal capacity of the zone, in J / K
@@ -85,8 +94,8 @@ class Zone:
             self.__tb_heat_trans_coeff = thermal_bridging
 
         # TODO Make the temperature setpoints inputs for each timestep
-        self.__temp_setpnt_heat = 21.0
-        self.__temp_setpnt_cool = 25.0
+        self.__temp_setpnt_heat = temp_setpnt_heat
+        self.__temp_setpnt_cool = temp_setpnt_cool
 
         self.__area_el_total = sum([eli.area for eli in self.__building_elements])
         self.__c_int = k_m_int * area

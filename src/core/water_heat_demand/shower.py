@@ -8,13 +8,14 @@ This module provides objects to model showers of different types.
 # Local imports
 import core.units as units
 from core.material_properties import WATER
-from core.water_heat_demand.misc import frac_hot_water
+from core.water_heat_demand.misc import frac_hot_water, water_demand_to_kWh
+import core.heating_systems.wwhrs as wwhrs
 
 
 class MixerShower:
     """ An object to model mixer showers i.e. those that mix hot and cold water """
 
-    def __init__(self, flowrate, cold_water_source):
+    def __init__(self, flowrate, cold_water_source, wwhrs=None):
         """ Construct a MixerShower object
 
         Arguments:
@@ -24,7 +25,11 @@ class MixerShower:
         """
         self.__flowrate          = flowrate
         self.__cold_water_source = cold_water_source
+        self.__wwhrs = wwhrs
 
+    def get_cold_water_source(self):
+        return(self.__cold_water_source)
+        
     def hot_water_demand(self, temp_target, total_shower_duration):
         """ Calculate volume of hot water required
 
@@ -42,6 +47,37 @@ class MixerShower:
         vol_warm_water = self.__flowrate * total_shower_duration
         # ^^^ litres = litres/minute * minutes
         vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, temp_cold)
+        # first calculate the volume of hot water needed if heating from cold water source
+        # it is assumed here that 
+        if self.__wwhrs is not None:
+            if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemB): # just returns hot water to the shower
+                vol_hot_water_no_wwhrs = vol_hot_water
+                
+                flowrate_waste_water = vol_warm_water/vol_hot_water * self.__flowrate
+                # get the flowrate of warm (waste) water based on difference in volume between hot and the
+                # mixed warm water.
+                
+                wwhrs_return_temperature = self.__wwhrs.temperature(temp_target, flowrate_waste_water, None)
+                # Get the actual return temperature given the flowrate of the waste water.
+                
+                vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
+                # return the volume of hot water once the recovered heat has been accounted for.
+                
+            else:
+                if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemC): # just returns hot water to the hot water source
+                    vol_hot_water_no_wwhrs = vol_hot_water
+                    
+                    flowrate_waste_water = vol_warm_water/vol_hot_water * self.__flowrate
+                    # get the flowrate of warm (waste) water based on difference in volume between hot and the
+                    # mixed warm water.
+                    
+                    wwhrs_return_temperature = self.__wwhrs.temperature(temp_target, flowrate_waste_water, None)
+                    # Get the actual return temperature given the flowrate of the waste water.
+                    
+                    vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
+                    # return the volume of hot water once the recovered heat has been accounted for.
+                
+                    kWh_saved_wwhrs = water_demand_to_kWh((vol_hot_water_no_wwhrs - vol_hot_water), temp_hot, temp_cold)
 
         return vol_hot_water
         # TODO Should this return hot water demand or send message to HW system?
@@ -78,6 +114,9 @@ class InstantElecShower:
         #      electric showers work, or do they modulate their power output?
         self.__cold_water_source = cold_water_source
         self.__elec_supply_conn  = elec_supply_conn
+
+    def get_cold_water_source(self):
+        return(self.__cold_water_source)
 
     def hot_water_demand(self, temp_target, total_shower_duration):
         """ Calculate electrical energy required

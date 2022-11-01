@@ -40,15 +40,22 @@ class StorageTank:
     __f_sto_bac_acc = 1
     #Design Data
     #***Operative conditions Table B.4
+    #TODO - determine difference and purpose between temperature required for DHW and set point
     #temperature required for DHW - degress
-    #TODO - determine difference and purpose between this and set point
-    __temp_out_W_min = 55
+    #__temp_out_W_min = 55 default in table B.4
+    #hot water was found to be leaving the cylinder at 52oC
+    #in the 2008 EST field trial that SAP10 and earlier are based on.
+    #Assume this is refering to the same thing until investigated further.
+    #TODO possibly link and vary per demand event in future
+    __temp_out_W_min = 52
     #ambient temperature - degress
     #TODO - link to zone temp at timestep possibly and location of tank (in or out of heated space)
     __temp_amb = 16
     #thermostat set temperature - degrees
     #TODO - possible move to init  as input, maybe per layer and/or timestep
-    __temp_set_on = 65
+    #__temp_set_on = 65  default in table B.4
+    #use 55oC as more consistent with average delivery temperature of 52
+    __temp_set_on = 55
 
     def __init__(self, volume, losses, temp_hot, cold_feed, simulation_time, contents=WATER):
         """ Construct a StorageTank object
@@ -82,7 +89,9 @@ class StorageTank:
         self.__rho = contents.density()
         #6.4.3.2 STEP 0 Initialization
         """for initial conditions all temperatures in the thermal storage unit(s)
-         are equal to the set point temperature in degrees"""
+         are equal to the set point temperature in degrees.
+         We are expecting to run a "warm-up" period for the main calculation so this doesn't matter.
+         """
         self.__temp_n = [self.__temp_set_on] * self.__NB_VOL
 
     def add_heat_source(self, heat_source, proportion_of_tank_heated):
@@ -104,6 +113,7 @@ class StorageTank:
         TODO there are alternative methods listed in App B (B.2.8) which are not included here."""
         #BS EN 12897:2016 appendix B B.2.2
         #temperature of the water in the storage for the standardized conditions - degrees
+        #these are reference (ref) temperatures from the standard test conditions for cylinder loss.
         temp_set_ref = 65
         temp_amb_ref = 20
     
