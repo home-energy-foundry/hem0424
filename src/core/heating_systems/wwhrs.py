@@ -12,10 +12,11 @@ class WWHRS_InstantaneousSystemB:
     For System B WWHRS, output of the heat exchanger is fed to the shower only
     """
     
-    def __init__(self, flow_rates, efficiencies, cold_water_source):
+    def __init__(self, flow_rates, efficiencies, cold_water_source, utilisation_factor):
         self.__cold_water_source = cold_water_source
         self.__flow_rates = flow_rates
         self.__efficiencies = efficiencies
+        self.__utilisation_factor = utilisation_factor 
 
 
     def temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
@@ -30,16 +31,12 @@ class WWHRS_InstantaneousSystemB:
         # TODO If flowrates have been provided for waste and cold water:
         #    - Calc heat recovered from waste water. Need to do this per shower
         #      individually? Need WWHRS_Connection object?
-        wwhrs_efficiency = self.get_efficiency_from_flowrate(flowrate_waste_water)
-        
-        print(wwhrs_efficiency)
-        print(temp_cold)
-        print (temp_target)
+        wwhrs_efficiency = self.get_efficiency_from_flowrate(flowrate_waste_water) * \
+        self.__utilisation_factor
         
         #    - Calc temp of pre-heated water based on heat recovered and flow rates
         temp_cold = temp_cold + ((wwhrs_efficiency/100) * (temp_target - temp_cold))
-        
-        # TODO we need to account for any lag in the heatup on heat recovery
+
         
         # Return temp of cold water (pre-heated if relevant)
         return(temp_cold)
@@ -72,27 +69,34 @@ class WWHRS_InstantaneousSystemC:
     #      and hot water flowrate could be provided by hot water system
     #      object. Could handle this by having two types of WWHRS_Connection
     #      object or just two different functions to call in this object.
-    
-    def drain_water(self, flowrate_waste_water):
-        # TODO Save waste water flowrate for later calculation
-        pass
 
-    def temperature(self, flowrate_cold_water):
-        # Note the cold water flowrate to the boiler is the hot water flowrate to the shower.
+    def temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
+        # TODO The cold water flow rate depends on the temperature returned from
+        #      this function, which may create a circularity in the calculation.
+        #      May need to integrate System B into shower module and/or combine
+        #      equations.
         
         # Get cold feed temperature
         temp_cold = self.__cold_water_source.temperature()
         
-        # TODO If flowrates have been provided for waste and hot water:
+        # TODO If flowrates have been provided for waste and cold water:
         #    - Calc heat recovered from waste water. Need to do this per shower
         #      individually? Need WWHRS_Connection object?
-        #    - Calc temp of pre-heated water based on heat recovered and flow rates
-        #    - Save temp of pre-heated water
+        wwhrs_efficiency = self.get_efficiency_from_flowrate(flowrate_waste_water) * \
+        self.__utilisation_factor
         
-        # TODO Return temp of cold water (not pre-heated if this is being
-        #      called by shower object)
-        pass
+        #    - Calc temp of pre-heated water based on heat recovered and flow rates
+        temp_cold = temp_cold + ((wwhrs_efficiency/100) * (temp_target - temp_cold))
 
+        # Return temp of cold water (pre-heated if relevant)
+        return(temp_cold)
+
+
+    def get_efficiency_from_flowrate(self, flowrate):
+
+        y_interp = scipy.interpolate.interp1d(self.__flow_rates, self.__efficiencies)
+        
+        return(y_interp(flowrate))
 
 class WWHRS_InstantaneousSystemA:
     """ A class to represent instantaneous waste water heat recovery systems with arrangement A
