@@ -135,6 +135,9 @@
 			"var_flow_temp_ctrl_during_test": true,
 			"power_heating_circ_pump": 0.015,
 			"power_source_circ_pump": 0.010,
+			"power_standby": 0.015,
+			"power_crankcase_heater": 0.01,
+			"power_off": 0.015,
 			"test_data": [
 				{
 					"test_letter": "A",

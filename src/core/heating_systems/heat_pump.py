@@ -921,6 +921,9 @@ class HeatPump:
             - power_source_circ_pump
                 -- power (kW) of source ciculation pump or fan circulation when not
                    implicit in CoP measurements
+            - power_standby -- power (kW) consumption in standby mode
+            - power_crankcase_heater -- power (kW) consumption in crankcase heater mode
+            - power_off -- power (kW) consumption in off mode
         energy_supply -- reference to EnergySupply object
         energy_supply_conn_name_auxiliary
             -- name to be used for EnergySupplyConnection object for auxiliary energy
@@ -962,6 +965,9 @@ class HeatPump:
         self.__var_flow_temp_ctrl_during_test = bool(hp_dict['var_flow_temp_ctrl_during_test'])
         self.__power_heating_circ_pump = hp_dict['power_heating_circ_pump']
         self.__power_source_circ_pump = hp_dict['power_source_circ_pump']
+        self.__power_standby = hp_dict['power_standby']
+        self.__power_crankcase_heater_mode = hp_dict['power_crankcase_heater']
+        self.__power_off_mode = hp_dict['power_off']
 
     def __create_service_connection(self, service_name):
         """ Return a HeatPumpService object """
