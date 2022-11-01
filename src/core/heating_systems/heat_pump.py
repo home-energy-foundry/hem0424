@@ -820,7 +820,36 @@ class HeatPumpServiceSpace(HeatPumpService):
             self.__temp_limit_upper,
             self.__TIME_CONSTANT_SPACE,
             service_on,
-            # TODO temp_spread_correction
+            temp_spread_correction = self.temp_spread_correction,
+            )
+
+    def temp_spread_correction(self, temp_output, temp_source):
+        """Calculate temperature spread correction """
+        # Average temperature difference between heat transfer medium and
+        # refrigerant in condenser
+        temp_diff_condenser = 5.0
+
+        # Average temperature difference between heat transfer medium and
+        # refrigerant in evaporator
+        # TODO Figures in BS EN ISO 15316-4-2:2017 are -15 and -10, but figures
+        #      in BS EN ISO 15316-4-2:2008 were positive (although some were
+        #      different numbers) and signs in temp_spread_correction equation
+        #      have not changed, so need to check which is correct.
+        if self._HeatPumpService__hp._HeatPump__source_type == SourceType.OUTSIDE_AIR:
+            temp_diff_evaporator = - 15.0
+        elif self._HeatPumpService__hp._HeatPump__source_type == SourceType.GROUND:
+            temp_diff_evaporator = - 10.0
+        else:
+            sys.exit('SourceType not recognised')
+
+        # TODO The temp_spread_emitter input below (self.__temp_diff_emit_dsgn)
+        #      is for no weather comp. Add weather comp case as well
+        return self._HeatPumpService__hp._HeatPump__test_data.temp_spread_correction(
+            temp_source,
+            temp_output,
+            temp_diff_evaporator,
+            temp_diff_condenser,
+            self.__temp_diff_emit_dsgn,
             )
 
 
