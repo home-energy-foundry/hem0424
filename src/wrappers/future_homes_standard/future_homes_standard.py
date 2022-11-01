@@ -41,7 +41,7 @@ def apply_fhs_preprocessing(project_dict):
     create_lighting_gains(project_dict, TFA, N_occupants)
     create_cooking_gains(project_dict, N_occupants)
     create_appliance_gains(project_dict, TFA, N_occupants)
-    #create_hot_water_use_pattern(project_dict, TFA, N_occupants)
+    create_hot_water_use_pattern(project_dict, TFA, N_occupants)
     create_cooling(project_dict)
     create_cold_water_feed_temps(project_dict)
     
@@ -66,7 +66,7 @@ def calc_TFA(project_dict):
     return TFA
 
 def calc_N_occupants(TFA):
-
+    #in number of occupants + m^2
     N = 0.0
 
     if TFA > 13.9:
@@ -77,15 +77,15 @@ def calc_N_occupants(TFA):
     return N
 
 def create_occupancy(N_occupants):
-
+    #in number of occupants
     occupancy_weekday_fhs = [
         1, 1, 1, 1, 1, 1, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1, 0.1,
         0.2, 0.2, 0.2, 0.5, 0.5, 0.5, 0.8, 0.8, 1, 1, 1,
-        ]
+    ]
     occupancy_weekend_fhs = [
         1, 1, 1, 1, 1, 1, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8,
         0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 1, 1, 1
-        ]
+    ]
 
     schedule_occupancy_weekday = [
         x * N_occupants for x in occupancy_weekday_fhs
@@ -100,18 +100,23 @@ def create_metabolic_gains(project_dict,
                            TFA, 
                            schedule_occupancy_weekday, 
                            schedule_occupancy_weekend):
-    
     #Watts/occupant
     metabolic_gains_fhs = [
         41.0, 41.0, 41.0, 41.0, 41.0, 41.0, 
         41.0, 89.0, 89.0, 89.0, 89.0, 89.0,
         89.0, 89.0, 89.0, 89.0, 89.0, 89.0, 
         89.0, 89.0, 58.0, 58.0, 58.0, 58.0
-        ]
-
+    ]
     #note divide by TFA. units are Wm^-2
-    schedule_metabolic_gains_weekday = [occupancy * gains / TFA for occupancy, gains in zip(schedule_occupancy_weekday, metabolic_gains_fhs)]
-    schedule_metabolic_gains_weekend = [occupancy * gains / TFA for occupancy, gains in zip(schedule_occupancy_weekend, metabolic_gains_fhs)]
+    schedule_metabolic_gains_weekday = [
+        occupancy * gains / TFA for occupancy, gains
+        in zip(schedule_occupancy_weekday, metabolic_gains_fhs)
+    ]
+    schedule_metabolic_gains_weekend = [
+        occupancy * gains / TFA for occupancy, gains
+        in zip(schedule_occupancy_weekend, metabolic_gains_fhs)
+    ]
+    
     project_dict['InternalGains']['metabolic gains'].clear()
     project_dict['InternalGains']['metabolic gains'] = {
         "start_day": 0,
@@ -197,7 +202,7 @@ def create_heating_pattern(project_dict):
 
 def create_evaporative_losses(project_dict, N_occupants):
     evaporative_losses_fhs = -40 * N_occupants
-
+    
     project_dict['InternalGains']['EvaporativeLosses'] = {
         "start_day": 0,
         "time_series_step": 1,
@@ -354,8 +359,9 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
 
 
 def create_cooking_gains(project_dict, N_occupants):
-    
-    #should there be a default here if no type in project dict?
+    #get cooking from project dict if any has been defined
+    if "cooking" not in project_dict["ApplianceGains"]:
+        return None
     cooking_type = project_dict["ApplianceGains"]["cooking"]["EnergySupply"]
 
     cooking_profile_fhs = [
@@ -483,7 +489,7 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
 
 
 
-def create_hot_water_use_pattern(project_dict,TFA,N_occupants):
+def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
 
     HW_events_dict = {
         #time in decimal fractions of an hour
@@ -504,6 +510,12 @@ def create_hot_water_use_pattern(project_dict,TFA,N_occupants):
         "Bath":1.4,
         "None":0.0 #not in supplied spec, added for convenience with deleting events.
         }
+    
+    month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
+    #from sap10.2 J5
+    behavioural_hw_factorm = [1.035, 1.021, 1.007, 0.993, 0.979, 0.965, 0.965, 0.979, 0.993, 1.007, 1.021, 1.035]
+    #from sap10.2 j2
+    other_hw_factorm = [1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00]
 
     Weekday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Weekday']]
     Saturday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Saturday']]
@@ -537,9 +549,6 @@ def create_hot_water_use_pattern(project_dict,TFA,N_occupants):
         '''
         for each event type in the valuesdict, we want to eliminate every
         kth event where k = ROUND(1/1-ratio,0)
-        in one doc JH supplied it was 1/ratio not sure which it should be
-
-        this isnt the way JH suggested implementing ,but, unless misunderstood, its doing what is needed
         '''
         k=round(1.0/(1-ratio),0)
         counters={event_type:0 for event_type in HW_events_valuesdict.keys()}
@@ -556,7 +565,15 @@ def create_hot_water_use_pattern(project_dict,TFA,N_occupants):
         FHW = SAP2012QHW / QHWEN_eliminations
 
         HW_events_valuesdict = {key : FHW * HW_events_valuesdict[key] for key in HW_events_valuesdict.keys()}
-
+    else:
+        FHW = 1.0
+        
+    '''
+    if part G has been complied with, apply 5% reduction to duration of all events except showers
+    '''
+    partGbonus = 1.0
+    if project_dict["PartGcompliance"] == True:
+        partGbonus = 0.95
     '''
     now create lists of events
     Shower events should be  evenly spread across all showers in dwelling
@@ -568,29 +585,48 @@ def create_hot_water_use_pattern(project_dict,TFA,N_occupants):
     (so we are assuming temperature is always 41C and duration is
     directly proportional to energy)
     '''
-    #project_dict["Events"].clear()
+    
+    for event_type in project_dict["Events"]:
+        for event_subtype in project_dict["Events"][event_type]:
+            project_dict["Events"][event_type][event_subtype].clear()
     
     for i, event in enumerate(annual_HW_events):
         if event != "None":
             if event == "Shower":
-                project_dict["Events"].append(
-                    {"Shower": {
-                        "mixer":[{"start": HW_events_dict["Time"][i % 24], "duration": 6 * FHW, "temperature": 41.0}]
-                    }}
+                #starttime from daily dict plus 24hrs for each dayn elapsed
+                eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
+                #now get monthly behavioural factor and apply it, along with FHW
+                monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
+                duration = 6 * FHW  * behavioural_hw_factorm[monthidx]
+                
+                project_dict["Events"]["Shower"]["mixer"].append(
+                    {"start": eventstart,
+                    "duration": duration, 
+                    "temperature": 41.0}
                 )
             elif event =="Bath":
+                #starttime from daily dict plus 24hrs for each dayn elapsed
+                eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
+                #now get monthly behavioural factor and apply it, along with FHW and partGbonus
+                monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
+                duration = 6 * FHW  * behavioural_hw_factorm[monthidx] * partGbonus
                 project_dict["Events"]["Bath"]["medium"].append(
-                    {"start": HW_events_dict["Time"][i % 24], "duration": 6 * FHW, "temperature": 41.0}
+                    {"start": eventstart,
+                     "duration": duration,
+                     "temperature": 41.0}
                 )
             else:
-                project_dict["Events"]["Other"].append(
-                    {event:[{"start": HW_events_dict["Time"][i % 24],
-                     "duration": 6 * (HW_events_valuesdict[event] / 1.4) * FHW, "temperature": 41.0}]
-                     }
+                #starttime from daily dict plus 24hrs for each dayn elapsed
+                eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
+                #now get monthly behavioural factor and apply it, along with FHW
+                monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
+                duration = 6 * (HW_events_valuesdict[event] / 1.4) * FHW  * other_hw_factorm[monthidx]
+                project_dict["Events"]["Other"]["other"].append(
+                    {"start": eventstart,
+                     "duration": duration,
+                     "temperature": 41.0}
                 )
         
-
-    #project_dict['InternalGains']['HWGains'] = {"kWh_per_HW_event": HW_events_valuesdict}
 
 
 def create_cooling(project_dict):
@@ -687,37 +723,4 @@ def create_cold_water_feed_temps(project_dict):
         "time_series_step": 1,
         "temperatures": outputfeedtemp
     }
-    '''
-    project_dict['ColdWaterSource'][feedtype] = {
-        "start_day": 0,
-        "time_series_step": 1,
-        "temperatures": {
-            "main": [{"value": "jan", "repeat": 31},
-                    {"value": "feb", "repeat": 28},
-                    {"value": "mar", "repeat": 31},
-                    {"value": "apr", "repeat": 30},
-                    {"value": "may", "repeat": 31},
-                    {"value": "jun", "repeat": 30},
-                    {"value": "jul", "repeat": 31},
-                    {"value": "aug", "repeat": 31},
-                    {"value": "sep", "repeat": 30},
-                    {"value": "oct", "repeat": 31},
-                    {"value": "nov", "repeat": 30},
-                    {"value": "dec", "repeat": 31}
-                     ],
-            "jan":cold_feed_schedulem[0],
-            "feb":cold_feed_schedulem[1],
-            "mar":cold_feed_schedulem[2],
-            "apr":cold_feed_schedulem[3],
-            "may":cold_feed_schedulem[4],
-            "jun":cold_feed_schedulem[5],
-            "jul":cold_feed_schedulem[6],
-            "aug":cold_feed_schedulem[7],
-            "sep":cold_feed_schedulem[8],
-            "oct":cold_feed_schedulem[9],
-            "nov":cold_feed_schedulem[10],
-            "dec":cold_feed_schedulem[11]
-        }
-    }
-    '''
 
