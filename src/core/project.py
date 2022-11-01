@@ -430,6 +430,12 @@ class Project:
                                              data['time_series_step']
                                              )
 
+        # Where wet distribution heat source provide more than one service, some
+        # calculations can only be performed after all services have been
+        # calculated. Give these systems a timestep_end function and add these
+        # systems to the following list, which will be iterated over later.
+        self.__timestep_end_calcs = []
+
         def dict_to_heat_source_wet(name, data):
             heat_source_type = data['type']
             if heat_source_type == 'HeatPump':
@@ -442,6 +448,7 @@ class Project:
                     self.__simtime,
                     self.__external_conditions,
                     )
+                self.__timestep_end_calcs.append(heat_source)
             else:
                 sys.exit(name + ': heat source type (' \
                        + heat_source_type + ') not recognised.')
@@ -940,6 +947,11 @@ class Project:
                 space_heat_demand_zone, space_cool_demand_zone, \
                 space_heat_demand_system, space_cool_demand_system \
                 = calc_space_heating(delta_t_h)
+
+            # Perform calculations that can only be done after all heating
+            # services have been calculated.
+            for system in self.__timestep_end_calcs:
+                system.timestep_end()
 
             for z_name, gains_internal in gains_internal_zone.items():
                 gains_internal_dict[z_name].append(gains_internal)
