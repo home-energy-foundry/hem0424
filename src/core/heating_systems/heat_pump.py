@@ -1377,7 +1377,7 @@ class HeatPump:
 
     def __calc_ancillary_energy(self, timestep, time_remaining_current_timestep):
         """ Calculate ancillary energy for each service """
-        for service_no, service_data in self.__service_results.enumerate():
+        for service_no, service_data in enumerate(self.__service_results):
             # Unpack results of previous calculations for this service
             service_name = service_data['service_name']
             service_type = service_data['service_type']
