@@ -18,6 +18,7 @@ from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.emitters import Emitters
+from core.heating_systems.heat_pump import HeatPump
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.space_heat_demand.zone import Zone
@@ -153,58 +154,6 @@ class Project:
         self.__controls = {}
         for name, data in proj_dict['Control'].items():
             self.__controls[name] = dict_to_ctrl(name, data)
-
-        def dict_to_heat_source(name, data):
-            """ Parse dictionary of heat source data and return approprate heat source object """
-            heat_source_type = data['type']
-            if heat_source_type == 'ImmersionHeater':
-                if 'Control' in data.keys():
-                    ctrl = self.__controls[data['Control']]
-                    # TODO Need to handle error if Control name is invalid.
-                else:
-                    ctrl = None
-
-                energy_supply = self.__energy_supplies[data['EnergySupply']]
-                # TODO Need to handle error if EnergySupply name is invalid.
-                energy_supply_conn = energy_supply.connection(name)
-
-                heat_source = ImmersionHeater(
-                    data['power'],
-                    energy_supply_conn,
-                    self.__simtime,
-                    ctrl,
-                    )
-            else:
-                sys.exit(name + ': heat source type (' + heat_source_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
-            return heat_source
-
-        def dict_to_hot_water_source(name, data):
-            """ Parse dictionary of HW source data and return approprate HW source object """
-            hw_source_type = data['type']
-            if hw_source_type == 'StorageTank':
-                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
-                # TODO Need to handle error if ColdWaterSource name is invalid.
-
-                hw_source = StorageTank(
-                    data['volume'],
-                    data['daily_losses'],
-                    55.0, # TODO Remove hard-coding of hot water temp
-                    cold_water_source,
-                    self.__simtime,
-                    )
-
-                for heat_source_name, heat_source_data in data['HeatSource'].items():
-                    heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
-                    hw_source.add_heat_source(heat_source, 1.0)
-            else:
-                sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
-            return hw_source
-
-        self.__hot_water_sources = {}
-        for name, data in proj_dict['HotWaterSource'].items():
-            self.__hot_water_sources[name] = dict_to_hot_water_source(name, data)
 
         def dict_to_shower(name, data):
             """ Parse dictionary of shower data and return approprate shower object """
@@ -497,15 +446,119 @@ class Project:
                                              data['time_series_step']
                                              )
 
+        # Where wet distribution heat source provide more than one service, some
+        # calculations can only be performed after all services have been
+        # calculated. Give these systems a timestep_end function and add these
+        # systems to the following list, which will be iterated over later.
+        self.__timestep_end_calcs = []
+
+        def dict_to_heat_source_wet(name, data):
+            heat_source_type = data['type']
+            if heat_source_type == 'HeatPump':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                energy_supply_conn_name_auxiliary = 'HeatPump_auxiliary: ' + name
+                heat_source = HeatPump(
+                    data,
+                    energy_supply,
+                    energy_supply_conn_name_auxiliary,
+                    self.__simtime,
+                    self.__external_conditions,
+                    )
+                self.__timestep_end_calcs.append(heat_source)
+            else:
+                sys.exit(name + ': heat source type (' \
+                       + heat_source_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return heat_source
+
+        # If one or more wet distribution heat sources have been provided, add them to the project
+        self.__heat_sources_wet = {}
+        # If no wet distribution heat sources have been provided, then skip.
+        if 'HeatSourceWet' in proj_dict:
+            for name, data in proj_dict['HeatSourceWet'].items():
+                self.__heat_sources_wet[name] = dict_to_heat_source_wet(name, data)
+
+        def dict_to_heat_source(name, data):
+            """ Parse dictionary of heat source data and return approprate heat source object """
+            if 'Control' in data.keys():
+                ctrl = self.__controls[data['Control']]
+                # TODO Need to handle error if Control name is invalid.
+            else:
+                ctrl = None
+
+            heat_source_type = data['type']
+            if heat_source_type == 'ImmersionHeater':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                heat_source = ImmersionHeater(
+                    data['power'],
+                    energy_supply_conn,
+                    self.__simtime,
+                    ctrl,
+                    )
+            elif heat_source_type == 'HeatSourceWet':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+
+                heat_source_wet = self.__heat_sources_wet[data['name']]
+                if isinstance(heat_source_wet, HeatPump):
+                    heat_source = heat_source_wet.create_service_hot_water(
+                        data['name'] + '_water_heating',
+                        55, # TODO Remove hard-coding of HW temp
+                        50, # TODO Remove hard-coding of return temp
+                        data['temp_flow_limit_upper'],
+                        cold_water_source,
+                        ctrl,
+                        )
+                else:
+                    sys.exit(name + ': HeatSource type not recognised')
+                    # TODO Exit just the current case instead of whole program entirely?
+            else:
+                sys.exit(name + ': heat source type (' + heat_source_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return heat_source
+
+        def dict_to_hot_water_source(name, data):
+            """ Parse dictionary of HW source data and return approprate HW source object """
+            hw_source_type = data['type']
+            if hw_source_type == 'StorageTank':
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                # TODO Need to handle error if ColdWaterSource name is invalid.
+
+                hw_source = StorageTank(
+                    data['volume'],
+                    data['daily_losses'],
+                    55.0, # TODO Remove hard-coding of hot water temp
+                    cold_water_source,
+                    self.__simtime,
+                    )
+
+                for heat_source_name, heat_source_data in data['HeatSource'].items():
+                    heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
+                    hw_source.add_heat_source(heat_source, 1.0)
+            else:
+                sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return hw_source
+
+        self.__hot_water_sources = {}
+        for name, data in proj_dict['HotWaterSource'].items():
+            self.__hot_water_sources[name] = dict_to_hot_water_source(name, data)
+
         def dict_to_space_heat_system(name, data):
+            if 'Control' in data.keys():
+                ctrl = self.__controls[data['Control']]
+                # TODO Need to handle error if Control name is invalid.
+            else:
+                ctrl = None
+
             space_heater_type = data['type']
             if space_heater_type == 'InstantElecHeater':
-                if 'Control' in data.keys():
-                    ctrl = self.__controls[data['Control']]
-                    # TODO Need to handle error if Control name is invalid.
-                else:
-                    ctrl = None
-
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
                 energy_supply_conn = energy_supply.connection(name)
@@ -516,21 +569,28 @@ class Project:
                     self.__simtime,
                     ctrl,
                     )
-            # TODO For wet distribution, look up relevant heat source and set
-            #      heat_source variable. The Emitter object will not work
-            #      without it, so the code below should remain commented out
-            #      until at least one heat source type has been defined.
-            # elif space_heater_type == 'WetDistribution':
-            #     zone = self.__zones[data['Zone']]
-            #     space_heater = Emitters(
-            #         data['thermal_mass'],
-            #         data['c'],
-            #         data['n'],
-            #         data['temp_diff_emit_dsgn'],
-            #         heat_source,
-            #         zone,
-            #         self.__simtime,
-            #         )
+            elif space_heater_type == 'WetDistribution':
+                heat_source = self.__heat_sources_wet[data['HeatSource']['name']]
+                if isinstance(heat_source, HeatPump):
+                    heat_source_service = heat_source.create_service_space_heating(
+                        data['HeatSource']['name'] + '_space_heating',
+                        data['HeatSource']['temp_flow_limit_upper'],
+                        data['temp_diff_emit_dsgn'],
+                        ctrl,
+                        )
+                else:
+                    sys.exit(name + ': HeatSource type not recognised')
+                    # TODO Exit just the current case instead of whole program entirely?
+
+                space_heater = Emitters(
+                    data['thermal_mass'],
+                    data['c'],
+                    data['n'],
+                    data['temp_diff_emit_dsgn'],
+                    heat_source_service,
+                    self.__zones[data['Zone']],
+                    self.__simtime,
+                    )
             else:
                 sys.exit(name + ': space heating system type (' \
                        + space_heater_type + ') not recognised.')
@@ -966,6 +1026,11 @@ class Project:
                 space_heat_demand_system, space_cool_demand_system, \
                 ductwork_gains \
                 = calc_space_heating(delta_t_h)
+
+            # Perform calculations that can only be done after all heating
+            # services have been calculated.
+            for system in self.__timestep_end_calcs:
+                system.timestep_end()
 
             for z_name, gains_internal in gains_internal_zone.items():
                 gains_internal_dict[z_name].append(gains_internal)
