@@ -596,8 +596,6 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         for event_subtype in project_dict["Events"][event_type]:
             project_dict["Events"][event_type][event_subtype].clear()
     
-    project_dict["Events"]["test"] = {"k":k,"QHW_with_elims":QHWEN_eliminations,"2012":SAP2012QHW, "ref":refQHW,"ratio":ratio,"adjustedeventvalues":HW_events_valuesdict,"events":annual_HW_events}
-    
     for i, event in enumerate(annual_HW_events):
         if event != "None":
             if event == "Shower":
