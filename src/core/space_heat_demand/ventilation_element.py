@@ -406,3 +406,64 @@ class WholeHouseExtractVentilation:
         # TODO For now, this only handles ventilation elements to the outdoor
         #      environment, not e.g. elements to adjacent zones.
 
+
+class NaturalVentilation:
+    """ A class to represent natural ventilation """
+
+    def __init__(self, required_air_change_rate, infiltration_rate, ext_con):
+        """ Construct a NaturalVentilation object
+
+        Arguments:
+        required_air_change_rate -- in ach
+        infiltration_rate -- in ach, not adjusted for wind speed
+        ext_con -- reference to ExternalConditions object
+        """
+        self.__air_change_rate_req = required_air_change_rate
+        self.__infiltration_rate = infiltration_rate
+        self.__external_conditions = ext_con
+
+    def air_change_rate(self, infiltration_rate):
+        """ Calculate air change rate for the system
+
+        Arguments:
+        infiltration_rate -- in ach, adjusted for wind speed
+        """
+        # The calculation below is based on SAP 10.2 equations, but with the curve between
+        # infiltration_rate == 0 and infiltration_rate == 2 * air_change_rate_req
+        # adjusted to handle values of air_change_rate_req other than 0.5.
+        # As we are already accounting for infiltration separately, it is
+        # subtracted from the totals here, compared to the equations in SAP 10.2
+        if infiltration_rate < 2.0 * self.__air_change_rate_req:
+            ach = self.__air_change_rate_req - infiltration_rate \
+                + (infiltration_rate ** 2 * 0.25 / self.__air_change_rate_req)
+        else:
+            ach = infiltration_rate
+        return ach
+
+    def h_ve(self, zone_volume):
+        """ Calculate the heat transfer coefficient (h_ve), in W/K,
+        according to ISO 52016-1:2017, Section 6.5.10.1
+
+        Arguments:
+        zone_volume -- volume of zone, in m3
+        inf_rate -- air change rate of ventilation system
+        """
+
+        infiltration_rate_adj \
+            = self.__infiltration_rate * self.__external_conditions.wind_speed() / 4.0
+        ach = self.air_change_rate(infiltration_rate_adj)
+        q_v = air_change_rate_to_flow_rate(ach, zone_volume)
+
+        # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
+        h_ve = p_a * c_a * q_v
+        return h_ve
+        # TODO b_ztu needs to be applied in the case if ventilation element
+        #      is adjacent to a thermally unconditioned zone.
+
+    def temp_supply(self):
+        """ Calculate the supply temperature of the air flow element
+        according to ISO 52016-1:2017, Section 6.5.10.2 """
+        return self.__external_conditions.air_temp()
+        # TODO For now, this only handles ventilation elements to the outdoor
+        #      environment, not e.g. elements to adjacent zones.
+
