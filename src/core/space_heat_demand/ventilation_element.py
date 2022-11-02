@@ -208,6 +208,9 @@ class VentilationElementInfiltration:
 
         self.__infiltration = init_infiltration()
 
+    def infiltration(self):
+        return self.__infiltration
+
     def h_ve(self, zone_volume):
         """ Calculate the heat transfer coefficient (h_ve), in W/K,
         according to ISO 52016-1:2017, Section 6.5.10.1
@@ -316,6 +319,7 @@ class MechnicalVentilationHeatRecovery:
     def efficiency(self):
         return self.__efficiency
 
+
 class WholeHouseExtractVentilation:
     """ A class to represent whole house extract ventilation elements """
 
@@ -323,6 +327,7 @@ class WholeHouseExtractVentilation:
             self,
             required_air_change_rate,
             specific_fan_power,
+            infiltration_rate,
             energy_supply_conn,
             ext_con,
             simulation_time
@@ -332,15 +337,36 @@ class WholeHouseExtractVentilation:
         Arguments:
         required_air_change_rate -- in ach
         specific_fan_power -- in W / (litre / second), inclusive of any in-use factors
+        infiltration_rate -- in ach, not adjusted for wind speed
         energy_supply_conn -- reference to EnergySupplyConnection object
         ext_con -- reference to ExternalConditions object
         """
 
-        self.__air_change_rate = required_air_change_rate
+        self.__air_change_rate_req = required_air_change_rate
+        self.__infiltration_rate = infiltration_rate
         self.__sfp = specific_fan_power
         self.__energy_supply_conn = energy_supply_conn
         self.__external_conditions = ext_con
         self.__simtime = simulation_time
+
+    def air_change_rate(self, infiltration_rate):
+        """ Calculate air change rate for the system
+
+        Arguments:
+        infiltration_rate -- in ach, adjusted for wind speed
+        """
+        # The calculation below is based on SAP 10.2 equations, but with the
+        # sharp "elbow" at infiltration_rate == 0.5 * air_change_rate_req
+        # replaced by a smooth curve between infiltration_rate == 0 and
+        # infiltration_rate = air_change_rate_req.
+        # As we are already accounting for infiltration separately, it is
+        # subtracted from the totals here, compared to the equations in SAP 10.2
+        if infiltration_rate < self.__air_change_rate_req:
+            ach = self.__air_change_rate_req - infiltration_rate \
+                + (infiltration_rate ** 2 * 0.5 / self.__air_change_rate_req)
+        else:
+            ach = 0.5 * self.__air_change_rate_req
+        return ach
 
     def h_ve(self, zone_volume):
         """ Calculate the heat transfer coefficient (h_ve), in W/K,
@@ -351,7 +377,10 @@ class WholeHouseExtractVentilation:
         inf_rate -- air change rate of ventilation system
         """
 
-        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume)
+        infiltration_rate_adj \
+            = self.__infiltration_rate * self.__external_conditions.wind_speed() / 4.0
+        ach = self.air_change_rate(infiltration_rate_adj)
+        q_v = air_change_rate_to_flow_rate(ach, zone_volume)
 
         # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
         h_ve = p_a * c_a * q_v
@@ -363,7 +392,7 @@ class WholeHouseExtractVentilation:
         """ Calculate gains and energy use due to fans """
         # Calculate energy use by fans (does not contribute to internal gains as
         # this is extract-only ventilation)
-        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume)
+        q_v = air_change_rate_to_flow_rate(self.__air_change_rate_req, zone_volume)
         fan_power_W = self.__sfp * (q_v * litres_per_cubic_metre)
         fan_energy_use_kWh = (fan_power_W  / W_per_kW) * self.__simtime.timestep()
 

@@ -310,6 +310,7 @@ class Project:
                 ventilation_element = WholeHouseExtractVentilation(
                     data['req_ach'],
                     data['SFP'],
+                    self.__infiltration.infiltration(),
                     energy_supply_conn,
                     self.__external_conditions,
                     self.__simtime,
