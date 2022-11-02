@@ -27,7 +27,7 @@ from core.space_heat_demand.building_element import \
     BuildingElementAdjacentZTC
 from core.space_heat_demand.ventilation_element import \
     VentilationElementInfiltration, WholeHouseExtractVentilation, \
-    MechnicalVentilationHeatRecovery
+    MechnicalVentilationHeatRecovery, NaturalVentilation
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -302,6 +302,7 @@ class Project:
 
         def dict_to_ventilation_element(name, data):
             ventilation_element_type = data['type']
+            ductwork = None
             if ventilation_element_type == 'WHEV': # Whole house extract ventilation
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
@@ -310,13 +311,11 @@ class Project:
                 ventilation_element = WholeHouseExtractVentilation(
                     data['req_ach'],
                     data['SFP'],
+                    self.__infiltration.infiltration(),
                     energy_supply_conn,
                     self.__external_conditions,
                     self.__simtime,
                     )
-                    
-                ductwork = None
-
             elif ventilation_element_type == 'MVHR':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
@@ -340,6 +339,12 @@ class Project:
                     data['ductwork']['insulation_thickness'],
                     data['ductwork']['reflective'],
                     data['ductwork']['MVHR_location']
+                    )
+            elif ventilation_element_type == 'NatVent':
+                ventilation_element = NaturalVentilation(
+                    data['req_ach'],
+                    self.__infiltration.infiltration(),
+                    self.__external_conditions,
                     )
             else:
                 sys.exit( name + ': ventilation element type ('
@@ -872,7 +877,9 @@ class Project:
                 gains_internal_zone[z_name] = gains_internal_zone_inner
                 # Add gains from ventilation fans (make sure this is only called
                 # once per timestep per zone)
-                if self.__ventilation is not None:
+                # TODO Remove the branch on the type of ventilation (find a better way)
+                if self.__ventilation is not None \
+                and not isinstance(self.__ventilation, NaturalVentilation):
                     gains_internal_zone[z_name] += self.__ventilation.fans(zone.volume())
                     gains_internal_zone[z_name] += ductwork_losses_per_m3 * zone.volume()
 

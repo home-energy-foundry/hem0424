@@ -185,10 +185,8 @@
 		}
 	},
 	"Ventilation": {
-		"type": "WHEV",
-		"req_ach": 0.5,
-		"SFP": 1.5,
-		"EnergySupply": "mains elec"
+		"type": "NatVent",
+		"req_ach": 0.5
 	},
 	"Infiltration": {
 		"storey": 1,
