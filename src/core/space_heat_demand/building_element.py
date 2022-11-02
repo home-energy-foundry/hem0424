@@ -34,6 +34,12 @@ def projected_height(tilt, height):
     """ calc the vertically projected height of a surface from
     the actual height and tilt of the surface """
     ph = height * sin(radians(tilt))
+    """ BS EN ISO 52010-1 Table 7 geometric input data; shading. Footnote d
+    validity interval H1;ic > 0
+    if horizontal (height = 0): choose small value e.g. H1 = 0.01 m"""
+    if ph < 0.01:
+        ph = 0.01
+
     return ph
 
 def calculate_area(height, width):
