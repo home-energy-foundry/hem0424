@@ -48,6 +48,7 @@
 	},
 	"ApplianceGains": {
 		"lighting": {
+			"type": "lighting",
 			"start_day": 0,
 			"time_series_step": 1,
 			"gains_fraction": 0.5,
@@ -56,11 +57,22 @@
 				"main": [32.0, 46.0, 33.0, 21.0, 12.0, 17.0, 25.0, 46.0]
 			}
 		},
-		"cooking": {
+		"cooking1": {
+			"type": "cooking",
 			"start_day": 0,
 			"time_series_step": 1,
 			"gains_fraction": 1,
 			"EnergySupply": "mains elec",
+			"schedule": {
+				"main": [300.0, 120.0, 220.0, 750.0, 890.0, 150.0, 550.0, 280.0]
+			}
+		},
+		"cooking2": {
+			"type": "cooking",
+			"start_day": 0,
+			"time_series_step": 1,
+			"gains_fraction": 1,
+			"EnergySupply": "mains gas",
 			"schedule": {
 				"main": [300.0, 120.0, 220.0, 750.0, 890.0, 150.0, 550.0, 280.0]
 			}
@@ -76,6 +88,9 @@
 	"EnergySupply": {
 		"mains elec": {
 			"fuel": "electricity"
+		},
+		"mains gas": {
+			"fuel": "gas"
 		}
 	},
 	"Control": {

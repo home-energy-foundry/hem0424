@@ -8,9 +8,6 @@ steps for the Future Homes Standard.
 
 import math
 from core import project
-from read_weather_file import weather_data_to_dict
-
-WEATHER_FILE_PATH = '/home/batesonj/Documents/SAP11weather/Leeds_TRY_2020High50_.csv'
 
 def apply_fhs_preprocessing(project_dict):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
@@ -45,11 +42,6 @@ def apply_fhs_preprocessing(project_dict):
     create_cooling(project_dict)
     create_cold_water_feed_temps(project_dict)
     
-    #weather_dict = weather_data_to_dict(WEATHER_FILE_PATH)
-    #for key in weather_dict:
-    #    project_dict["ExternalConditions"][key]=weather_dict[key]
-    
-
     return project_dict
 
 def apply_fhs_postprocessing():
@@ -57,23 +49,23 @@ def apply_fhs_postprocessing():
     pass # TODO Implement required post-processing
 
 def calc_TFA(project_dict):
-
+    
     TFA = 0.0
-
+    
     for zones in project_dict["Zone"].keys():
         TFA += project_dict["Zone"][zones]["area"]
-
+        
     return TFA
 
 def calc_N_occupants(TFA):
     #in number of occupants + m^2
     N = 0.0
-
+    
     if TFA > 13.9:
         N = 1 + 1.76 * (1 - math.exp(-0.000349 * (TFA -13.9)**2)) + 0.0013 * (TFA -13.9)
     elif TFA <= 13.9:
         N = 1.0
-
+        
     return N
 
 def create_occupancy(N_occupants):
@@ -86,14 +78,14 @@ def create_occupancy(N_occupants):
         1, 1, 1, 1, 1, 1, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8,
         0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 1, 1, 1
     ]
-
+    
     schedule_occupancy_weekday = [
         x * N_occupants for x in occupancy_weekday_fhs
     ]
     schedule_occupancy_weekend = [
         x * N_occupants for x in occupancy_weekend_fhs
     ]
-
+    
     return schedule_occupancy_weekday, schedule_occupancy_weekend
 
 def create_metabolic_gains(project_dict, 
@@ -117,7 +109,6 @@ def create_metabolic_gains(project_dict,
         in zip(schedule_occupancy_weekend, metabolic_gains_fhs)
     ]
     
-    project_dict['InternalGains']['metabolic gains'].clear()
     project_dict['InternalGains']['metabolic gains'] = {
         "start_day": 0,
         "time_series_step": 1,
@@ -228,9 +219,8 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
     for zone in project_dict["Zone"]:
         if "Lighting" in project_dict["Zone"][zone].keys():
             lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
-
-
-    '''seems quite silly having these inline...'''
+    
+    # TODO Consider defining large tables like this in a separate file rather than inline
     avg_monthly_halfhr_profiles = [
         [0.029235831, 0.02170637, 0.016683155, 0.013732757, 0.011874713, 0.010023118, 0.008837131, 0.007993816,
          0.007544302, 0.007057335, 0.007305208, 0.007595198, 0.009170401, 0.013592425, 0.024221707, 0.034538234,
@@ -304,14 +294,14 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
          0.014552683, 0.014347935, 0.014115058, 0.013739051, 0.014944386, 0.017543021, 0.021605977, 0.032100988,
          0.049851633, 0.063453382, 0.072579104, 0.076921792, 0.079601317, 0.079548711, 0.078653413, 0.076225647,
          0.073936893, 0.073585752, 0.071911165, 0.069220452, 0.065925982, 0.059952377, 0.0510938, 0.041481111]]
-
+    
     lumens = 11.2 * 59.73 * (TFA * N_occupants) ** 0.4714
-
+    
     kWhperyear = 1/3 * lumens/21 + 2/3 * lumens/lighting_efficacy
     kWhperday = kWhperyear / 365
     #lighting_energy_kWh=[]
     lighting_gains_W = []
-
+        
     for monthly_profile in avg_monthly_halfhr_profiles:
         #lighting_energy_kWh+=[frac * kWhperday for frac in monthly_profile]
         '''
@@ -322,8 +312,9 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
         a factor of 0.85 is also applied to get the internal gains from lighting.
         '''
         lighting_gains_W.append([(frac * kWhperday) * 2 * 1000 for frac in monthly_profile])
-
+    
     project_dict['ApplianceGains']['lighting'] = {
+        "type": "lighting",
         "start_day": 0,
         "time_series_step" : 0.5,
         "gains_fraction": 0.85,
@@ -359,11 +350,7 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
 
 
 def create_cooking_gains(project_dict, N_occupants):
-    #get cooking from project dict if any has been defined
-    if "cooking" not in project_dict["ApplianceGains"]:
-        return None
-    cooking_type = project_dict["ApplianceGains"]["cooking"]["EnergySupply"]
-
+    
     cooking_profile_fhs = [
         0.001192419, 0.000825857, 0.000737298, 0.000569196,
         0.000574409, 0.000573778, 0.000578369, 0.000574619, 0.000678235,
@@ -381,55 +368,71 @@ def create_cooking_gains(project_dict, N_occupants):
     EC1gas = 0
     EC2elec = 0
     EC2gas = 0
+    '''
+    check for gas and/or electric cooking. Remove any existing objects
+    so that we can add our own (just one for gas and one for elec)
+    '''
+    cookingenergysupplies=[]
+    for item in list(project_dict["ApplianceGains"]):
+        if project_dict["ApplianceGains"][item]["type"]=="cooking":
+            cookingenergysupplies.append(project_dict["ApplianceGains"][item]["EnergySupply"])
+            project_dict["ApplianceGains"].pop(item)
         
-    if cooking_type == "mains elec":
-        EC1elec = 275
-        EC1gas = 55
-        EC2elec = 0
-        EC2gas = 0
-    elif cooking_type == "mains gas":
-        EC1elec = 0
-        EC1gas = 0
-        EC2elec = 481
-        EC2gas = 96
-    elif cooking_type == "mains gas & elec":
+    if "mains elec" in cookingenergysupplies and "mains gas" in cookingenergysupplies:
         EC1elec = 138
         EC1gas = 28
         EC2elec = 241
         EC2gas = 48
-
+    elif "mains gas" in cookingenergysupplies:
+        EC1elec = 0
+        EC1gas = 0
+        EC2elec = 481
+        EC2gas = 96
+    elif "mains elec" in cookingenergysupplies:
+        EC1elec = 275
+        EC1gas = 55
+        EC2elec = 0
+        EC2gas = 0
+        #TODO - if there is cooking with energy supply other than
+        #mains gas or electric, it could be accounted for here -
+        #but presently it will be ignored.
+        
     annual_cooking_elec_kWh = EC1elec + EC2elec * N_occupants
     annual_cooking_gas_kWh = EC1gas + EC2gas * N_occupants
     
-    cooking_profile_W = [0 for index in cooking_profile_fhs]
     cooking_elec_profile_W = [(1000 / 2) * 0.9 * annual_cooking_elec_kWh / 365
                               * halfhr for halfhr in cooking_profile_fhs]
     cooking_gas_profile_W = [(1000 / 2) * 0.75 * annual_cooking_gas_kWh / 365
                              * halfhr for halfhr in cooking_profile_fhs]
-    #need separate gas and electric schedule objects
-    if cooking_type == "mains elec":
-        cooking_profile_W = cooking_elec_profile_W
-    elif cooking_type == "mains gas":
-        cooking_profile_W = cooking_gas_profile_W
-    elif cooking_type == "mains gas & elec":
-        cooking_profile_W = [
-            elec+gas for gas,elec in 
-            zip(cooking_gas_profile_W,cooking_elec_profile_W)
-        ]
     
-    project_dict['ApplianceGains']['cooking'] = {
-        "EnergySupply": cooking_type,
-        "start_day" : 0,
-        "time_series_step": 0.5,
-        "gains_fraction": 1,
-        "schedule": {
-            "main": [{"repeat": 365, "value": "day"}],
-            "day": cooking_profile_W
+    #add back gas and electric cooking if they are present 
+    if "mains gas" in cookingenergysupplies:
+        project_dict['ApplianceGains']['Gascooking'] = {
+            "type":"cooking",
+            "EnergySupply": "mains gas",
+            "start_day" : 0,
+            "time_series_step": 0.5,
+            "gains_fraction": 1,
+            "schedule": {
+                "main": [{"repeat": 365, "value": "day"}],
+                "day": cooking_gas_profile_W
+            }
         }
-    }
+    if "mains elec" in cookingenergysupplies:
+        project_dict['ApplianceGains']['Eleccooking'] = {
+            "type":"cooking",
+            "EnergySupply": "mains elec",
+            "start_day" : 0,
+            "time_series_step": 0.5,
+            "gains_fraction": 1,
+            "schedule": {
+                "main": [{"repeat": 365, "value": "day"}],
+                "day": cooking_elec_profile_W
+            }
+        }
 
 def create_appliance_gains(project_dict,TFA,N_occupants):
-
+    
     avg_monthly_hr_profiles = [
         [0.025995114, 0.023395603, 0.022095847, 0.020796091, 0.019496336, 0.022095847, 0.02729487, 0.040292427, 0.048090962, 0.049390717, 0.050690473, 0.049390717, 0.053289984, 0.049390717, 0.050690473, 0.053289984, 0.074086076, 0.087083633, 0.08188461, 0.070186809, 0.064987786, 0.057189252, 0.046791206, 0.033793649],
         [0.025995114, 0.023395603, 0.022095847, 0.020796091, 0.019496336, 0.022095847, 0.02729487, 0.032493893, 0.046791206, 0.051990229, 0.049390717, 0.046791206, 0.048090962, 0.046791206, 0.04549145, 0.049390717, 0.062388274, 0.074086076, 0.080584854, 0.067587297, 0.059788763, 0.050690473, 0.044191694, 0.032493893],
@@ -443,15 +446,16 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         [0.022095847, 0.020796091, 0.019496336, 0.022095847, 0.023395603, 0.029894381, 0.040292427, 0.046791206, 0.049390717, 0.04549145, 0.046791206, 0.049390717, 0.04549145, 0.044191694, 0.04549145, 0.053289984, 0.067587297, 0.07278632, 0.066287542, 0.059788763, 0.053289984, 0.042891939, 0.031194137, 0.023395603],
         [0.024695359, 0.022095847, 0.020796091, 0.020796091, 0.020796091, 0.024695359, 0.029894381, 0.042891939, 0.048090962, 0.049390717, 0.04549145, 0.04549145, 0.046791206, 0.046791206, 0.044191694, 0.051990229, 0.064987786, 0.08188461, 0.076685587, 0.067587297, 0.061088519, 0.05458974, 0.04549145, 0.032493893],
         [0.025995114, 0.023395603, 0.022095847, 0.020796091, 0.019496336, 0.022095847, 0.02729487, 0.032493893, 0.048090962, 0.053289984, 0.051990229, 0.05458974, 0.057189252, 0.051990229, 0.055889496, 0.058489007, 0.075385832, 0.083184366, 0.08188461, 0.068887053, 0.062388274, 0.055889496, 0.046791206, 0.033793649]]
-
+    
     EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
-
+    
     appliance_gains_W = []
     for monthly_profile in avg_monthly_hr_profiles:
         appliance_gains_W.append([1000 * EA_annual_kWh * frac / 365
                                   for frac in monthly_profile])
-
+        
     project_dict['ApplianceGains']['appliances'] = {
+        "type": "appliances",
         "EnergySupply": "mains elec",
         "start_day": 0,
         "time_series_step": 1,
@@ -510,20 +514,20 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         "Bath":1.4,
         "None":0.0 #not in supplied spec, added for convenience with deleting events.
         }
-    
+    #utility for applying the sap10.2 monly factors (below)
     month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
     #from sap10.2 J5
     behavioural_hw_factorm = [1.035, 1.021, 1.007, 0.993, 0.979, 0.965, 0.965, 0.979, 0.993, 1.007, 1.021, 1.035]
     #from sap10.2 j2
     other_hw_factorm = [1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00]
-
+    
     Weekday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Weekday']]
     Saturday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Saturday']]
     Sunday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Sunday']]
-
+    
     annual_HW_events = []
     annual_HW_events_values = []
-    startmod = 0 #this changes what day of the week we start on. 0 is sunday.
+    startmod = 0 #this changes which day of the week we start on. 0 is sunday.
 
     for i in range(365):
         if (i+startmod) % 6 == 0:
@@ -536,7 +540,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
             annual_HW_events.extend(HW_events_dict['Weekday'])
             annual_HW_events_values.extend(Weekday_values)
 
-
+    
     SAP2012QHW = 365 * 4.18 * (37/3600) * ((25 * N_occupants) + 36)
     refQHW = 365 * sum(Weekday_values)
 
@@ -631,7 +635,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
 
 def create_cooling(project_dict):
     '''
-    TODO - only do this if there is a cooling system
+    TODO - only do this if there is a cooling system present
     '''
     cooling_setpoint = 24.0
     cooling_subschedule_restofdwelling = (
@@ -640,7 +644,7 @@ def create_cooling(project_dict):
         [False for x in range(30)] +
         [True for x in range(4)]
     )
-
+    
     for zone in project_dict['Zone']:
         if "SpaceHeatControl" in project_dict['Zone'][zone]:
             if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom" and "Cooling" in project_dict['Zone'][zone]:
