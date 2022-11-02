@@ -527,7 +527,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     
     annual_HW_events = []
     annual_HW_events_values = []
-    startmod = 0 #this changes which day of the week we start on. 0 is sunday.
+    startmod = 1 #this changes which day of the week we start on. 0 is sunday.
 
     for i in range(365):
         if (i+startmod) % 6 == 0:
@@ -539,7 +539,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         else:
             annual_HW_events.extend(HW_events_dict['Weekday'])
             annual_HW_events_values.extend(Weekday_values)
-
+    
     
     SAP2012QHW = 365 * 4.18 * (37/3600) * ((25 * N_occupants) + 36)
     refQHW = 365 * sum(Weekday_values)
@@ -556,12 +556,14 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         '''
         k=round(1.0/(1-ratio),0)
         counters={event_type:0 for event_type in HW_events_valuesdict.keys()}
-
+        
         for i,event in enumerate(annual_HW_events):
-            if counters[event] % k == 0:
+            NEC = (math.floor(counters[event]/k) + math.floor(k/2)) % k
+            if counters[event] % k == NEC:
                 annual_HW_events_values[i] =  0.0
                 annual_HW_events[i] = 'None'
             counters[event] += 1
+            
         '''
         correction factor
         '''
@@ -593,6 +595,8 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     for event_type in project_dict["Events"]:
         for event_subtype in project_dict["Events"][event_type]:
             project_dict["Events"][event_type][event_subtype].clear()
+    
+    project_dict["Events"]["test"] = {"k":k,"QHW_with_elims":QHWEN_eliminations,"2012":SAP2012QHW, "ref":refQHW,"ratio":ratio,"adjustedeventvalues":HW_events_valuesdict,"events":annual_HW_events}
     
     for i, event in enumerate(annual_HW_events):
         if event != "None":
