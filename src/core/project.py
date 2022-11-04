@@ -36,7 +36,7 @@ from core.water_heat_demand.other_hot_water_uses import OtherHotWater
 from core.space_heat_demand.internal_gains import InternalGains, ApplianceGains
 from core.pipework import Pipework
 import core.water_heat_demand.misc as misc
-from core.heating_systems.wwhrs import WWHRS_InstantaneousSystemB
+import core.heating_systems.wwhrs as wwhrs
 
 
 class Project:
@@ -179,34 +179,6 @@ class Project:
                 # TODO Exit just the current case instead of whole program entirely?
             return heat_source
 
-        def dict_to_hot_water_source(name, data):
-            """ Parse dictionary of HW source data and return approprate HW source object """
-            hw_source_type = data['type']
-            if hw_source_type == 'StorageTank':
-                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
-                # TODO Need to handle error if ColdWaterSource name is invalid.
-
-                hw_source = StorageTank(
-                    data['volume'],
-                    data['daily_losses'],
-                    55.0, # TODO Remove hard-coding of hot water temp
-                    cold_water_source,
-                    self.__simtime,
-                    )
-
-                for heat_source_name, heat_source_data in data['HeatSource'].items():
-                    heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
-                    hw_source.add_heat_source(heat_source, 1.0)
-            else:
-                sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
-            return hw_source
-
-        self.__hot_water_sources = {}
-        for name, data in proj_dict['HotWaterSource'].items():
-            self.__hot_water_sources[name] = dict_to_hot_water_source(name, data)
-
-
         def dict_to_wwhrs(name, data):
             """ Parse dictionary of HW source data and return approprate HW source object """
             wwhrs_source_type = data['type']
@@ -214,15 +186,26 @@ class Project:
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
                 # TODO Need to handle error if ColdWaterSource name is invalid.
 
-                the_wwhrs = WWHRS_InstantaneousSystemB(
+                the_wwhrs = wwhrs.WWHRS_InstantaneousSystemB(
                     data['flow_rates'],
                     data['efficiencies'],
                     cold_water_source,
                     data['utilisation_factor']
                     )
             else:
-                sys.exit(name + ': WWHRS (' + hw_source_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
+                if wwhrs_source_type == 'WWHRS_InstantaneousSystemC':
+                    cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                    # TODO Need to handle error if ColdWaterSource name is invalid.
+    
+                    the_wwhrs = wwhrs.WWHRS_InstantaneousSystemC(
+                        data['flow_rates'],
+                        data['efficiencies'],
+                        cold_water_source,
+                        data['utilisation_factor']
+                        )
+                else:
+                    sys.exit(name + ': WWHRS (' + hw_source_type + ') not recognised.')
+                    # TODO Exit just the current case instead of whole program entirely?
             return the_wwhrs
             
         if 'WWHRS' in proj_dict:
@@ -288,6 +271,39 @@ class Project:
         self.__other_water_events = {}
         for name, data in proj_dict['Other'].items():
             self.__other_water_events[name] = dict_to_other_water_events(name, data)
+
+        def dict_to_hot_water_source(name, data):
+            """ Parse dictionary of HW source data and return approprate HW source object """
+            hw_source_type = data['type']
+            if hw_source_type == 'StorageTank':
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                # TODO Need to handle error if ColdWaterSource name is invalid.
+                # need to go through all showers - need to ensure correct shower feeds to system C
+                if self.__wwhrs is not None:
+                    if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemC):
+                        print("System C for Storage tank")
+                        cold_water_source = self.__wwhrs
+
+                hw_source = StorageTank(
+                    data['volume'],
+                    data['daily_losses'],
+                    55.0, # TODO Remove hard-coding of hot water temp
+                    cold_water_source,
+                    self.__simtime,
+                    )
+                    
+                for heat_source_name, heat_source_data in data['HeatSource'].items():
+                    heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
+                    hw_source.add_heat_source(heat_source, 1.0)
+            else:
+                sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return hw_source
+
+        self.__hot_water_sources = {}
+        for name, data in proj_dict['HotWaterSource'].items():
+            self.__hot_water_sources[name] = dict_to_hot_water_source(name, data)
+
 
         def dict_to_water_distribution_system(name, data):
             # go through internal then external distribution system

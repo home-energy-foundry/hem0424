@@ -16,10 +16,10 @@ class WWHRS_InstantaneousSystemB:
         self.__cold_water_source = cold_water_source
         self.__flow_rates = flow_rates
         self.__efficiencies = efficiencies
-        self.__utilisation_factor = utilisation_factor 
+        self.__utilisation_factor = utilisation_factor
 
 
-    def temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
+    def return_temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
         # TODO The cold water flow rate depends on the temperature returned from
         #      this function, which may create a circularity in the calculation.
         #      May need to integrate System B into shower module and/or combine
@@ -36,29 +36,30 @@ class WWHRS_InstantaneousSystemB:
         
         #    - Calc temp of pre-heated water based on heat recovered and flow rates
         temp_cold = temp_cold + ((wwhrs_efficiency/100) * (temp_target - temp_cold))
-
         
         # Return temp of cold water (pre-heated if relevant)
         return(temp_cold)
 
 
     def get_efficiency_from_flowrate(self, flowrate):
-
+        # Get the interpolated efficiency from the flowrate of waste water
         y_interp = scipy.interpolate.interp1d(self.__flow_rates, self.__efficiencies)
         
         return(y_interp(flowrate))
         
         
-
 class WWHRS_InstantaneousSystemC:
     """ A class to represent instantaneous waste water heat recovery systems with arrangement C
     
     For System C WWHRS, output of the heat exchanger is fed to the hot water system only
     """
     
-    def __init__(self, eff_vs_flowrate, cold_water_source):
-        self.__efficiency = eff_vs_flowrate # TODO Handle efficiency vs flow rate lookup
+    def __init__(self, flow_rates, efficiencies, cold_water_source, utilisation_factor):
         self.__cold_water_source = cold_water_source
+        self.__stored_temperature = self.__cold_water_source.temperature()
+        self.__flow_rates = flow_rates
+        self.__efficiencies = efficiencies
+        self.__utilisation_factor = utilisation_factor
         
     # TODO Cold water flowrate to the shower is irrelevant for SystemC
     #      - the cold water flowing to the boiler is the hot water flowing
@@ -70,7 +71,13 @@ class WWHRS_InstantaneousSystemC:
     #      object. Could handle this by having two types of WWHRS_Connection
     #      object or just two different functions to call in this object.
 
-    def temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
+    def set_temperature_for_storage(self, water_temperature):
+        self.__stored_temperature = water_temperature
+
+    def temperature(self):
+        return (self.stored_temperature)
+
+    def return_temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
         # TODO The cold water flow rate depends on the temperature returned from
         #      this function, which may create a circularity in the calculation.
         #      May need to integrate System B into shower module and/or combine
@@ -87,13 +94,12 @@ class WWHRS_InstantaneousSystemC:
         
         #    - Calc temp of pre-heated water based on heat recovered and flow rates
         temp_cold = temp_cold + ((wwhrs_efficiency/100) * (temp_target - temp_cold))
-
+        
         # Return temp of cold water (pre-heated if relevant)
         return(temp_cold)
 
-
     def get_efficiency_from_flowrate(self, flowrate):
-
+        # Get the interpolated efficiency from the flowrate of waste water
         y_interp = scipy.interpolate.interp1d(self.__flow_rates, self.__efficiencies)
         
         return(y_interp(flowrate))

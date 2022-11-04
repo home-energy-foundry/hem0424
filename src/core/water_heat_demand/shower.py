@@ -51,33 +51,20 @@ class MixerShower:
         # it is assumed here that 
         if self.__wwhrs is not None:
             if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemB): # just returns hot water to the shower
-                vol_hot_water_no_wwhrs = vol_hot_water
-                
-                flowrate_waste_water = vol_warm_water/vol_hot_water * self.__flowrate
-                # get the flowrate of warm (waste) water based on difference in volume between hot and the
-                # mixed warm water.
-                
-                wwhrs_return_temperature = self.__wwhrs.temperature(temp_target, flowrate_waste_water, None)
-                # Get the actual return temperature given the flowrate of the waste water.
+                print("system B")
+                wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
+                # Get the actual return temperature given the temperature and flowrate of the waste water.
                 
                 vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
-                # return the volume of hot water once the recovered heat has been accounted for.
+                # return the required volume of hot water once the recovered heat has been accounted for.
                 
             else:
                 if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemC): # just returns hot water to the hot water source
-                    vol_hot_water_no_wwhrs = vol_hot_water
-                    
-                    flowrate_waste_water = vol_warm_water/vol_hot_water * self.__flowrate
-                    # get the flowrate of warm (waste) water based on difference in volume between hot and the
-                    # mixed warm water.
-                    
-                    wwhrs_return_temperature = self.__wwhrs.temperature(temp_target, flowrate_waste_water, None)
-                    # Get the actual return temperature given the flowrate of the waste water.
-                    
-                    vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
-                    # return the volume of hot water once the recovered heat has been accounted for.
-                
-                    kWh_saved_wwhrs = water_demand_to_kWh((vol_hot_water_no_wwhrs - vol_hot_water), temp_hot, temp_cold)
+                    print("system C")
+                    wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
+                    # Set the actual return temperature given the temperature and flowrate of the waste water.
+                    self.__wwhrs.set_temperature_for_storage(wwhrs_return_temperature)
+
 
         return vol_hot_water
         # TODO Should this return hot water demand or send message to HW system?
