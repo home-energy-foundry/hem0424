@@ -914,7 +914,10 @@ class HeatPumpServiceSpace(HeatPumpService):
     specific to providing space heating.
     """
 
-    __TIME_CONSTANT_SPACE = 1370
+    __TIME_CONSTANT_SPACE = {
+        SinkType.WATER: 1370,
+        SinkType.AIR: 120,
+        }
 
     def __init__(
             self,
@@ -966,7 +969,7 @@ class HeatPumpServiceSpace(HeatPumpService):
             Celcius2Kelvin(temp_flow),
             Celcius2Kelvin(temp_return),
             self.__temp_limit_upper,
-            self.__TIME_CONSTANT_SPACE,
+            self.__TIME_CONSTANT_SPACE[self._HeatPumpService__hp._HeatPump__sink_type],
             service_on,
             temp_spread_correction = self.temp_spread_correction,
             )
