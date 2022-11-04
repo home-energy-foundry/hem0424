@@ -25,7 +25,7 @@ class TestMixerShower(unittest.TestCase):
         """ Create MixerShower object to be tested """
         self.simtime         = SimulationTime(0, 3, 1)
         coldwatertemps       = [2.0, 3.0, 4.0]
-        coldwatersource      = ColdWaterSource(coldwatertemps, self.simtime, 0)
+        coldwatersource      = ColdWaterSource(coldwatertemps, self.simtime, 0, 1)
         self.mixershower     = MixerShower(6.5, coldwatersource)
 
     def test_hot_water_demand(self):
@@ -45,7 +45,7 @@ class TestInstantElecShower(unittest.TestCase):
         """ Create InstantElecShower object to be tested """
         self.simtime           = SimulationTime(0, 3, 1)
         coldwatertemps         = [2.0, 3.0, 4.0]
-        coldwatersource        = ColdWaterSource(coldwatertemps, self.simtime, 0)
+        coldwatersource        = ColdWaterSource(coldwatertemps, self.simtime, 0, 1)
         self.energysupply      = EnergySupply("electricity", self.simtime)
         energysupplyconn       = self.energysupply.connection("shower")
         self.instantelecshower = InstantElecShower(50, coldwatersource, energysupplyconn)

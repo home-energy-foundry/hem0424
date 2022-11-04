@@ -104,13 +104,12 @@ class SimulationTime:
         # TODO Assumes that day 0 is 0 <= self.__current < 24 - make this more flexible
         return int(math.floor(self.__current / units.hours_per_day))
 
-    def time_series_idx(self, start_day):
+    def time_series_idx(self, start_day, time_series_step):
         """ Calculate array lookup index """
         # Index in array of time-series data is current hour (relative to start
-        # of year) adjusted for start day (relative to start of year) of
-        # time-series data
-        # TODO Assumes that time-series data is hourly - make this more flexible
-        return self.current_hour() - start_day * units.hours_per_day
+        # of year) adjusted for the time-series step (in hours) and for the start day
+        # (relative to start of year) of time-series data
+        return math.floor((self.current() - start_day * units.hours_per_day) / time_series_step)
 
     def total_steps(self):
         """ Return the total number of timesteps in simulation """
