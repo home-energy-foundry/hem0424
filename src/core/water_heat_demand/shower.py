@@ -51,7 +51,6 @@ class MixerShower:
         # it is assumed here that 
         if self.__wwhrs is not None:
             if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemB): # just returns hot water to the shower
-                print("system B")
                 wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
                 # Get the actual return temperature given the temperature and flowrate of the waste water.
                 
@@ -60,7 +59,6 @@ class MixerShower:
                 
             else:
                 if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemC): # just returns hot water to the hot water source
-                    print("system C")
                     wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
                     # Set the actual return temperature given the temperature and flowrate of the waste water.
                     self.__wwhrs.set_temperature_for_storage(wwhrs_return_temperature)
