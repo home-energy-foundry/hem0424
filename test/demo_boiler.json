@@ -42,8 +42,8 @@
 		"mains elec": {
 			"fuel": "electricity"
 		},
-		"mains gas": {
-			"fuel": "mains gas"
+		"mains_gas": {
+			"fuel": "mains_gas"
 		}
 	},
 	"Control": {
@@ -131,9 +131,8 @@
 	"HeatSourceWet": {
 		"boiler": {
 			"type": "Boiler",
-			"EnergySupply": "mains gas",
+			"EnergySupply": "mains_gas",
 			"rated_power": 24.0,
-			"EnergySupply": "mains gas",
 			"efficiency_full_load": 0.891,
 			"efficiency_part_load": 0.991,
 			"boiler_location": "internal",

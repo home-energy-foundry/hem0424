@@ -28,7 +28,7 @@ class TestBoiler(unittest.TestCase):
         """ Create Boiler object to be tested """
         boiler_dict = {"type": "Boiler",
                        "rated_power": 24.0,
-                       "EnergySupply": "mains gas",
+                       "EnergySupply": "mains_gas",
                        "efficiency_full_load": 0.88,
                        "efficiency_part_load": 0.986,
                        "boiler_location": "internal",
@@ -39,7 +39,7 @@ class TestBoiler(unittest.TestCase):
                        "electricity_standby" : 0.0244
                       }
         self.simtime = SimulationTime(0, 2, 1)
-        self.energysupply = EnergySupply("mains gas", self.simtime)
+        self.energysupply = EnergySupply("mains_gas", self.simtime)
         self.energy_output_required = [2.0, 10.0]
         self.temp_return_feed = [51.05, 60.00]
 
@@ -143,7 +143,7 @@ class TestBoiler(unittest.TestCase):
 
     def test_net2gross(self):
         """ Test that Boiler object selects correct net2gross conversion factor """
-        self.__fuel_code = "mains gas"
+        self.__fuel_code = "mains_gas"
         self.assertEqual(
             self.boiler.net_to_gross(),
             0.901,
@@ -158,7 +158,7 @@ class TestBoilerServiceWaterCombi(unittest.TestCase):
         boiler_dict = {
             "type": "Boiler",
             "rated_power": 16.85,
-            "EnergySupply": "mains gas",
+            "EnergySupply": "mains_gas",
             "efficiency_full_load": 0.868,
             "efficiency_part_load": 0.952,
             "boiler_location": "internal",
@@ -180,7 +180,7 @@ class TestBoilerServiceWaterCombi(unittest.TestCase):
             "daily_HW_usage" : 132.5802
             }
         self.simtime = SimulationTime(0, 2, 1)
-        self.energysupply = EnergySupply("mains gas", self.simtime)
+        self.energysupply = EnergySupply("mains_gas", self.simtime)
         self.volume_demanded = [10, 2]
         self.temp_return_feed = [51.05, 60.00]
 
@@ -268,7 +268,7 @@ class TestBoilerServiceSpace(unittest.TestCase):
         """ Create Boiler object to be tested """
         boiler_dict = {"type": "Boiler",
                        "rated_power": 16.85,
-                       "EnergySupply": "mains gas",
+                       "EnergySupply": "mains_gas",
                        "efficiency_full_load": 0.868,
                        "efficiency_part_load": 0.952,
                        "boiler_location": "internal",
@@ -279,7 +279,7 @@ class TestBoilerServiceSpace(unittest.TestCase):
                        "electricity_standby" : 0.0244,
                       }
         self.simtime = SimulationTime(0, 2, 1)
-        self.energysupply = EnergySupply("mains gas", self.simtime)
+        self.energysupply = EnergySupply("mains_gas", self.simtime)
         self.energy_demanded = [10.0, 2.0]
         self.temp_flow = [55.0, 65.0]
         self.temp_return_feed = [50.0, 60.0]

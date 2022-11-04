@@ -35,7 +35,7 @@ class Test_StorageTank(unittest.TestCase):
                                0,
                                1
                                )
-        self.energysupply = EnergySupply("elec", self.simtime)
+        self.energysupply = EnergySupply("electricity", self.simtime)
         energysupplyconn = self.energysupply.connection("immersion")
         imheater         = ImmersionHeater(50.0, energysupplyconn, self.simtime, control)
         heatsource       = self.storagetank.add_heat_source(imheater, 0.9)
@@ -78,7 +78,7 @@ class Test_ImmersionHeater(unittest.TestCase):
     def setUp(self):
         """ Create ImmersionHeater object to be tested """
         self.simtime          = SimulationTime(0, 4, 1)
-        energysupply          = EnergySupply("gas", self.simtime)
+        energysupply          = EnergySupply("mains_gas", self.simtime)
         energysupplyconn      = energysupply.connection("shower")
         control               = OnOffTimeControl([True, True, False, True], self.simtime, 0, 1)
         self.immersionheater  = ImmersionHeater(50, energysupplyconn, self.simtime, control)
