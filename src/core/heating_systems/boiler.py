@@ -103,13 +103,21 @@ class BoilerServiceWaterCombi(BoilerService):
         hw_tests = boiler_data["separate_DHW_tests"]
         self.__separate_DHW_tests = Boiler_HW_test.from_string(hw_tests)
 
-        self.__fuel_energy_1 = boiler_data["fuel_energy_1"]
-        self.__rejected_energy_1 = boiler_data["rejected_energy_1"]
-        self.__storage_loss_factor_1 = boiler_data["storage_loss_factor_1"]
-        self.__fuel_energy_2_test = boiler_data["fuel_energy_2"]
-        self.__rejected_energy_2_test = boiler_data["rejected_energy_2"]
-        self.__storage_loss_factor_2 = boiler_data["storage_loss_factor_2"]
-        self.__rejected_factor_3 = boiler_data["rejected_factor_3"] 
+        if (self.__separate_DHW_tests == Boiler_HW_test.M_L) \
+            or (self.__separate_DHW_tests == Boiler_HW_test.M_S):
+            #tapping cycle M and S, or M and L
+            self.__fuel_energy_1 = boiler_data["fuel_energy_1"]
+            self.__rejected_energy_1 = boiler_data["rejected_energy_1"]
+            self.__storage_loss_factor_1 = boiler_data["storage_loss_factor_1"]
+            self.__storage_loss_factor_2 = boiler_data["storage_loss_factor_2"]
+            self.__rejected_factor_3 = boiler_data["rejected_factor_3"]
+
+        elif self.__separate_DHW_tests == Boiler_HW_test.M_only:
+            #tapping cycle M only test results
+            self.__fuel_energy_1 = boiler_data["fuel_energy_1"]
+            self.__rejected_energy_1 = boiler_data["rejected_energy_1"]
+            self.__storage_loss_factor_2 = boiler_data["storage_loss_factor_2"]
+
         #TODO feed in actual daily HW usage
         self.__daily_HW_usage = boiler_data["daily_HW_usage"]
 
@@ -166,7 +174,7 @@ class BoilerServiceWaterCombi(BoilerService):
                           (self.__rejected_energy_1 + daily_vol_factor * self.__rejected_factor_3)) * fu \
                           + self.__storage_loss_factor_2 * (timestep / units.hours_per_day)
 
-        elif self._boiler._Boiler__separate_DHW_tests == Boiler_HW_test.DHW_tests_M_only:
+        elif self.__separate_DHW_tests == Boiler_HW_test.M_only:
             #combi loss calculation with tapping cycle M only test results
             combi_loss = (energy_demand * (self.__rejected_energy_1)) * fu \
                 + self.__storage_loss_factor_2 * (timestep / units.hours_per_day)
@@ -179,6 +187,7 @@ class BoilerServiceWaterCombi(BoilerService):
 
         else:
             exit('Invalid hot water test option')
+
         return combi_loss
 
     def energy_output_max(self):
