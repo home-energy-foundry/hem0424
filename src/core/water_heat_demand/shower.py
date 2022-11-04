@@ -48,7 +48,7 @@ class MixerShower:
         # ^^^ litres = litres/minute * minutes
         vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, temp_cold)
         # first calculate the volume of hot water needed if heating from cold water source
-        # it is assumed here that 
+
         if self.__wwhrs is not None:
             if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemB): # just returns hot water to the shower
                 wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
@@ -61,7 +61,7 @@ class MixerShower:
                 if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemC): # just returns hot water to the hot water source
                     wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
                     # Set the actual return temperature given the temperature and flowrate of the waste water.
-                    self.__wwhrs.set_temperature_for_storage(wwhrs_return_temperature)
+                    self.__wwhrs.set_temperature_for_return(wwhrs_return_temperature)
 
 
         return vol_hot_water
