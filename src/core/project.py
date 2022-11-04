@@ -21,6 +21,7 @@ from core.heating_systems.emitters import Emitters
 from core.heating_systems.heat_pump import HeatPump
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
+from core.heating_systems.boiler import Boiler
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
@@ -470,6 +471,17 @@ class Project:
                     self.__external_conditions,
                     )
                 self.__timestep_end_calcs.append(heat_source)
+            elif heat_source_type == 'Boiler':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                energy_supply_conn_name_auxiliary = 'Boiler_auxiliary: ' + name
+                heat_source = Boiler(
+                    data,
+                    energy_supply,
+                    energy_supply_conn_name_auxiliary,
+                    self.__simtime,
+                    self.__external_conditions,
+                    )
+                self.__timestep_end_calcs.append(heat_source)
             else:
                 sys.exit(name + ': heat source type (' \
                        + heat_source_type + ') not recognised.')
@@ -546,6 +558,14 @@ class Project:
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
                     heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
                     hw_source.add_heat_source(heat_source, 1.0)
+            elif hw_source_type == 'CombiBoiler':
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water(
+                    data,
+                    data['HeatSourceWet'] + '_water_heating',
+                    55, # TODO Remove hard-coding of HW temp
+                    cold_water_source
+                    )
             else:
                 sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -582,6 +602,10 @@ class Project:
                         data['HeatSource']['temp_flow_limit_upper'],
                         data['temp_diff_emit_dsgn'],
                         ctrl,
+                        )
+                elif isinstance(heat_source, Boiler):
+                    heat_source_service = heat_source.create_service_space_heating(
+                        data['HeatSource']['name'] + '_space_heating'
                         )
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
