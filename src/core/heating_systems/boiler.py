@@ -384,7 +384,7 @@ class Boiler:
     def __demand_energy(
             self,
             service_name,
-            energy_output_provided,
+            energy_output_required,
             temp_return_feed
             ):
         """ Calculate energy required by boiler to satisfy demand for the service indicated."""
@@ -393,7 +393,7 @@ class Boiler:
         boiler_eff = self.effvsreturntemp(temp_return_feed, self.__offset)
                                     
         energy_output_max_power = self.__boiler_power * (timestep - self.__total_time_running_current_timestep)
-        energy_output_provided = min(energy_output_provided, energy_output_max_power)
+        energy_output_provided = min(energy_output_required, energy_output_max_power)
         
         cycling_adjustment = self.__cycling_adjustment(energy_output_provided, temp_return_feed, (timestep - self.__total_time_running_current_timestep))
 
