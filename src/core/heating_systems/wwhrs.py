@@ -60,18 +60,8 @@ class WWHRS_InstantaneousSystemC:
         self.__flow_rates = flow_rates
         self.__efficiencies = efficiencies
         self.__utilisation_factor = utilisation_factor
-        
-    # TODO Cold water flowrate to the shower is irrelevant for SystemC
-    #      - the cold water flowing to the boiler is the hot water flowing
-    #      to the shower. Need to differentiate between calls from shower
-    #      object and calls from hot water system object as only the latter
-    #      should see the elevated cold water temp due to heat recovery.
-    #      Note that waste water flowrate can be provided by shower object
-    #      and hot water flowrate could be provided by hot water system
-    #      object. Could handle this by having two types of WWHRS_Connection
-    #      object or just two different functions to call in this object.
 
-    def set_temperature_for_storage(self, water_temperature):
+    def set_temperature_for_return(self, water_temperature):
         self.__stored_temperature = water_temperature
 
     def temperature(self):

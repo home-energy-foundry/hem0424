@@ -182,7 +182,7 @@ class Project:
             return heat_source
 
         def dict_to_wwhrs(name, data):
-            """ Parse dictionary of HW source data and return approprate HW source object """
+            """ Parse dictionary of WWHRS source data and return approprate WWHRS source object """
             wwhrs_source_type = data['type']
             if wwhrs_source_type == 'WWHRS_InstantaneousSystemB':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
@@ -214,6 +214,8 @@ class Project:
             self.__wwhrs = {}
             for name, data in proj_dict['WWHRS'].items():
                 self.__wwhrs[name] = dict_to_wwhrs(name, data)
+        else:
+            self.__wwhrs = None
 
 
         def dict_to_shower(name, data):
@@ -625,33 +627,6 @@ class Project:
                 sys.exit(name + ': heat source type (' + heat_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
             return heat_source
-
-        def dict_to_hot_water_source(name, data):
-            """ Parse dictionary of HW source data and return approprate HW source object """
-            hw_source_type = data['type']
-            if hw_source_type == 'StorageTank':
-                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
-                # TODO Need to handle error if ColdWaterSource name is invalid.
-
-                hw_source = StorageTank(
-                    data['volume'],
-                    data['daily_losses'],
-                    55.0, # TODO Remove hard-coding of hot water temp
-                    cold_water_source,
-                    self.__simtime,
-                    )
-
-                for heat_source_name, heat_source_data in data['HeatSource'].items():
-                    heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
-                    hw_source.add_heat_source(heat_source, 1.0)
-            else:
-                sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
-            return hw_source
-
-        self.__hot_water_sources = {}
-        for name, data in proj_dict['HotWaterSource'].items():
-            self.__hot_water_sources[name] = dict_to_hot_water_source(name, data)
 
         def dict_to_space_heat_system(name, data):
             if 'Control' in data.keys():
