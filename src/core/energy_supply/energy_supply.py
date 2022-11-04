@@ -16,7 +16,7 @@ class Fuel_code(Enum):
     
     @classmethod
     def from_string(cls, strval):
-        if strval == 'mains_gas':
+        if strval == 'mains gas':
             return cls.MAINS_GAS
         elif strval == 'electricity':
             return cls.ELECTRICITY

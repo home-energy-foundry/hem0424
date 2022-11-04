@@ -75,36 +75,43 @@ class BoilerServiceWaterCombi(BoilerService):
     specific to providing hot water.
     """
 
-    def __init__(self, boilerservicewatercombi_dict, boiler, service_name, \
-                 temp_hot_water, cold_feed, simulation_time):
+    def __init__(self,
+                 boiler,
+                 boiler_data,
+                 service_name,
+                 temp_hot_water,
+                 cold_feed,
+                 simulation_time
+                ):
         """ Construct a BoilerServiceWaterCombi object
 
         Arguments:
-        boilerservicewatercombi_dict       -- combi boiler heating properties
         boiler       -- reference to the Boiler object providing the service
-        service_name -- name of the service demanding energy from the boiler
+        boiler_data       -- combi boiler heating properties
+        service_name -- name of the service demanding energy from the boiler_data
         temp_hot_water -- temperature of the hot water to be provided, in deg C
         cold_feed -- reference to ColdWaterSource object
-        """ 
+        """
         super().__init__(boiler, service_name)
         
         self.__temp_hot_water = temp_hot_water
         self.__cold_feed = cold_feed
         self.__service_name = service_name
         self.__simulation_time = simulation_time
-        
-        hw_tests = boilerservicewatercombi_dict["separate_DHW_tests"]
+
+        hw_tests = boiler_data["separate_DHW_tests"]
         self.__separate_DHW_tests = Boiler_HW_test.from_string(hw_tests)
-        
-        self.__fuel_energy_1 = boilerservicewatercombi_dict["fuel_energy_1"]
-        self.__rejected_energy_1 = boilerservicewatercombi_dict["rejected_energy_1"]
-        self.__storage_loss_factor_1 = boilerservicewatercombi_dict["storage_loss_factor_1"]
-        self.__fuel_energy_2_test = boilerservicewatercombi_dict["fuel_energy_2"]
-        self.__rejected_energy_2_test = boilerservicewatercombi_dict["rejected_energy_2"]
-        self.__storage_loss_factor_2 = boilerservicewatercombi_dict["storage_loss_factor_2"]
-        self.__rejected_factor_3 = boilerservicewatercombi_dict["rejected_factor_3"] 
-        self.__daily_HW_usage = boilerservicewatercombi_dict["daily_HW_usage"] 
-        
+
+        self.__fuel_energy_1 = boiler_data["fuel_energy_1"]
+        self.__rejected_energy_1 = boiler_data["rejected_energy_1"]
+        self.__storage_loss_factor_1 = boiler_data["storage_loss_factor_1"]
+        self.__fuel_energy_2_test = boiler_data["fuel_energy_2"]
+        self.__rejected_energy_2_test = boiler_data["rejected_energy_2"]
+        self.__storage_loss_factor_2 = boiler_data["storage_loss_factor_2"]
+        self.__rejected_factor_3 = boiler_data["rejected_factor_3"] 
+        #TODO feed in actual daily HW usage
+        self.__daily_HW_usage = boiler_data["daily_HW_usage"]
+
     def demand_hot_water(self, volume_demanded):
         """ Demand volume from boiler. Currently combi only """
         timestep = self.__simulation_time.timestep()
@@ -124,10 +131,10 @@ class BoilerServiceWaterCombi(BoilerService):
             energy_demand,
             return_temperature
             )
-        
+
     def boiler_combi_loss(self, energy_demand, timestep):
         # daily hot water usage factor
-        fu = 1.0 
+        fu = 1.0
         threshold_volume = 100 # litres/day
         if self.__daily_HW_usage < threshold_volume:
             fu = self.__daily_HW_usage / threshold_volume
@@ -174,6 +181,10 @@ class BoilerServiceWaterCombi(BoilerService):
             exit('Invalid hot water test option')
         return combi_loss
 
+    def energy_output_max(self):
+        """ Calculate the maximum energy output of the boiler"""
+        return self._boiler._Boiler__energy_output_max(self.__temp_hot_water)
+
 
 class BoilerServiceSpace(BoilerService):
     """ An object to represent a space heating service provided by a boiler to e.g. a cylinder.
@@ -181,7 +192,7 @@ class BoilerServiceSpace(BoilerService):
     This object contains the parts of the boiler calculation that are
     specific to providing space heating-.
     """
-    def __init__(self, boilerservicespace_dict, boiler, service_name):
+    def __init__(self, boiler, service_name):
         """ Construct a BoilerServiceSpace object
 
         Arguments:
@@ -200,12 +211,21 @@ class BoilerServiceSpace(BoilerService):
             energy_demand,
             temp_return
             )
+    def energy_output_max(self, temp_output):
+        """ Calculate the maximum energy output of the boiler"""
+        return self._boiler._Boiler__energy_output_max(temp_output)
 
 
 class Boiler:
     """ An object to represent a boiler """
 
-    def __init__(self, boiler_dict, energy_supply, ext_cond, simulation_time):
+    def __init__(self, 
+                boiler_dict,
+                energy_supply,
+                energy_supply_conn_name_auxiliary,
+                simulation_time,
+                ext_cond, 
+                ):
         """ Construct a Boiler object
 
         Arguments:
@@ -224,6 +244,8 @@ class Boiler:
         self.__simulation_time = simulation_time
         self.__external_conditions = ext_cond
         self.__energy_supply_connections = {}
+        self.__energy_supply_connection_aux \
+            = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
 
         # boiler properties
         self.__boiler_location = boiler_dict["boiler_location"]
@@ -232,7 +254,7 @@ class Boiler:
         full_load_gross = boiler_dict["efficiency_full_load"]
         part_load_gross = boiler_dict["efficiency_part_load"]
         self.__fuel_code = self.__energy_supply.fuel_type()
-        
+
         # electricity properties
         self.__power_circ_pump = boiler_dict["electricity_circ_pump"]
         self.__power_part_load = boiler_dict["electricity_part_load"]
@@ -293,24 +315,49 @@ class Boiler:
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
 
-    def service_hot_water(self, boilerservicewatercombi_dict, service_name, temp_hot_water, temp_limit_upper, cold_feed):
+    def create_service_hot_water(
+            self,
+            boiler_data,
+            service_name,
+            temp_hot_water,
+            cold_feed
+            ):
         """ Return a BoilerServiceWater object and create an EnergySupplyConnection for it
         
         Arguments:
-        boilerservicewatercombi_dict -- boiler hot water heating properties
+        boiler_data -- boiler hot water heating properties
         service_name -- name of the service demanding energy from the boiler
         temp_hot_water -- temperature of the hot water to be provided, in deg C
         temp_limit_upper -- upper operating limit for temperature, in deg C
         cold_feed -- reference to ColdWaterSource object
         """
         self.__create_service_connection(service_name)
-        return BoilerServiceWaterCombi(self, boilerservicewatercombi_dict, service_name, temp_hot_water, temp_limit_upper, cold_feed, self.__simulation_time)
+        return BoilerServiceWaterCombi(
+            self,
+            boiler_data,
+            service_name,
+            temp_hot_water,
+            cold_feed,
+            self.__simulation_time)
 
+    def create_service_space_heating(
+            self,
+            service_name
+            ):
+        """ Return a BoilerServiceSpace object and create an EnergySupplyConnection for it
+
+        Arguments:
+        service_name -- name of the service demanding energy from the boiler
+        """
+        self.__create_service_connection(service_name)
+        return BoilerServiceSpace(
+            self,
+            service_name)
 
     def __cycling_adjustment(self, energy_output_required, temp_return_feed, timestep):
         prop_of_timestep_at_min_rate = min(energy_output_required \
                                        / (self.__boiler_power * self.__min_modulation_load * timestep)
-                                       , 1.0)
+                                       ,1.0)
         ton_toff = (1.0 - prop_of_timestep_at_min_rate) / prop_of_timestep_at_min_rate
         cycling_adjustment = 0.0
         if prop_of_timestep_at_min_rate < 1.0:
@@ -341,7 +388,7 @@ class Boiler:
         cycling_adjustment = self.__cycling_adjustment(energy_output_required, temp_return_feed, timestep)
 
         location_adjustment \
-            = max( (self.__standing_loss * \
+            = max((self.__standing_loss * \
                     ((temp_return_feed - self.__room_temp))**self.__sby_loss_idx \
                     - (temp_return_feed - self.__outside_temp)**self.__sby_loss_idx)\
                     , 0.0
@@ -350,7 +397,7 @@ class Boiler:
         
         cyclic_location_adjustment = cycling_adjustment + location_adjustment
         
-        blr_eff_final = 1.0 / (( 1.0 / boiler_eff ) + cyclic_location_adjustment)
+        blr_eff_final = 1.0 / ((1.0 / boiler_eff) + cyclic_location_adjustment)
 
         fuel_demand = energy_output_provided / blr_eff_final
         
@@ -359,27 +406,27 @@ class Boiler:
         self.__power = self.__boiler_power 
         if self.__min_modulation_load < 1:
             min_power = self.__boiler_power * self.__min_modulation_load
-            self.__power = max(energy_output_required / timestep , min_power)
+            self.__power = max(energy_output_required / timestep, min_power)
 
         # Calculate running time of Boiler
         time_running_current_service = min(
             energy_output_provided / self.__power,
             timestep - self.__total_time_running_current_timestep
             )
-        self.__total_time_running_current_timestep  += time_running_current_service
+        self.__total_time_running_current_timestep += time_running_current_service
         self.timestep_end()
         
         return energy_output_provided
     
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
         # Calculation of boiler electrical consumption
-        modulation_percent = min(self.__power / self.__boiler_power , 1.0)
+        modulation_percent = min(self.__power / self.__boiler_power, 1.0)
         #Energy used by circulation pump
         energy_aux = self.__total_time_running_current_timestep \
             * self.__power_circ_pump
         
         #Energy used in standby mode
-        energy_aux  += self.__power_standby * time_remaining_current_timestep
+        energy_aux += self.__power_standby * time_remaining_current_timestep
         
         #Energy used by flue fan
         #Flue fan electricity for on-off boilers
@@ -398,17 +445,22 @@ class Boiler:
                                  * flue_fan_el
                                  
         energy_aux += elec_energy_flue_fan
-        #TODO: Connect to Energysupply object
+        self.__energy_supply_connection_aux.demand_energy(energy_aux)
     
     def timestep_end(self):
         """" Calculations to be done at the end of each timestep"""
-        timestep  = self.__simulation_time.timestep()
+        timestep = self.__simulation_time.timestep()
         time_remaining_current_timestep = timestep - self.__total_time_running_current_timestep
-        
+
         self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
-        
+
         #Variabales below need to be reset at the end of each timestep
         self.__total_time_running_current_timestep = 0.0
+        
+    def __energy_output_max(self, temp_output):
+        timestep = self.__simulation_time.timestep()
+        time_available = timestep - self.__total_time_running_current_timestep
+        return self.__boiler_power * time_available
     
     def effvsreturntemp(self, return_temp, offset):
         """ Return boiler efficiency at different return temperatures """
@@ -430,7 +482,9 @@ class Boiler:
         """ Return a Boiler efficiency corrected for high values """
         if self.__fuel_code == Fuel_code.MAINS_GAS:
             corrected_net_efficiency_part_load = min(net_efficiency_part_load \
-                                                     - 0.213 * (net_efficiency_part_load - 0.966), 1.08)
+                                                     - 0.213 \
+                                                     * (net_efficiency_part_load - 0.966), \
+                                                     1.08)
         else:
             exit('Unknown fuel code '+str(self.__fuel_code))
         return corrected_net_efficiency_part_load
@@ -438,7 +492,8 @@ class Boiler:
     def high_value_correction_full_load(self, net_efficiency_full_load):
         if self.__fuel_code == Fuel_code.MAINS_GAS:
             corrected_net_efficiency_full_load = min(net_efficiency_full_load \
-                                                     - 0.673 * (net_efficiency_full_load - 0.955), 0.98)
+                                                     - 0.673 * (net_efficiency_full_load - 0.955), \
+                                                     0.98)
         else:
             exit('Unknown fuel code '+str(self.__fuel_code))
         return corrected_net_efficiency_full_load
