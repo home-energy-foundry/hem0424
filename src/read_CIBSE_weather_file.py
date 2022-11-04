@@ -2,7 +2,7 @@
 
 """ TODO Copyright & licensing notices
 
-This module reads in an energy + weather file.
+This module reads in weather data from CIBSE csv file.
 """
 
 import csv
