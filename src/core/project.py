@@ -278,11 +278,11 @@ class Project:
             if hw_source_type == 'StorageTank':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
                 # TODO Need to handle error if ColdWaterSource name is invalid.
-                # need to go through all showers - need to ensure correct shower feeds to system C
+                # TODO assuming here there is only one WWHRS
                 if self.__wwhrs is not None:
-                    if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemC):
-                        print("System C for Storage tank")
-                        cold_water_source = self.__wwhrs
+                    for wwhrs_name in self.__wwhrs:
+                        if isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemC):
+                            cold_water_source = self.__wwhrs[wwhrs_name]
 
                 hw_source = StorageTank(
                     data['volume'],
