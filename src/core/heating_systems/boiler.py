@@ -91,6 +91,7 @@ class BoilerServiceWaterCombi(BoilerService):
         service_name -- name of the service demanding energy from the boiler_data
         temp_hot_water -- temperature of the hot water to be provided, in deg C
         cold_feed -- reference to ColdWaterSource object
+        simulation_time -- reference to SimulationTime object
         """
         super().__init__(boiler, service_name)
         
@@ -144,30 +145,29 @@ class BoilerServiceWaterCombi(BoilerService):
         hw_litres_M_profile = 100.2
         hw_litres_L_profile = 199.8
 
-        dvf = hw_litres_M_profile - self.__daily_HW_usage
+        daily_vol_factor = hw_litres_M_profile - self.__daily_HW_usage
         if self.__separate_DHW_tests == Boiler_HW_test.M_S \
             and self.__daily_HW_usage < hw_litres_S_profile:
-            dvf = 64.2
+            daily_vol_factor = 64.2
         elif (self.__separate_DHW_tests == Boiler_HW_test.M_L \
             and self.__daily_HW_usage < hw_litres_M_profile) \
             or (self.__separate_DHW_tests == Boiler_HW_test.M_S \
             and self.__daily_HW_usage > hw_litres_M_profile):
-            dvf = 0
+            daily_vol_factor = 0
         elif self.__separate_DHW_tests == Boiler_HW_test.M_L \
             and self.__daily_HW_usage > hw_litres_L_profile:
-            dvf = -99.6
+            daily_vol_factor = -99.6
 
         combi_loss = 0.0
         if (self.__separate_DHW_tests == Boiler_HW_test.M_L) \
             or (self.__separate_DHW_tests == Boiler_HW_test.M_S):
-            #combi loss calculation with tapping cycle number 2 tapping test results 
-            #(cycles M and S, or M and L)
+            #combi loss calculation with tapping cycle M and S, or M and L
             combi_loss = (energy_demand * \
-                          (self.__rejected_energy_1 + dvf * self.__rejected_factor_3)) * fu \
+                          (self.__rejected_energy_1 + daily_vol_factor * self.__rejected_factor_3)) * fu \
                           + self.__storage_loss_factor_2 * (timestep / units.hours_per_day)
 
         elif self._boiler._Boiler__separate_DHW_tests == Boiler_HW_test.DHW_tests_M_only:
-            #combi loss calculation with tapping cycle number 2 only test results
+            #combi loss calculation with tapping cycle M only test results
             combi_loss = (energy_demand * (self.__rejected_energy_1)) * fu \
                 + self.__storage_loss_factor_2 * (timestep / units.hours_per_day)
 
@@ -211,6 +211,7 @@ class BoilerServiceSpace(BoilerService):
             energy_demand,
             temp_return
             )
+
     def energy_output_max(self, temp_output):
         """ Calculate the maximum energy output of the boiler"""
         return self._boiler._Boiler__energy_output_max(temp_output)
@@ -286,10 +287,13 @@ class Boiler:
         self.__temp_rise_standby_loss = 30.0
         #boiler standby heat loss power law index
         self.__sby_loss_idx = 1.25 
-        self.__temp_boiler_loc = 19.5 
         if self.__boiler_location == "external":
             self.__temp_boiler_loc = self.__outside_temp
-
+        elif self.__boiler_location == "internal":
+            self.__temp_boiler_loc = 19.5 
+        else:
+            sys.exit('boiler location ('+ str(self.__boiler_location) + ') not valid')
+            
         #Calculate offset for EBV curves
         average_measured_eff = (corrected_part_load_gross + corrected_full_load_gross) / 2.0
         # test conducted at return temperature 30C
@@ -328,7 +332,6 @@ class Boiler:
         boiler_data -- boiler hot water heating properties
         service_name -- name of the service demanding energy from the boiler
         temp_hot_water -- temperature of the hot water to be provided, in deg C
-        temp_limit_upper -- upper operating limit for temperature, in deg C
         cold_feed -- reference to ColdWaterSource object
         """
         self.__create_service_connection(service_name)
@@ -338,7 +341,8 @@ class Boiler:
             service_name,
             temp_hot_water,
             cold_feed,
-            self.__simulation_time)
+            self.__simulation_time
+            )
 
     def create_service_space_heating(
             self,
@@ -373,24 +377,23 @@ class Boiler:
     def __demand_energy(
             self,
             service_name,
-            energy_output_required,
+            energy_output_provided,
             temp_return_feed
             ):
-        """ Calculate energy required by boiler to satisfy demand for the service indicated.
-        #the average standing heat loss expressed as a proportional of the heat output."""
+        """ Calculate energy required by boiler to satisfy demand for the service indicated."""
         timestep = self.__simulation_time.timestep()
         
         boiler_eff = self.effvsreturntemp(temp_return_feed, self.__offset)
                                     
-        energy_output_max_power = self.__boiler_power * timestep
-        energy_output_provided = min(energy_output_required, energy_output_max_power)
+        energy_output_max_power = self.__boiler_power * (timestep - self.__total_time_running_current_timestep)
+        energy_output_provided = min(energy_output_provided, energy_output_max_power)
         
-        cycling_adjustment = self.__cycling_adjustment(energy_output_required, temp_return_feed, timestep)
+        cycling_adjustment = self.__cycling_adjustment(energy_output_provided, temp_return_feed, (timestep - self.__total_time_running_current_timestep))
 
         location_adjustment \
             = max((self.__standing_loss * \
                     ((temp_return_feed - self.__room_temp))**self.__sby_loss_idx \
-                    - (temp_return_feed - self.__outside_temp)**self.__sby_loss_idx)\
+                    - (temp_return_feed - self.__temp_boiler_loc)**self.__sby_loss_idx)\
                     , 0.0
                  )
     
@@ -406,7 +409,7 @@ class Boiler:
         self.__power = self.__boiler_power 
         if self.__min_modulation_load < 1:
             min_power = self.__boiler_power * self.__min_modulation_load
-            self.__power = max(energy_output_required / timestep, min_power)
+            self.__power = max(energy_output_provided / (timestep - self.__total_time_running_current_timestep), min_power)
 
         # Calculate running time of Boiler
         time_running_current_service = min(
@@ -414,13 +417,12 @@ class Boiler:
             timestep - self.__total_time_running_current_timestep
             )
         self.__total_time_running_current_timestep += time_running_current_service
-        self.timestep_end()
-        
+
         return energy_output_provided
     
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
         # Calculation of boiler electrical consumption
-        modulation_percent = min(self.__power / self.__boiler_power, 1.0)
+        modulation_ratio = min(self.__power / self.__boiler_power, 1.0)
         #Energy used by circulation pump
         energy_aux = self.__total_time_running_current_timestep \
             * self.__power_circ_pump
@@ -440,7 +442,7 @@ class Boiler:
             y_axis = [self.__power_part_load, self.__power_full_load]
             
             # Uses numpy interp
-            flue_fan_el = interp(modulation_percent, x_axis, y_axis)
+            flue_fan_el = interp(modulation_ratio, x_axis, y_axis)
             elec_energy_flue_fan = self.__total_time_running_current_timestep \
                                  * flue_fan_el
                                  
@@ -475,7 +477,7 @@ class Boiler:
             blr_theoretical_eff = theoretical_eff - offset
         else:
             exit('Fuel code does not exist')
-        
+
         return blr_theoretical_eff
 
     def high_value_correction_part_load(self, net_efficiency_part_load):
