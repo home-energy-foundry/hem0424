@@ -106,15 +106,12 @@ class BoilerServiceWaterCombi(BoilerService):
         if (self.__separate_DHW_tests == Boiler_HW_test.M_L) \
             or (self.__separate_DHW_tests == Boiler_HW_test.M_S):
             #tapping cycle M and S, or M and L
-            self.__fuel_energy_1 = boiler_data["fuel_energy_1"]
             self.__rejected_energy_1 = boiler_data["rejected_energy_1"]
-            self.__storage_loss_factor_1 = boiler_data["storage_loss_factor_1"]
             self.__storage_loss_factor_2 = boiler_data["storage_loss_factor_2"]
             self.__rejected_factor_3 = boiler_data["rejected_factor_3"]
 
         elif self.__separate_DHW_tests == Boiler_HW_test.M_only:
             #tapping cycle M only test results
-            self.__fuel_energy_1 = boiler_data["fuel_energy_1"]
             self.__rejected_energy_1 = boiler_data["rejected_energy_1"]
             self.__storage_loss_factor_2 = boiler_data["storage_loss_factor_2"]
 
@@ -256,6 +253,7 @@ class Boiler:
         self.__energy_supply_connections = {}
         self.__energy_supply_connection_aux \
             = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
+        self.__service_results = []
 
         # boiler properties
         self.__boiler_location = boiler_dict["boiler_location"]
@@ -282,7 +280,7 @@ class Boiler:
         corrected_part_load_gross = corrected_part_load_net * net_to_gross
 
         #SAP model properties
-        self.__room_temp = 19.5 #TODO TBC
+        self.__room_temp = 19.5 #TODO use actual room temp instead of hard coding
         self.__outside_temp = self.__external_conditions.air_temp()
         #Equation 5 in EN15316-4-1
         #fgen = (c5*(Pn)^c6)/100
@@ -299,7 +297,7 @@ class Boiler:
         if self.__boiler_location == "external":
             self.__temp_boiler_loc = self.__outside_temp
         elif self.__boiler_location == "internal":
-            self.__temp_boiler_loc = 19.5 
+            self.__temp_boiler_loc = self.__room_temp 
         else:
             sys.exit('boiler location ('+ str(self.__boiler_location) + ') not valid')
             
@@ -414,24 +412,30 @@ class Boiler:
         fuel_demand = energy_output_provided / blr_eff_final
         
         self.__energy_supply_connections[service_name].demand_energy(fuel_demand)
-        
-        self.__power = self.__boiler_power 
+        current_boiler_power = self.__boiler_power
         if self.__min_modulation_load < 1:
             min_power = self.__boiler_power * self.__min_modulation_load
-            self.__power = max(energy_output_provided / (timestep - self.__total_time_running_current_timestep), min_power)
+            current_boiler_power = max(energy_output_provided / (timestep - self.__total_time_running_current_timestep), min_power)
 
         # Calculate running time of Boiler
         time_running_current_service = min(
-            energy_output_provided / self.__power,
+            energy_output_provided / current_boiler_power,
             timestep - self.__total_time_running_current_timestep
             )
         self.__total_time_running_current_timestep += time_running_current_service
-
+        
+        # Save results that are needed later (in the timestep_end function)
+        self.__service_results.append({
+            'service_name': service_name,
+            'time_running': time_running_current_service,
+            'current_boiler_power': current_boiler_power
+            })
+        
         return energy_output_provided
     
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
-        # Calculation of boiler electrical consumption
-        modulation_ratio = min(self.__power / self.__boiler_power, 1.0)
+        """Calculation of boiler electrical consumption"""
+
         #Energy used by circulation pump
         energy_aux = self.__total_time_running_current_timestep \
             * self.__power_circ_pump
@@ -446,18 +450,20 @@ class Boiler:
 
         #Overwrite flue fan electricity if boiler modulates
         #TODO does cycling below part load decrease elec consumption
-        if self.__min_modulation_load < 1:
-            x_axis = [0.3, 1.0]
-            y_axis = [self.__power_part_load, self.__power_full_load]
-            
-            # Uses numpy interp
-            flue_fan_el = interp(modulation_ratio, x_axis, y_axis)
-            elec_energy_flue_fan = self.__total_time_running_current_timestep \
-                                 * flue_fan_el
-                                 
-        energy_aux += elec_energy_flue_fan
+        for service_no, service_data in enumerate(self.__service_results):
+            modulation_ratio = min(service_data['current_boiler_power'] / self.__boiler_power, 1.0)
+            if self.__min_modulation_load < 1:
+                x_axis = [0.3, 1.0]
+                y_axis = [self.__power_part_load, self.__power_full_load]
+
+                # Uses numpy interp
+                flue_fan_el = interp(modulation_ratio, x_axis, y_axis)
+                elec_energy_flue_fan = service_data['time_running'] \
+                                     * flue_fan_el
+                energy_aux += elec_energy_flue_fan
+
         self.__energy_supply_connection_aux.demand_energy(energy_aux)
-    
+
     def timestep_end(self):
         """" Calculations to be done at the end of each timestep"""
         timestep = self.__simulation_time.timestep()
@@ -467,6 +473,7 @@ class Boiler:
 
         #Variabales below need to be reset at the end of each timestep
         self.__total_time_running_current_timestep = 0.0
+        self.__service_results = []
         
     def __energy_output_max(self, temp_output):
         timestep = self.__simulation_time.timestep()
