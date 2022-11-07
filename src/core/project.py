@@ -874,15 +874,18 @@ class Project:
     
             return ductwork_watts_heat_loss, overall_volume # heat loss in Watts for the timestep
 
-        def calc_space_heating(delta_t_h):
+        def calc_space_heating(delta_t_h, gains_internal_dhw):
             """ Calculate space heating demand, heating system output and temperatures
 
             Arguments:
             delta_t_h -- calculation timestep, in hours
+            gains_internal_dhw -- internal gains from hot water system for this timestep, in W
             """
             temp_ext_air = self.__external_conditions.air_temp()
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
+            # Calculate total floor area, in m2
+            total_floor_area = sum(zone.area() for zone in self.__zones.values())
 
             ductwork_losses, overall_zone_volume, ductwork_losses_per_m3 = 0.0, 0.0, 0.0
             # ductwork gains/losses only for MVHR
@@ -894,7 +897,8 @@ class Project:
             gains_internal_zone = {}
             gains_solar_zone = {}
             for z_name, zone in self.__zones.items():
-                gains_internal_zone_inner = 0.0
+                # Initialise to dhw internal gains split proportionally to zone floor area
+                gains_internal_zone_inner = gains_internal_dhw * zone.area() / total_floor_area
                 for internal_gains_name, internal_gains_object in self.__internal_gains.items():
                     gains_internal_zone_inner\
                         += internal_gains_object.total_internal_gain(zone.area())
@@ -1050,13 +1054,17 @@ class Project:
             
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
-            
+            if isinstance(self.__hot_water_sources['hw cylinder'], StorageTank):
+                gains_internal_dhw = self.__hot_water_sources['hw cylinder'].internal_gains()
+            else:
+                gains_internal_dhw = 0
+
             gains_internal_zone, gains_solar_zone, \
                 operative_temp, internal_air_temp, \
                 space_heat_demand_zone, space_cool_demand_zone, \
                 space_heat_demand_system, space_cool_demand_system, \
                 ductwork_gains \
-                = calc_space_heating(delta_t_h)
+                = calc_space_heating(delta_t_h, gains_internal_dhw)
 
             # Perform calculations that can only be done after all heating
             # services have been calculated.

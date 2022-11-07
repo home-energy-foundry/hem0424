@@ -12,6 +12,7 @@ from copy import deepcopy
 
 # Local imports
 from core.material_properties import WATER
+import core.units as units
 
 
 class StorageTank:
@@ -548,7 +549,7 @@ class StorageTank:
         #recoverable heat losses (storage) - kWh
         Q_sto_h_rbl_env = Q_ls * self.__f_sto_m
         #total recoverable heat losses  for heating - kWh
-        Q_sto_h_ls_rbl = Q_sto_h_rbl_env + Q_sto_h_rbl_aux
+        self.__Q_sto_h_ls_rbl = Q_sto_h_rbl_env + Q_sto_h_rbl_aux
 
         #demand adjusted energy from heat source (before was just using potential without taking it)
         input_energy_adj = deepcopy(Q_in_H_W)
@@ -566,6 +567,10 @@ class StorageTank:
             Vol_use_W_n, temp_s3_n, Q_x_in_n, Q_s6, temp_s6_n,
             temp_s7_n, Q_in_H_W, Q_ls, temp_s8_n,
             )"""
+
+    def internal_gains(self):
+        """ Return the DHW recoverable heat losses as internal gain for the current timestep in W"""
+        return self.__Q_sto_h_ls_rbl * units.W_per_kW / self.__simulation_time.timestep()
 
 
 class ImmersionHeater:
