@@ -16,7 +16,6 @@ import core.units as units
 # (default values from BS EN ISO 52016-1:2017, Table B.11)
 f_int_c = 0.4 # Can be different for each source of internal gains
 f_sol_c = 0.1
-f_hc_c  = 0.4 # Listed as separate f_h_c and f_c_c values in standard, but same value for both
 
 # Areal thermal capacity of air and furniture
 # (default value from BS EN ISO 52016-1:2017, Table B.17)
@@ -140,7 +139,8 @@ class Zone:
             temp_ext_air,
             gains_internal,
             gains_solar,
-            gains_heat_cool
+            gains_heat_cool,
+            f_hc_c,
             ):
         """ Calculate temperatures according to procedure in BS EN ISO 52016-1:2017, section 6.5.6
 
@@ -151,6 +151,7 @@ class Zone:
         gains_internal  -- total internal heat gains, in W
         gains_solar     -- directly transmitted solar gains, in W
         gains_heat_cool -- gains from heating (positive) or cooling (negative), in W
+        f_hc_c          -- convective fraction for heating/cooling
 
         Temperatures are calculated by solving (for X) a matrix equation A.X = B, where:
         A is a matrix of known coefficients
@@ -323,7 +324,15 @@ class Zone:
         """ Return internal air temperature, in deg C """
         return self.__temp_prev[self.__zone_idx]
 
-    def space_heat_cool_demand(self, delta_t_h, temp_ext_air, gains_internal, gains_solar):
+    def space_heat_cool_demand(
+            self,
+            delta_t_h,
+            temp_ext_air,
+            gains_internal,
+            gains_solar,
+            frac_convective_heat,
+            frac_convective_cool,
+            ):
         """ Calculate heating and cooling demand in the zone for the current timestep
 
         According to the procedure in BS EN ISO 52016-1:2017, section 6.5.5.2, steps 1 to 4.
@@ -333,6 +342,8 @@ class Zone:
         temp_ext_air -- temperature of the external air for the current timestep, in deg C
         gains_internal -- internal gains for the current timestep, in W
         gains_solar -- directly transmitted solar gains, in W
+        frac_convective_heat -- convective fraction for heating
+        frac_convective_cool -- convective fraction for cooling
         """
         # Calculate timestep in seconds
         delta_t = delta_t_h * units.seconds_per_hour
@@ -348,6 +359,7 @@ class Zone:
             gains_internal,
             gains_solar,
             gains_heat_cool,
+            1.0, # Value does not matter as gains_heat_cool = 0.0
             )
 
         # Calculate internal operative temperature at free-floating conditions
@@ -362,12 +374,14 @@ class Zone:
             #      Could max. power be available at this point for all heating/cooling systems?
             temp_setpnt = self.__temp_setpnt_cool
             heat_cool_load_upper = - 10.0 * self.__useful_area
+            frac_convective = frac_convective_cool
         elif temp_operative_free < self.__temp_setpnt_heat:
             # Heating
             # TODO Implement eqn 26 "if max power available" case rather than just "otherwise" case?
             #      Could max. power be available at this point for all heating/cooling systems?
             temp_setpnt = self.__temp_setpnt_heat
             heat_cool_load_upper = 10.0 * self.__useful_area
+            frac_convective = frac_convective_heat
         else:
             return 0.0, 0.0 # No heating or cooling load
 
@@ -379,6 +393,7 @@ class Zone:
             gains_internal,
             gains_solar,
             heat_cool_load_upper,
+            frac_convective,
             )
 
         # Calculate internal operative temperature with maximum heating/cooling
@@ -407,6 +422,7 @@ class Zone:
             gains_internal,
             gains_solar,
             gains_heat_cool,
+            frac_convective,
             ):
         """ Update node and internal air temperatures for calculation of next timestep
 
@@ -416,6 +432,7 @@ class Zone:
         gains_internal  -- total internal heat gains, in W
         gains_solar     -- directly transmitted solar gains, in W
         gains_heat_cool -- gains from heating (positive) or cooling (negative), in W
+        frac_convective -- convective fraction for heating/cooling (as appropriate)
         """
 
         # Calculate node and internal air temperatures with calculated heating/cooling gains.
@@ -427,4 +444,5 @@ class Zone:
             gains_internal,
             gains_solar,
             gains_heat_cool,
+            frac_convective,
             )

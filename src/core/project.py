@@ -638,6 +638,7 @@ class Project:
 
                 space_heater = InstantElecHeater(
                     data['rated_power'],
+                    data['frac_convective'],
                     energy_supply_conn,
                     self.__simtime,
                     ctrl,
@@ -664,6 +665,7 @@ class Project:
                     data['c'],
                     data['n'],
                     data['temp_diff_emit_dsgn'],
+                    data['frac_convective'],
                     heat_source_service,
                     self.__zones[data['Zone']],
                     self.__simtime,
@@ -979,6 +981,15 @@ class Project:
                 # Look up names of relevant heating and cooling systems for this zone
                 h_name = self.__heat_system_name_for_zone[z_name]
                 c_name = self.__cool_system_name_for_zone[z_name]
+                # Look up convective fraction for heating/cooling for this zone
+                if h_name is not None:
+                    frac_convective_heat = self.__space_heat_systems[h_name].frac_convective()
+                else:
+                    frac_convective_heat = 1.0
+                if c_name is not None:
+                    frac_convective_cool = self.__space_cool_systems[c_name].frac_convective()
+                else:
+                    frac_convective_cool = 1.0
 
                 space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
                     zone.space_heat_cool_demand(
@@ -986,6 +997,8 @@ class Project:
                         temp_ext_air,
                         gains_internal_zone[z_name],
                         gains_solar_zone[z_name],
+                        frac_convective_heat,
+                        frac_convective_cool,
                         )
 
                 if h_name is not None: # If the zone is heated
@@ -1036,12 +1049,21 @@ class Project:
                 # Sum heating gains (+ve) and cooling gains (-ve) and convert from kWh to W
                 gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
 
+                # Look up convective fraction for heating/cooling for this zone
+                if gains_heat_cool > 0:
+                    frac_convective = self.__space_heat_systems[h_name].frac_convective()
+                elif gains_heat_cool < 0:
+                    frac_convective = self.__space_cool_systems[c_name].frac_convective()
+                else:
+                    frac_convective = 1.0
+
                 zone.update_temperatures(
                     delta_t,
                     temp_ext_air,
                     gains_internal_zone[z_name],
                     gains_solar_zone[z_name],
-                    gains_heat_cool
+                    gains_heat_cool,
+                    frac_convective,
                     )
 
                 if h_name is None:
