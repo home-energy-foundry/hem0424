@@ -156,31 +156,6 @@ class Project:
         for name, data in proj_dict['Control'].items():
             self.__controls[name] = dict_to_ctrl(name, data)
 
-        def dict_to_heat_source(name, data):
-            """ Parse dictionary of heat source data and return approprate heat source object """
-            heat_source_type = data['type']
-            if heat_source_type == 'ImmersionHeater':
-                if 'Control' in data.keys():
-                    ctrl = self.__controls[data['Control']]
-                    # TODO Need to handle error if Control name is invalid.
-                else:
-                    ctrl = None
-
-                energy_supply = self.__energy_supplies[data['EnergySupply']]
-                # TODO Need to handle error if EnergySupply name is invalid.
-                energy_supply_conn = energy_supply.connection(name)
-
-                heat_source = ImmersionHeater(
-                    data['power'],
-                    energy_supply_conn,
-                    self.__simtime,
-                    ctrl,
-                    )
-            else:
-                sys.exit(name + ': heat source type (' + heat_source_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
-            return heat_source
-
         def dict_to_wwhrs(name, data):
             """ Parse dictionary of WWHRS source data and return approprate WWHRS source object """
             wwhrs_source_type = data['type']
@@ -275,38 +250,6 @@ class Project:
         self.__other_water_events = {}
         for name, data in proj_dict['Other'].items():
             self.__other_water_events[name] = dict_to_other_water_events(name, data)
-
-        def dict_to_hot_water_source(name, data):
-            """ Parse dictionary of HW source data and return approprate HW source object """
-            hw_source_type = data['type']
-            if hw_source_type == 'StorageTank':
-                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
-                # TODO Need to handle error if ColdWaterSource name is invalid.
-                # TODO assuming here there is only one WWHRS
-                if self.__wwhrs is not None:
-                    for wwhrs_name in self.__wwhrs:
-                        if isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemC):
-                            cold_water_source = self.__wwhrs[wwhrs_name]
-
-                hw_source = StorageTank(
-                    data['volume'],
-                    data['daily_losses'],
-                    55.0, # TODO Remove hard-coding of hot water temp
-                    cold_water_source,
-                    self.__simtime,
-                    )
-                    
-                for heat_source_name, heat_source_data in data['HeatSource'].items():
-                    heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
-                    hw_source.add_heat_source(heat_source, 1.0)
-            else:
-                sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
-            return hw_source
-
-        self.__hot_water_sources = {}
-        for name, data in proj_dict['HotWaterSource'].items():
-            self.__hot_water_sources[name] = dict_to_hot_water_source(name, data)
 
 
         def dict_to_water_distribution_system(name, data):
@@ -627,6 +570,38 @@ class Project:
                 sys.exit(name + ': heat source type (' + heat_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
             return heat_source
+
+        def dict_to_hot_water_source(name, data):
+            """ Parse dictionary of HW source data and return approprate HW source object """
+            hw_source_type = data['type']
+            if hw_source_type == 'StorageTank':
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                # TODO Need to handle error if ColdWaterSource name is invalid.
+                # TODO assuming here there is only one WWHRS
+                if self.__wwhrs is not None:
+                    for wwhrs_name in self.__wwhrs:
+                        if isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemC):
+                            cold_water_source = self.__wwhrs[wwhrs_name]
+
+                hw_source = StorageTank(
+                    data['volume'],
+                    data['daily_losses'],
+                    55.0, # TODO Remove hard-coding of hot water temp
+                    cold_water_source,
+                    self.__simtime,
+                    )
+                    
+                for heat_source_name, heat_source_data in data['HeatSource'].items():
+                    heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
+                    hw_source.add_heat_source(heat_source, 1.0)
+            else:
+                sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
+                # TODO Exit just the current case instead of whole program entirely?
+            return hw_source
+
+        self.__hot_water_sources = {}
+        for name, data in proj_dict['HotWaterSource'].items():
+            self.__hot_water_sources[name] = dict_to_hot_water_source(name, data)
 
         def dict_to_space_heat_system(name, data):
             if 'Control' in data.keys():

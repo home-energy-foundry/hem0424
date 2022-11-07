@@ -67,7 +67,6 @@ class WWHRS_InstantaneousSystemC:
     def temperature(self):
         temperature_to_return = self.__stored_temperature
         self.__stored_temperature = self.__cold_water_source.temperature()
-        print(temperature_to_return)
         return (temperature_to_return)
 
     def return_temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
