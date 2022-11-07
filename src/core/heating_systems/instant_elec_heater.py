@@ -9,19 +9,31 @@ room heaters.
 class InstantElecHeater:
     """ Class to represent instantaneous electric heaters """
 
-    def __init__(self, rated_power, energy_supply_conn, simulation_time, control=None):
+    def __init__(
+            self,
+            rated_power,
+            frac_convective,
+            energy_supply_conn,
+            simulation_time,
+            control=None,
+            ):
         """ Construct an InstantElecHeater object
 
         Arguments:
         rated_power        -- in kW
+        frac_convective    -- convective fraction for heating
         energy_supply_conn -- reference to EnergySupplyConnection object
         simulation_time    -- reference to SimulationTime object
         control            -- reference to a control object which must implement is_on() func
         """
         self.__pwr                = rated_power
+        self.__frac_convective    = frac_convective
         self.__energy_supply_conn = energy_supply_conn
         self.__simulation_time    = simulation_time
         self.__control            = control
+
+    def frac_convective(self):
+        return self.__frac_convective
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heater """
