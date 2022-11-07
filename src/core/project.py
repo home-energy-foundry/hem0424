@@ -39,6 +39,7 @@ from core.space_heat_demand.internal_gains import InternalGains, ApplianceGains
 from core.pipework import Pipework
 import core.water_heat_demand.misc as misc
 from core.ductwork import Ductwork
+import core.heating_systems.wwhrs as wwhrs
 
 
 class Project:
@@ -156,6 +157,43 @@ class Project:
         for name, data in proj_dict['Control'].items():
             self.__controls[name] = dict_to_ctrl(name, data)
 
+        def dict_to_wwhrs(name, data):
+            """ Parse dictionary of WWHRS source data and return approprate WWHRS source object """
+            wwhrs_source_type = data['type']
+            if wwhrs_source_type == 'WWHRS_InstantaneousSystemB':
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                # TODO Need to handle error if ColdWaterSource name is invalid.
+
+                the_wwhrs = wwhrs.WWHRS_InstantaneousSystemB(
+                    data['flow_rates'],
+                    data['efficiencies'],
+                    cold_water_source,
+                    data['utilisation_factor']
+                    )
+            else:
+                if wwhrs_source_type == 'WWHRS_InstantaneousSystemC':
+                    cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                    # TODO Need to handle error if ColdWaterSource name is invalid.
+    
+                    the_wwhrs = wwhrs.WWHRS_InstantaneousSystemC(
+                        data['flow_rates'],
+                        data['efficiencies'],
+                        cold_water_source,
+                        data['utilisation_factor']
+                        )
+                else:
+                    sys.exit(name + ': WWHRS (' + hw_source_type + ') not recognised.')
+                    # TODO Exit just the current case instead of whole program entirely?
+            return the_wwhrs
+            
+        if 'WWHRS' in proj_dict:
+            self.__wwhrs = {}
+            for name, data in proj_dict['WWHRS'].items():
+                self.__wwhrs[name] = dict_to_wwhrs(name, data)
+        else:
+            self.__wwhrs = None
+
+
         def dict_to_shower(name, data):
             """ Parse dictionary of shower data and return approprate shower object """
             cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
@@ -163,7 +201,11 @@ class Project:
 
             shower_type = data['type']
             if shower_type == 'MixerShower':
-                shower = MixerShower(data['flowrate'], cold_water_source)
+                wwhrs_instance = None
+                if 'WWHRS' in data:
+                    wwhrs_instance = self.__wwhrs[data['WWHRS']] # find the instance of WWHRS linked to by the shower
+                
+                shower = MixerShower(data['flowrate'], cold_water_source, wwhrs_instance)
             elif shower_type == 'InstantElecShower':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
@@ -209,6 +251,7 @@ class Project:
         self.__other_water_events = {}
         for name, data in proj_dict['Other'].items():
             self.__other_water_events[name] = dict_to_other_water_events(name, data)
+
 
         def dict_to_water_distribution_system(name, data):
             # go through internal then external distribution system
@@ -546,6 +589,11 @@ class Project:
             if hw_source_type == 'StorageTank':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
                 # TODO Need to handle error if ColdWaterSource name is invalid.
+                # TODO assuming here there is only one WWHRS
+                if self.__wwhrs is not None:
+                    for wwhrs_name in self.__wwhrs:
+                        if isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemC):
+                            cold_water_source = self.__wwhrs[wwhrs_name]
 
                 hw_source = StorageTank(
                     data['volume'],
@@ -554,7 +602,7 @@ class Project:
                     cold_water_source,
                     self.__simtime,
                     )
-
+                    
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
                     heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
                     hw_source.add_heat_source(heat_source, 1.0)
