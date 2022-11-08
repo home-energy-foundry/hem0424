@@ -21,6 +21,7 @@ from core.heating_systems.emitters import Emitters
 from core.heating_systems.heat_pump import HeatPump
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
+from core.heating_systems.boiler import Boiler
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
@@ -524,6 +525,17 @@ class Project:
                     self.__external_conditions,
                     )
                 self.__timestep_end_calcs.append(heat_source)
+            elif heat_source_type == 'Boiler':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                energy_supply_conn_name_auxiliary = 'Boiler_auxiliary: ' + name
+                heat_source = Boiler(
+                    data,
+                    energy_supply,
+                    energy_supply_conn_name_auxiliary,
+                    self.__simtime,
+                    self.__external_conditions,
+                    )
+                self.__timestep_end_calcs.append(heat_source)
             else:
                 sys.exit(name + ': heat source type (' \
                        + heat_source_type + ') not recognised.')
@@ -606,6 +618,14 @@ class Project:
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
                     heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
                     hw_source.add_heat_source(heat_source, 1.0)
+            elif hw_source_type == 'CombiBoiler':
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water(
+                    data,
+                    data['HeatSourceWet'] + '_water_heating',
+                    55, # TODO Remove hard-coding of HW temp
+                    cold_water_source
+                    )
             else:
                 sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -630,6 +650,7 @@ class Project:
 
                 space_heater = InstantElecHeater(
                     data['rated_power'],
+                    data['frac_convective'],
                     energy_supply_conn,
                     self.__simtime,
                     ctrl,
@@ -643,6 +664,10 @@ class Project:
                         data['temp_diff_emit_dsgn'],
                         ctrl,
                         )
+                elif isinstance(heat_source, Boiler):
+                    heat_source_service = heat_source.create_service_space_heating(
+                        data['HeatSource']['name'] + '_space_heating'
+                        )
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
@@ -652,6 +677,7 @@ class Project:
                     data['c'],
                     data['n'],
                     data['temp_diff_emit_dsgn'],
+                    data['frac_convective'],
                     heat_source_service,
                     self.__zones[data['Zone']],
                     self.__simtime,
@@ -910,15 +936,18 @@ class Project:
     
             return ductwork_watts_heat_loss, overall_volume # heat loss in Watts for the timestep
 
-        def calc_space_heating(delta_t_h):
+        def calc_space_heating(delta_t_h, gains_internal_dhw):
             """ Calculate space heating demand, heating system output and temperatures
 
             Arguments:
             delta_t_h -- calculation timestep, in hours
+            gains_internal_dhw -- internal gains from hot water system for this timestep, in W
             """
             temp_ext_air = self.__external_conditions.air_temp()
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
+            # Calculate total floor area, in m2
+            total_floor_area = sum(zone.area() for zone in self.__zones.values())
 
             ductwork_losses, overall_zone_volume, ductwork_losses_per_m3 = 0.0, 0.0, 0.0
             # ductwork gains/losses only for MVHR
@@ -930,7 +959,8 @@ class Project:
             gains_internal_zone = {}
             gains_solar_zone = {}
             for z_name, zone in self.__zones.items():
-                gains_internal_zone_inner = 0.0
+                # Initialise to dhw internal gains split proportionally to zone floor area
+                gains_internal_zone_inner = gains_internal_dhw * zone.area() / total_floor_area
                 for internal_gains_name, internal_gains_object in self.__internal_gains.items():
                     gains_internal_zone_inner\
                         += internal_gains_object.total_internal_gain(zone.area())
@@ -963,6 +993,15 @@ class Project:
                 # Look up names of relevant heating and cooling systems for this zone
                 h_name = self.__heat_system_name_for_zone[z_name]
                 c_name = self.__cool_system_name_for_zone[z_name]
+                # Look up convective fraction for heating/cooling for this zone
+                if h_name is not None:
+                    frac_convective_heat = self.__space_heat_systems[h_name].frac_convective()
+                else:
+                    frac_convective_heat = 1.0
+                if c_name is not None:
+                    frac_convective_cool = self.__space_cool_systems[c_name].frac_convective()
+                else:
+                    frac_convective_cool = 1.0
 
                 space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
                     zone.space_heat_cool_demand(
@@ -970,6 +1009,8 @@ class Project:
                         temp_ext_air,
                         gains_internal_zone[z_name],
                         gains_solar_zone[z_name],
+                        frac_convective_heat,
+                        frac_convective_cool,
                         )
 
                 if h_name is not None: # If the zone is heated
@@ -1020,12 +1061,21 @@ class Project:
                 # Sum heating gains (+ve) and cooling gains (-ve) and convert from kWh to W
                 gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
 
+                # Look up convective fraction for heating/cooling for this zone
+                if gains_heat_cool > 0:
+                    frac_convective = self.__space_heat_systems[h_name].frac_convective()
+                elif gains_heat_cool < 0:
+                    frac_convective = self.__space_cool_systems[c_name].frac_convective()
+                else:
+                    frac_convective = 1.0
+
                 zone.update_temperatures(
                     delta_t,
                     temp_ext_air,
                     gains_internal_zone[z_name],
                     gains_solar_zone[z_name],
-                    gains_heat_cool
+                    gains_heat_cool,
+                    frac_convective,
                     )
 
                 if h_name is None:
@@ -1086,13 +1136,17 @@ class Project:
             
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
-            
+            if isinstance(self.__hot_water_sources['hw cylinder'], StorageTank):
+                gains_internal_dhw = self.__hot_water_sources['hw cylinder'].internal_gains()
+            else:
+                gains_internal_dhw = 0
+
             gains_internal_zone, gains_solar_zone, \
                 operative_temp, internal_air_temp, \
                 space_heat_demand_zone, space_cool_demand_zone, \
                 space_heat_demand_system, space_cool_demand_system, \
                 ductwork_gains \
-                = calc_space_heating(delta_t_h)
+                = calc_space_heating(delta_t_h, gains_internal_dhw)
 
             # Perform calculations that can only be done after all heating
             # services have been calculated.
