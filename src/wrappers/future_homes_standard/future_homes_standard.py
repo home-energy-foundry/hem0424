@@ -7,7 +7,13 @@ steps for the Future Homes Standard.
 """
 
 import math
+import os
+import json
+import csv
 from core import project
+
+this_directory = os.path.dirname(os.path.relpath(__file__))
+FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_04-11-2022.csv")
 
 def apply_fhs_preprocessing(project_dict):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
@@ -44,12 +50,62 @@ def apply_fhs_preprocessing(project_dict):
     
     return project_dict
 
-def apply_fhs_postprocessing():
+def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path):
     """ Post-process core simulation outputs as required for Future Homes Standard """
-    pass # TODO Implement required post-processing
+    
+    emissionfactors = {}
+    results = {}
+    
+    unprocessed_result_dict = {'total': results_totals,
+                               'import': energy_import,
+                               'export': energy_export}
+    
+    '''
+    first read in factors from csv. not all rows have a code yet
+    so only read in rows with a fuel code
+    '''
+    with open(FHSEMISFACTORS,'r') as emissionfactorscsv:
+        emissionfactorsreader = csv.DictReader(emissionfactorscsv, delimiter=',')
+        for row in emissionfactorsreader:
+            if row["Fuel Code"]!= "":
+                this_fuel_code = row["Fuel Code"]
+                emissionfactors[this_fuel_code] = row
+                #getting rid of keys that aren't factors to be applied to results for ease of looping
+                emissionfactors[this_fuel_code].pop("Fuel Code")
+                emissionfactors[this_fuel_code].pop("Fuel")
+    '''
+    loop over all energy supplies in the project dict.
+    find all factors for relevant fuel and apply them
+    '''
+    for Energysupply in project_dict["EnergySupply"]:
+        this_fuel_code = project_dict["EnergySupply"][Energysupply]["fuel"]
+        for column_name, result_column in unprocessed_result_dict.items():
+            for factor in emissionfactors[this_fuel_code]:
+                
+                this_header = (str(Energysupply) + 
+                               ' ' + 
+                               str(column_name) +
+                               ' ' +
+                               str(factor)
+                )
+                results[this_header] = [
+                    x * float(emissionfactors[this_fuel_code][factor])
+                    for x in result_column[Energysupply]
+                ]
+
+    with open(file_path + '_postproc.csv', 'w') as postproc_file:
+        writer = csv.writer(postproc_file)
+        #write header row
+        writer.writerow(results.keys())
+        #results dict is arranged by column, we want to write rows so transpose via zip
+        results_transposed = list(zip(*results.values()))
+        
+        for t_idx, timestep in enumerate(timestep_array):
+            row = results_transposed[t_idx]
+            writer.writerow(row)
 
 def calc_TFA(project_dict):
-    
+     
     TFA = 0.0
     
     for zones in project_dict["Zone"].keys():
