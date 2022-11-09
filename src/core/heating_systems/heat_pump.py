@@ -1420,6 +1420,7 @@ class HeatPump:
             self.__energy_supply_connections[service_name].demand_energy(energy_input_HP)
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
+        """ Calculate auxiliary energy according to CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.7 """
         # Energy used by pumps
         # TODO This could be calculated separately for each service and included
         #      in those totals, rather than auxiliary
@@ -1428,6 +1429,8 @@ class HeatPump:
             * (self.__power_heating_circ_pump + self.__power_source_circ_pump)
 
         # Retrieve control settings for this timestep
+        heating_profile_on = False
+        water_profile_on = False
         for service_data in self.__service_results:
             if service_data['service_type'] == ServiceType.SPACE:
                 heating_profile_on = service_data['service_on']
@@ -1443,7 +1446,7 @@ class HeatPump:
         # TODO Standby power is only relevant when at least one service is
         #      available. Therefore, it could be split between the available
         #      services rather than treated as auxiliary
-        if heating_profile_on and water_profile_on:
+        if heating_profile_on:
             energy_aux \
                += time_remaining_current_timestep \
                 * (self.__power_standby + self.__power_crankcase_heater_mode)
