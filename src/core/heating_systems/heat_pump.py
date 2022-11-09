@@ -1456,7 +1456,7 @@ class HeatPump:
         elif not heating_profile_on and not water_profile_on:
             energy_aux += timestep * self.__power_off_mode
         else:
-            sys.exit('No aux energy calc defined for space heating on and water heating off')
+            sys.exit() # Should never get here.
 
         self.__energy_supply_connection_aux.demand_energy(energy_aux)
 
