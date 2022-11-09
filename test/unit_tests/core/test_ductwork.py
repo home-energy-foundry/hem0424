@@ -21,7 +21,7 @@ class TestDuctwork(unittest.TestCase):
 
     def setUp(self):
         """ Create Ductwork objects to be tested """
-        self.ductwork = Ductwork(0.025, 0.027, 0.4, 0.02, 0.022, False, "inside")
+        self.ductwork = Ductwork(0.025, 0.027, 0.4, 0.4, 0.02, 0.022, False, "inside")
         self.simtime = SimulationTime(0, 8, 1)
 
     def test_D_ins(self):
@@ -67,7 +67,7 @@ class TestDuctwork(unittest.TestCase):
         for t_idx, _, _ in self.simtime:
             with self.subTest(i = t_idx):
                 self.assertAlmostEqual(
-                    self.ductwork.duct_heat_loss(inside_temp[t_idx], outside_temp[t_idx]),
+                    self.ductwork.duct_heat_loss(inside_temp[t_idx], outside_temp[t_idx], 0.4),
                     [-0.62656, -0.56390, -0.50125, -0.43859, -0.41771, -0.39682, -0.37594, -0.35505][t_idx],
                     5,
                     "incorrect heat loss returned",
@@ -77,12 +77,14 @@ class TestDuctwork(unittest.TestCase):
         """ Test that correct total duct heat loss is returned when queried """
         outside_temp = [20.0, 19.5, 19.0, 18.5, 19.0, 19.5, 20.0, 20.5]
         intake_temp = [5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
-        exhaust_temp = [6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0]
+        exhaust_temp = [20.0, 19.5, 19.0, 18.5, 19.0, 19.5, 20.0, 20.5]
+        supply_temp = [5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+        extract_temp = [20.0, 19.5, 19.0, 18.5, 19.0, 19.5, 20.0, 20.5]
         for t_idx, _, _ in self.simtime:
             with self.subTest(i = t_idx):
                 self.assertAlmostEqual(
-                    self.ductwork.total_duct_heat_loss(outside_temp[t_idx], None, None, intake_temp[t_idx], exhaust_temp[t_idx],),
-                    [-1.21135, -1.08604, -0.96073, -0.83541, -0.79364, -0.75187, -0.71010, -0.66833][t_idx],
+                    self.ductwork.total_duct_heat_loss(outside_temp[t_idx], supply_temp[t_idx], extract_temp[t_idx], intake_temp[t_idx], exhaust_temp[t_idx], 0.7) ,
+                    [-0.43859, -0.39473, -0.35087, -0.30701, -0.29239, -0.27777, -0.26316, -0.24854][t_idx],
                     5,
                     "incorrect total heat loss returned",
                     )

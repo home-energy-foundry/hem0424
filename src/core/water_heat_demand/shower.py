@@ -8,13 +8,14 @@ This module provides objects to model showers of different types.
 # Local imports
 import core.units as units
 from core.material_properties import WATER
-from core.water_heat_demand.misc import frac_hot_water
+from core.water_heat_demand.misc import frac_hot_water, water_demand_to_kWh
+import core.heating_systems.wwhrs as wwhrs
 
 
 class MixerShower:
     """ An object to model mixer showers i.e. those that mix hot and cold water """
 
-    def __init__(self, flowrate, cold_water_source):
+    def __init__(self, flowrate, cold_water_source, wwhrs=None):
         """ Construct a MixerShower object
 
         Arguments:
@@ -24,6 +25,7 @@ class MixerShower:
         """
         self.__flowrate          = flowrate
         self.__cold_water_source = cold_water_source
+        self.__wwhrs = wwhrs
 
     def get_cold_water_source(self):
         return(self.__cold_water_source)
@@ -45,6 +47,22 @@ class MixerShower:
         vol_warm_water = self.__flowrate * total_shower_duration
         # ^^^ litres = litres/minute * minutes
         vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, temp_cold)
+        # first calculate the volume of hot water needed if heating from cold water source
+
+        if self.__wwhrs is not None:
+            if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemB): # just returns hot water to the shower
+                wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
+                # Get the actual return temperature given the temperature and flowrate of the waste water.
+                
+                vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
+                # return the required volume of hot water once the recovered heat has been accounted for.
+                
+            else:
+                if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemC): # just returns hot water to the hot water source
+                    wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
+                    # Set the actual return temperature given the temperature and flowrate of the waste water.
+                    self.__wwhrs.set_temperature_for_return(wwhrs_return_temperature)
+
 
         return vol_hot_water
         # TODO Should this return hot water demand or send message to HW system?

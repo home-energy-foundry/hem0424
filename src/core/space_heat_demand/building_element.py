@@ -34,6 +34,12 @@ def projected_height(tilt, height):
     """ calc the vertically projected height of a surface from
     the actual height and tilt of the surface """
     ph = height * sin(radians(tilt))
+    """ BS EN ISO 52010-1 Table 7 geometric input data; shading. Footnote d
+    validity interval H1;ic > 0
+    if horizontal (height = 0): choose small value e.g. H1 = 0.01 m"""
+    if ph < 0.01:
+        ph = 0.01
+
     return ph
 
 def calculate_area(height, width):
@@ -444,22 +450,27 @@ class BuildingElementGround(BuildingElement):
 
         # Thermal properties of ground from BS EN ISO 13370:2017 Table 7
         # Use values for clay or silt (same as BR 443 and SAP 10)
-        thermal_conductivity = 1.5
-        heat_capacity_per_vol = 300000
+        thermal_conductivity = 1.5 # in W/(m.K)
+        heat_capacity_per_vol = 3000000 # in J/(m3.K)
 
         # Calculate thermal resistance and heat capacity of fixed ground layer
         # using BS EN ISO 13370:2017
-        thickness_ground_layer = 0.5 # Specified in BS EN ISO 52016-1:2017 section 6.5.8.2
+        thickness_ground_layer = 0.5 # in m. Specified in BS EN ISO 52016-1:2017 section 6.5.8.2
+        #thermal resistance in (m2.K)/W
         r_gr = thickness_ground_layer / thermal_conductivity
+        #areal heat capacity in J/(m2.K)
         k_gr = thickness_ground_layer * heat_capacity_per_vol
 
         # Calculate thermal resistance of virtual layer using BS EN ISO 13370:2017 Equation (F1)
         r_si = 0.17 # ISO 6946 - internal surface resistance
-        r_vi = (1.0 / u_value) - r_si - r_f - r_gr
+        r_vi = (1.0 / u_value) - r_si - r_f - r_gr # in m2.K/W
+        #BS EN ISO 13370:2017 Table 2 validty interval r_vi > 0
+        assert r_vi > 0, "r_vi should be greater than zero. check u-value and r_f inputs for floors"
 
         # Set external surface heat transfer coeffs as per BS EN ISO 52016-1:2017 eqn 49
         # Must be set before initialisation of base class, as these are referenced there
-        self.__h_ce = 1.0 / r_vi
+        #BS EN ISO 52016-1:2017 Table 14 validity interval h_ce 0 to 50
+        self.__h_ce = 1.0 / r_vi # in W/(m2.K)
         self.__h_re = 0.0
 
         # Initialise the base BuildingElement class
