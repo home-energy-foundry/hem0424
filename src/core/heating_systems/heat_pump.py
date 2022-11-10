@@ -18,7 +18,7 @@ import numpy as np
 from numpy.polynomial.polynomial import polyfit
 
 # Local imports
-from core.units import Celcius2Kelvin, Kelvin2Celcius
+from core.units import Celcius2Kelvin, Kelvin2Celcius, hours_per_day
 
 # Constants
 N_EXER = 3.0
@@ -1471,3 +1471,129 @@ class HeatPump:
         # Variables below need to be reset at the end of each timestep.
         self.__total_time_running_current_timestep = 0.0
         self.__service_results = []
+
+
+class HeatPump_HWOnly:
+    """ An object to represent an electric hot-water-only heat pump, tested to EN 16147 """
+
+    def __init__(
+            self,
+            power_max,
+            test_data,
+            vol_daily_average,
+            energy_supply_conn,
+            simulation_time,
+            control=None,
+            ):
+        """ Construct a HeatPump_HWOnly object
+
+        Arguments:
+        power_max -- in kW
+        test_data -- dictionary with keys denoting tapping profile letter (M or L)
+                     and values being another dictionary containing the following:
+                     - cop_dhw -- CoP measured during EN 16147 test
+                     - hw_tapping_prof_daily_total -- daily energy requirement
+                         (kWh/day) for tapping profile used for test
+                     - energy_input_measured -- electrical input energy (kWh)
+                         measured in EN 16147 test over 24 hrs
+                     - power_standby -- standby power (W) measured in EN 16147 test
+                     - hw_vessel_loss_daily -- daily hot water vessel heat loss
+                         (kWh/day) for a 45 K temperature difference between vessel
+                         and surroundings, tested in accordance with BS 1566 or
+                         EN 12897 or any equivalent standard. Vessel must be same
+                         as that used during EN 16147 test
+        vol_daily_average -- annual average hot water use for the dwelling, in litres / day
+        energy_supply_conn -- reference to EnergySupplyConnection object
+        simulation_time -- reference to SimulationTime object
+        control -- reference to a control object which must implement is_on() func
+        """
+
+        self.__pwr = power_max
+        self.__energy_supply_conn = energy_supply_conn
+        self.__simulation_time = simulation_time
+        self.__control = control
+
+        def init_efficiency_tapping_profile(
+                cop_dhw,
+                hw_tapping_prof_daily_total,
+                energy_input_measured,
+                power_standby,
+                hw_vessel_loss_daily,
+                ):
+            """ Calculate efficiency for given test condition (tapping profile) """
+            # CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.2
+            temp_factor = 0.6 * 0.9
+            energy_input_hw_vessel_loss = hw_vessel_loss_daily / cop_dhw * temp_factor
+            energy_input_standby = power_standby * hours_per_day * temp_factor
+            energy_input_test \
+                = energy_input_measured - energy_input_standby + energy_input_hw_vessel_loss
+            energy_demand_test = hw_tapping_prof_daily_total + hw_vessel_loss_daily * temp_factor
+            return energy_demand_test / energy_input_test
+
+        # Calculate efficiency for each tapping profile
+        # TODO Check that expected tapping profiles have been provided
+        efficiencies = {}
+        for profile_name, profile_data in test_data.items():
+            efficiencies[profile_name] = init_efficiency_tapping_profile(
+                profile_data['cop_dhw'],
+                profile_data['hw_tapping_prof_daily_total'],
+                profile_data['energy_input_measured'],
+                profile_data['power_standby'],
+                profile_data['hw_vessel_loss_daily'],
+                )
+
+        def init_efficiency():
+            """ Calculate overall efficiency based on SAP 10.2 section N3.7 b) and c) """
+            if len(efficiencies) == 1 and 'M' in efficiencies.keys():
+                # If efficiency for tapping profile M only has been provided, use it
+                eff = efficiencies['M']
+            elif len(efficiencies) == 2 \
+            and 'M' in self.__efficiencies.keys() \
+            and 'L' in self.__efficiencies.keys():
+                # If efficiencies for tapping profiles M and L have been provided, interpolate
+                vol_daily_limit_lower = 100.2
+                vol_daily_limit_upper = 199.8
+                if vol_daily_average <= vol_daily_limit_lower :
+                    eff = efficiencies['M']
+                elif self.__vol_daily_average >= vol_daily_limit_upper :
+                    eff = efficiencies['L']
+                else:
+                    eff_M = efficiencies['M']
+                    eff_L = efficiencies['L']
+                    eff = eff_M + (eff_L - eff_M) \
+                        / (vol_daily_limit_upper - vol_daily_limit_lower) \
+                        * (vol_daily_average - vol_daily_limit_lower)
+            else:
+                sys.exit('Unrecognised combination of tapping profiles in test data')
+            return eff
+
+        self.__efficiency = init_efficiency()
+
+    def demand_energy(self, energy_demand):
+        """ Demand energy (in kWh) from the heat pump """
+        # Account for time control where present. If no control present, assume
+        # system is always active (except for basic thermostatic control, which
+        # is implicit in demand calculation).
+        if self.__control is None or self.__control.is_on():
+            # Energy that heater is able to supply is limited by power rating
+            energy_supplied = min(energy_demand, self.__pwr * self.__simulation_time.timestep())
+        else:
+            energy_supplied = 0.0
+
+        energy_required = energy_supplied / self.__efficiency
+        self.__energy_supply_conn.demand_energy(energy_required)
+        return energy_demand
+
+    def energy_output_max(self):
+        """ Calculate the maximum energy output (in kWh) from the heater """
+
+        # Account for time control where present. If no control present, assume
+        # system is always active (except for basic thermostatic control, which
+        # is implicit in demand calculation).
+        if self.__control is None or self.__control.is_on():
+            # Energy that heater is able to supply is limited by power rating
+            power_max = self.__pwr * self.__simulation_time.timestep()
+        else:
+            power_max = 0.0
+
+        return power_max
