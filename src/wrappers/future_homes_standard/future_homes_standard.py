@@ -86,7 +86,7 @@ def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy
                                ' ' + 
                                str(column_name) +
                                ' ' +
-                               str(factor)
+                               str(factor).replace("Factor ", "").replace("/kWh", "")
                 )
                 results[this_header] = [
                     x * float(emissionfactors[this_fuel_code][factor])
@@ -649,6 +649,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     '''
     
     for event_type in project_dict["Events"]:
+        #TODO check here for whether Shower (mixer/IES), bath, other event types exist
+        #add them if not present? dont take baths if there is not bath?
+        #
         for event_subtype in project_dict["Events"][event_type]:
             project_dict["Events"][event_type][event_subtype].clear()
     
