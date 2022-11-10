@@ -12,6 +12,7 @@ from copy import deepcopy
 
 # Local imports
 from core.material_properties import WATER
+from core.pipework import Pipework
 import core.units as units
 
 
@@ -57,8 +58,10 @@ class StorageTank:
     #__temp_set_on = 65  default in table B.4
     #use 55oC as more consistent with average delivery temperature of 52
     __temp_set_on = 55
+    # Primary pipework gains for the timestep
+    __primary_gains = 0
 
-    def __init__(self, volume, losses, temp_hot, cold_feed, simulation_time, contents=WATER):
+    def __init__(self, volume, losses, temp_hot, cold_feed, simulation_time,  primary_pipework=None, contents=WATER):
         """ Construct a StorageTank object
 
         Arguments:
@@ -94,6 +97,16 @@ class StorageTank:
          We are expecting to run a "warm-up" period for the main calculation so this doesn't matter.
          """
         self.__temp_n = [self.__temp_set_on] * self.__NB_VOL
+        
+        if primary_pipework is not None:
+            self.__primary_pipework = Pipework(
+                    primary_pipework["internal_diameter"],
+                    primary_pipework["external_diameter"],
+                    primary_pipework["length"],
+                    primary_pipework["insulation_thermal_conductivity"],
+                    primary_pipework["insulation_thickness"],
+                    primary_pipework["surface_reflectivity"],
+                    primary_pipework["pipe_contents"])
 
     def add_heat_source(self, heat_source, proportion_of_tank_heated):
         """ Add a reference to heat source object and specify position in tank.
