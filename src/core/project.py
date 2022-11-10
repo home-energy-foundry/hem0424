@@ -25,7 +25,7 @@ from core.heating_systems.boiler import Boiler
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
-    BuildingElementAdjacentZTC
+    BuildingElementAdjacentZTC, BuildingElementAdjacentZTU_Simple
 from core.space_heat_demand.ventilation_element import \
     VentilationElementInfiltration, WholeHouseExtractVentilation, \
     MechnicalVentilationHeatRecovery, NaturalVentilation
@@ -334,6 +334,16 @@ class Project:
                     data['area'],
                     data['pitch'],
                     data['r_c'],
+                    data['k_m'],
+                    data['mass_distribution_class'],
+                    self.__external_conditions,
+                    )
+            elif building_element_type == 'BuildingElementAdjacentZTU_Simple':
+                building_element = BuildingElementAdjacentZTU_Simple(
+                    data['area'],
+                    data['pitch'],
+                    data['r_c'],
+                    data['r_u'],
                     data['k_m'],
                     data['mass_distribution_class'],
                     self.__external_conditions,
