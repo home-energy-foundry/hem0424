@@ -567,7 +567,7 @@ class StorageTank:
         #demand adjusted energy from heat source (before was just using potential without taking it)
         input_energy_adj = deepcopy(Q_in_H_W)
         for heat_source in self.__heat_sources:
-            input_energy_adj = input_energy_adj - heat_source.demand_energy(input_energy_adj)
+            input_energy_adj = input_energy_adj - self.get_demand_energy(heat_source, input_energy_adj)
 
         #set temperatures calculated to be initial temperatures of volumes for the next timestep
         self.__temp_n = deepcopy(temp_s8_n)
@@ -583,7 +583,26 @@ class StorageTank:
 
     def internal_gains(self):
         """ Return the DHW recoverable heat losses as internal gain for the current timestep in W"""
-        return self.__Q_sto_h_ls_rbl * units.W_per_kW / self.__simulation_time.timestep()
+        primary_gains_timestep = self.__primary_gains
+        self.__primary_gains = 0
+        return self.__Q_sto_h_ls_rbl * units.W_per_kW / self.__simulation_time.timestep() \
+        + primary_gains_timestep
+
+            
+    def get_demand_energy(self, heat_source, input_energy_adj):
+        # function that also calculates pipework loss before sending on the demand energy 
+        # if immersion heater, no pipework losses
+        if isinstance(heat_source, ImmersionHeater):
+            return(heat_source.demand_energy(input_energy_adj))
+        else:
+            demand_energy = heat_source.demand_energy(input_energy_adj)
+            # primary losses for the timestep calculated from  temperature difference
+            primary_pipework_losses = self.__primary_pipework.heat_loss(self.__temp_hot, self.__temp_amb)
+            self.__primary_gains = primary_pipework_losses
+            demand_energy+=primary_pipework_losses
+            # TODO - how are these gains reflected in the calculations? allocation by zone?
+            return(demand_energy)
+
 
 
 class ImmersionHeater:
