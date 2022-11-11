@@ -90,7 +90,7 @@
 			"fuel": "electricity"
 		},
 		"mains gas": {
-			"fuel": "gas"
+			"fuel": "mains gas"
 		}
 	},
 	"Control": {

@@ -696,6 +696,9 @@ class Project:
                     data['frac_convective'],
                     heat_source_service,
                     self.__zones[data['Zone']],
+                    self.__external_conditions,
+                    data['ecodesign_control_class'],
+                    data['design_flow_temp'],
                     self.__simtime,
                     )
             else:

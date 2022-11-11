@@ -153,6 +153,8 @@
 				"name": "boiler"
 			},
 			"Control": "space heat timer",
+			"ecodesign_control_class": 2,
+			"design_flow_temp": 55,
 			"Zone": "zone 1"
 		}
 	},
