@@ -90,7 +90,7 @@
 			"fuel": "electricity"
 		},
 		"mains gas": {
-			"fuel": "mains gas"
+			"fuel": "mains_gas"
 		}
 	},
 	"Control": {
@@ -107,6 +107,7 @@
 		"hw cylinder": {
 			"type": "StorageTank",
 			"volume": 80.0,
+			"daily_losses": 1.68,
 			"ColdWaterSource": "mains water",
 			"HeatSource": {
 				"immersion": {
