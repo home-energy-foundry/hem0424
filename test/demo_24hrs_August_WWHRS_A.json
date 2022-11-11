@@ -127,7 +127,7 @@
 		"mixer": {
 			"type": "MixerShower",
 			"flowrate": 8.0,
-			"ColdWaterSource": "Example_Inst_WWHRS",
+			"ColdWaterSource": "mains water",
 			"WWHRS": "Example_Inst_WWHRS"
 		},
 		"IES": {
