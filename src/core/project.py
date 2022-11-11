@@ -629,12 +629,18 @@ class Project:
                         or isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemA):
                             cold_water_source = self.__wwhrs[wwhrs_name]
 
+                if 'primary_pipework' in data:
+                    primary_pipework = data['primary_pipework']
+                else:
+                    primary_pipework = None
+                    
                 hw_source = StorageTank(
                     data['volume'],
                     data['daily_losses'],
                     55.0, # TODO Remove hard-coding of hot water temp
                     cold_water_source,
                     self.__simtime,
+                    primary_pipework
                     )
                     
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
