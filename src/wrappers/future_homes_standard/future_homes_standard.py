@@ -18,11 +18,8 @@ FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_04-11-2022.csv
 def apply_fhs_preprocessing(project_dict):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
     
-    project_dict['SimulationTime'] = {
-        "start": 0,
-        "end": 8760,
-        "step": 0.5
-    }
+    project_dict['SimulationTime']["start"] = 0
+    project_dict['SimulationTime']["end"] = 8760
     
     project_dict['InternalGains'].pop("total_internal_gains", None)
     
@@ -518,7 +515,7 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         "time_series_step": 1,
         "gains_fraction": 1,
         "schedule": {
-            #watts per m^2
+            #watts
             "main": [{"value": "jan", "repeat": 31},
                     {"value": "feb", "repeat": 28},
                     {"value": "mar", "repeat": 31},
