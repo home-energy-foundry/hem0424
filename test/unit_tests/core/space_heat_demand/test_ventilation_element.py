@@ -217,15 +217,25 @@ class TestWholeHouseExtractVentilation(unittest.TestCase):
                                 )
         self.energysupply = EnergySupply("electricity", self.simtime)
         energysupplyconn = self.energysupply.connection("WHEV")
-        self.whev = WholeHouseExtractVentilation(0.5, 2.0, energysupplyconn, ec, self.simtime)
+        self.whev = WholeHouseExtractVentilation(0.5, 2.0, 0.25, energysupplyconn, ec, self.simtime)
 
     def test_h_ve(self):
         """ Test that correct heat transfer coeffient (h_ve) is returned when queried """
+        results = [
+            8.131011373697916,
+            8.047227161458334,
+            7.965414342447915,
+            7.885572916666667,
+            7.807702884114583,
+            7.731804244791666,
+            7.657876998697917,
+            7.585921145833332,
+            ]
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.whev.h_ve(75.0),
-                    12.616916666666667,
+                    results[t_idx],
                     msg="incorrect heat transfer coeffient (h_ve) returned"
                     )
 

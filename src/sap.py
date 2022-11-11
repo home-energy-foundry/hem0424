@@ -15,6 +15,7 @@ import argparse
 # Local imports
 from core.project import Project
 from read_weather_file import weather_data_to_dict
+from read_CIBSE_weather_file import CIBSE_weather_data_to_dict
 from wrappers.future_homes_standard.future_homes_standard import \
     apply_fhs_preprocessing, apply_fhs_postprocessing
 
@@ -166,6 +167,12 @@ if __name__ == '__main__':
         help=('path to weather file in .epw format'),
         )
     parser.add_argument(
+        '--CIBSE-weather-file',
+        action='store',
+        default=None,
+        help=('path to CIBSE weather file in .csv format'),
+        )
+    parser.add_argument(
         'input_file',
         nargs='+',
         help=('path(s) to file(s) containing building specifications to run'),
@@ -192,11 +199,15 @@ if __name__ == '__main__':
 
     inp_filenames = cli_args.input_file
     epw_filename = cli_args.epw_file
+    cibse_weather_filename = cli_args.CIBSE_weather_file
     fhs_assumptions = cli_args.future_homes_standard
     preproc_only = cli_args.preprocess_only
 
     if epw_filename is not None:
         external_conditions_dict = weather_data_to_dict(epw_filename)
+    elif cibse_weather_filename is not None:
+        external_conditions_dict = CIBSE_weather_data_to_dict(cibse_weather_filename)
+    
     else:
         external_conditions_dict = None
 

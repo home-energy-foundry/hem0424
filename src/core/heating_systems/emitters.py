@@ -18,18 +18,20 @@ from numpy import interp
 
 class Emitters:
 
-    def __init__(self,
-                 thermal_mass,
-                 c,
-                 n,
-                 temp_diff_emit_dsgn,
-                 heat_source,
-                 zone,
-                 ext_cond,
-                 control_class,
-                 design_flow_temp,
-                 simulation_time
-                 ):
+    def __init__(
+            self,
+            thermal_mass,
+            c,
+            n,
+            temp_diff_emit_dsgn,
+            frac_convective,
+            heat_source,
+            zone,
+            ext_cond,
+            control_class,
+            design_flow_temp,
+            simulation_time
+            ):
         """ Construct an Emitters object
 
         Arguments:
@@ -37,6 +39,7 @@ class Emitters:
         c -- constant from characteristic equation of emitters (e.g. derived from BS EN 442 tests)
         n -- exponent from characteristic equation of emitters (e.g. derived from BS EN 442 tests)
         temp_diff_emit_dsgn -- design temperature difference across the emitters, in deg C or K
+        frac_convective -- convective fraction for heating
         heat_source -- reference to an object representing the system (e.g.
                        boiler or heat pump) providing heat to the emitters
         zone -- reference to the Zone object representing the zone in which the
@@ -53,6 +56,7 @@ class Emitters:
         self.__c = c
         self.__n = n
         self.__temp_diff_emit_dsgn = temp_diff_emit_dsgn
+        self.__frac_convective = frac_convective
         self.__heat_source = heat_source
         self.__zone = zone
         self.__simtime = simulation_time
@@ -63,6 +67,9 @@ class Emitters:
         
         # Set initial values
         self.__temp_emitter_prev = 20.0
+
+    def frac_convective(self):
+        return self.__frac_convective
 
     def temp_flow_return(self):
         """ Calculate flow and return temperature based on ecodesign control class """

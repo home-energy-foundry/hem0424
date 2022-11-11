@@ -181,14 +181,13 @@
 		"main": {
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
+			"frac_convective": 0.4,
 			"EnergySupply": "mains elec"
 		}
 	},
 	"Ventilation": {
-		"type": "WHEV",
-		"req_ach": 0.5,
-		"SFP": 1.5,
-		"EnergySupply": "mains elec"
+		"type": "NatVent",
+		"req_ach": 0.5
 	},
 	"Infiltration": {
 		"storey": 1,
@@ -305,6 +304,15 @@
 					"r_c": 0.74,
 					"k_m": 19400,
 					"mass_distribution_class": "I"
+				},
+				"wall 5": {
+					"type": "BuildingElementAdjacentZTU_Simple",
+					"area": 20.0,
+					"pitch": 0.0,
+					"r_c": 0.74,
+					"r_u": 0.7,
+					"k_m": 19400,
+					"mass_distribution_class": "M"
 				}
 			},
 			"ThermalBridging": {
