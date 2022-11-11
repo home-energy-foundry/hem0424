@@ -119,22 +119,13 @@ class WWHRS_InstantaneousSystemA:
         self.__stored_temperature = water_temperature
 
     def temperature(self):
-        temperature_to_return = self.__stored_temperature
-        self.__stored_temperature = self.__cold_water_source.temperature()
-        return (temperature_to_return)
+        return (self.__stored_temperature)
 
     def return_temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
-        # TODO The cold water flow rate depends on the temperature returned from
-        #      this function, which may create a circularity in the calculation.
-        #      May need to integrate System B into shower module and/or combine
-        #      equations.
         
         # Get cold feed temperature
         temp_cold = self.__cold_water_source.temperature()
         
-        # TODO If flowrates have been provided for waste and cold water:
-        #    - Calc heat recovered from waste water. Need to do this per shower
-        #      individually? Need WWHRS_Connection object?
         wwhrs_efficiency = self.get_efficiency_from_flowrate(flowrate_waste_water) * \
         self.__utilisation_factor
         

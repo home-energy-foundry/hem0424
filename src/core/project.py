@@ -193,7 +193,7 @@ class Project:
                             data['utilisation_factor']
                             )
                     else:
-                        sys.exit(name + ': WWHRS (' + hw_source_type + ') not recognised.')
+                        sys.exit(name + ': WWHRS (' + wwhrs_source_type + ') not recognised.')
                         # TODO Exit just the current case instead of whole program entirely?
             return the_wwhrs
             

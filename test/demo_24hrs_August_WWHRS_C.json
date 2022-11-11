@@ -196,6 +196,7 @@
 		"main": {
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
+			"frac_convective": 0.4,
 			"EnergySupply": "mains elec",
 			"Control": "hw timer"
 		}

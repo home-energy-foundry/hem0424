@@ -57,12 +57,16 @@ class MixerShower:
                 vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
                 # return the required volume of hot water once the recovered heat has been accounted for.
                 
-            else:
-                if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemC): # just returns hot water to the hot water source
+            elif isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemC): # just returns hot water to the hot water source
                     wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
                     # Set the actual return temperature given the temperature and flowrate of the waste water.
                     self.__wwhrs.set_temperature_for_return(wwhrs_return_temperature)
-
+            elif isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemA): #  returns hot water to the hot water source and shower
+                    wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
+                    # Set the actual return temperature given the temperature and flowrate of the waste water.
+                    self.__wwhrs.set_temperature_for_return(wwhrs_return_temperature)
+                    # return the required volume of hot water once the recovered heat has been accounted for.
+                    vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
 
         return vol_hot_water
         # TODO Should this return hot water demand or send message to HW system?
