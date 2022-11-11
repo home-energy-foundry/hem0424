@@ -178,7 +178,9 @@
 				{"start": 6, "duration": 6, "temperature": 41.0}
 			],
 			"mixer": [
-				{"start": 7, "duration": 6, "temperature": 41.0}
+				{"start": 7, "duration": 6, "temperature": 41.0},
+				{"start": 9, "duration": 6, "temperature": 41.0},
+				{"start": 11, "duration": 6, "temperature": 41.0}
 			]
 		},
 		"Bath":{
@@ -196,6 +198,7 @@
 		"main": {
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
+			"frac_convective": 0.4,
 			"EnergySupply": "mains elec",
 			"Control": "hw timer"
 		}
