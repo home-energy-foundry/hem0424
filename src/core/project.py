@@ -182,8 +182,19 @@ class Project:
                         data['utilisation_factor']
                         )
                 else:
-                    sys.exit(name + ': WWHRS (' + hw_source_type + ') not recognised.')
-                    # TODO Exit just the current case instead of whole program entirely?
+                    if wwhrs_source_type == 'WWHRS_InstantaneousSystemA':
+                        cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                        # TODO Need to handle error if ColdWaterSource name is invalid.
+        
+                        the_wwhrs = wwhrs.WWHRS_InstantaneousSystemA(
+                            data['flow_rates'],
+                            data['efficiencies'],
+                            cold_water_source,
+                            data['utilisation_factor']
+                            )
+                    else:
+                        sys.exit(name + ': WWHRS (' + wwhrs_source_type + ') not recognised.')
+                        # TODO Exit just the current case instead of whole program entirely?
             return the_wwhrs
             
         if 'WWHRS' in proj_dict:
@@ -614,7 +625,8 @@ class Project:
                 # TODO assuming here there is only one WWHRS
                 if self.__wwhrs is not None:
                     for wwhrs_name in self.__wwhrs:
-                        if isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemC):
+                        if isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemC) \
+                        or isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemA):
                             cold_water_source = self.__wwhrs[wwhrs_name]
 
                 hw_source = StorageTank(
