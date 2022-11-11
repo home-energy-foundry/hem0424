@@ -101,9 +101,19 @@
 			"daily_losses": 1.68,
 			"ColdWaterSource": "mains water",
 			"HeatSource": {
-				"immersion": {
-					"type": "ImmersionHeater",
-					"power": 3.0,
+				"heat pump 1": {
+					"type": "HeatPump_HWOnly",
+					"power_max": 5.0,
+					"vol_hw_daily_average": 100.0,
+					"test_data": {
+						"M": {
+							"cop_dhw": 1.5,
+							"hw_tapping_prof_daily_total": 5.845,
+							"energy_input_measured": 8.0,
+							"power_standby": 10.0,
+							"hw_vessel_loss_daily": 1.0
+						}
+					},
 					"EnergySupply": "mains elec",
 					"Control": "hw timer"
 				}
@@ -181,8 +191,8 @@
 		"main": {
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
-			"frac_convective": 0.4,
-			"EnergySupply": "mains elec"
+			"EnergySupply": "mains elec",
+			"frac_convective": 0.4
 		}
 	},
 	"Ventilation": {
@@ -304,15 +314,6 @@
 					"r_c": 0.74,
 					"k_m": 19400,
 					"mass_distribution_class": "I"
-				},
-				"wall 5": {
-					"type": "BuildingElementAdjacentZTU_Simple",
-					"area": 20.0,
-					"pitch": 0.0,
-					"r_c": 0.74,
-					"r_u": 0.7,
-					"k_m": 19400,
-					"mass_distribution_class": "M"
 				}
 			},
 			"ThermalBridging": {

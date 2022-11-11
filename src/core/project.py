@@ -18,14 +18,14 @@ from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.emitters import Emitters
-from core.heating_systems.heat_pump import HeatPump
+from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.heating_systems.boiler import Boiler
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
-    BuildingElementAdjacentZTC
+    BuildingElementAdjacentZTC, BuildingElementAdjacentZTU_Simple
 from core.space_heat_demand.ventilation_element import \
     VentilationElementInfiltration, WholeHouseExtractVentilation, \
     MechnicalVentilationHeatRecovery, NaturalVentilation
@@ -349,6 +349,16 @@ class Project:
                     data['mass_distribution_class'],
                     self.__external_conditions,
                     )
+            elif building_element_type == 'BuildingElementAdjacentZTU_Simple':
+                building_element = BuildingElementAdjacentZTU_Simple(
+                    data['area'],
+                    data['pitch'],
+                    data['r_c'],
+                    data['r_u'],
+                    data['k_m'],
+                    data['mass_distribution_class'],
+                    self.__external_conditions,
+                    )
             else:
                 sys.exit( name + ': building element type ('
                         + building_element_type + ') not recognised.' )
@@ -589,6 +599,18 @@ class Project:
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
+            elif heat_source_type == 'HeatPump_HWOnly':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                heat_source = HeatPump_HWOnly(
+                    data['power_max'],
+                    data['test_data'],
+                    data['vol_hw_daily_average'],
+                    energy_supply_conn,
+                    self.__simtime,
+                    )
             else:
                 sys.exit(name + ': heat source type (' + heat_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -680,6 +702,9 @@ class Project:
                     data['frac_convective'],
                     heat_source_service,
                     self.__zones[data['Zone']],
+                    self.__external_conditions,
+                    data['ecodesign_control_class'],
+                    data['design_flow_temp'],
                     self.__simtime,
                     )
             else:
