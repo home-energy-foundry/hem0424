@@ -191,7 +191,8 @@
 		"main": {
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
-			"EnergySupply": "mains elec"
+			"EnergySupply": "mains elec",
+			"frac_convective": 0.4
 		}
 	},
 	"Ventilation": {
