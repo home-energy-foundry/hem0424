@@ -65,10 +65,7 @@ class WWHRS_InstantaneousSystemC:
         self.__stored_temperature = water_temperature
 
     def temperature(self):
-        temperature_to_return = self.__stored_temperature
-        self.__stored_temperature = self.__cold_water_source.temperature()
-        # reset temperature to cold once it is used.
-        return (temperature_to_return)
+        return (self.__stored_temperature)
 
     def return_temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
         # TODO The cold water flow rate depends on the temperature returned from

@@ -41,6 +41,7 @@ class MixerShower:
                                  timestep, in minutes
         """
         temp_cold = self.__cold_water_source.temperature()
+
         temp_hot  = 52.0 # TODO Get hot temp from somewhere rather than hard-coding
 
         # TODO Account for behavioural variation factor fbeh
@@ -50,34 +51,25 @@ class MixerShower:
         # first calculate the volume of hot water needed if heating from cold water source
 
         if self.__wwhrs is not None:
+            # Get the actual return temperature given the temperature and flowrate of the waste water.
+            wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
+
             if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemB): # just returns hot water to the shower
-                wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
-                # Get the actual return temperature given the temperature and flowrate of the waste water.
-                
-                vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
                 # return the required volume of hot water once the recovered heat has been accounted for.
-                
+                vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
+
             elif isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemC): # just returns hot water to the hot water source
-                    wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
-                    # Set the actual return temperature given the temperature and flowrate of the waste water.
-                    self.__wwhrs.set_temperature_for_return(wwhrs_return_temperature)
+                # Set the actual return temperature given the temperature and flowrate of the waste water.
+                self.__wwhrs.set_temperature_for_return(wwhrs_return_temperature)
+                    
             elif isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemA): #  returns hot water to the hot water source and shower
-                    wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
-                    # Set the actual return temperature given the temperature and flowrate of the waste water.
-                    self.__wwhrs.set_temperature_for_return(wwhrs_return_temperature)
-                    # return the required volume of hot water once the recovered heat has been accounted for.
-                    vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
+                # Set the actual return temperature given the temperature and flowrate of the waste water.
+                self.__wwhrs.set_temperature_for_return(wwhrs_return_temperature)
+                
+                # return the required volume of hot water once the recovered heat has been accounted for.
+                vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
 
         return vol_hot_water
-        # TODO Should this return hot water demand or send message to HW system?
-        #      The latter would allow for different showers to be connected to
-        #      different HW systems, but complicates the implementation of the
-        #      HW system as it will have to deal with calls from several
-        #      different objects and work out when to amalgamate the figures to
-        #      do its own calculation, rather than being given a single overall
-        #      figure for each timestep.
-        # TODO Also send vol_warm_water to connected WWHRS object? Account for
-        #      heat loss between shower head and drain?
 
 
 class InstantElecShower:
