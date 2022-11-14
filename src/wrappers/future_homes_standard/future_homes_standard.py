@@ -501,15 +501,16 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
                               * halfhr for halfhr in cooking_profile_fhs]
     cooking_gas_profile_W_per_m2 = [(1 / TFA) * (1000 / 2) * 0.75 * annual_cooking_gas_kWh / 365
                              * halfhr for halfhr in cooking_profile_fhs]
+
     
-    #add back gas and electric cooking if they are present 
+    #add back gas and electric cooking gains if they are present 
     if "mains gas" in cookingenergysupplies:
         project_dict['ApplianceGains']['Gascooking'] = {
             "type":"cooking",
             "EnergySupply": "mains gas",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 1,
+            "gains_fraction": 1, # should be 0.75 - TODO do the units need changing?
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
                 "day": cooking_gas_profile_W_per_m2
@@ -521,7 +522,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             "EnergySupply": "mains elec",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 1,
+            "gains_fraction": 1, # should be 0.9 - TODO do the units need changing?
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
                 "day": cooking_elec_profile_W_per_m2
@@ -696,9 +697,12 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
             self.which_other = -1
             #event and monthidx are only things that should change between events, rest are globals so dont need to be captured
             #need unused "event" in shower and bath so that syntax is the same for all 3
-            self.showerdurationfunc = lambda event,monthidx:6 * FHW  * behavioural_hw_factorm[monthidx]
-            self.bathdurationfunc = lambda event,monthidx:6 * FHW  * behavioural_hw_factorm[monthidx] * partGbonus
-            self.otherdurationfunc = lambda event,monthidx:6 * (HW_events_valuesdict[event] / 1.4) * FHW  * other_hw_factorm[monthidx]
+            self.showerdurationfunc = lambda event, monthidx: \
+                6 * FHW  * behavioural_hw_factorm[monthidx]
+            self.bathdurationfunc = lambda event, monthidx: \
+                6 * FHW  * behavioural_hw_factorm[monthidx] * partGbonus
+            self.otherdurationfunc = lambda event, monthidx: \
+                6 * (HW_events_valuesdict[event] / 1.4) * FHW  * other_hw_factorm[monthidx]
             '''
             set up events dict
             check if showers/baths are present
@@ -726,9 +730,8 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
             #if theres no other events we need to add them
             if self.other == []:
                 project_dict["Events"]["Other"] = {"other":[]}
-                #TODO: check what size drawoff it should be.
                 self.other.append({"other":self.otherdurationfunc})
-            #if no shower present baths should be taken and vice versa. If neither then other with bath sized drawoff
+            #if no shower present, baths should be taken and vice versa. If neither is present then bath sized drawoff
             if not self.showers and self.baths:
                 self.showers = self.baths
                 project_dict["Events"]["Shower"] = project_dict["Events"]["Bath"]
@@ -736,11 +739,10 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
                 self.baths = self.showers
                 project_dict["Events"]["Bath"] = project_dict["Events"]["Shower"]
             elif not self.showers and not self.baths:
-                #TODO - make this bath sized drawoff
-                self.baths = self.other
-                self.showers = self.other
-                project_dict["Events"]["Bath"] = project_dict["Events"]["Other"]
-                project_dict["Events"]["Shower"] = project_dict["Events"]["Other"]
+                self.baths.append(("other",self.bathdurationfunc))
+                self.showers.append(("other",self.bathdurationfunc))
+                project_dict["Events"]["Bath"]["other"] = []
+                project_dict["Events"]["Shower"]["other"] = []
         '''
         the below getters just return the name of the end user for the drawoff,
         but because of the above logic, sometimes a shower is actually a bath and vice versa
