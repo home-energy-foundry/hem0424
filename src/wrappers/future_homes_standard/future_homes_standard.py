@@ -57,6 +57,13 @@ def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy
                                'import': energy_import,
                                'export': energy_export}
     
+    #replace parts of the headers from the emission factors csv when creating output file
+    header_replacements = [
+        (" Factor", ""),
+        ("/kWh", ""),
+        ("delivered", "")
+    ]
+    
     '''
     first read in factors from csv. not all rows have a code yet
     so only read in rows with a fuel code
@@ -76,18 +83,54 @@ def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy
     '''
     for Energysupply in project_dict["EnergySupply"]:
         this_fuel_code = project_dict["EnergySupply"][Energysupply]["fuel"]
-        for column_name, result_column in unprocessed_result_dict.items():
+        #only apply factors to import/export if there is any export
+        if sum(energy_export[Energysupply]) != 0:
             for factor in emissionfactors[this_fuel_code]:
                 
+                factor_header_part = str(factor)
+                for replacement in header_replacements:
+                    factor_header_part = factor_header_part.replace(*replacement)
+                    
                 this_header = (str(Energysupply) + 
-                               ' ' + 
-                               str(column_name) +
-                               ' ' +
-                               str(factor).replace("Factor ", "").replace("/kWh", "")
+                               ' total ' +
+                               factor_header_part
                 )
                 results[this_header] = [
                     x * float(emissionfactors[this_fuel_code][factor])
-                    for x in result_column[Energysupply]
+                    for x in results_totals[Energysupply]
+                ]
+                
+                this_fuel_code_export = this_fuel_code + "_export"
+                this_header = (str(Energysupply) + 
+                               ' import ' +
+                               factor_header_part
+                )
+                results[this_header] = [
+                    x * float(emissionfactors[this_fuel_code_export][factor])
+                    for x in energy_import[Energysupply]
+                ]
+                this_header = (str(Energysupply) + 
+                               ' export ' +
+                               factor_header_part
+                )
+                results[this_header] = [
+                    x * float(emissionfactors[this_fuel_code_export][factor])
+                    for x in energy_export[Energysupply]
+                ]
+        else:
+            for factor in emissionfactors[this_fuel_code]:
+                
+                factor_header_part = str(factor)
+                for replacement in header_replacements:
+                    factor_header_part = factor_header_part.replace(*replacement)
+                    
+                this_header = (str(Energysupply) + 
+                               ' total ' +
+                               factor_header_part
+                )
+                results[this_header] = [
+                    x * float(emissionfactors[this_fuel_code][factor])
+                    for x in results_totals[Energysupply]
                 ]
 
     with open(file_path + '_postproc.csv', 'w') as postproc_file:
