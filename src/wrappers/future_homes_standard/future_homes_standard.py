@@ -726,15 +726,15 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
             #if theres no other events we need to add them
             if self.other == []:
                 project_dict["Events"]["Other"] = {"other":[]}
-                self.other.append({"other":self.otherdurationfunc})
+                self.other.append(("Other","other",self.otherdurationfunc))
             #if no shower present, baths should be taken and vice versa. If neither is present then bath sized drawoff
             if not self.showers and self.baths:
                 self.showers = self.baths
             elif not self.baths and self.showers:
                 self.baths = self.showers
             elif not self.showers and not self.baths:
-                self.baths.append(("other",self.bathdurationfunc))
-                self.showers.append(("other",self.bathdurationfunc))
+                self.baths.append(("Other","other",self.bathdurationfunc))
+                self.showers.append(("Other","other",self.bathdurationfunc))
         '''
         the below getters return the name of the end user for the drawoff, 
         and the function to calculate the duration of the drawoff.
