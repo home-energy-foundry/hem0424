@@ -510,7 +510,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             "EnergySupply": "mains gas",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 1, # should be 0.75 - TODO do the units need changing?
+            "gains_fraction": 1, #TODO enter consumption (without 0.75/0.9 factor and different units)
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
                 "day": cooking_gas_profile_W_per_m2
@@ -522,7 +522,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             "EnergySupply": "mains elec",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 1, # should be 0.9 - TODO do the units need changing?
+            "gains_fraction": 1,  #TODO enter consumption (without 0.75/0.9 factor and different units)
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
                 "day": cooking_elec_profile_W_per_m2
@@ -685,10 +685,6 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         class to hold HW events to be added based on showers, baths, other facilities present in dwelling
         '''
         def __init__(self, project_dict):
-            '''
-            TODO - these lists should contain the name and the function for determinging duration not just the name,
-            change references to the object to account for this
-            '''
             self.showers = []
             self.baths = []
             self.other= []
@@ -696,7 +692,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
             self.which_bath = -1
             self.which_other = -1
             #event and monthidx are only things that should change between events, rest are globals so dont need to be captured
-            #need unused "event" in shower and bath so that syntax is the same for all 3
+            #we need unused "event" in shower and bath syntax so that its the same for all 3
             self.showerdurationfunc = lambda event, monthidx: \
                 6 * FHW  * behavioural_hw_factorm[monthidx]
             self.bathdurationfunc = lambda event, monthidx: \
@@ -717,15 +713,15 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
             
             for shower in project_dict["Shower"]:
                 project_dict["Events"]["Shower"][shower] = []
-                self.showers.append((shower,self.showerdurationfunc))
+                self.showers.append(("Shower",shower,self.showerdurationfunc))
                 
             for bath in project_dict["Bath"]:
                 project_dict["Events"]["Bath"][bath] = []
-                self.baths.append((bath,self.bathdurationfunc))
+                self.baths.append(("Bath",bath,self.bathdurationfunc))
                 
             for other in project_dict["Other"]:
                 project_dict["Events"]["Other"][other] = []
-                self.other.append((other,self.otherdurationfunc))
+                self.other.append(("Other",other,self.otherdurationfunc))
             
             #if theres no other events we need to add them
             if self.other == []:
@@ -734,20 +730,17 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
             #if no shower present, baths should be taken and vice versa. If neither is present then bath sized drawoff
             if not self.showers and self.baths:
                 self.showers = self.baths
-                project_dict["Events"]["Shower"] = project_dict["Events"]["Bath"]
             elif not self.baths and self.showers:
                 self.baths = self.showers
-                project_dict["Events"]["Bath"] = project_dict["Events"]["Shower"]
             elif not self.showers and not self.baths:
                 self.baths.append(("other",self.bathdurationfunc))
                 self.showers.append(("other",self.bathdurationfunc))
-                project_dict["Events"]["Bath"]["other"] = []
-                project_dict["Events"]["Shower"]["other"] = []
         '''
-        the below getters just return the name of the end user for the drawoff,
-        but because of the above logic, sometimes a shower is actually a bath and vice versa
-        TODO move duration logic inside this class, as part G bonus needs to be applied to baths etc
-        need to pass event, monthidx to these functions?
+        the below getters return the name of the end user for the drawoff, 
+        and the function to calculate the duration of the drawoff.
+        If there is no shower then baths are taken when showers would have been, as specified above, so
+        this will return the duration function *for a bath*, ie with the possibility
+        for part G bonus. 
         '''
         def get_shower(self):
             self.which_shower = (self.which_shower + 1) % len(self.showers)
@@ -758,7 +751,8 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         def get_other(self):
             self.which_other = (self.which_other + 1) % len(self.other)
             return self.other[self.which_other]
-        
+    
+    #create instance of the class specified above
     FHS_HW_event = FHS_HW_event(project_dict)
     '''
     now create lists of events
@@ -778,9 +772,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
                 eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
                 #now get monthly behavioural factor and apply it, along with FHW
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
-                name, durationfunc = FHS_HW_event.get_shower()
+                eventtype, name, durationfunc = FHS_HW_event.get_shower()
                 duration = durationfunc(event,monthidx)
-                project_dict["Events"]["Shower"][name].append(
+                project_dict["Events"][eventtype][name].append(
                     {"start": eventstart,
                     "duration": duration, 
                     "temperature": 41.0}
@@ -790,9 +784,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
                 eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
                 #now get monthly behavioural factor and apply it, along with FHW and partGbonus
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
-                name, durationfunc = FHS_HW_event.get_bath()
+                eventtype, name, durationfunc = FHS_HW_event.get_bath()
                 duration = durationfunc(event,monthidx)
-                project_dict["Events"]["Bath"][name].append(
+                project_dict["Events"][eventtype][name].append(
                     {"start": eventstart,
                      "duration": duration,
                      "temperature": 41.0}
@@ -802,9 +796,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
                 eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
                 #now get monthly behavioural factor and apply it, along with FHW
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
-                name, durationfunc = FHS_HW_event.get_other()
+                eventtype, name, durationfunc = FHS_HW_event.get_other()
                 duration = durationfunc(event,monthidx)
-                project_dict["Events"]["Other"][name].append(
+                project_dict["Events"][eventtype][name].append(
                     {"start": eventstart,
                      "duration": duration,
                      "temperature": 41.0}
