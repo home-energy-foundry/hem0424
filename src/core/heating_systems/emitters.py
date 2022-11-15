@@ -224,7 +224,7 @@ class Emitters:
         # Calculate energy input required
         energy_req_to_warm_emitters \
             = self.__thermal_mass * (temp_emitter_req - self.__temp_emitter_prev)
-        energy_req_from_heat_source = energy_req_to_warm_emitters + energy_demand
+        energy_req_from_heat_source = max(energy_req_to_warm_emitters + energy_demand,0.0)
 
         # Calculate emitter temp that can be achieved if heating on full power
         # (adjusted for time spent on higher-priority services)
