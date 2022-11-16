@@ -76,8 +76,12 @@ class Project:
         # TODO Some inputs are not currently used, so set to None here rather
         #      than requiring them in input file.
         # TODO Read timezone from input file. For now, set timezone to 0 (GMT)
-        # TODO Read direct_beam_conversion_needed from input file. For now,
-        #      assume false (for epw files)
+        # Let direct beam conversion input be optional, this will be set if comes from weather file.
+        if proj_dict['ExternalConditions']['direct_beam_conversion_needed']:
+            dir_beam_conversion = proj_dict['ExternalConditions']['direct_beam_conversion_needed']
+        else:
+            dir_beam_conversion = False
+
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
@@ -94,7 +98,7 @@ class Project:
             None, #proj_dict['ExternalConditions']['january_first'],
             None, #proj_dict['ExternalConditions']['daylight_savings'],
             None, #proj_dict['ExternalConditions']['leap_day_included'],
-            False, #proj_dict['ExternalConditions']['direct_beam_conversion_needed']
+            dir_beam_conversion,
             proj_dict['ExternalConditions']['shading_segments'],
             )
 
