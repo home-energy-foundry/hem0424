@@ -67,8 +67,8 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
 
     # Apply required postprocessing steps, if any
     if fhs_assumptions:
-        apply_fhs_postprocessing()
-
+        apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path[0])
+   
 
 def write_core_output_file(
         output_file,

@@ -7,24 +7,26 @@ steps for the Future Homes Standard.
 """
 
 import math
-from core import project
+import os
+import json
+import csv
+from core import project, schedule
+
+this_directory = os.path.dirname(os.path.relpath(__file__))
+FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_04-11-2022.csv")
 
 def apply_fhs_preprocessing(project_dict):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
-
-    '''
-    simtime will be one whole year
-    0-8760
-    '''
-    project_dict['SimulationTime'] = {
-        "start": 0,
-        "end": 8760,
-        "step": 1
-        }
-
+    
+    project_dict['SimulationTime']["start"] = 0
+    project_dict['SimulationTime']["end"] = 8760
+    
+    project_dict['InternalGains'].pop("total_internal_gains", None)
+    
+    
     TFA = calc_TFA(project_dict)
     N_occupants = calc_N_occupants(TFA)
-
+    
     #construct schedules
     schedule_occupancy_weekday, schedule_occupancy_weekend = create_occupancy(N_occupants)
     create_metabolic_gains(
@@ -34,22 +36,116 @@ def apply_fhs_preprocessing(project_dict):
         schedule_occupancy_weekend)
     
     create_heating_pattern(project_dict)
-    create_evaporative_losses(project_dict, N_occupants)
+    create_evaporative_losses(project_dict, TFA, N_occupants)
     create_lighting_gains(project_dict, TFA, N_occupants)
-    create_cooking_gains(project_dict, N_occupants)
+    create_cooking_gains(project_dict,TFA, N_occupants)
     create_appliance_gains(project_dict, TFA, N_occupants)
     create_hot_water_use_pattern(project_dict, TFA, N_occupants)
     create_cooling(project_dict)
     create_cold_water_feed_temps(project_dict)
     
+    
     return project_dict
 
-def apply_fhs_postprocessing():
+def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path):
     """ Post-process core simulation outputs as required for Future Homes Standard """
-    pass # TODO Implement required post-processing
+    
+    emissionfactors = {}
+    results = {}
+    
+    unprocessed_result_dict = {'total': results_totals,
+                               'import': energy_import,
+                               'export': energy_export}
+    
+    #replace parts of the headers from the emission factors csv when creating output file
+    header_replacements = [
+        (" Factor", ""),
+        ("/kWh", ""),
+        ("delivered", "")
+    ]
+    
+    '''
+    first read in factors from csv. not all rows have a code yet
+    so only read in rows with a fuel code
+    '''
+    with open(FHSEMISFACTORS,'r') as emissionfactorscsv:
+        emissionfactorsreader = csv.DictReader(emissionfactorscsv, delimiter=',')
+        for row in emissionfactorsreader:
+            if row["Fuel Code"]!= "":
+                this_fuel_code = row["Fuel Code"]
+                emissionfactors[this_fuel_code] = row
+                #getting rid of keys that aren't factors to be applied to results for ease of looping
+                emissionfactors[this_fuel_code].pop("Fuel Code")
+                emissionfactors[this_fuel_code].pop("Fuel")
+    '''
+    loop over all energy supplies in the project dict.
+    find all factors for relevant fuel and apply them
+    '''
+    for Energysupply in project_dict["EnergySupply"]:
+        this_fuel_code = project_dict["EnergySupply"][Energysupply]["fuel"]
+        #only apply factors to import/export if there is any export
+        if sum(energy_export[Energysupply]) != 0:
+            for factor in emissionfactors[this_fuel_code]:
+                
+                factor_header_part = str(factor)
+                for replacement in header_replacements:
+                    factor_header_part = factor_header_part.replace(*replacement)
+                    
+                this_header = (str(Energysupply) + 
+                               ' total ' +
+                               factor_header_part
+                )
+                results[this_header] = [
+                    x * float(emissionfactors[this_fuel_code][factor])
+                    for x in results_totals[Energysupply]
+                ]
+                
+                this_fuel_code_export = this_fuel_code + "_export"
+                this_header = (str(Energysupply) + 
+                               ' import ' +
+                               factor_header_part
+                )
+                results[this_header] = [
+                    x * float(emissionfactors[this_fuel_code_export][factor])
+                    for x in energy_import[Energysupply]
+                ]
+                this_header = (str(Energysupply) + 
+                               ' export ' +
+                               factor_header_part
+                )
+                results[this_header] = [
+                    x * float(emissionfactors[this_fuel_code_export][factor])
+                    for x in energy_export[Energysupply]
+                ]
+        else:
+            for factor in emissionfactors[this_fuel_code]:
+                
+                factor_header_part = str(factor)
+                for replacement in header_replacements:
+                    factor_header_part = factor_header_part.replace(*replacement)
+                    
+                this_header = (str(Energysupply) + 
+                               ' total ' +
+                               factor_header_part
+                )
+                results[this_header] = [
+                    x * float(emissionfactors[this_fuel_code][factor])
+                    for x in results_totals[Energysupply]
+                ]
+
+    with open(file_path + '_postproc.csv', 'w') as postproc_file:
+        writer = csv.writer(postproc_file)
+        #write header row
+        writer.writerow(results.keys())
+        #results dict is arranged by column, we want to write rows so transpose via zip
+        results_transposed = list(zip(*results.values()))
+        
+        for t_idx, timestep in enumerate(timestep_array):
+            row = results_transposed[t_idx]
+            writer.writerow(row)
 
 def calc_TFA(project_dict):
-    
+     
     TFA = 0.0
     
     for zones in project_dict["Zone"].keys():
@@ -191,13 +287,14 @@ def create_heating_pattern(project_dict):
                 }
 
 
-def create_evaporative_losses(project_dict, N_occupants):
-    evaporative_losses_fhs = -40 * N_occupants
+def create_evaporative_losses(project_dict,TFA, N_occupants):
+    evaporative_losses_fhs = -40 * N_occupants / TFA
     
     project_dict['InternalGains']['EvaporativeLosses'] = {
         "start_day": 0,
         "time_series_step": 1,
         "schedule": {
+            #in Wm^-2
             "main": [{"value": evaporative_losses_fhs, "repeat": 8760 }]
         }
     } #repeats for length of simulation which in FHS should be whole year.
@@ -349,7 +446,7 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
     }
 
 
-def create_cooking_gains(project_dict, N_occupants):
+def create_cooking_gains(project_dict,TFA, N_occupants):
     
     cooking_profile_fhs = [
         0.001192419, 0.000825857, 0.000737298, 0.000569196,
@@ -400,22 +497,23 @@ def create_cooking_gains(project_dict, N_occupants):
     annual_cooking_elec_kWh = EC1elec + EC2elec * N_occupants
     annual_cooking_gas_kWh = EC1gas + EC2gas * N_occupants
     
-    cooking_elec_profile_W = [(1000 / 2) * 0.9 * annual_cooking_elec_kWh / 365
+    cooking_elec_profile_W_per_m2 = [(1 / TFA) * (1000 / 2) * 0.9 * annual_cooking_elec_kWh / 365
                               * halfhr for halfhr in cooking_profile_fhs]
-    cooking_gas_profile_W = [(1000 / 2) * 0.75 * annual_cooking_gas_kWh / 365
+    cooking_gas_profile_W_per_m2 = [(1 / TFA) * (1000 / 2) * 0.75 * annual_cooking_gas_kWh / 365
                              * halfhr for halfhr in cooking_profile_fhs]
+
     
-    #add back gas and electric cooking if they are present 
+    #add back gas and electric cooking gains if they are present 
     if "mains gas" in cookingenergysupplies:
         project_dict['ApplianceGains']['Gascooking'] = {
             "type":"cooking",
             "EnergySupply": "mains gas",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 1,
+            "gains_fraction": 1, #TODO enter consumption (without 0.75/0.9 factor and different units)
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
-                "day": cooking_gas_profile_W
+                "day": cooking_gas_profile_W_per_m2
             }
         }
     if "mains elec" in cookingenergysupplies:
@@ -424,10 +522,10 @@ def create_cooking_gains(project_dict, N_occupants):
             "EnergySupply": "mains elec",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 1,
+            "gains_fraction": 1,  #TODO enter consumption (without 0.75/0.9 factor and different units)
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
-                "day": cooking_elec_profile_W
+                "day": cooking_elec_profile_W_per_m2
             }
         }
 
@@ -449,9 +547,9 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
     
     EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
     
-    appliance_gains_W = []
+    appliance_gains_W_per_m2 = []
     for monthly_profile in avg_monthly_hr_profiles:
-        appliance_gains_W.append([1000 * EA_annual_kWh * frac / 365
+        appliance_gains_W_per_m2.append([(1 / TFA) * 1000 * EA_annual_kWh * frac / 365
                                   for frac in monthly_profile])
         
     project_dict['ApplianceGains']['appliances'] = {
@@ -462,7 +560,6 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         "gains_fraction": 1,
         "schedule": {
             #watts
-            #"Watts_appliances_monthly": appliance_gains_W
             "main": [{"value": "jan", "repeat": 31},
                     {"value": "feb", "repeat": 28},
                     {"value": "mar", "repeat": 31},
@@ -476,22 +573,98 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
                     {"value": "nov", "repeat": 30},
                     {"value": "dec", "repeat": 31}
                      ],
-            "jan": appliance_gains_W[0],
-            "feb": appliance_gains_W[1],
-            "mar": appliance_gains_W[2],
-            "apr": appliance_gains_W[3],
-            "may": appliance_gains_W[4],
-            "jun": appliance_gains_W[5],
-            "jul": appliance_gains_W[6],
-            "aug": appliance_gains_W[7],
-            "sep": appliance_gains_W[8],
-            "oct": appliance_gains_W[9],
-            "nov": appliance_gains_W[10],
-            "dec": appliance_gains_W[11]
+            "jan": appliance_gains_W_per_m2[0],
+            "feb": appliance_gains_W_per_m2[1],
+            "mar": appliance_gains_W_per_m2[2],
+            "apr": appliance_gains_W_per_m2[3],
+            "may": appliance_gains_W_per_m2[4],
+            "jun": appliance_gains_W_per_m2[5],
+            "jul": appliance_gains_W_per_m2[6],
+            "aug": appliance_gains_W_per_m2[7],
+            "sep": appliance_gains_W_per_m2[8],
+            "oct": appliance_gains_W_per_m2[9],
+            "nov": appliance_gains_W_per_m2[10],
+            "dec": appliance_gains_W_per_m2[11]
         }
     }
 
-
+class FHS_HW_events:
+    '''
+    class to hold HW events to be added based on showers, baths, other facilities present in dwelling
+    '''
+    def __init__(self, 
+                 project_dict,
+                 FHW,
+                 HW_events_valuesdict,
+                 behavioural_hw_factorm,
+                 other_hw_factorm,
+                 partGbonus):
+        self.showers = []
+        self.baths = []
+        self.other= []
+        self.which_shower = -1
+        self.which_bath = -1
+        self.which_other = -1
+        #event and monthidx are only things that should change between events, rest are globals so dont need to be captured
+        #we need unused "event" in shower and bath syntax so that its the same for all 3
+        self.showerdurationfunc = lambda event, monthidx: \
+            6 * FHW  * behavioural_hw_factorm[monthidx]
+        self.bathdurationfunc = lambda event, monthidx: \
+            6 * FHW  * behavioural_hw_factorm[monthidx] * partGbonus
+        self.otherdurationfunc = lambda event, monthidx: \
+            6 * (HW_events_valuesdict[event] / 1.4) * FHW  * other_hw_factorm[monthidx]
+        '''
+        set up events dict
+        check if showers/baths are present
+        if multiple showers/baths are present, we need to cycle through them
+        if either is missing replace with the one that is present,
+        if neither is present, "other" events with same consumption as a bath should be used
+        '''
+        project_dict["Events"].clear()
+        project_dict["Events"]["Shower"] = {}
+        project_dict["Events"]["Bath"] = {}
+        project_dict["Events"]["Other"] = {}
+        
+        for shower in project_dict["Shower"]:
+            project_dict["Events"]["Shower"][shower] = []
+            self.showers.append(("Shower",shower,self.showerdurationfunc))
+            
+        for bath in project_dict["Bath"]:
+            project_dict["Events"]["Bath"][bath] = []
+            self.baths.append(("Bath",bath,self.bathdurationfunc))
+            
+        for other in project_dict["Other"]:
+            project_dict["Events"]["Other"][other] = []
+            self.other.append(("Other",other,self.otherdurationfunc))
+        
+        #if theres no other events we need to add them
+        if self.other == []:
+            project_dict["Events"]["Other"] = {"other":[]}
+            self.other.append(("Other","other",self.otherdurationfunc))
+        #if no shower present, baths should be taken and vice versa. If neither is present then bath sized drawoff
+        if not self.showers and self.baths:
+            self.showers = self.baths
+        elif not self.baths and self.showers:
+            self.baths = self.showers
+        elif not self.showers and not self.baths:
+            self.baths.append(("Other","other",self.bathdurationfunc))
+            self.showers.append(("Other","other",self.bathdurationfunc))
+    '''
+    the below getters return the name of the end user for the drawoff, 
+    and the function to calculate the duration of the drawoff.
+    If there is no shower then baths are taken when showers would have been, as specified above, so
+    this will return the duration function *for a bath*, ie with the possibility
+    for part G bonus. 
+    '''
+    def get_shower(self):
+        self.which_shower = (self.which_shower + 1) % len(self.showers)
+        return self.showers[self.which_shower]
+    def get_bath(self):
+        self.which_bath = (self.which_bath + 1) % len(self.baths)
+        return self.baths[self.which_bath]
+    def get_other(self):
+        self.which_other = (self.which_other + 1) % len(self.other)
+        return self.other[self.which_other]
 
 def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
 
@@ -590,6 +763,14 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     partGbonus = 1.0
     if project_dict["PartGcompliance"] == True:
         partGbonus = 0.95
+    
+    FHS_HW_event = FHS_HW_events(project_dict,
+                     FHW,
+                     HW_events_valuesdict,
+                     behavioural_hw_factorm,
+                     other_hw_factorm,
+                     partGbonus
+                     )
     '''
     now create lists of events
     Shower events should be  evenly spread across all showers in dwelling
@@ -601,11 +782,6 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     (so we are assuming temperature is always 41C and duration is
     directly proportional to energy)
     '''
-    
-    for event_type in project_dict["Events"]:
-        for event_subtype in project_dict["Events"][event_type]:
-            project_dict["Events"][event_type][event_subtype].clear()
-    
     for i, event in enumerate(annual_HW_events):
         if event != "None":
             if event == "Shower":
@@ -613,9 +789,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
                 eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
                 #now get monthly behavioural factor and apply it, along with FHW
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
-                duration = 6 * FHW  * behavioural_hw_factorm[monthidx]
-                
-                project_dict["Events"]["Shower"]["mixer"].append(
+                eventtype, name, durationfunc = FHS_HW_event.get_shower()
+                duration = durationfunc(event,monthidx)
+                project_dict["Events"][eventtype][name].append(
                     {"start": eventstart,
                     "duration": duration, 
                     "temperature": 41.0}
@@ -625,8 +801,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
                 eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
                 #now get monthly behavioural factor and apply it, along with FHW and partGbonus
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
-                duration = 6 * FHW  * behavioural_hw_factorm[monthidx] * partGbonus
-                project_dict["Events"]["Bath"]["medium"].append(
+                eventtype, name, durationfunc = FHS_HW_event.get_bath()
+                duration = durationfunc(event,monthidx)
+                project_dict["Events"][eventtype][name].append(
                     {"start": eventstart,
                      "duration": duration,
                      "temperature": 41.0}
@@ -636,8 +813,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
                 eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
                 #now get monthly behavioural factor and apply it, along with FHW
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
-                duration = 6 * (HW_events_valuesdict[event] / 1.4) * FHW  * other_hw_factorm[monthidx]
-                project_dict["Events"]["Other"]["other"].append(
+                eventtype, name, durationfunc = FHS_HW_event.get_other()
+                duration = durationfunc(event,monthidx)
+                project_dict["Events"][eventtype][name].append(
                     {"start": eventstart,
                      "duration": duration,
                      "temperature": 41.0}
@@ -739,4 +917,3 @@ def create_cold_water_feed_temps(project_dict):
         "time_series_step": 1,
         "temperatures": outputfeedtemp
     }
-

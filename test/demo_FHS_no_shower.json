@@ -120,17 +120,6 @@
 		}
 	},
 	"Shower": {
-		"mixer": {
-			"type": "MixerShower",
-			"flowrate": 8.0,
-			"ColdWaterSource": "mains water"
-		},
-		"IES": {
-			"type": "InstantElecShower",
-			"rated_power": 9.0,
-			"ColdWaterSource": "mains water",
-			"EnergySupply": "mains elec"
-		}
 	},
 	"Bath": {
 		"medium": {
