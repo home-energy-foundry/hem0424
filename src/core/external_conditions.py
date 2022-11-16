@@ -920,7 +920,7 @@ class ExternalConditions:
                          and the shading obstacle p in segment i, in m
         """
 
-        Hshade = max(0, Hobst - Hkbase - Lkobst * tan(self.solar_altitude()))
+        Hshade = max(0, Hobst - Hkbase - Lkobst * tan(radians(self.solar_altitude())))
         return Hshade
 
     def overhang_shading_height(self, Hk, Hkbase, Hovh, Lkovh ):
@@ -936,7 +936,7 @@ class ExternalConditions:
                          and the shading overhang, q, in segment i, in m
         """
 
-        Hshade = max(0, Hk + Hkbase - Hovh + Lkovh * tan(self.solar_altitude()))
+        Hshade = max(0, Hk + Hkbase - Hovh + Lkovh * tan(radians(self.solar_altitude())))
         return Hshade
 
     def direct_shading_reduction_factor(self, base_height, height, width, orientation, window_shading):
