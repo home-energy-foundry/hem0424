@@ -712,9 +712,19 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         else:
             annual_HW_events.extend(HW_events_dict['Weekday'])
             annual_HW_events_values.extend(Weekday_values)
-    
-    
-    SAP2012QHW = 365 * 4.18 * (37/3600) * ((25 * N_occupants) + 36)
+
+    vol_daily_average = (25 * N_occupants) + 36
+
+    # Add daily average hot water use to hot water only heat pump (HWOHP) object, if present
+    # TODO This is probably only valid if HWOHP is the only heat source for the
+    #      storage tank. Make this more robust/flexible in future.
+    for hw_source_obj in project_dict['HotWaterSource'].values():
+        if hw_source_obj['type'] == 'StorageTank':
+            for heat_source_obj in hw_source_obj['HeatSource'].values():
+                if heat_source_obj['type'] == 'HeatPump_HWOnly':
+                    heat_source_obj['vol_hw_daily_average'] = vol_daily_average
+
+    SAP2012QHW = 365 * 4.18 * (37/3600) * vol_daily_average
     refQHW = 365 * sum(Weekday_values)
 
     '''

@@ -27,7 +27,7 @@ class TestInstantElecHeater(unittest.TestCase):
         energysupply            = EnergySupply("electricity", self.simtime)
         energysupplyconn        = energysupply.connection("shower")
         control                 = OnOffTimeControl([True, True, False, True], self.simtime, 0, 1)
-        self.inselecheater      = InstantElecHeater(50, energysupplyconn, self.simtime, control)
+        self.inselecheater      = InstantElecHeater(50, 0.4, energysupplyconn, self.simtime, control)
 
     def test_demand_energy(self):
         """ Test that InstantElecHeater object returns correct energy supplied """

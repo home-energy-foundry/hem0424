@@ -18,14 +18,14 @@ from core.controls.time_control import OnOffTimeControl
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.emitters import Emitters
-from core.heating_systems.heat_pump import HeatPump
+from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.heating_systems.boiler import Boiler
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
-    BuildingElementAdjacentZTC
+    BuildingElementAdjacentZTC, BuildingElementAdjacentZTU_Simple
 from core.space_heat_demand.ventilation_element import \
     VentilationElementInfiltration, WholeHouseExtractVentilation, \
     MechnicalVentilationHeatRecovery, NaturalVentilation
@@ -76,8 +76,12 @@ class Project:
         # TODO Some inputs are not currently used, so set to None here rather
         #      than requiring them in input file.
         # TODO Read timezone from input file. For now, set timezone to 0 (GMT)
-        # TODO Read direct_beam_conversion_needed from input file. For now,
-        #      assume false (for epw files)
+        # Let direct beam conversion input be optional, this will be set if comes from weather file.
+        if proj_dict['ExternalConditions']['direct_beam_conversion_needed']:
+            dir_beam_conversion = proj_dict['ExternalConditions']['direct_beam_conversion_needed']
+        else:
+            dir_beam_conversion = False
+
         self.__external_conditions = ExternalConditions(
             self.__simtime,
             proj_dict['ExternalConditions']['air_temperatures'],
@@ -94,7 +98,7 @@ class Project:
             None, #proj_dict['ExternalConditions']['january_first'],
             None, #proj_dict['ExternalConditions']['daylight_savings'],
             None, #proj_dict['ExternalConditions']['leap_day_included'],
-            False, #proj_dict['ExternalConditions']['direct_beam_conversion_needed']
+            dir_beam_conversion,
             proj_dict['ExternalConditions']['shading_segments'],
             )
 
@@ -182,8 +186,19 @@ class Project:
                         data['utilisation_factor']
                         )
                 else:
-                    sys.exit(name + ': WWHRS (' + hw_source_type + ') not recognised.')
-                    # TODO Exit just the current case instead of whole program entirely?
+                    if wwhrs_source_type == 'WWHRS_InstantaneousSystemA':
+                        cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                        # TODO Need to handle error if ColdWaterSource name is invalid.
+        
+                        the_wwhrs = wwhrs.WWHRS_InstantaneousSystemA(
+                            data['flow_rates'],
+                            data['efficiencies'],
+                            cold_water_source,
+                            data['utilisation_factor']
+                            )
+                    else:
+                        sys.exit(name + ': WWHRS (' + wwhrs_source_type + ') not recognised.')
+                        # TODO Exit just the current case instead of whole program entirely?
             return the_wwhrs
             
         if 'WWHRS' in proj_dict:
@@ -334,6 +349,16 @@ class Project:
                     data['area'],
                     data['pitch'],
                     data['r_c'],
+                    data['k_m'],
+                    data['mass_distribution_class'],
+                    self.__external_conditions,
+                    )
+            elif building_element_type == 'BuildingElementAdjacentZTU_Simple':
+                building_element = BuildingElementAdjacentZTU_Simple(
+                    data['area'],
+                    data['pitch'],
+                    data['r_c'],
+                    data['r_u'],
                     data['k_m'],
                     data['mass_distribution_class'],
                     self.__external_conditions,
@@ -578,6 +603,18 @@ class Project:
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
+            elif heat_source_type == 'HeatPump_HWOnly':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                heat_source = HeatPump_HWOnly(
+                    data['power_max'],
+                    data['test_data'],
+                    data['vol_hw_daily_average'],
+                    energy_supply_conn,
+                    self.__simtime,
+                    )
             else:
                 sys.exit(name + ': heat source type (' + heat_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -592,15 +629,22 @@ class Project:
                 # TODO assuming here there is only one WWHRS
                 if self.__wwhrs is not None:
                     for wwhrs_name in self.__wwhrs:
-                        if isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemC):
+                        if isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemC) \
+                        or isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemA):
                             cold_water_source = self.__wwhrs[wwhrs_name]
 
+                if 'primary_pipework' in data:
+                    primary_pipework = data['primary_pipework']
+                else:
+                    primary_pipework = None
+                    
                 hw_source = StorageTank(
                     data['volume'],
                     data['daily_losses'],
                     55.0, # TODO Remove hard-coding of hot water temp
                     cold_water_source,
                     self.__simtime,
+                    primary_pipework
                     )
                     
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
@@ -668,6 +712,9 @@ class Project:
                     data['frac_convective'],
                     heat_source_service,
                     self.__zones[data['Zone']],
+                    self.__external_conditions,
+                    data['ecodesign_control_class'],
+                    data['design_flow_temp'],
                     self.__simtime,
                     )
             else:

@@ -11,13 +11,12 @@ class WWHRS_InstantaneousSystemB:
     
     For System B WWHRS, output of the heat exchanger is fed to the shower only
     """
-    
+
     def __init__(self, flow_rates, efficiencies, cold_water_source, utilisation_factor):
         self.__cold_water_source = cold_water_source
         self.__flow_rates = flow_rates
         self.__efficiencies = efficiencies
         self.__utilisation_factor = utilisation_factor
-
 
     def return_temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
         # TODO The cold water flow rate depends on the temperature returned from
@@ -36,17 +35,18 @@ class WWHRS_InstantaneousSystemB:
         
         #    - Calc temp of pre-heated water based on heat recovered and flow rates
         temp_cold = temp_cold + ((wwhrs_efficiency/100) * (temp_target - temp_cold))
-        
+        # TODO different flow rates on either side of heat excahnger have been accounted for in the PCDF efficiency.
+        # This efficiency is based on several assumed parameters and is therefore not robust/flexible to change in those
+        # parameters. e.g. waste water temperature, certain flow rates. See CALCM:03 WWHRS tech document for SAP 10.
+                
         # Return temp of cold water (pre-heated if relevant)
         return(temp_cold)
-
 
     def get_efficiency_from_flowrate(self, flowrate):
         # Get the interpolated efficiency from the flowrate of waste water
         y_interp = scipy.interpolate.interp1d(self.__flow_rates, self.__efficiencies)
         
         return(y_interp(flowrate))
-        
         
 class WWHRS_InstantaneousSystemC:
     """ A class to represent instantaneous waste water heat recovery systems with arrangement C
@@ -65,9 +65,7 @@ class WWHRS_InstantaneousSystemC:
         self.__stored_temperature = water_temperature
 
     def temperature(self):
-        temperature_to_return = self.__stored_temperature
-        self.__stored_temperature = self.__cold_water_source.temperature()
-        return (temperature_to_return)
+        return (self.__stored_temperature)
 
     def return_temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
         # TODO The cold water flow rate depends on the temperature returned from
@@ -84,8 +82,12 @@ class WWHRS_InstantaneousSystemC:
         wwhrs_efficiency = self.get_efficiency_from_flowrate(flowrate_waste_water) * \
         self.__utilisation_factor
         
+        
         #    - Calc temp of pre-heated water based on heat recovered and flow rates
         temp_cold = temp_cold + ((wwhrs_efficiency/100) * (temp_target - temp_cold))
+        # TODO different flow rates on either side of heat excahnger have been accounted for in the PCDF efficiency.
+        # This efficiency is based on several assumed parameters and is therefore not robust/flexible to change in those
+        # parameters. e.g. waste water temperature, certain flow rates. See CALCM:03 WWHRS tech document for SAP 10.
         
         # Return temp of cold water (pre-heated if relevant)
         return(temp_cold)
@@ -103,21 +105,35 @@ class WWHRS_InstantaneousSystemA:
     and the hot water system
     """
     
-    def __init__(self, eff_vs_flowrate, cold_water_source):
-        self.__efficiency = eff_vs_flowrate # TODO Handle efficiency vs flow rate lookup
+    def __init__(self, flow_rates, efficiencies, cold_water_source, utilisation_factor):
         self.__cold_water_source = cold_water_source
-    
-    def drain_water(self, flowrate_waste_water, flowrate):
-        # TODO May need cold water flow rates to both shower and hot water
-        #      system (which would be the cold and hot flow rates to the shower)
-        #      and waste water flow rate (sum of the cold and hot flow rates)
-        #      for calculation
-        temp_cold = self.__cold_water_source.temperature()
-        # TODO Calc heat recovered and save. Need to do this per shower individually?
-        #      Need to differentiate between shower and hot water system querying temp - WWHRS_Connection object?
-        #      Perhaps merge this with temperature() function, giving that
-        #      function optional arguments that only showers will use? This
-        #      would need same optional inputs added to ColdWaterSource temperature() func
+        self.__stored_temperature = self.__cold_water_source.temperature()
+        self.__flow_rates = flow_rates
+        self.__efficiencies = efficiencies
+        self.__utilisation_factor = utilisation_factor
+
+    def set_temperature_for_return(self, water_temperature):
+        self.__stored_temperature = water_temperature
 
     def temperature(self):
-        pass # TODO Return cold feed temp with recovered heat
+        return (self.__stored_temperature)
+
+    def return_temperature(self, temp_target, flowrate_waste_water=None, flowrate_cold_water=None):
+        
+        # Get cold feed temperature
+        temp_cold = self.__cold_water_source.temperature()
+        
+        wwhrs_efficiency = self.get_efficiency_from_flowrate(flowrate_waste_water) * \
+        self.__utilisation_factor
+        
+        #    - Calc temp of pre-heated water based on heat recovered and flow rates
+        temp_cold = temp_cold + ((wwhrs_efficiency/100) * (temp_target - temp_cold))
+        
+        # Return temp of cold water (pre-heated if relevant)
+        return(temp_cold)
+
+    def get_efficiency_from_flowrate(self, flowrate):
+        # Get the interpolated efficiency from the flowrate of waste water
+        y_interp = scipy.interpolate.interp1d(self.__flow_rates, self.__efficiencies)
+        
+        return(y_interp(flowrate))

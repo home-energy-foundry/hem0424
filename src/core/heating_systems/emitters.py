@@ -8,6 +8,14 @@ This module provides objects to represent radiator and underfloor emitter system
 # Third-party imports
 from scipy.integrate import solve_ivp
 
+#local imports
+import core.external_conditions as external_conditions
+
+# Standard library inputs
+import sys
+from enum import Enum,auto
+from numpy import interp
+
 class Emitters:
 
     def __init__(
@@ -19,7 +27,10 @@ class Emitters:
             frac_convective,
             heat_source,
             zone,
-            simulation_time,
+            ext_cond,
+            control_class,
+            design_flow_temp,
+            simulation_time
             ):
         """ Construct an Emitters object
 
@@ -49,21 +60,60 @@ class Emitters:
         self.__heat_source = heat_source
         self.__zone = zone
         self.__simtime = simulation_time
-
+        self.__external_conditions = ext_cond
+        self.__outside_temp = self.__external_conditions.air_temp()
+        self.__ecodesign_control_class = Ecodesign_control_class.from_num(control_class)
+        self.__design_flow_temp = design_flow_temp
+        
         # Set initial values
         self.__temp_emitter_prev = 20.0
 
     def frac_convective(self):
         return self.__frac_convective
 
-    def temp_flow_return(self, temp_emitter):
-        """ Calculate flow and return temperature from emitter temperature """
-        # TODO The calc of temp_flow_req below is for no weather comp. Add
-        #      weather comp case as well
-        return (
-            temp_emitter + self.__temp_diff_emit_dsgn / 2.0,
-            temp_emitter - self.__temp_diff_emit_dsgn / 2.0,
-            )
+    def temp_flow_return(self):
+        """ Calculate flow and return temperature based on ecodesign control class """
+        if self.__ecodesign_control_class == Ecodesign_control_class.class_II \
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_III \
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_VI \
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_VII \
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_VIII:
+            # A heater flow temperature control that varies the flow temperature of 
+            # water leaving the heat dependant upon prevailing outside temperature 
+            # and selected weather compensation curve.
+
+            # They feature provision for manual adjustment of the weather 
+            # compensation curves and therby introduce a technical risk that optimal 
+            # minimised flow temperatures are not always achieved.
+            
+            # TODO Ecodesign class VI has additional benefits from the use of an 
+            # indoor temperature sensor to restrict boiler temperatures during 
+            # low heat demand but not during high demand. 
+
+            # weather compensation properties could be an input
+            # setting max flow temp as the design flow temperature
+            min_outdoor_temp = -4.0 
+            max_outdoor_temp = 20.0 
+            min_flow_temp = 30.0 
+
+            outdoor_temp_limits = [min_outdoor_temp, max_outdoor_temp]
+            flow_temp_limits = [min_flow_temp, self.__design_flow_temp]
+
+            # Uses numpy interp
+            flow_temp = interp(self.__outside_temp, outdoor_temp_limits, flow_temp_limits)
+
+        elif self.__ecodesign_control_class == Ecodesign_control_class.class_I \
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_IV :
+            flow_temp = self.__design_flow_temp
+
+        else:
+            sys.exit('Ecodesign control class ('+ str(self.__ecodesign_control_class) + ') not valid')
+
+        return_temp = flow_temp * 6.0 / 7.0
+        if flow_temp >= 70.0:
+            return_temp = 60.0
+        
+        return flow_temp, return_temp
 
     def temp_emitter_req(self, power_emitter_req, temp_rm):
         """ Calculate emitter temperature that gives required power output at given room temp
@@ -169,12 +219,12 @@ class Emitters:
         # TODO Apply upper limit to emitter temperature (or is this dealt
         #      with in HP/boiler module?)
         temp_emitter_req = self.temp_emitter_req(power_emitter_req, temp_rm_prev)
-        temp_flow_req, _ = self.temp_flow_return(temp_emitter_req)
+        temp_flow_req, _ = self.temp_flow_return()
 
         # Calculate energy input required
         energy_req_to_warm_emitters \
             = self.__thermal_mass * (temp_emitter_req - self.__temp_emitter_prev)
-        energy_req_from_heat_source = energy_req_to_warm_emitters + energy_demand
+        energy_req_from_heat_source = max(energy_req_to_warm_emitters + energy_demand,0.0)
 
         # Calculate emitter temp that can be achieved if heating on full power
         # (adjusted for time spent on higher-priority services)
@@ -191,7 +241,7 @@ class Emitters:
         # Calculate target emitter and flow temperature, accounting for the
         # max power of the heat source
         temp_emitter_target = min(temp_emitter_req, temp_emitter_max)
-        temp_flow_target, temp_return_target = self.temp_flow_return(temp_emitter_target)
+        temp_flow_target, temp_return_target = self.temp_flow_return()
 
         # Get energy output of heat source (i.e. energy input to emitters)
         # TODO Instead of passing temp_flow_req into heating system module,
@@ -239,3 +289,42 @@ class Emitters:
         self.__temp_emitter_prev = temp_emitter
 
         return energy_released_from_emitters
+
+class Ecodesign_control_class(Enum):
+    # on/off room thermostat
+    class_I = auto()
+    # weather compensator with modulating heaters
+    class_II = auto()
+    # weather compensator with on/off heaters
+    class_III = auto()
+    # TPI room thermostat with on/off heaters
+    class_IV = auto()
+    # modulating room thermostat with modulating heaters
+    class_V = auto()
+    # weather compensator with room sensor for modulating heaters
+    class_VI = auto()
+    # weather compensator with room sensor for on/off heaters
+    class_VII = auto()
+    # multi room temperature control with modulating heaters
+    class_VIII = auto()
+    
+    @classmethod
+    def from_num(cls, numval):
+        if numval == 1:
+            return cls.class_I
+        elif numval == 2:
+            return cls.class_II
+        elif numval == 3:
+            return cls.class_III
+        elif numval == 4:
+            return cls.class_IV
+        elif numval == 5:
+            return cls.class_V
+        elif numval == 6:
+            return cls.class_VI
+        elif numval == 7:
+            return cls.class_VII
+        elif numval == 8:
+            return cls.class_VIII
+        else:
+            sys.exit('ecodesign control class ('+ str(numval) + ') not valid')
