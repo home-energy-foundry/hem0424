@@ -69,8 +69,8 @@ class ExternalConditions:
         self.__diffuse_horizontal_radiation = diffuse_horizontal_radiation
         self.__direct_beam_radiation = direct_beam_radiation
         self.__solar_reflectivity_of_ground = solar_reflectivity_of_ground
-        self.__latitude = latitude
-        self.__longitude = longitude
+        self.__latitude = latitude # practical  range -90 to +90
+        self.__longitude = longitude # practical range -180 to +180
         self.__timezone = timezone
         self.__start_day = start_day
         self.__end_day = end_day
@@ -194,7 +194,18 @@ class ExternalConditions:
         # if the climate data to only provide direct horizontal (rather than normal:
         # If only direct (beam) solar irradiance at horizontal plane is available in the climatic data set,
         # it shall be converted to normal incidence by dividing the value by the sine of the solar altitude.
-        # for now I assume the direct beam in the inputs is normal incidence.
+        """ ISO 52010 section 6.4.2
+        TODO investigate the impact of these notes further. Applicable for weather from CIBSE file. 
+        NOTE 1 If the solar altitude angle is low, this conversion is very sensative for tiny
+        errors in the calculation of the solar altitude. Such tiny errors are feasible given the
+        sensitivity for the parameters needed to calculate the solar angle and given the atmospheric
+        refraction of solar radiation near the ground. there fore the value at normal incidence is
+        preferred.
+        NOTE 2 method 1 proved to be most effective in mid-latitude climates 
+        other models might be more suitable for tropical climates.
+        NOTE 3 if the solar altitude angle is low, the conversion from direct horizontal to direct
+        normal beam irradiance is very sensative for tiny errors in the calculation of the 
+        solar altitude."""
         if self.__direct_beam_conversion_needed:
             sin_asol = sin(radians(self.solar_altitude()))
             #prevent division by zero error. if sin_asol = 0 then the sun is lower than the
@@ -202,7 +213,7 @@ class ExternalConditions:
             if sin_asol > 0:
                 Gsol_b = raw_value / sin_asol
             else:
-                Gsol_b = raw_value
+                Gsol_b = raw_value # TODO should this be zero?
         else:
             Gsol_b = raw_value
 
