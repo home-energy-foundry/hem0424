@@ -40,7 +40,7 @@ def apply_fhs_preprocessing(project_dict):
     create_lighting_gains(project_dict, TFA, N_occupants)
     create_cooking_gains(project_dict,TFA, N_occupants)
     create_appliance_gains(project_dict, TFA, N_occupants)
-    create_hot_water_use_pattern(project_dict, TFA, N_occupants)
+    FHS_HW_events(project_dict, TFA, N_occupants)
     create_cooling(project_dict)
     create_cold_water_feed_temps(project_dict)
     
@@ -588,223 +588,224 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         }
     }
 
-
-
-def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
-
-    HW_events_dict = {
-        #time in decimal fractions of an hour
-        'Time': [7, 7.083333333, 7.5, 8.016666667, 8.25, 8.5, 8.75, 9, 9.5, 10.5, 11.5, 11.75, 12.75, 14.5, 15.5, 16.5, 18, 18.25, 18.5, 19, 20.5, 21.25, 21.5],
-        'Weekday': ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Shower'],
-        'Saturday': ['Small', 'Shower', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Small'],
-        'Sunday': ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Bath']
-        }
-
-    HW_events_valuesdict = {
-        #event energy consumption in kWh
-        "Small":0.105,
-        "Shower":1.4,
-        "Floor cleaning":0.105,
-        "Sdishwash":0.315,
-        "Ldishwash":0.735,
-        "Household cleaning":0.105,
-        "Bath":1.4,
-        "None":0.0 #not in supplied spec, added for convenience with deleting events.
-        }
-    #utility for applying the sap10.2 monly factors (below)
-    month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
-    #from sap10.2 J5
-    behavioural_hw_factorm = [1.035, 1.021, 1.007, 0.993, 0.979, 0.965, 0.965, 0.979, 0.993, 1.007, 1.021, 1.035]
-    #from sap10.2 j2
-    other_hw_factorm = [1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00]
-    
-    Weekday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Weekday']]
-    Saturday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Saturday']]
-    Sunday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Sunday']]
-    
-    annual_HW_events = []
-    annual_HW_events_values = []
-    startmod = 1 #this changes which day of the week we start on. 0 is sunday.
-
-    for i in range(365):
-        if (i+startmod) % 6 == 0:
-            annual_HW_events.extend(HW_events_dict['Saturday'])
-            annual_HW_events_values.extend(Saturday_values)
-        elif(i+startmod) % 7 == 0:
-            annual_HW_events.extend(HW_events_dict['Sunday'])
-            annual_HW_events_values.extend(Sunday_values)
-        else:
-            annual_HW_events.extend(HW_events_dict['Weekday'])
-            annual_HW_events_values.extend(Weekday_values)
-    
-    
-    SAP2012QHW = 365 * 4.18 * (37/3600) * ((25 * N_occupants) + 36)
-    refQHW = 365 * sum(Weekday_values)
-
+class FHS_HW_events:
     '''
-    this will determine what proportion of events in the list to eliminate, if less than 1
+    class to hold HW events to be added based on showers, baths, other facilities present in dwelling
     '''
-    ratio = SAP2012QHW / refQHW
-
-    if ratio < 1.0:
-        '''
-        for each event type in the valuesdict, we want to eliminate every
-        kth event where k = ROUND(1/1-ratio,0)
-        '''
-        k=round(1.0/(1-ratio),0)
-        counters={event_type:0 for event_type in HW_events_valuesdict.keys()}
+    def __init__(self, project_dict, TFA, N_occupants):
         
-        for i,event in enumerate(annual_HW_events):
-            NEC = (math.floor(counters[event]/k) + math.floor(k/2)) % k
-            if counters[event] % k == NEC:
-                annual_HW_events_values[i] =  0.0
-                annual_HW_events[i] = 'None'
-            counters[event] += 1
-            
-        '''
-        correction factor
-        '''
-        QHWEN_eliminations = sum(annual_HW_events_values)
-        FHW = SAP2012QHW / QHWEN_eliminations
-
-        HW_events_valuesdict = {key : FHW * HW_events_valuesdict[key] for key in HW_events_valuesdict.keys()}
-    else:
-        FHW = 1.0
+        self.HW_events_dict = {
+            #time in decimal fractions of an hour
+            'Time': [7, 7.083333333, 7.5, 8.016666667, 8.25, 8.5, 8.75, 9, 9.5, 10.5, 11.5, 11.75, 12.75, 14.5, 15.5, 16.5, 18, 18.25, 18.5, 19, 20.5, 21.25, 21.5],
+            'Weekday': ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Shower'],
+            'Saturday': ['Small', 'Shower', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Small'],
+            'Sunday': ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Bath']
+            }
+    
+        self.HW_events_valuesdict = {
+            #event energy consumption in kWh
+            "Small":0.105,
+            "Shower":1.4,
+            "Floor cleaning":0.105,
+            "Sdishwash":0.315,
+            "Ldishwash":0.735,
+            "Household cleaning":0.105,
+            "Bath":1.4,
+            "None":0.0 #not in supplied spec, added for convenience with deleting events.
+            }
+        #utility for applying the sap10.2 monly factors (below)
+        self.month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
+        #from sap10.2 J5
+        self.behavioural_hw_factorm = [1.035, 1.021, 1.007, 0.993, 0.979, 0.965, 0.965, 0.979, 0.993, 1.007, 1.021, 1.035]
+        #from sap10.2 j2
+        self.other_hw_factorm = [1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00]
         
-    '''
-    if part G has been complied with, apply 5% reduction to duration of all events except showers
-    '''
-    partGbonus = 1.0
-    if project_dict["PartGcompliance"] == True:
-        partGbonus = 0.95
-    
-    
-    
-    class FHS_HW_event:
-        '''
-        class to hold HW events to be added based on showers, baths, other facilities present in dwelling
-        '''
-        def __init__(self, project_dict):
-            self.showers = []
-            self.baths = []
-            self.other= []
-            self.which_shower = -1
-            self.which_bath = -1
-            self.which_other = -1
-            #event and monthidx are only things that should change between events, rest are globals so dont need to be captured
-            #we need unused "event" in shower and bath syntax so that its the same for all 3
-            self.showerdurationfunc = lambda event, monthidx: \
-                6 * FHW  * behavioural_hw_factorm[monthidx]
-            self.bathdurationfunc = lambda event, monthidx: \
-                6 * FHW  * behavioural_hw_factorm[monthidx] * partGbonus
-            self.otherdurationfunc = lambda event, monthidx: \
-                6 * (HW_events_valuesdict[event] / 1.4) * FHW  * other_hw_factorm[monthidx]
-            '''
-            set up events dict
-            check if showers/baths are present
-            if multiple showers/baths are present, we need to cycle through them
-            if either is missing replace with the one that is present,
-            if neither is present, "other" events with same consumption as a bath should be used
-            '''
-            project_dict["Events"].clear()
-            project_dict["Events"]["Shower"] = {}
-            project_dict["Events"]["Bath"] = {}
-            project_dict["Events"]["Other"] = {}
-            
-            for shower in project_dict["Shower"]:
-                project_dict["Events"]["Shower"][shower] = []
-                self.showers.append(("Shower",shower,self.showerdurationfunc))
-                
-            for bath in project_dict["Bath"]:
-                project_dict["Events"]["Bath"][bath] = []
-                self.baths.append(("Bath",bath,self.bathdurationfunc))
-                
-            for other in project_dict["Other"]:
-                project_dict["Events"]["Other"][other] = []
-                self.other.append(("Other",other,self.otherdurationfunc))
-            
-            #if theres no other events we need to add them
-            if self.other == []:
-                project_dict["Events"]["Other"] = {"other":[]}
-                self.other.append(("Other","other",self.otherdurationfunc))
-            #if no shower present, baths should be taken and vice versa. If neither is present then bath sized drawoff
-            if not self.showers and self.baths:
-                self.showers = self.baths
-            elif not self.baths and self.showers:
-                self.baths = self.showers
-            elif not self.showers and not self.baths:
-                self.baths.append(("Other","other",self.bathdurationfunc))
-                self.showers.append(("Other","other",self.bathdurationfunc))
-        '''
-        the below getters return the name of the end user for the drawoff, 
-        and the function to calculate the duration of the drawoff.
-        If there is no shower then baths are taken when showers would have been, as specified above, so
-        this will return the duration function *for a bath*, ie with the possibility
-        for part G bonus. 
-        '''
-        def get_shower(self):
-            self.which_shower = (self.which_shower + 1) % len(self.showers)
-            return self.showers[self.which_shower]
-        def get_bath(self):
-            self.which_bath = (self.which_bath + 1) % len(self.baths)
-            return self.baths[self.which_bath]
-        def get_other(self):
-            self.which_other = (self.which_other + 1) % len(self.other)
-            return self.other[self.which_other]
-    
-    #create instance of the class specified above
-    FHS_HW_event = FHS_HW_event(project_dict)
-    '''
-    now create lists of events
-    Shower events should be  evenly spread across all showers in dwelling
-    and so on for baths etc.
-    
-    energy adjustment factor FHW is applied to duration of event.
-    Durations of non shower events are obtained by finding ratio
-    of energy consumption vs showers, which have to be 6 mins long.
-    (so we are assuming temperature is always 41C and duration is
-    directly proportional to energy)
-    '''
-    for i, event in enumerate(annual_HW_events):
-        if event != "None":
-            if event == "Shower":
-                #starttime from daily dict plus 24hrs for each dayn elapsed
-                eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
-                #now get monthly behavioural factor and apply it, along with FHW
-                monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
-                eventtype, name, durationfunc = FHS_HW_event.get_shower()
-                duration = durationfunc(event,monthidx)
-                project_dict["Events"][eventtype][name].append(
-                    {"start": eventstart,
-                    "duration": duration, 
-                    "temperature": 41.0}
-                )
-            elif event =="Bath":
-                #starttime from daily dict plus 24hrs for each dayn elapsed
-                eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
-                #now get monthly behavioural factor and apply it, along with FHW and partGbonus
-                monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
-                eventtype, name, durationfunc = FHS_HW_event.get_bath()
-                duration = durationfunc(event,monthidx)
-                project_dict["Events"][eventtype][name].append(
-                    {"start": eventstart,
-                     "duration": duration,
-                     "temperature": 41.0}
-                )
+        self.Weekday_values = [self.HW_events_valuesdict[x] for x in self.HW_events_dict['Weekday']]
+        self.Saturday_values = [self.HW_events_valuesdict[x] for x in self.HW_events_dict['Saturday']]
+        self.Sunday_values = [self.HW_events_valuesdict[x] for x in self.HW_events_dict['Sunday']]
+        
+        self.annual_HW_events = []
+        self.annual_HW_events_values = []
+        self.startmod = 1 #this changes which day of the week we start on. 0 is sunday.
+        
+        self.calc_FHW_and_elims(project_dict, N_occupants)
+        self.setup_event_dicts(project_dict,
+                               self.FHW,
+                               self.HW_events_valuesdict,
+                               self.behavioural_hw_factorm,
+                               self.other_hw_factorm,
+                               self.partGbonus)
+        self.create_schedule(project_dict)
+        
+    def calc_FHW_and_elims(self,project_dict, N_occupants):
+        for i in range(365):
+            if (i+self.startmod) % 6 == 0:
+                self.annual_HW_events.extend(self.HW_events_dict['Saturday'])
+                self.annual_HW_events_values.extend(self.Saturday_values)
+            elif(i+self.startmod) % 7 == 0:
+                self.annual_HW_events.extend(self.HW_events_dict['Sunday'])
+                self.annual_HW_events_values.extend(self.Sunday_values)
             else:
-                #starttime from daily dict plus 24hrs for each dayn elapsed
-                eventstart = 24 * math.floor(i / 23) + HW_events_dict["Time"][i % 23]
-                #now get monthly behavioural factor and apply it, along with FHW
-                monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
-                eventtype, name, durationfunc = FHS_HW_event.get_other()
-                duration = durationfunc(event,monthidx)
-                project_dict["Events"][eventtype][name].append(
-                    {"start": eventstart,
-                     "duration": duration,
-                     "temperature": 41.0}
-                )
+                self.annual_HW_events.extend(self.HW_events_dict['Weekday'])
+                self.annual_HW_events_values.extend(self.Weekday_values)
         
+        
+        self.SAP2012QHW = 365 * 4.18 * (37/3600) * ((25 * N_occupants) + 36)
+        self.refQHW = 365 * sum(self.Weekday_values)
+    
+        '''
+        this will determine what proportion of events in the list to eliminate, if less than 1
+        '''
+        self.ratio = self.SAP2012QHW / self.refQHW
+    
+        if self.ratio < 1.0:
+            '''
+            for each event type in the valuesdict, we want to eliminate every
+            kth event where k = ROUND(1/1-ratio,0)
+            '''
+            self.k=round(1.0/(1-self.ratio),0)
+            self.counters={event_type:0 for event_type in self.HW_events_valuesdict.keys()}
+            
+            for i,event in enumerate(self.annual_HW_events):
+                NEC = (math.floor(self.counters[event]/self.k) + math.floor(self.k/2)) % self.k
+                if self.counters[event] % self.k == NEC:
+                    self.annual_HW_events_values[i] =  0.0
+                    self.annual_HW_events[i] = 'None'
+                self.counters[event] += 1
+                
+            '''
+            correction factor
+            '''
+            self.QHWEN_eliminations = sum(self.annual_HW_events_values)
+            self.FHW = self.SAP2012QHW / self.QHWEN_eliminations
+            self.HW_events_valuesdict = {
+                key : self.FHW * self.HW_events_valuesdict[key]
+                for key in self.HW_events_valuesdict.keys()
+            }
+            
+        else:
+            self.FHW = 1.0
+            
+        '''
+        if part G has been complied with, apply 5% reduction to duration of all events except showers
+        '''
+        self.partGbonus = 1.0
+        if project_dict["PartGcompliance"] == True:
+            self.partGbonus = 0.95
 
+    def setup_event_dicts(self, 
+                 project_dict,
+                 FHW,
+                 HW_events_valuesdict,
+                 behavioural_hw_factorm,
+                 other_hw_factorm,
+                 partGbonus):
+        self.showers = []
+        self.baths = []
+        self.other= []
+        self.which_shower = -1
+        self.which_bath = -1
+        self.which_other = -1
+        #event and monthidx are only things that should change between events, rest are globals so dont need to be captured
+        #we need unused "event" in shower and bath syntax so that its the same for all 3
+        self.showerdurationfunc = lambda event, monthidx: \
+            6 * FHW  * behavioural_hw_factorm[monthidx]
+        self.bathdurationfunc = lambda event, monthidx: \
+            6 * FHW  * behavioural_hw_factorm[monthidx] * partGbonus
+        self.otherdurationfunc = lambda event, monthidx: \
+            6 * (HW_events_valuesdict[event] / 1.4) * FHW  * other_hw_factorm[monthidx]
+        '''
+        set up events dict
+        check if showers/baths are present
+        if multiple showers/baths are present, we need to cycle through them
+        if either is missing replace with the one that is present,
+        if neither is present, "other" events with same consumption as a bath should be used
+        '''
+        project_dict["Events"].clear()
+        project_dict["Events"]["Shower"] = {}
+        project_dict["Events"]["Bath"] = {}
+        project_dict["Events"]["Other"] = {}
+        
+        for shower in project_dict["Shower"]:
+            project_dict["Events"]["Shower"][shower] = []
+            self.showers.append(("Shower",shower,self.showerdurationfunc))
+            
+        for bath in project_dict["Bath"]:
+            project_dict["Events"]["Bath"][bath] = []
+            self.baths.append(("Bath",bath,self.bathdurationfunc))
+            
+        for other in project_dict["Other"]:
+            project_dict["Events"]["Other"][other] = []
+            self.other.append(("Other",other,self.otherdurationfunc))
+        
+        #if theres no other events we need to add them
+        if self.other == []:
+            project_dict["Events"]["Other"] = {"other":[]}
+            self.other.append(("Other","other",self.otherdurationfunc))
+        #if no shower present, baths should be taken and vice versa. If neither is present then bath sized drawoff
+        if not self.showers and self.baths:
+            self.showers = self.baths
+        elif not self.baths and self.showers:
+            self.baths = self.showers
+        elif not self.showers and not self.baths:
+            self.baths.append(("Other","other",self.bathdurationfunc))
+            self.showers.append(("Other","other",self.bathdurationfunc))
+    '''
+    the below getters return the name of the end user for the drawoff, 
+    and the function to calculate the duration of the drawoff.
+    If there is no shower then baths are taken when showers would have been, as specified above, so
+    this will return the duration function *for a bath*, ie with the possibility
+    for part G bonus. 
+    '''
+    def get_shower(self):
+        self.which_shower = (self.which_shower + 1) % len(self.showers)
+        return self.showers[self.which_shower]
+    def get_bath(self):
+        self.which_bath = (self.which_bath + 1) % len(self.baths)
+        return self.baths[self.which_bath]
+    def get_other(self):
+        self.which_other = (self.which_other + 1) % len(self.other)
+        return self.other[self.which_other]
+    
+    def create_schedule(self,project_dict):
+        for i, event in enumerate(self.annual_HW_events):
+            if event != "None":
+                if event == "Shower":
+                    #starttime from daily dict plus 24hrs for each dayn elapsed
+                    eventstart = 24 * math.floor(i / 23) + self.HW_events_dict["Time"][i % 23]
+                    #now get monthly behavioural factor and apply it, along with FHW
+                    monthidx  = next(idx for idx, value in enumerate(self.month_hour_starts) if value > eventstart)
+                    eventtype, name, durationfunc = self.get_shower()
+                    duration = durationfunc(event,monthidx)
+                    project_dict["Events"][eventtype][name].append(
+                        {"start": eventstart,
+                        "duration": duration, 
+                        "temperature": 41.0}
+                    )
+                elif event =="Bath":
+                    #starttime from daily dict plus 24hrs for each dayn elapsed
+                    eventstart = 24 * math.floor(i / 23) + self.HW_events_dict["Time"][i % 23]
+                    #now get monthly behavioural factor and apply it, along with FHW and partGbonus
+                    monthidx  = next(idx for idx, value in enumerate(self.month_hour_starts) if value > eventstart)
+                    eventtype, name, durationfunc = self.get_bath()
+                    duration = durationfunc(event,monthidx)
+                    project_dict["Events"][eventtype][name].append(
+                        {"start": eventstart,
+                         "duration": duration,
+                         "temperature": 41.0}
+                    )
+                else:
+                    #starttime from daily dict plus 24hrs for each dayn elapsed
+                    eventstart = 24 * math.floor(i / 23) + self.HW_events_dict["Time"][i % 23]
+                    #now get monthly behavioural factor and apply it, along with FHW
+                    monthidx  = next(idx for idx, value in enumerate(self.month_hour_starts) if value > eventstart)
+                    eventtype, name, durationfunc = self.get_other()
+                    duration = durationfunc(event,monthidx)
+                    project_dict["Events"][eventtype][name].append(
+                        {"start": eventstart,
+                         "duration": duration,
+                         "temperature": 41.0}
+                    )
 
 def create_cooling(project_dict):
     '''
