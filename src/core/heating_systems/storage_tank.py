@@ -580,6 +580,7 @@ class StorageTank:
             Vol_use_W_n, temp_s3_n, Q_x_in_n, Q_s6, temp_s6_n,
             temp_s7_n, Q_in_H_W, Q_ls, temp_s8_n,
             )"""
+        return Q_out_W_dis_req_rem
 
     def internal_gains(self):
         """ Return the DHW recoverable heat losses as internal gain for the current timestep in W"""
