@@ -1142,6 +1142,7 @@ class Project:
         hot_water_duration_dict = {}
         hot_water_no_events_dict = {}
         hot_water_pipework_dict = {}
+        energy_shortfall_dict = {}
 
         for z_name in self.__zones.keys():
             gains_internal_dict[z_name] = []
@@ -1163,13 +1164,14 @@ class Project:
         hot_water_duration_dict['duration'] = []
         hot_water_no_events_dict['no_events'] = []
         hot_water_pipework_dict['pw_losses'] = []
+        energy_shortfall_dict['energy_shortfall'] = []
 
         # Loop over each timestep
         for t_idx, t_current, delta_t_h in self.__simtime:
             timestep_array.append(t_current)
             hw_demand, hw_duration, no_events, pw_losses, hw_energy_demand = hot_water_demand(t_idx)
-            
-            self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
+
+            shortfall = self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
             if isinstance(self.__hot_water_sources['hw cylinder'], StorageTank):
                 gains_internal_dhw = self.__hot_water_sources['hw cylinder'].internal_gains()
@@ -1217,6 +1219,7 @@ class Project:
             hot_water_duration_dict['duration'].append(hw_duration)
             hot_water_no_events_dict['no_events'].append(no_events)
             hot_water_pipework_dict['pw_losses'].append(pw_losses)
+            energy_shortfall_dict['energy_shortfall'].append(shortfall)
 
             #loop through on-site energy generation
             for g_name, gen in self.__on_site_generation.items():
@@ -1253,4 +1256,4 @@ class Project:
             timestep_array, results_totals, results_end_user, \
             energy_import, energy_export, betafactor, \
             zone_dict, zone_list, hc_system_dict, hot_water_dict, \
-            ductwork_gains
+            ductwork_gains,energy_shortfall_dict
