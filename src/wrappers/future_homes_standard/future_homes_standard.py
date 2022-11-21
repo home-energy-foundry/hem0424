@@ -497,9 +497,10 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
     annual_cooking_elec_kWh = EC1elec + EC2elec * N_occupants
     annual_cooking_gas_kWh = EC1gas + EC2gas * N_occupants
     
-    cooking_elec_profile_W_per_m2 = [(1 / TFA) * (1000 / 2) * 0.9 * annual_cooking_elec_kWh / 365
+    #energy consumption, W_m2, gains factor not applied
+    cooking_elec_profile_W = [(1000 / 2) * annual_cooking_elec_kWh / 365
                               * halfhr for halfhr in cooking_profile_fhs]
-    cooking_gas_profile_W_per_m2 = [(1 / TFA) * (1000 / 2) * 0.75 * annual_cooking_gas_kWh / 365
+    cooking_gas_profile_W = [(1000 / 2) * annual_cooking_gas_kWh / 365
                              * halfhr for halfhr in cooking_profile_fhs]
 
     
@@ -510,10 +511,10 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             "EnergySupply": "mains gas",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 1, #TODO enter consumption (without 0.75/0.9 factor and different units)
+            "gains_fraction": 0.75, 
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
-                "day": cooking_gas_profile_W_per_m2
+                "day": cooking_gas_profile_W
             }
         }
     if "mains elec" in cookingenergysupplies:
@@ -522,10 +523,10 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             "EnergySupply": "mains elec",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 1,  #TODO enter consumption (without 0.75/0.9 factor and different units)
+            "gains_fraction": 0.9,
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
-                "day": cooking_elec_profile_W_per_m2
+                "day": cooking_elec_profile_W
             }
         }
 
@@ -547,9 +548,9 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
     
     EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
     
-    appliance_gains_W_per_m2 = []
+    appliance_gains_W = []
     for monthly_profile in avg_monthly_hr_profiles:
-        appliance_gains_W_per_m2.append([(1 / TFA) * 1000 * EA_annual_kWh * frac / 365
+        appliance_gains_W.append([1000 * EA_annual_kWh * frac / 365
                                   for frac in monthly_profile])
         
     project_dict['ApplianceGains']['appliances'] = {
@@ -573,18 +574,18 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
                     {"value": "nov", "repeat": 30},
                     {"value": "dec", "repeat": 31}
                      ],
-            "jan": appliance_gains_W_per_m2[0],
-            "feb": appliance_gains_W_per_m2[1],
-            "mar": appliance_gains_W_per_m2[2],
-            "apr": appliance_gains_W_per_m2[3],
-            "may": appliance_gains_W_per_m2[4],
-            "jun": appliance_gains_W_per_m2[5],
-            "jul": appliance_gains_W_per_m2[6],
-            "aug": appliance_gains_W_per_m2[7],
-            "sep": appliance_gains_W_per_m2[8],
-            "oct": appliance_gains_W_per_m2[9],
-            "nov": appliance_gains_W_per_m2[10],
-            "dec": appliance_gains_W_per_m2[11]
+            "jan": appliance_gains_W[0],
+            "feb": appliance_gains_W[1],
+            "mar": appliance_gains_W[2],
+            "apr": appliance_gains_W[3],
+            "may": appliance_gains_W[4],
+            "jun": appliance_gains_W[5],
+            "jul": appliance_gains_W[6],
+            "aug": appliance_gains_W[7],
+            "sep": appliance_gains_W[8],
+            "oct": appliance_gains_W[9],
+            "nov": appliance_gains_W[10],
+            "dec": appliance_gains_W[11]
         }
     }
 
