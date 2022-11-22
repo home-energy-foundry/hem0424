@@ -86,7 +86,9 @@ def write_core_output_file(
         ductwork_gains,
         energy_shortfall_dict
         ):
-    with open(output_file, 'w') as f:
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(output_file, 'w', newline='') as f:
         writer = csv.writer(f)
 
         headings = ['Timestep']
