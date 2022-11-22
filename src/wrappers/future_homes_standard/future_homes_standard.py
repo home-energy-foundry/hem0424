@@ -7,6 +7,7 @@ steps for the Future Homes Standard.
 """
 
 import math
+import sys
 import os
 import json
 import csv
@@ -315,7 +316,15 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
     lighting_efficacy = 0
     for zone in project_dict["Zone"]:
         if "Lighting" in project_dict["Zone"][zone].keys():
-            lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
+            try:
+                lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
+            except:
+                #sys.exit('invalid/missing lighting efficacy for zone:' + zone)
+                print('invalid/missing lighting efficacy for zone:' + zone +' proceeding without lighting energy consumption')
+    
+    if lighting_efficacy == 0:
+        print('invalid/missing lighting efficacy - proceeding without lighting energy consumption')
+        return
     
     # TODO Consider defining large tables like this in a separate file rather than inline
     avg_monthly_halfhr_profiles = [
@@ -477,18 +486,18 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
         
     if "mains elec" in cookingenergysupplies and "mains gas" in cookingenergysupplies:
         EC1elec = 138
-        EC1gas = 28
-        EC2elec = 241
+        EC2elec = 28
+        EC1gas = 241
         EC2gas = 48
     elif "mains gas" in cookingenergysupplies:
         EC1elec = 0
-        EC1gas = 0
-        EC2elec = 481
+        EC2elec = 0
+        EC1gas = 481
         EC2gas = 96
     elif "mains elec" in cookingenergysupplies:
         EC1elec = 275
-        EC1gas = 55
-        EC2elec = 0
+        EC2elec = 55
+        EC1gas = 0
         EC2gas = 0
         #TODO - if there is cooking with energy supply other than
         #mains gas or electric, it could be accounted for here -
@@ -498,9 +507,9 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
     annual_cooking_gas_kWh = EC1gas + EC2gas * N_occupants
     
     #energy consumption, W_m2, gains factor not applied
-    cooking_elec_profile_W = [(1000 / 2) * annual_cooking_elec_kWh / 365
+    cooking_elec_profile_W = [(1000 * 2) * annual_cooking_elec_kWh / 365
                               * halfhr for halfhr in cooking_profile_fhs]
-    cooking_gas_profile_W = [(1000 / 2) * annual_cooking_gas_kWh / 365
+    cooking_gas_profile_W = [(1000 * 2) * annual_cooking_gas_kWh / 365
                              * halfhr for halfhr in cooking_profile_fhs]
 
     
@@ -762,8 +771,11 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     if part G has been complied with, apply 5% reduction to duration of all events except showers
     '''
     partGbonus = 1.0
-    if project_dict["PartGcompliance"] == True:
-        partGbonus = 0.95
+    if "PartGcompliance" in project_dict:
+        if project_dict["PartGcompliance"] == True:
+            partGbonus = 0.95
+    else:
+        print("Part G compliance missing from input file - assumed false")
     
     FHS_HW_event = FHS_HW_events(project_dict,
                      FHW,
