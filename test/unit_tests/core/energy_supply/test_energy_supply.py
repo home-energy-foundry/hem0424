@@ -22,7 +22,7 @@ class TestEnergySupply(unittest.TestCase):
     def setUp(self):
         """ Create EnergySupply object to be tested """
         self.simtime            = SimulationTime(0, 8, 1)
-        self.energysupply       = EnergySupply("gas", self.simtime)
+        self.energysupply       = EnergySupply("mains_gas", self.simtime)
         """ Set up two different energy supply connections """
         self.energysupplyconn_1 = self.energysupply.connection("shower")
         self.energysupplyconn_2 = self.energysupply.connection("bath")

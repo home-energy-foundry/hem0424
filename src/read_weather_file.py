@@ -10,10 +10,10 @@ from enum import Enum
 
 COLUMN_LONGITUDE = 7
 COLUMN_LATITUDE = 6
-COLUMN_AIR_TEMP = 6
-COLUMN_WIND_SPEED = 21
-COLUMN_DIR_RAD = 14
-COLUMN_HOR_RAD = 15
+COLUMN_AIR_TEMP = 6 # dry bulb temp in degrees
+COLUMN_WIND_SPEED = 21 # wind speed in m/sec
+COLUMN_DNI_RAD = 14 # direct beam normal irradiation in Wh/m2
+COLUMN_DIF_RAD = 15 # diffuse irradiation (horizantal plane) in Wh/m2
 COLUMN_GROUND_REFLECT = 32
 
 def weather_data_to_dict(weather_file):
@@ -34,8 +34,8 @@ def weather_data_to_dict(weather_file):
             elif line_count >= 8:
                 air_temperatures.append(float(row[COLUMN_AIR_TEMP]))
                 wind_speeds.append(float(row[COLUMN_WIND_SPEED]))
-                dir_beam_rad.append(float(row[COLUMN_DIR_RAD]))
-                diff_hor_rad.append(float(row[COLUMN_HOR_RAD]))
+                dir_beam_rad.append(float(row[COLUMN_DNI_RAD]))
+                diff_hor_rad.append(float(row[COLUMN_DIF_RAD]))
                 ground_solar_reflc.append(float(row[COLUMN_GROUND_REFLECT]))
             line_count = line_count + 1
 
@@ -46,7 +46,9 @@ def weather_data_to_dict(weather_file):
         "direct_beam_radiation": dir_beam_rad,
         "solar_reflectivity_of_ground": ground_solar_reflc,
         "longitude": longitude,
-        "latitude": latitude
+        "latitude": latitude,
+        #conversion is not needed as direct irradiation will be normal plane from this file
+        "direct_beam_conversion_needed": False 
         }
 
     return external_conditions

@@ -15,6 +15,7 @@ import argparse
 # Local imports
 from core.project import Project
 from read_weather_file import weather_data_to_dict
+from read_CIBSE_weather_file import CIBSE_weather_data_to_dict
 from wrappers.future_homes_standard.future_homes_standard import \
     apply_fhs_preprocessing, apply_fhs_postprocessing
 
@@ -46,7 +47,7 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
     timestep_array, results_totals, results_end_user, \
         energy_import, energy_export, betafactor, \
         zone_dict, zone_list, hc_system_dict, hot_water_dict,\
-        ductwork_gains \
+        ductwork_gains, energy_shortfall_dict \
         = project.run()
 
     write_core_output_file(
@@ -61,13 +62,14 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
         zone_list,
         hc_system_dict,
         hot_water_dict,
-        ductwork_gains
+        ductwork_gains,
+        energy_shortfall_dict
         )
 
     # Apply required postprocessing steps, if any
     if fhs_assumptions:
-        apply_fhs_postprocessing()
-
+        apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path[0])
+   
 
 def write_core_output_file(
         output_file,
@@ -81,7 +83,8 @@ def write_core_output_file(
         zone_list,
         hc_system_dict,
         hot_water_dict,
-        ductwork_gains
+        ductwork_gains,
+        energy_shortfall_dict
         ):
     with open(output_file, 'w') as f:
         writer = csv.writer(f)
@@ -113,7 +116,7 @@ def write_core_output_file(
         for system in hot_water_dict:
             headings.append(system)
         headings.append('Ductwork gains')
-
+        headings.append('Energy shortfall')
         writer.writerow(headings)
 
         for t_idx, timestep in enumerate(timestep_array):
@@ -126,6 +129,7 @@ def write_core_output_file(
             hw_system_row_events = []
             pw_losses_row = []
             ductwork_row = []
+            energy_shortfall = []
             i = 0
             # Loop over end use totals
             for totals_key in results_totals:
@@ -151,10 +155,11 @@ def write_core_output_file(
             pw_losses_row.append(hot_water_dict['Pipework losses']['pw_losses'][t_idx])
             hw_system_row_events.append(hot_water_dict['Hot Water Events']['no_events'][t_idx])
             ductwork_row.append(ductwork_gains)
+            energy_shortfall.append(energy_shortfall_dict['energy_shortfall'][t_idx])
 
             row = [t_idx] + energy_use_row + zone_row + hc_system_row + \
             hw_system_row + hw_system_row_energy + hw_system_row_duration + \
-            hw_system_row_events + pw_losses_row + ductwork_row
+            hw_system_row_events + pw_losses_row + ductwork_row + energy_shortfall
             writer.writerow(row)
 
 if __name__ == '__main__':
@@ -164,6 +169,12 @@ if __name__ == '__main__':
         action='store',
         default=None,
         help=('path to weather file in .epw format'),
+        )
+    parser.add_argument(
+        '--CIBSE-weather-file',
+        action='store',
+        default=None,
+        help=('path to CIBSE weather file in .csv format'),
         )
     parser.add_argument(
         'input_file',
@@ -192,11 +203,15 @@ if __name__ == '__main__':
 
     inp_filenames = cli_args.input_file
     epw_filename = cli_args.epw_file
+    cibse_weather_filename = cli_args.CIBSE_weather_file
     fhs_assumptions = cli_args.future_homes_standard
     preproc_only = cli_args.preprocess_only
 
     if epw_filename is not None:
         external_conditions_dict = weather_data_to_dict(epw_filename)
+    elif cibse_weather_filename is not None:
+        external_conditions_dict = CIBSE_weather_data_to_dict(cibse_weather_filename)
+    
     else:
         external_conditions_dict = None
 

@@ -369,6 +369,122 @@ class BuildingElementAdjacentZTC(BuildingElement):
         # Therefore no heat transfer from external facing node
 
 
+class BuildingElementAdjacentZTU_Simple(BuildingElement):
+    """ A class to represent building elements adjacent to a thermally unconditioned zone (ZTU)
+    
+    This class uses a simple calculation by adding an additional thermal
+    resistance to the outside of the wall and incorporating this in the values
+    for the external surface heat transfer coefficients. This differs from both
+    of the approaches (internal and external) in BS EN ISO 52016-1:2017 which
+    require detailed inputs for the unconditioned zone.
+    """
+
+    def __init__(
+            self,
+            area,
+            pitch,
+            r_c,
+            r_u,
+            k_m,
+            mass_distribution_class,
+            ext_cond,
+            ):
+        """ Construct a BuildingElementAdjacentZTU_Simple object
+        
+        Arguments (names based on those in BS EN ISO 52016-1:2017):
+        area     -- area (in m2) of this building element
+        pitch -- tilt angle of the surface from horizontal, in degrees between 0 and 180,
+                 where 0 means the external surface is facing up, 90 means the external
+                 surface is vertical and 180 means the external surface is facing down
+        r_c      -- thermal resistance, in m2.K / W
+        r_u      -- effective thermal resistance of unheated space, in m2.K / W;
+                    see SAP 10.2 section 3.3 for suggested values
+        k_m      -- areal heat capacity, in J / (m2.K)
+        ext_cond -- reference to ExternalConditions object
+        mass_distribution_class
+                 -- distribution of mass in building element, one of:
+                    - 'I':  mass concentrated on internal side
+                    - 'E':  mass concentrated on external side
+                    - 'IE': mass divided over internal and external side
+                    - 'D':  mass equally distributed
+                    - 'M':  mass concentrated inside
+
+        Other variables:
+        f_sky -- view factor to the sky (see BS EN ISO 52016-1:2017, section 6.5.13.3)
+        h_ce     -- external convective heat transfer coefficient, in W / (m2.K)
+        h_re     -- external radiative heat transfer coefficient, in W / (m2.K)
+        a_sol    -- solar absorption coefficient at the external surface (dimensionless)
+        """
+        self.__external_conditions = ext_cond
+        self.__r_u = r_u
+
+        # Element is adjacent to another building / thermally conditioned zone therefore
+        # according to BS EN ISO 52016-1:2017, section 6.5.6.3.6:
+        # View factor to the sky is zero 
+        f_sky = 0
+        # Solar absorption coefficient at the external surface is zero
+        a_sol = 0
+
+        # Initialise the base BuildingElement class
+        super().__init__(area, pitch, a_sol, f_sky)
+
+        # Calculate node conductances (h_pli) and node heat capacities (k_pli)
+        # according to BS EN ISO 52016-1:2017, section 6.5.7.2
+
+        def init_h_pli():
+            h_outer = 6.0 / r_c
+            h_inner = 3.0 / r_c
+            return [h_outer, h_inner, h_inner, h_outer]
+
+        self.h_pli = init_h_pli()
+
+        def init_k_pli():
+            if   mass_distribution_class == 'I':
+                return [0.0, 0.0, 0.0, 0.0, k_m]
+            elif mass_distribution_class == 'E':
+                return [k_m, 0.0, 0.0, 0.0, 0.0]
+            elif mass_distribution_class == 'IE':
+                k_ie = k_m / 2.0
+                return [k_ie, 0.0, 0.0, 0.0, k_ie]
+            elif mass_distribution_class == 'D':
+                k_inner = k_m / 4.0
+                k_outer = k_m / 8.0
+                return [k_outer, k_inner, k_inner, k_inner, k_outer]
+            elif mass_distribution_class == 'M':
+                return [0.0, 0.0, k_m, 0.0, 0.0]
+            else:
+                sys.exit("Mass distribution class ("+str(mass_distribution_class)+") not valid")
+                # TODO Exit just the current case instead of whole program entirely?
+
+        self.k_pli = init_k_pli()
+
+    def h_ce(self):
+        """ Return external convective heat transfer coefficient, in W / (m2.K) """
+        # Add an additional thermal resistance to the outside of the wall and
+        # incorporate this in the values for the external surface heat transfer
+        # coefficient.
+        # As this is an adjusted figure in this class, and the split between
+        # h_ce and h_re does not affect the calculation results, assign entire
+        # effective surface heat transfer to h_ce and set h_re to zero.
+        h_ce = super().h_ce()
+        h_re = super().h_re()
+        h_se = h_ce + h_re
+        r_se = 1.0 / h_se
+        r_se_effective = r_se + self.__r_u
+        return 1.0 / r_se_effective
+
+    def h_re(self):
+        """ Return external radiative heat transfer coefficient, in W / (m2.K) """
+        # As this is an adjusted figure in this class, and the split between
+        # h_ce and h_re does not affect the calculation results, assign entire
+        # effective surface heat transfer to h_ce and set h_re to zero.
+        return 0.0
+
+    def temp_ext(self):
+        """ Return the temperature of the air on the other side of the building element """
+        return self.__external_conditions.air_temp()
+
+
 class BuildingElementGround(BuildingElement):
     """ A class to represent ground building elements """
 
@@ -450,22 +566,27 @@ class BuildingElementGround(BuildingElement):
 
         # Thermal properties of ground from BS EN ISO 13370:2017 Table 7
         # Use values for clay or silt (same as BR 443 and SAP 10)
-        thermal_conductivity = 1.5
-        heat_capacity_per_vol = 300000
+        thermal_conductivity = 1.5 # in W/(m.K)
+        heat_capacity_per_vol = 3000000 # in J/(m3.K)
 
         # Calculate thermal resistance and heat capacity of fixed ground layer
         # using BS EN ISO 13370:2017
-        thickness_ground_layer = 0.5 # Specified in BS EN ISO 52016-1:2017 section 6.5.8.2
+        thickness_ground_layer = 0.5 # in m. Specified in BS EN ISO 52016-1:2017 section 6.5.8.2
+        #thermal resistance in (m2.K)/W
         r_gr = thickness_ground_layer / thermal_conductivity
+        #areal heat capacity in J/(m2.K)
         k_gr = thickness_ground_layer * heat_capacity_per_vol
 
         # Calculate thermal resistance of virtual layer using BS EN ISO 13370:2017 Equation (F1)
         r_si = 0.17 # ISO 6946 - internal surface resistance
-        r_vi = (1.0 / u_value) - r_si - r_f - r_gr
+        r_vi = (1.0 / u_value) - r_si - r_f - r_gr # in m2.K/W
+        #BS EN ISO 13370:2017 Table 2 validty interval r_vi > 0
+        assert r_vi > 0, "r_vi should be greater than zero. check u-value and r_f inputs for floors"
 
         # Set external surface heat transfer coeffs as per BS EN ISO 52016-1:2017 eqn 49
         # Must be set before initialisation of base class, as these are referenced there
-        self.__h_ce = 1.0 / r_vi
+        #BS EN ISO 52016-1:2017 Table 14 validity interval h_ce 0 to 50
+        self.__h_ce = 1.0 / r_vi # in W/(m2.K)
         self.__h_re = 0.0
 
         # Initialise the base BuildingElement class

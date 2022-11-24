@@ -11,7 +11,9 @@ litres_per_cubic_metre = 1000
 minutes_per_hour = 60
 seconds_per_hour = 3600
 hours_per_day = 24
+days_per_year = 365
 days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+knots_per_m_per_sec = 1 / (1852 / 3600)
 
 def average_monthly_to_annual(list_monthly_averages):
     assert len(list_monthly_averages) == 12
@@ -28,3 +30,4 @@ def Celcius2Kelvin(temp_C):
 def Kelvin2Celcius(temp_K):
     assert temp_K >= 0
     return temp_K - 273.15
+
