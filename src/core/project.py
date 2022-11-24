@@ -1143,6 +1143,7 @@ class Project:
         hot_water_no_events_dict = {}
         hot_water_pipework_dict = {}
         energy_shortfall_dict = {}
+        ductwork_gains_dict = {}
 
         for z_name in self.__zones.keys():
             gains_internal_dict[z_name] = []
@@ -1165,6 +1166,7 @@ class Project:
         hot_water_no_events_dict['no_events'] = []
         hot_water_pipework_dict['pw_losses'] = []
         energy_shortfall_dict['energy_shortfall'] = []
+        ductwork_gains_dict['ductwork_gains'] = []
 
         # Loop over each timestep
         for t_idx, t_current, delta_t_h in self.__simtime:
@@ -1220,6 +1222,7 @@ class Project:
             hot_water_no_events_dict['no_events'].append(no_events)
             hot_water_pipework_dict['pw_losses'].append(pw_losses)
             energy_shortfall_dict['energy_shortfall'].append(shortfall)
+            ductwork_gains_dict['ductwork_gains'].append(ductwork_gains)
 
             #loop through on-site energy generation
             for g_name, gen in self.__on_site_generation.items():
@@ -1256,4 +1259,4 @@ class Project:
             timestep_array, results_totals, results_end_user, \
             energy_import, energy_export, betafactor, \
             zone_dict, zone_list, hc_system_dict, hot_water_dict, \
-            ductwork_gains,energy_shortfall_dict
+            ductwork_gains_dict,energy_shortfall_dict

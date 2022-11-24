@@ -154,7 +154,7 @@ def write_core_output_file(
             hw_system_row_duration.append(hot_water_dict['Hot water duration']['duration'][t_idx])
             pw_losses_row.append(hot_water_dict['Pipework losses']['pw_losses'][t_idx])
             hw_system_row_events.append(hot_water_dict['Hot Water Events']['no_events'][t_idx])
-            ductwork_row.append(ductwork_gains)
+            ductwork_row.append(ductwork_gains['ductwork_gains'][t_idx])
             energy_shortfall.append(energy_shortfall_dict['energy_shortfall'][t_idx])
 
             row = [t_idx] + energy_use_row + zone_row + hc_system_row + \
