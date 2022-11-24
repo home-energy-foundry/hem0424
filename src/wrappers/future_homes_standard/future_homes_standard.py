@@ -223,6 +223,10 @@ def create_metabolic_gains(project_dict,
     return schedule_metabolic_gains_weekday, schedule_metabolic_gains_weekend
 
 def create_heating_pattern(project_dict):
+    '''
+    space heating
+    '''
+    
     livingroom_setpoint_fhs = 21.0
     restofdwelling_setpoint_fhs = 18.0
     
@@ -286,6 +290,26 @@ def create_heating_pattern(project_dict):
                         "weekend": heating_fhs_weekend
                     }
                 }
+    '''
+    water heating pattern - same as space heating
+    '''
+
+    for hwsource in project_dict['HotWaterSource']:
+        for heatsource in project_dict['HotWaterSource'][hwsource]["HeatSource"]:
+            hwcontrolname = project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"]
+            project_dict["Control"][hwcontrolname] = {
+                "type": "OnOffTimeControl",
+                "start_day" : 0,
+                "time_series_step":0.5,
+                "schedule":{
+                    "main": [{"repeat": 53, "value": "week"}],
+                    "week": [{"repeat": 5, "value": "weekday"},
+                             {"repeat": 2, "value": "weekend"}],
+                    "weekday": heating_nonlivingarea_fhs_weekday,
+                    "weekend": heating_fhs_weekend
+                }
+            }
+    
 
 
 def create_evaporative_losses(project_dict,TFA, N_occupants):
@@ -324,6 +348,14 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
     
     if lighting_efficacy == 0:
         print('invalid/missing lighting efficacy - proceeding without lighting energy consumption')
+        project_dict['ApplianceGains']['lighting'] = {
+            "type": "lighting",
+            "start_day": 0,
+            "time_series_step" : 0.5,
+            "gains_fraction": 0.85,
+            "EnergySupply": "mains elec",
+            "schedule": {"main": [{"value": 0.0, "repeat": 17520 }]}
+        }
         return
     
     # TODO Consider defining large tables like this in a separate file rather than inline
