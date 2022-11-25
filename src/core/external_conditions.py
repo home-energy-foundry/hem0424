@@ -184,6 +184,11 @@ class ExternalConditions:
         """ Return the wind speed for the current timestep """
         return self.__wind_speeds[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
 
+    def wind_speed_annual(self):
+        """ Return the average wind speed for the year """
+        assert len(self.__wind_speeds) == 8760 # Only works if data for whole year has been provided
+        return sum(self.__wind_speeds) / len(self.__wind_speeds)
+
     def diffuse_horizontal_radiation(self):
         """ Return the diffuse_horizontal_radiation for the current timestep """
         return self.__diffuse_horizontal_radiation[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
