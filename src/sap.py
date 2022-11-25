@@ -84,7 +84,9 @@ def write_core_output_file(
         hot_water_dict,
         ductwork_gains
         ):
-    with open(output_file, 'w') as f:
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(output_file, 'w', newline='') as f:
         writer = csv.writer(f)
 
         headings = ['Timestep']
