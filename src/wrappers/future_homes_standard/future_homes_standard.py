@@ -82,6 +82,7 @@ def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy
     loop over all energy supplies in the project dict.
     find all factors for relevant fuel and apply them
     '''
+    project_dict["EnergySupply"]['_unmet_demand'] = {"fuel": "unmet_demand"}
     for Energysupply in project_dict["EnergySupply"]:
         this_fuel_code = project_dict["EnergySupply"][Energysupply]["fuel"]
         #only apply factors to import/export if there is any export

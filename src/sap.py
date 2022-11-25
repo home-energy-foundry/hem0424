@@ -47,7 +47,7 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
     timestep_array, results_totals, results_end_user, \
         energy_import, energy_export, betafactor, \
         zone_dict, zone_list, hc_system_dict, hot_water_dict,\
-        ductwork_gains, energy_shortfall_dict \
+        ductwork_gains \
         = project.run()
 
     write_core_output_file(
@@ -62,8 +62,7 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
         zone_list,
         hc_system_dict,
         hot_water_dict,
-        ductwork_gains,
-        energy_shortfall_dict
+        ductwork_gains
         )
 
     # Apply required postprocessing steps, if any
@@ -83,8 +82,7 @@ def write_core_output_file(
         zone_list,
         hc_system_dict,
         hot_water_dict,
-        ductwork_gains,
-        energy_shortfall_dict
+        ductwork_gains
         ):
     with open(output_file, 'w') as f:
         writer = csv.writer(f)
@@ -155,7 +153,6 @@ def write_core_output_file(
             pw_losses_row.append(hot_water_dict['Pipework losses']['pw_losses'][t_idx])
             hw_system_row_events.append(hot_water_dict['Hot Water Events']['no_events'][t_idx])
             ductwork_row.append(ductwork_gains['ductwork_gains'][t_idx])
-            energy_shortfall.append(energy_shortfall_dict['energy_shortfall'][t_idx])
 
             row = [t_idx] + energy_use_row + zone_row + hc_system_row + \
             hw_system_row + hw_system_row_energy + hw_system_row_duration + \

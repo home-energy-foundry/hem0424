@@ -61,7 +61,17 @@ class StorageTank:
     # Primary pipework gains for the timestep
     __primary_gains = 0
 
-    def __init__(self, volume, losses, temp_hot, cold_feed, simulation_time,  primary_pipework=None, contents=WATER):
+    def __init__(
+            self,
+            volume,
+            losses,
+            temp_hot,
+            cold_feed,
+            simulation_time,
+            primary_pipework=None,
+            energy_supply_conn_unmet_demand=None,
+            contents=WATER,
+            ):
         """ Construct a StorageTank object
 
         Arguments:
@@ -71,6 +81,8 @@ class StorageTank:
         temp_hot             -- temperature of the hot water, in deg C
         cold_feed            -- reference to ColdWaterSource object
         simulation_time      -- reference to SimulationTime object
+        energy_supply_conn_unmet_demand 
+            -- reference to EnergySupplyConnection object to be used to record unmet energy demand
         contents             -- reference to MaterialProperties object
 
         Other variables:
@@ -80,6 +92,7 @@ class StorageTank:
         self.__temp_hot     = temp_hot
         self.__cold_feed    = cold_feed
         self.__contents     = contents
+        self.__energy_supply_conn_unmet_demand = energy_supply_conn_unmet_demand
         self.__simulation_time = simulation_time
         self.__heat_sources = []
 
@@ -523,10 +536,10 @@ class StorageTank:
         #energy withdrawn, unmet energy required, volume withdrawn
         Q_use_W_n, Q_out_W_dis_req_rem, Vol_use_W_n \
             = self.energy_withdrawn(Q_out_W_dis_req, Q_out_W_n)
-        #TODO decide if there should be an exit statement/ reported elsewhere
-        #    if tank cannot provide enough hot water?
-        #    if Q_out_W_dis_req_rem > 0:
-        #    sys.exit('condition for delivering the required quantity of hot water is not obtained.')
+
+        # if tank cannot provide enough hot water report unmet demand
+        if self.__energy_supply_conn_unmet_demand is not None:
+            self.__energy_supply_conn_unmet_demand.demand_energy(Q_out_W_dis_req_rem)
 
         #6.4.3.5 STEP 3 Temperature of the storage after volume withdrawn (for DHW)
         temp_s3_n = self.volume_withdrawn_replaced(Vol_use_W_n)
@@ -580,7 +593,6 @@ class StorageTank:
             Vol_use_W_n, temp_s3_n, Q_x_in_n, Q_s6, temp_s6_n,
             temp_s7_n, Q_in_H_W, Q_ls, temp_s8_n,
             )"""
-        return Q_out_W_dis_req_rem
 
     def internal_gains(self):
         """ Return the DHW recoverable heat losses as internal gain for the current timestep in W"""
