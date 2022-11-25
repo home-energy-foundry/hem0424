@@ -694,14 +694,14 @@ class Project:
                 heat_source = self.__heat_sources_wet[data['HeatSource']['name']]
                 if isinstance(heat_source, HeatPump):
                     heat_source_service = heat_source.create_service_space_heating(
-                        data['HeatSource']['name'] + '_space_heating',
+                        data['HeatSource']['name'] + '_space_heating: ' + name,
                         data['HeatSource']['temp_flow_limit_upper'],
                         data['temp_diff_emit_dsgn'],
                         ctrl,
                         )
                 elif isinstance(heat_source, Boiler):
                     heat_source_service = heat_source.create_service_space_heating(
-                        data['HeatSource']['name'] + '_space_heating'
+                        data['HeatSource']['name'] + '_space_heating: ' + name,
                         )
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
