@@ -114,7 +114,6 @@ def write_core_output_file(
         for system in hot_water_dict:
             headings.append(system)
         headings.append('Ductwork gains')
-        headings.append('Energy shortfall')
         writer.writerow(headings)
 
         for t_idx, timestep in enumerate(timestep_array):

@@ -496,8 +496,11 @@ class Project:
                 )
 
         self.__zones = {}
+        self.__energy_supply_conn_unmet_demand_zone = {}
         for name, data in proj_dict['Zone'].items():
             self.__zones[name] = dict_to_zone(name, data)
+            self.__energy_supply_conn_unmet_demand_zone[name] \
+                = self.__energy_supplies['_unmet_demand'].connection(name)
 
         total_floor_area = sum(zone.area() for zone in self.__zones.values())
 
@@ -1098,6 +1101,11 @@ class Project:
 
                 # Sum heating gains (+ve) and cooling gains (-ve) and convert from kWh to W
                 gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
+                # Calculate how much space heating / cooling demand is unmet
+                energy_shortfall_heat = space_heat_demand_zone[z_name] - gains_heat
+                self.__energy_supply_conn_unmet_demand_zone[z_name].demand_energy(energy_shortfall_heat)
+                energy_shortfall_cool = - (space_cool_demand_zone[z_name] - gains_cool)
+                self.__energy_supply_conn_unmet_demand_zone[z_name].demand_energy(energy_shortfall_cool)
 
                 # Look up convective fraction for heating/cooling for this zone
                 if gains_heat_cool > 0:
