@@ -336,16 +336,16 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
     '''
     here we calculate an overall lighting efficacy as
     the average of zone lighting efficacies weighted by zone
-    floor area. What assumptions to make if no efficacies are supplied?
+    floor area.
     '''
     lighting_efficacy = 0
     for zone in project_dict["Zone"]:
-        if "Lighting" in project_dict["Zone"][zone].keys():
-            try:
-                lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
-            except:
-                sys.exit('invalid/missing lighting efficacy for zone:' + zone)
-    
+        if "Lighting"  not in project_dict["Zone"][zone].keys():
+            sys.exit("missing lighting in zone "+ zone)
+        if "efficacy" not in project_dict["Zone"][zone]["Lighting"].keys():
+            sys.exit("missing lighting efficacy in zone "+ zone)
+        lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
+        
     if lighting_efficacy == 0:
         sys.exit('invalid/missing lighting efficacy for all zones')
         
@@ -799,7 +799,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         if project_dict["PartGcompliance"] == True:
             partGbonus = 0.95
     else:
-        sys.exit("Part G compliance missing from input file - assumed false")
+        sys.exit("Part G compliance missing from input file")
     
     FHS_HW_event = FHS_HW_events(project_dict,
                      FHW,
