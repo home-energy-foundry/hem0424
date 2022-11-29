@@ -336,28 +336,19 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
     '''
     here we calculate an overall lighting efficacy as
     the average of zone lighting efficacies weighted by zone
-    floor area. What assumptions to make if no efficacies are supplied?
+    floor area.
     '''
     lighting_efficacy = 0
     for zone in project_dict["Zone"]:
-        if "Lighting" in project_dict["Zone"][zone].keys():
-            try:
-                lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
-            except:
-                #sys.exit('invalid/missing lighting efficacy for zone:' + zone)
-                print('invalid/missing lighting efficacy for zone:' + zone +' proceeding without lighting energy consumption')
-    
+        if "Lighting"  not in project_dict["Zone"][zone].keys():
+            sys.exit("missing lighting in zone "+ zone)
+        if "efficacy" not in project_dict["Zone"][zone]["Lighting"].keys():
+            sys.exit("missing lighting efficacy in zone "+ zone)
+        lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
+        
     if lighting_efficacy == 0:
-        print('invalid/missing lighting efficacy - proceeding without lighting energy consumption')
-        project_dict['ApplianceGains']['lighting'] = {
-            "type": "lighting",
-            "start_day": 0,
-            "time_series_step" : 0.5,
-            "gains_fraction": 0.85,
-            "EnergySupply": "mains elec",
-            "schedule": {"main": [{"value": 0.0, "repeat": 17520 }]}
-        }
-        return
+        sys.exit('invalid/missing lighting efficacy for all zones')
+        
     
     # TODO Consider defining large tables like this in a separate file rather than inline
     avg_monthly_halfhr_profiles = [
@@ -808,7 +799,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         if project_dict["PartGcompliance"] == True:
             partGbonus = 0.95
     else:
-        print("Part G compliance missing from input file - assumed false")
+        sys.exit("Part G compliance missing from input file")
     
     FHS_HW_event = FHS_HW_events(project_dict,
                      FHW,
