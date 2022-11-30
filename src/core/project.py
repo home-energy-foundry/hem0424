@@ -1102,15 +1102,26 @@ class Project:
                 # Sum heating gains (+ve) and cooling gains (-ve) and convert from kWh to W
                 gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
                 # Calculate how much space heating / cooling demand is unmet
-                energy_shortfall_heat = space_heat_demand_zone[z_name] - gains_heat
+                energy_shortfall_heat = max(0, space_heat_demand_zone[z_name] - gains_heat)
                 self.__energy_supply_conn_unmet_demand_zone[z_name].demand_energy(energy_shortfall_heat)
-                energy_shortfall_cool = - (space_cool_demand_zone[z_name] - gains_cool)
+                energy_shortfall_cool = max(0, - (space_cool_demand_zone[z_name] - gains_cool))
                 self.__energy_supply_conn_unmet_demand_zone[z_name].demand_energy(energy_shortfall_cool)
 
                 # Look up convective fraction for heating/cooling for this zone
-                if gains_heat_cool > 0:
+                # Note: gains_heat could be negative (or gains_cool could be
+                #       positive) if thermal mass of emitters causes e.g. the
+                #       heat emitters to absorb energy from the zone.
+                if gains_heat != 0:
+                    # Note: If h_name is None then there will be a KeyError
+                    # exception in the line below, but this should not happen as
+                    # gains_heat_cool != 0 should only occur if a heating system
+                    # has been defined.
                     frac_convective = self.__space_heat_systems[h_name].frac_convective()
-                elif gains_heat_cool < 0:
+                elif gains_cool != 0:
+                    # Note: If c_name is None then there will be a KeyError
+                    # exception in the line below, but this should not happen as
+                    # gains_heat_cool != 0 should only occur if a cooling system
+                    # has been defined.
                     frac_convective = self.__space_cool_systems[c_name].frac_convective()
                 else:
                     frac_convective = 1.0
