@@ -46,7 +46,7 @@ class PointOfUse:
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heater """
         # Energy that heater is able to supply is limited by power rating
-        energy_supplied = min(energy_demand, self.__pwr * self.__simulation_time.timestep()) * (self.__efficiency/100)
+        fuel_demand = min(energy_demand, self.__pwr * self.__simulation_time.timestep()) * (100/self.__efficiency)
 
-        self.__energy_supply_conn.demand_energy(energy_supplied)
-        return energy_supplied
+        self.__energy_supply_conn.demand_energy(fuel_demand)
+        return fuel_demand
