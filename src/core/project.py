@@ -41,6 +41,7 @@ from core.pipework import Pipework
 import core.water_heat_demand.misc as misc
 from core.ductwork import Ductwork
 import core.heating_systems.wwhrs as wwhrs
+from core.heating_systems.point_of_use import PointOfUse
 
 
 class Project:
@@ -665,6 +666,19 @@ class Project:
                     55, # TODO Remove hard-coding of HW temp
                     cold_water_source
                     )
+            elif hw_source_type == 'PointOfUse':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                hw_source = PointOfUse(
+                    data['power'],
+                    data['efficiency'],
+                    energy_supply_conn,
+                    self.__simtime,
+                    cold_water_source
+                )
             else:
                 sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -815,6 +829,14 @@ class Project:
             hw_duration = 0.0
             all_events = 0.0
             pw_losses = 0.0
+            point_of_use = False
+            
+            # TODO - this assumes there is only one hot water source
+            # if any hotwatersource is point of use, they all are.
+            # should we assign hotwatersource to each hot water event?
+            for name, i in self.__hot_water_sources.items():
+                if isinstance(i, PointOfUse):
+                    point_of_use = True
             
             for name, shower in self.__showers.items():
                 # Get all shower use events for the current timestep
@@ -841,13 +863,14 @@ class Project:
                                 )
                             hw_duration += event['duration'] # shower minutes duration
                             all_events +=1
-                            pw_losses+=calc_pipework_losses(
-                                hw_demand_i,
-                                t_idx,
-                                delta_t_h,
-                                cold_water_temperature,
-                                event['duration'],
-                                self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour)
+                            if(point_of_use == False):
+                                pw_losses+=calc_pipework_losses(
+                                    hw_demand_i,
+                                    t_idx,
+                                    delta_t_h,
+                                    cold_water_temperature,
+                                    event['duration'],
+                                    self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour)
 
             for name, other in self.__other_water_events.items():
                 # Get all other use events for the current timestep
@@ -869,14 +892,15 @@ class Project:
                             )
                         hw_duration += event['duration'] # other minutes duration
                         all_events += 1
-                        pw_losses += calc_pipework_losses(
-                            other.hot_water_demand(other_temp, other_duration),
-                            t_idx,
-                            delta_t_h,
-                            cold_water_temperature,
-                            event['duration'],
-                            self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour
-                            )
+                        if(point_of_use == False):
+                            pw_losses += calc_pipework_losses(
+                                other.hot_water_demand(other_temp, other_duration),
+                                t_idx,
+                                delta_t_h,
+                                cold_water_temperature,
+                                event['duration'],
+                                self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour
+                                )
 
             for name, bath in self.__baths.items():
                 # Get all bath use events for the current timestep
@@ -903,13 +927,14 @@ class Project:
                         hw_duration += bath_duration
                         # litres bath  / litres per minute flowrate = minutes
                         all_events += 1
-                        pw_losses += calc_pipework_losses(
-                            bath.hot_water_demand(bath_temp),
-                            t_idx,
-                            delta_t_h,
-                            cold_water_temperature,
-                            bath_duration,
-                            self.__water_heating_pipework) * (bath_duration/units.minutes_per_hour)
+                        if(point_of_use == False):
+                            pw_losses += calc_pipework_losses(
+                                bath.hot_water_demand(bath_temp),
+                                t_idx,
+                                delta_t_h,
+                                cold_water_temperature,
+                                bath_duration,
+                                self.__water_heating_pipework) * (bath_duration/units.minutes_per_hour)
                         
             return hw_demand, hw_duration, all_events, pw_losses, hw_energy_demand  # litres hot water per timestep, minutes demand per timestep, number of events in timestep
 
