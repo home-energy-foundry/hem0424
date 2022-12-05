@@ -766,8 +766,9 @@ class Project:
             for name, data in proj_dict['OnSiteGeneration'].items():
                 self.__on_site_generation[name] = dict_to_on_site_generation(name, data)
 
-    def calc_HTC(self):
-        """ Calculate heat transfer coefficient (HTC) according to the SAP10.2 specification """
+    def calc_HTC_HLP(self):
+        """ Calculate heat transfer coefficient (HTC) and heat loss parameter (HLP)
+        according to the SAP10.2 specification """
         # Initialise variables
         total_fabric_heat_loss = 0
         total_thermal_bridges= 0
@@ -784,7 +785,11 @@ class Project:
         # TODO check ventilation losses are correct
         HTC = total_fabric_heat_loss + total_thermal_bridges + total_vent_heat_loss
 
-        return HTC
+        # Calculate the HLP, in W / m2 K
+        total_floor_area = sum(zone.area() for zone in self.__zones.values())
+        HLP = HTC / total_floor_area
+
+        return HTC, HLP
 
     def calc_TMP(self):
         """ Calculate the thermal mass parameter (TMP), according to the SAP10.2 specification """
@@ -805,16 +810,6 @@ class Project:
         TMP = total_heat_capacity / total_floor_area
 
         return TMP
-
-    def calc_HLP(self):
-        """ Calculate the heat loss parameter (HLP), according to the SAP10.2 specification """
-        # Calculate total floor area, in m2
-        total_floor_area = sum(zone.area() for zone in self.__zones.values())
-
-        # Calculate the HLP, in W / m2 K
-        HLP = self.calc_HTC() / total_floor_area
-
-        return HLP
 
     def run(self):
         """ Run the simulation """
