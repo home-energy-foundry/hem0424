@@ -9,7 +9,7 @@ import core.water_heat_demand.misc as misc
 
 
 class PointOfUse:
-    """ Class to represenimport core.water_heat_demand.misc as misct point of use water heaters """
+    """ Class to represent point of use water heaters """
 
     def __init__(
             self,
@@ -23,7 +23,7 @@ class PointOfUse:
 
         Arguments:
         rated_power        -- in kW
-        efficiency         -- efficiency of the heater
+        efficiency         -- efficiency of the heater, between 0 and 1
         energy_supply_conn -- reference to EnergySupplyConnection object
         simulation_time    -- reference to SimulationTime object
         cold_feed            -- reference to ColdWaterSource object
@@ -46,7 +46,7 @@ class PointOfUse:
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heater """
         # Energy that heater is able to supply is limited by power rating
-        fuel_demand = min(energy_demand, self.__pwr * self.__simulation_time.timestep()) * (100/self.__efficiency)
+        fuel_demand = min(energy_demand, self.__pwr * self.__simulation_time.timestep()) * (1/self.__efficiency)
 
         self.__energy_supply_conn.demand_energy(fuel_demand)
         return fuel_demand

@@ -102,7 +102,7 @@
 		"hw cylinder": {
 			"type": "PointOfUse",
 			"power": 3.0,
-			"efficiency": 80,
+			"efficiency": 0.8,
 			"EnergySupply": "mains elec",
 			"ColdWaterSource": "mains water"
 			}
