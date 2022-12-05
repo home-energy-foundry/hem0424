@@ -191,6 +191,16 @@
 			"Control": "hw timer"
 		}
 	},
+	"SpaceCoolSystem": {
+		"cooling system 1": {
+			"type": "AirConditioning",
+			"cooling_capacity": 3.0,
+			"efficiency": 4.3,
+			"frac_convective": 0.95,
+			"EnergySupply": "mains elec",
+			"Control": "hw timer"
+		}
+	},
 	"Ventilation": {
 		"type": "WHEV",
 		"req_ach": 0.5,
@@ -219,6 +229,7 @@
 	"Zone": {
 		"zone 1": {
 			"SpaceHeatSystem": "main",
+			"SpaceCoolSystem": "cooling system 1",
 			"area": 80.0,
 			"volume": 250.0,
 			"temp_setpnt_heat": 21.0,
