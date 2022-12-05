@@ -23,6 +23,7 @@ from wrappers.future_homes_standard.future_homes_standard import \
 def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_assumptions=False):
     file_path = os.path.splitext(inp_filename)
     output_file = file_path[0] + '_results.csv'
+    output_file_static = file_path[0] + '_results_static.csv'
 
     with open(inp_filename) as json_file:
         project_dict = json.load(json_file)
@@ -44,6 +45,18 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
         return # Skip actual calculation if preproc only option has been selected
 
     project = Project(project_dict)
+
+    # Calculate static parameters and output
+    heat_trans_coeff, heat_loss_param = project.calc_HTC_HLP()
+    thermal_mass_param = project.calc_TMP()
+    write_static_output_file(
+        output_file_static,
+        heat_trans_coeff,
+        heat_loss_param,
+        thermal_mass_param,
+        )
+
+    # Run main simulation
     timestep_array, results_totals, results_end_user, \
         energy_import, energy_export, betafactor, \
         zone_dict, zone_list, hc_system_dict, hot_water_dict,\
@@ -68,7 +81,13 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
     # Apply required postprocessing steps, if any
     if fhs_assumptions:
         apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path[0])
-   
+
+def write_static_output_file(output_file, heat_trans_coeff, heat_loss_param, thermal_mass_param):
+    with open(output_file, 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Heat transfer coefficient', 'W / K', heat_trans_coeff])
+        writer.writerow(['Heat loss parameter', 'W / m2.K', heat_loss_param])
+        writer.writerow(['Thermal mass parameter', 'kJ / m2.K', thermal_mass_param])
 
 def write_core_output_file(
         output_file,
