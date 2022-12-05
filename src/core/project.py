@@ -15,6 +15,7 @@ from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
 from core.schedule import expand_schedule, expand_events
 from core.controls.time_control import OnOffTimeControl
+from core.cooling_systems.air_conditioning import AirConditioning
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.emitters import Emitters
@@ -731,8 +732,37 @@ class Project:
             for name, data in proj_dict['SpaceHeatSystem'].items():
                 self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
 
+        def dict_to_space_cool_system(name, data):
+            if 'Control' in data.keys():
+                ctrl = self.__controls[data['Control']]
+                # TODO Need to handle error if Control name is invalid.
+            else:
+                ctrl = None
+
+            cooling_system_type = data['type']
+            if cooling_system_type == 'AirConditioning':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                cooling_system = AirConditioning(
+                   data['cooling_capacity'],
+                   data['efficiency'],
+                   data['frac_convective'],
+                   energy_supply_conn,
+                   self.__simtime,
+                   ctrl,
+                   )
+            else:
+                sys.exit(name + ': CoolSystem type not recognised')
+            return cooling_system
+
         self.__space_cool_systems = {}
-        # TODO Read in space cooling systems and populate dict
+        # If no space cooling systems have been provided, then skip. This
+        # facilitates running the simulation with no cooling systems at all
+        if 'SpaceCoolSystem' in proj_dict:
+            for name, data in proj_dict['SpaceCoolSystem'].items():
+                self.__space_cool_systems[name] = dict_to_space_cool_system(name, data)
 
         def dict_to_on_site_generation(name, data):
             """ Parse dictionary of on site generation data and
