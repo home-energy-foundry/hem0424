@@ -696,8 +696,9 @@ class FHS_HW_events:
             6 * FHW  * behavioural_hw_factorm[monthidx]
         self.bathdurationfunc = lambda event, monthidx: \
             6 * FHW  * behavioural_hw_factorm[monthidx] * partGbonus
+            #changed to 0.735/1.4 to reflect that biggest HW drawoff is 0.735/1.4 of shower value in table
         self.otherdurationfunc = lambda event, monthidx: \
-            6 * (HW_events_valuesdict[event] / 1.4) * FHW  * other_hw_factorm[monthidx]
+            6 * (HW_events_valuesdict[event] *0.735/ 1.4) * FHW  * other_hw_factorm[monthidx]
         '''
         set up events dict
         check if showers/baths are present
@@ -816,7 +817,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     this will determine what proportion of events in the list to eliminate, if less than 1
     '''
     ratio = SAP2012QHW / refQHW
-    #print(str(ratio))
+    print(str(ratio))
 
     if ratio < 1.0:
         '''
@@ -826,19 +827,20 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         '''
         k=round(1.0/(1-ratio),0)
         print(k)
-        fractionalk = Fraction(1.0/(1.0-ratio))
-        bjorklund_k_steps = fractionalk.limit_denominator(1000).numerator
-        bjorklund_n_events=fractionalk.limit_denominator(1000).denominator
-        #print(bjorklund_n_events)
-        #print(bjorklund_k_steps)
+        fractionalk = Fraction((1.0-ratio))
+        bjorklund_n_events = fractionalk.limit_denominator(8760).numerator
+        bjorklund_k_steps = fractionalk.limit_denominator(8760).denominator
+        print(bjorklund_n_events)
+        print(bjorklund_k_steps)
         elim_pattern = bjorklund(bjorklund_n_events,bjorklund_k_steps)
         #print(bjorklund(euclidn,euclidk))
         
         counters={event_type:0 for event_type in HW_events_valuesdict.keys()}
         
         for i,event in enumerate(annual_HW_events):
+            #NEC = (math.floor(counters[event]/k) + math.floor(k/2)) % k
+            #if counters[event] % k == NEC:
             if elim_pattern[counters[event] % len(elim_pattern)] == 1:
-                #print('elimtest')
                 annual_HW_events_values[i] =  0.0
                 annual_HW_events[i] = 'None'
             counters[event] += 1
@@ -847,7 +849,8 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         correction factor
         '''
         QHWEN_eliminations = sum(annual_HW_events_values)
-        FHW = SAP2012QHW / QHWEN_eliminations
+        #FHW = (SAP2012QHW / QHWEN_eliminations)**0.65
+        FHW = (SAP2012QHW / QHWEN_eliminations)
         print(FHW)
 
         HW_events_valuesdict = {key : FHW * HW_events_valuesdict[key] for key in HW_events_valuesdict.keys()}
