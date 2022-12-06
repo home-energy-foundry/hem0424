@@ -22,7 +22,7 @@ def apply_fhs_preprocessing(project_dict):
     project_dict['SimulationTime']["start"] = 0
     project_dict['SimulationTime']["end"] = 8760
     
-    project_dict['InternalGains'].pop("total_internal_gains", None)
+    project_dict['InternalGains']={}
     
     
     TFA = calc_TFA(project_dict)
