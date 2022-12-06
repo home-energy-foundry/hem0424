@@ -13,6 +13,9 @@ based on BS EN ISO 52010-1:2017.
 import sys
 from math import cos, sin, tan, pi, asin, acos, radians, degrees
 
+# Local imports
+import core.units as units
+
 class ExternalConditions:
     """ An object to store and look up data on external conditions """
 
@@ -186,7 +189,9 @@ class ExternalConditions:
 
     def wind_speed_annual(self):
         """ Return the average wind speed for the year """
-        assert len(self.__wind_speeds) == 8760 # Only works if data for whole year has been provided
+        # Only works if data for whole year has been provided, so assert this is true
+        assert len(self.__wind_speeds) \
+            == units.hours_per_day * units.days_per_year / self.__time_series_step
         return sum(self.__wind_speeds) / len(self.__wind_speeds)
 
     def diffuse_horizontal_radiation(self):
