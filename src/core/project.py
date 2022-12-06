@@ -1114,13 +1114,13 @@ class Project:
                 if gains_heat != 0:
                     # Note: If h_name is None then there will be a KeyError
                     # exception in the line below, but this should not happen as
-                    # gains_heat_cool != 0 should only occur if a heating system
+                    # gains_heat != 0 should only occur if a heating system
                     # has been defined.
                     frac_convective = self.__space_heat_systems[h_name].frac_convective()
                 elif gains_cool != 0:
                     # Note: If c_name is None then there will be a KeyError
                     # exception in the line below, but this should not happen as
-                    # gains_heat_cool != 0 should only occur if a cooling system
+                    # gains_cool != 0 should only occur if a cooling system
                     # has been defined.
                     frac_convective = self.__space_cool_systems[c_name].frac_convective()
                 else:
