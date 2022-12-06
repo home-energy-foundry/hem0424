@@ -103,7 +103,9 @@ def write_core_output_file(
         hot_water_dict,
         ductwork_gains
         ):
-    with open(output_file, 'w') as f:
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(output_file, 'w', newline='') as f:
         writer = csv.writer(f)
 
         headings = ['Timestep']
@@ -133,7 +135,6 @@ def write_core_output_file(
         for system in hot_water_dict:
             headings.append(system)
         headings.append('Ductwork gains')
-
         writer.writerow(headings)
 
         for t_idx, timestep in enumerate(timestep_array):
@@ -146,6 +147,7 @@ def write_core_output_file(
             hw_system_row_events = []
             pw_losses_row = []
             ductwork_row = []
+            energy_shortfall = []
             i = 0
             # Loop over end use totals
             for totals_key in results_totals:
@@ -170,11 +172,11 @@ def write_core_output_file(
             hw_system_row_duration.append(hot_water_dict['Hot water duration']['duration'][t_idx])
             pw_losses_row.append(hot_water_dict['Pipework losses']['pw_losses'][t_idx])
             hw_system_row_events.append(hot_water_dict['Hot Water Events']['no_events'][t_idx])
-            ductwork_row.append(ductwork_gains)
+            ductwork_row.append(ductwork_gains['ductwork_gains'][t_idx])
 
             row = [t_idx] + energy_use_row + zone_row + hc_system_row + \
             hw_system_row + hw_system_row_energy + hw_system_row_duration + \
-            hw_system_row_events + pw_losses_row + ductwork_row
+            hw_system_row_events + pw_losses_row + ductwork_row + energy_shortfall
             writer.writerow(row)
 
 if __name__ == '__main__':

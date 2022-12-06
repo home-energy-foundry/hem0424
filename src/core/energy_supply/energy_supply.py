@@ -13,13 +13,16 @@ from enum import Enum,auto
 class Fuel_code(Enum):
     MAINS_GAS = auto()
     ELECTRICITY = auto()
-    
+    UNMET_DEMAND = auto()
+
     @classmethod
     def from_string(cls, strval):
         if strval == 'mains_gas':
             return cls.MAINS_GAS
         elif strval == 'electricity':
             return cls.ELECTRICITY
+        elif strval == 'unmet_demand':
+            return cls.UNMET_DEMAND
         else:
             sys.exit('fuel code ('+ str(strval) + ') not valid')
 

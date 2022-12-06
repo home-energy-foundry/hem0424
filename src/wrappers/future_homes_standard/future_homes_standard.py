@@ -7,6 +7,7 @@ steps for the Future Homes Standard.
 """
 
 import math
+import sys
 import os
 import json
 import csv
@@ -81,6 +82,7 @@ def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy
     loop over all energy supplies in the project dict.
     find all factors for relevant fuel and apply them
     '''
+    project_dict["EnergySupply"]['_unmet_demand'] = {"fuel": "unmet_demand"}
     for Energysupply in project_dict["EnergySupply"]:
         this_fuel_code = project_dict["EnergySupply"][Energysupply]["fuel"]
         #only apply factors to import/export if there is any export
@@ -222,6 +224,10 @@ def create_metabolic_gains(project_dict,
     return schedule_metabolic_gains_weekday, schedule_metabolic_gains_weekend
 
 def create_heating_pattern(project_dict):
+    '''
+    space heating
+    '''
+    
     livingroom_setpoint_fhs = 21.0
     restofdwelling_setpoint_fhs = 18.0
     
@@ -285,6 +291,26 @@ def create_heating_pattern(project_dict):
                         "weekend": heating_fhs_weekend
                     }
                 }
+    '''
+    water heating pattern - same as space heating
+    '''
+
+    for hwsource in project_dict['HotWaterSource']:
+        for heatsource in project_dict['HotWaterSource'][hwsource]["HeatSource"]:
+            hwcontrolname = project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"]
+            project_dict["Control"][hwcontrolname] = {
+                "type": "OnOffTimeControl",
+                "start_day" : 0,
+                "time_series_step":0.5,
+                "schedule":{
+                    "main": [{"repeat": 53, "value": "week"}],
+                    "week": [{"repeat": 5, "value": "weekday"},
+                             {"repeat": 2, "value": "weekend"}],
+                    "weekday": heating_nonlivingarea_fhs_weekday,
+                    "weekend": heating_fhs_weekend
+                }
+            }
+    
 
 
 def create_evaporative_losses(project_dict,TFA, N_occupants):
@@ -310,12 +336,19 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
     '''
     here we calculate an overall lighting efficacy as
     the average of zone lighting efficacies weighted by zone
-    floor area. What assumptions to make if no efficacies are supplied?
+    floor area.
     '''
     lighting_efficacy = 0
     for zone in project_dict["Zone"]:
-        if "Lighting" in project_dict["Zone"][zone].keys():
-            lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
+        if "Lighting"  not in project_dict["Zone"][zone].keys():
+            sys.exit("missing lighting in zone "+ zone)
+        if "efficacy" not in project_dict["Zone"][zone]["Lighting"].keys():
+            sys.exit("missing lighting efficacy in zone "+ zone)
+        lighting_efficacy += project_dict["Zone"][zone]["Lighting"]["efficacy"] * project_dict["Zone"][zone]["area"] / TFA
+        
+    if lighting_efficacy == 0:
+        sys.exit('invalid/missing lighting efficacy for all zones')
+        
     
     # TODO Consider defining large tables like this in a separate file rather than inline
     avg_monthly_halfhr_profiles = [
@@ -477,18 +510,18 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
         
     if "mains elec" in cookingenergysupplies and "mains gas" in cookingenergysupplies:
         EC1elec = 138
-        EC1gas = 28
-        EC2elec = 241
+        EC2elec = 28
+        EC1gas = 241
         EC2gas = 48
     elif "mains gas" in cookingenergysupplies:
         EC1elec = 0
-        EC1gas = 0
-        EC2elec = 481
+        EC2elec = 0
+        EC1gas = 481
         EC2gas = 96
     elif "mains elec" in cookingenergysupplies:
         EC1elec = 275
-        EC1gas = 55
-        EC2elec = 0
+        EC2elec = 55
+        EC1gas = 0
         EC2gas = 0
         #TODO - if there is cooking with energy supply other than
         #mains gas or electric, it could be accounted for here -
@@ -497,9 +530,10 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
     annual_cooking_elec_kWh = EC1elec + EC2elec * N_occupants
     annual_cooking_gas_kWh = EC1gas + EC2gas * N_occupants
     
-    cooking_elec_profile_W_per_m2 = [(1 / TFA) * (1000 / 2) * 0.9 * annual_cooking_elec_kWh / 365
+    #energy consumption, W_m2, gains factor not applied
+    cooking_elec_profile_W = [(1000 * 2) * annual_cooking_elec_kWh / 365
                               * halfhr for halfhr in cooking_profile_fhs]
-    cooking_gas_profile_W_per_m2 = [(1 / TFA) * (1000 / 2) * 0.75 * annual_cooking_gas_kWh / 365
+    cooking_gas_profile_W = [(1000 * 2) * annual_cooking_gas_kWh / 365
                              * halfhr for halfhr in cooking_profile_fhs]
 
     
@@ -510,10 +544,10 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             "EnergySupply": "mains gas",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 1, #TODO enter consumption (without 0.75/0.9 factor and different units)
+            "gains_fraction": 0.75, 
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
-                "day": cooking_gas_profile_W_per_m2
+                "day": cooking_gas_profile_W
             }
         }
     if "mains elec" in cookingenergysupplies:
@@ -522,10 +556,10 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             "EnergySupply": "mains elec",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 1,  #TODO enter consumption (without 0.75/0.9 factor and different units)
+            "gains_fraction": 0.9,
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
-                "day": cooking_elec_profile_W_per_m2
+                "day": cooking_elec_profile_W
             }
         }
 
@@ -547,9 +581,9 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
     
     EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
     
-    appliance_gains_W_per_m2 = []
+    appliance_gains_W = []
     for monthly_profile in avg_monthly_hr_profiles:
-        appliance_gains_W_per_m2.append([(1 / TFA) * 1000 * EA_annual_kWh * frac / 365
+        appliance_gains_W.append([1000 * EA_annual_kWh * frac / 365
                                   for frac in monthly_profile])
         
     project_dict['ApplianceGains']['appliances'] = {
@@ -573,18 +607,18 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
                     {"value": "nov", "repeat": 30},
                     {"value": "dec", "repeat": 31}
                      ],
-            "jan": appliance_gains_W_per_m2[0],
-            "feb": appliance_gains_W_per_m2[1],
-            "mar": appliance_gains_W_per_m2[2],
-            "apr": appliance_gains_W_per_m2[3],
-            "may": appliance_gains_W_per_m2[4],
-            "jun": appliance_gains_W_per_m2[5],
-            "jul": appliance_gains_W_per_m2[6],
-            "aug": appliance_gains_W_per_m2[7],
-            "sep": appliance_gains_W_per_m2[8],
-            "oct": appliance_gains_W_per_m2[9],
-            "nov": appliance_gains_W_per_m2[10],
-            "dec": appliance_gains_W_per_m2[11]
+            "jan": appliance_gains_W[0],
+            "feb": appliance_gains_W[1],
+            "mar": appliance_gains_W[2],
+            "apr": appliance_gains_W[3],
+            "may": appliance_gains_W[4],
+            "jun": appliance_gains_W[5],
+            "jul": appliance_gains_W[6],
+            "aug": appliance_gains_W[7],
+            "sep": appliance_gains_W[8],
+            "oct": appliance_gains_W[9],
+            "nov": appliance_gains_W[10],
+            "dec": appliance_gains_W[11]
         }
     }
 
@@ -761,8 +795,11 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     if part G has been complied with, apply 5% reduction to duration of all events except showers
     '''
     partGbonus = 1.0
-    if project_dict["PartGcompliance"] == True:
-        partGbonus = 0.95
+    if "PartGcompliance" in project_dict:
+        if project_dict["PartGcompliance"] == True:
+            partGbonus = 0.95
+    else:
+        sys.exit("Part G compliance missing from input file")
     
     FHS_HW_event = FHS_HW_events(project_dict,
                      FHW,
