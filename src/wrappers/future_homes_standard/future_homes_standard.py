@@ -277,9 +277,9 @@ def create_heating_pattern(project_dict):
                         "weekend": heating_fhs_weekend
                     }
                 }
-            if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
-                spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
-                project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_LivingRoom"
+                if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
+                    spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
+                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_LivingRoom"
                     
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling":
                 project_dict['Zone'][zone]['temp_setpnt_heat'] = restofdwelling_setpoint_fhs
@@ -299,7 +299,7 @@ def create_heating_pattern(project_dict):
                 }
                 if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
                     spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
-                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_LivingRoom"
+                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_RestOfDwelling"
     '''
     water heating pattern - same as space heating
     '''
