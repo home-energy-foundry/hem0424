@@ -371,9 +371,9 @@ class Boiler:
         return cycling_adjustment
 
 
-    def location_adjustment(self, temp_return_feed):
+    def location_adjustment(self, temp_return_feed, standing_loss):
         location_adjustment \
-            = max((self.__standing_loss * \
+            = max((standing_loss * \
                     ((temp_return_feed - self.__room_temp))**self.__sby_loss_idx \
                     - (temp_return_feed - self.__temp_boiler_loc)**self.__sby_loss_idx)\
                     , 0.0
