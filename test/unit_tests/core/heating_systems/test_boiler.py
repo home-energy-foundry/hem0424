@@ -15,7 +15,7 @@ test_setup()
 # Local imports
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
-from core.heating_systems.boiler import Boiler, BoilerServiceWaterCombi, BoilerServiceSpace
+from core.heating_systems.boiler import Boiler, BoilerServiceWaterCombi, BoilerServiceSpace, ServiceType
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.energy_supply.energy_supply import EnergySupply
 from core.material_properties import WATER, MaterialProperties
