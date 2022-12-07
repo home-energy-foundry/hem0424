@@ -438,7 +438,7 @@ class Boiler:
 
         # If boiler starts cycling use the corrected full load efficiency 
         # as the boiler eff before cycling adjustment is applied.
-        if cyclic_location_adjustment > 0.0:
+        if cycling_adjustment > 0.0:
             boiler_eff = self.__corrected_full_load_gross
 
         blr_eff_final = 1.0 / ((1.0 / boiler_eff) + cyclic_location_adjustment)
