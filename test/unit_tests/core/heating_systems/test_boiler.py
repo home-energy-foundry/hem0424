@@ -113,7 +113,7 @@ class TestBoiler(unittest.TestCase):
                     )
                 self.assertAlmostEqual(
                     self.energysupply.results_by_end_user()["boiler_test"][t_idx],
-                    [2.3350612, 11.5067107][t_idx],
+                    [2.3709040136584205, 11.5067107][t_idx],
                     msg="incorrect fuel demand"
                     )
 

@@ -359,21 +359,24 @@ class Boiler:
             self,
             service_name)
 
-    def __cycling_adjustment(self, energy_output_required, temp_return_feed, timestep, standing_loss):
-        prop_of_timestep_at_min_rate = min(energy_output_required \
-                                       / (self.__boiler_power * self.__min_modulation_load * timestep)
-                                       ,1.0)
+    def __cycling_adjustment(self, temp_return_feed, standing_loss, prop_of_timestep_at_min_rate):
         ton_toff = (1.0 - prop_of_timestep_at_min_rate) / prop_of_timestep_at_min_rate
-        cycling_adjustment = 0.0
-        if prop_of_timestep_at_min_rate < 1.0:
-            cycling_adjustment = standing_loss \
-                                 * ton_toff \
-                                 * ((temp_return_feed - self.__temp_boiler_loc) \
-                                 / (self.__temp_rise_standby_loss) \
-                                 ) \
-                                 ** self.__sby_loss_idx
+        cycling_adjustment = standing_loss \
+                             * ton_toff \
+                             * ((temp_return_feed - self.__temp_boiler_loc) \
+                             / (self.__temp_rise_standby_loss) \
+                             ) \
+                             ** self.__sby_loss_idx
         
         return cycling_adjustment
+
+
+    def location_adjustment(self, temp_return_feed, standing_loss, location_adjustment):
+        if location_adjustment == "external":
+            location_adjustment = max((
+                    standing_loss * ((temp_return_feed - self.__room_temp)) ** self.__sby_loss_idx - (temp_return_feed - self.__temp_boiler_loc) ** self.__sby_loss_idx), 
+                0.0)
+        return location_adjustment
 
     def __demand_energy(
             self,
@@ -386,43 +389,61 @@ class Boiler:
         
         energy_output_max_power = self.__boiler_power * (timestep - self.__total_time_running_current_timestep)
         energy_output_provided = min(energy_output_required, energy_output_max_power)
+        # if the boiler does not need to be called then no energy should be provided
+        if energy_output_required == 0.0 or (timestep - self.__total_time_running_current_timestep) == 0.0:
+            energy_output_provided = 0.0
+            fuel_demand = 0.0
+            self.__energy_supply_connections[service_name].demand_energy(fuel_demand)
+            return energy_output_provided
+        
+        current_boiler_power = self.__boiler_power
+        if self.__min_modulation_load < 1:
+            min_power = self.__boiler_power * self.__min_modulation_load
+            current_boiler_power = max(energy_output_provided / (timestep - self.__total_time_running_current_timestep), min_power)
 
-        #Default value for the stand-by heat losses as a function of the energy output provided
-        #Equation 5 in EN15316-4-1
-        #fgen = (c5*(Pn)^c6)/100
-        #c5 = 4 c6 = -0.4
-        standing_loss = round(4.0 * (energy_output_provided)** - 0.4 / 100.0, 3) 
+        # Default value for the stand-by heat losses as a function of the current boiler power
+        # Equation 5 in EN15316-4-1
+        # fgen = (c5*(Pn)^c6)/100
+        # where c5 = 4.0, c6 = -0.4 and Pn is the current boiler power
+        standing_loss = (4.0 * (current_boiler_power)** - 0.4) / 100.0 
 
-        cycling_adjustment = self.__cycling_adjustment(energy_output_provided,
-                                                       temp_return_feed,
-                                                       (timestep - self.__total_time_running_current_timestep),
-                                                       standing_loss
+        # The efficiency of the boiler depends on whether it cycles on/off.
+        # If this occurs, an adjustment is calculated for the calculation 
+        # timestep as follows (when the boiler is firing continuously no 
+        # adjustment is necessary so cycling_adjustment=0).
+        prop_of_timestep_at_min_rate = min(energy_output_required \
+                               / (self.__boiler_power * self.__min_modulation_load * (timestep - self.__total_time_running_current_timestep))
+                               ,1.0)
+        cycling_adjustment = 0.0
+        if 0.0 < prop_of_timestep_at_min_rate < 1.0:
+            cycling_adjustment = self.__cycling_adjustment(temp_return_feed,
+                                                           standing_loss,
+                                                           prop_of_timestep_at_min_rate
+                                                           )
+
+        # A boiler’s efficiency reduces when installed outside due to an increase in case heat loss.
+        # The following adjustment is made when the boiler is located outside 
+        # (when installed inside no adjustment is necessary so location_adjustment=0)
+        location_adjustment = 0.0
+        location_adjustment = self.location_adjustment(temp_return_feed,
+                                                       standing_loss,
+                                                       location_adjustment
                                                        )
 
-        location_adjustment \
-            = max((standing_loss * \
-                    ((temp_return_feed - self.__room_temp))**self.__sby_loss_idx \
-                    - (temp_return_feed - self.__temp_boiler_loc)**self.__sby_loss_idx)\
-                    , 0.0
-                 )
-    
-        
         cyclic_location_adjustment = cycling_adjustment + location_adjustment
 
         boiler_eff = self.effvsreturntemp(temp_return_feed, self.__offset)
-        # If boiler starts cycling use the full load efficiency as the base boiler eff
-        if cyclic_location_adjustment> 0.0:
+
+        # If boiler starts cycling use the corrected full load efficiency 
+        # as the boiler eff before cycling adjustment is applied.
+        if cyclic_location_adjustment > 0.0:
             boiler_eff = self.__corrected_full_load_gross
 
         blr_eff_final = 1.0 / ((1.0 / boiler_eff) + cyclic_location_adjustment)
  
         fuel_demand = energy_output_provided / blr_eff_final
-        
+
         self.__energy_supply_connections[service_name].demand_energy(fuel_demand)
-        current_boiler_power = self.__boiler_power
-        if self.__min_modulation_load < 1:
-            min_power = self.__boiler_power * self.__min_modulation_load
-            current_boiler_power = max(energy_output_provided / (timestep - self.__total_time_running_current_timestep), min_power)
 
         # Calculate running time of Boiler
         time_running_current_service = min(
