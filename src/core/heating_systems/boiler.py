@@ -19,6 +19,7 @@ from enum import Enum, auto
 #Local imports
 from core.energy_supply.energy_supply import Fuel_code
 from core.material_properties import WATER
+from core.heating_systems.heat_pump import ServiceType
 import core.units as units
 from numpy import interp
 
@@ -134,6 +135,7 @@ class BoilerServiceWaterCombi(BoilerService):
 
         return self._boiler._Boiler__demand_energy(
             self.__service_name,
+            ServiceType.WATER,
             energy_demand,
             return_temperature
             )
@@ -214,6 +216,7 @@ class BoilerServiceSpace(BoilerService):
 
         return self._boiler._Boiler__demand_energy(
             self.__service_name,
+            ServiceType.SPACE,
             energy_demand,
             temp_return
             )
@@ -383,6 +386,7 @@ class Boiler:
     def __demand_energy(
             self,
             service_name,
+            service_type,
             energy_output_required,
             temp_return_feed
             ):
@@ -417,7 +421,7 @@ class Boiler:
                                / (self.__boiler_power * self.__min_modulation_load * (timestep - self.__total_time_running_current_timestep))
                                ,1.0)
         cycling_adjustment = 0.0
-        if 0.0 < prop_of_timestep_at_min_rate < 1.0:
+        if (0.0 < prop_of_timestep_at_min_rate < 1.0) and service_type != ServiceType.WATER:
             cycling_adjustment = self.__cycling_adjustment(temp_return_feed,
                                                            standing_loss,
                                                            prop_of_timestep_at_min_rate

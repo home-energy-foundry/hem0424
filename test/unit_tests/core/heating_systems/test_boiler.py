@@ -105,6 +105,7 @@ class TestBoiler(unittest.TestCase):
                 self.assertAlmostEqual(
                     self.boiler._Boiler__demand_energy(
                         "boiler_test",
+                        "boiler_test_type",
                         self.energy_output_required[t_idx],
                         self.temp_return_feed[t_idx]
                         ),
