@@ -105,7 +105,7 @@ class TestBoiler(unittest.TestCase):
                 self.assertAlmostEqual(
                     self.boiler._Boiler__demand_energy(
                         "boiler_test",
-                        "boiler_test_type",
+                        ServiceType.WATER_COMBI,
                         self.energy_output_required[t_idx],
                         self.temp_return_feed[t_idx]
                         ),
@@ -114,7 +114,7 @@ class TestBoiler(unittest.TestCase):
                     )
                 self.assertAlmostEqual(
                     self.energysupply.results_by_end_user()["boiler_test"][t_idx],
-                    [2.3709040136584205, 11.5067107][t_idx],
+                    [2.2843673926764496, 11.5067107][t_idx],
                     msg="incorrect fuel demand"
                     )
 
