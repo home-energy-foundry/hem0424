@@ -321,7 +321,6 @@ def create_heating_pattern(project_dict):
                         "weekend": heating_fhs_weekend
                     }
                 }
-            }
     
 
 
