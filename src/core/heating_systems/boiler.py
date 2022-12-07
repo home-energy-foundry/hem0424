@@ -371,11 +371,13 @@ class Boiler:
         return cycling_adjustment
 
 
-    def location_adjustment(self, temp_return_feed, standing_loss, location_adjustment):
-        if location_adjustment == "external":
-            location_adjustment = max((
-                    standing_loss * ((temp_return_feed - self.__room_temp)) ** self.__sby_loss_idx - (temp_return_feed - self.__temp_boiler_loc) ** self.__sby_loss_idx), 
-                0.0)
+    def location_adjustment(self, temp_return_feed):
+        location_adjustment \
+            = max((self.__standing_loss * \
+                    ((temp_return_feed - self.__room_temp))**self.__sby_loss_idx \
+                    - (temp_return_feed - self.__temp_boiler_loc)**self.__sby_loss_idx)\
+                    , 0.0
+                 )
         return location_adjustment
 
     def __demand_energy(
@@ -389,7 +391,7 @@ class Boiler:
         
         energy_output_max_power = self.__boiler_power * (timestep - self.__total_time_running_current_timestep)
         energy_output_provided = min(energy_output_required, energy_output_max_power)
-        # if the boiler does not need to be called then no energy should be provided
+        # If there is no demand on the boiler or no remaining time then no energy should be provided
         if energy_output_required == 0.0 or (timestep - self.__total_time_running_current_timestep) == 0.0:
             energy_output_provided = 0.0
             fuel_demand = 0.0
@@ -425,9 +427,9 @@ class Boiler:
         # The following adjustment is made when the boiler is located outside 
         # (when installed inside no adjustment is necessary so location_adjustment=0)
         location_adjustment = 0.0
-        location_adjustment = self.location_adjustment(temp_return_feed,
-                                                       standing_loss,
-                                                       location_adjustment
+        if self.__boiler_location == "external":
+            location_adjustment = self.location_adjustment(temp_return_feed,
+                                                       standing_loss
                                                        )
 
         cyclic_location_adjustment = cycling_adjustment + location_adjustment
