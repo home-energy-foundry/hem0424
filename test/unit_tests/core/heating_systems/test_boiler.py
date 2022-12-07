@@ -15,7 +15,7 @@ test_setup()
 # Local imports
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
-from core.heating_systems.boiler import Boiler, BoilerServiceWaterCombi, BoilerServiceSpace
+from core.heating_systems.boiler import Boiler, BoilerServiceWaterCombi, BoilerServiceSpace, ServiceType
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.energy_supply.energy_supply import EnergySupply
 from core.material_properties import WATER, MaterialProperties
@@ -105,6 +105,7 @@ class TestBoiler(unittest.TestCase):
                 self.assertAlmostEqual(
                     self.boiler._Boiler__demand_energy(
                         "boiler_test",
+                        ServiceType.WATER_COMBI,
                         self.energy_output_required[t_idx],
                         self.temp_return_feed[t_idx]
                         ),
@@ -113,7 +114,7 @@ class TestBoiler(unittest.TestCase):
                     )
                 self.assertAlmostEqual(
                     self.energysupply.results_by_end_user()["boiler_test"][t_idx],
-                    [2.3709040136584205, 11.5067107][t_idx],
+                    [2.2843673926764496, 11.5067107][t_idx],
                     msg="incorrect fuel demand"
                     )
 
