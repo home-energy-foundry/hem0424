@@ -103,6 +103,24 @@
 			}
 		}
 	},
+	"SpaceCoolSystem": {
+		"cooling system 1": {
+			"type": "AirConditioning",
+			"cooling_capacity": 3.0,
+			"efficiency": 4.3,
+			"frac_convective": 0.95,
+			"EnergySupply": "mains elec",
+			"Control": "hw timer"
+		},
+		"cooling system 2": {
+			"type": "AirConditioning",
+			"cooling_capacity": 3.0,
+			"efficiency": 4.3,
+			"frac_convective": 0.95,
+			"EnergySupply": "mains elec",
+			"Control": "hw timer"
+		}
+	},
 	"HotWaterSource": {
 		"hw cylinder": {
 			"type": "StorageTank",
@@ -222,6 +240,7 @@
 	"Zone": {
 		"zone 1": {
 			"SpaceHeatSystem": "main",
+			"SpaceCoolSystem": "cooling system 1",
 			"SpaceHeatControl":"livingroom",
 			"area": 80.0,
 			"volume": 250.0,
@@ -337,6 +356,34 @@
 					"heat_transfer_coeff": 2.0
 				}
 			}
+		},
+		"zone 2": {
+			"SpaceHeatSystem": "main",
+			"SpaceCoolSystem": "cooling system 2",
+			"SpaceHeatControl":"restofdwelling",
+			"area": 80.0,
+			"volume": 250.0,
+			"temp_setpnt_heat": 21.0,
+			"temp_setpnt_cool": 25.0,
+			"Lighting": {
+				"efficacy": 56.0
+			},
+			"BuildingElement": {
+				"wall 0": {
+					"type": "BuildingElementOpaque",
+					"a_sol": 0.6,
+					"r_c": 0.7,
+					"k_m": 19000,
+					"mass_distribution_class": "IE",
+					"pitch": 90,
+					"orientation": 90,
+					"base_height": 0,
+					"height": 2.5,
+					"width": 10,
+					"area": 20.0
+				}
+			},
+			"ThermalBridging": 1.0
 		}
 	}
 }

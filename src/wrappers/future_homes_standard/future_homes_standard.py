@@ -872,9 +872,6 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
 
 
 def create_cooling(project_dict):
-    '''
-    TODO - only do this if there is a cooling system present
-    '''
     cooling_setpoint = 24.0
     cooling_subschedule_restofdwelling = (
         #22:00-07:00 - ie nighttime only
@@ -885,24 +882,31 @@ def create_cooling(project_dict):
     
     for zone in project_dict['Zone']:
         if "SpaceHeatControl" in project_dict['Zone'][zone]:
-            if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom" and "Cooling" in project_dict['Zone'][zone]:
+            if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom" and "SpaceCoolSystem" in project_dict['Zone'][zone]:
                 cooling_schedule_livingroom = project_dict['Control']['HeatingPattern_LivingRoom']['schedule']
                 project_dict['Zone'][zone]['temp_setpnt_cool'] = cooling_setpoint
                 project_dict['Control']['Cooling_LivingRoom'] = {
+                    "type": "OnOffTimeControl",
                     "start_day" : 0,
                     "time_series_step":0.5,
                     "schedule": cooling_schedule_livingroom
                 }
-                
-            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" and "Cooling" in project_dict['Zone'][zone]:
+                spacecoolsystem = project_dict["Zone"][zone]["SpaceCoolSystem"]
+                project_dict["SpaceCoolSystem"][spacecoolsystem]["Control"] = "Cooling_LivingRoom"
+
+            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" and "SpaceCoolSystem" in project_dict['Zone'][zone]:
                 project_dict['Zone'][zone]['temp_setpnt_cool'] = cooling_setpoint
                 project_dict['Control']['Cooling_RestOfDwelling'] = {
+                    "type": "OnOffTimeControl",
                     "start_day" : 0,
                     "time_series_step":0.5,
                     "schedule": {
-                        "main": [{"repeat": 365, "value": cooling_subschedule_restofdwelling}]
+                        "main": [{"repeat": 365, "value": "day"}],
+                        "day": cooling_subschedule_restofdwelling
                     }
                 }
+                spacecoolsystem = project_dict["Zone"][zone]["SpaceCoolSystem"]
+                project_dict["SpaceCoolSystem"][spacecoolsystem]["Control"] = "Cooling_RestOfDwelling"
 
 
 def create_cold_water_feed_temps(project_dict):
