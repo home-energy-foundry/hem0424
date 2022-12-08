@@ -777,9 +777,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     #utility for applying the sap10.2 monly factors (below)
     month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
     #from sap10.2 J5
-    behavioural_hw_factorm = [1.035, 1.021, 1.007, 0.993, 0.979, 0.965, 0.965, 0.979, 0.993, 1.007, 1.021, 1.035]
+    #behavioural_hw_factorm = [1.035, 1.021, 1.007, 0.993, 0.979, 0.965, 0.965, 0.979, 0.993, 1.007, 1.021, 1.035]
     #from sap10.2 j2
-    other_hw_factorm = [1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00]
+    #other_hw_factorm = [1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00]
     
     Weekday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Weekday']]
     Saturday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Saturday']]
@@ -812,6 +812,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
                     heat_source_obj['vol_hw_daily_average'] = vol_daily_average
 
     SAP2012QHW = 365 * 4.18 * (37/3600) * vol_daily_average
+    print(SAP2012QHW)
+    #print(365 * sum(Weekday_values))
+    #print(sum(annual_HW_events_values))
     refQHW = sum(annual_HW_events_values)
 
     '''
@@ -875,6 +878,8 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
                      other_hw_factorm,
                      partGbonus
                      )
+    
+    print(HW_events_valuesdict)
     '''
     now create lists of events
     Shower events should be  evenly spread across all showers in dwelling
