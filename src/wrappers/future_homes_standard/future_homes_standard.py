@@ -696,9 +696,10 @@ class FHS_HW_events:
             6 * FHW  * behavioural_hw_factorm[monthidx]
         self.bathdurationfunc = lambda event, monthidx: \
             6 * FHW  * behavioural_hw_factorm[monthidx] * partGbonus
-            #changed to 0.735/1.4 to reflect that biggest HW drawoff is 0.735/1.4 of shower value in table
+            #change to 0.735/1.4 to reflect that biggest HW drawoff is 0.735/1.4 of shower value in table?
+            #dont need to apply FHW here as it has already been applied to valuesdict? but FHW is too close to one to matter
         self.otherdurationfunc = lambda event, monthidx: \
-            6 * (HW_events_valuesdict[event] *0.735/ 1.4) * FHW  * other_hw_factorm[monthidx]
+            6 * (HW_events_valuesdict[event] / 1.4) * other_hw_factorm[monthidx]
         '''
         set up events dict
         check if showers/baths are present
@@ -757,9 +758,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     HW_events_dict = {
         #time in decimal fractions of an hour
         'Time': [7, 7.083333333, 7.5, 8.016666667, 8.25, 8.5, 8.75, 9, 9.5, 10.5, 11.5, 11.75, 12.75, 14.5, 15.5, 16.5, 18, 18.25, 18.5, 19, 20.5, 21.25, 21.5],
-        'Weekday': ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Shower'],
+        'Weekday':  ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Shower'],
         'Saturday': ['Small', 'Shower', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Small'],
-        'Sunday': ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Bath']
+        'Sunday':   ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Bath']
         }
 
     HW_events_valuesdict = {
@@ -811,7 +812,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
                     heat_source_obj['vol_hw_daily_average'] = vol_daily_average
 
     SAP2012QHW = 365 * 4.18 * (37/3600) * vol_daily_average
-    refQHW = 365 * sum(Weekday_values)
+    refQHW = sum(annual_HW_events_values)
 
     '''
     this will determine what proportion of events in the list to eliminate, if less than 1
