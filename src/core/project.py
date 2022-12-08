@@ -15,6 +15,7 @@ from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
 from core.schedule import expand_schedule, expand_events
 from core.controls.time_control import OnOffTimeControl
+from core.cooling_systems.air_conditioning import AirConditioning
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.emitters import Emitters
@@ -40,6 +41,7 @@ from core.pipework import Pipework
 import core.water_heat_demand.misc as misc
 from core.ductwork import Ductwork
 import core.heating_systems.wwhrs as wwhrs
+from core.heating_systems.point_of_use import PointOfUse
 
 
 class Project:
@@ -664,6 +666,19 @@ class Project:
                     55, # TODO Remove hard-coding of HW temp
                     cold_water_source
                     )
+            elif hw_source_type == 'PointOfUse':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                hw_source = PointOfUse(
+                    data['power'],
+                    data['efficiency'],
+                    energy_supply_conn,
+                    self.__simtime,
+                    cold_water_source
+                )
             else:
                 sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -737,8 +752,37 @@ class Project:
             for name, data in proj_dict['SpaceHeatSystem'].items():
                 self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
 
+        def dict_to_space_cool_system(name, data):
+            if 'Control' in data.keys():
+                ctrl = self.__controls[data['Control']]
+                # TODO Need to handle error if Control name is invalid.
+            else:
+                ctrl = None
+
+            cooling_system_type = data['type']
+            if cooling_system_type == 'AirConditioning':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                cooling_system = AirConditioning(
+                   data['cooling_capacity'],
+                   data['efficiency'],
+                   data['frac_convective'],
+                   energy_supply_conn,
+                   self.__simtime,
+                   ctrl,
+                   )
+            else:
+                sys.exit(name + ': CoolSystem type not recognised')
+            return cooling_system
+
         self.__space_cool_systems = {}
-        # TODO Read in space cooling systems and populate dict
+        # If no space cooling systems have been provided, then skip. This
+        # facilitates running the simulation with no cooling systems at all
+        if 'SpaceCoolSystem' in proj_dict:
+            for name, data in proj_dict['SpaceCoolSystem'].items():
+                self.__space_cool_systems[name] = dict_to_space_cool_system(name, data)
 
         def dict_to_on_site_generation(name, data):
             """ Parse dictionary of on site generation data and
@@ -785,6 +829,14 @@ class Project:
             hw_duration = 0.0
             all_events = 0.0
             pw_losses = 0.0
+            point_of_use = False
+            
+            # TODO - this assumes there is only one hot water source
+            # if any hotwatersource is point of use, they all are.
+            # should we assign hotwatersource to each hot water event?
+            for name, i in self.__hot_water_sources.items():
+                if isinstance(i, PointOfUse):
+                    point_of_use = True
             
             for name, shower in self.__showers.items():
                 # Get all shower use events for the current timestep
@@ -811,13 +863,14 @@ class Project:
                                 )
                             hw_duration += event['duration'] # shower minutes duration
                             all_events +=1
-                            pw_losses+=calc_pipework_losses(
-                                hw_demand_i,
-                                t_idx,
-                                delta_t_h,
-                                cold_water_temperature,
-                                event['duration'],
-                                self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour)
+                            if(point_of_use == False):
+                                pw_losses+=calc_pipework_losses(
+                                    hw_demand_i,
+                                    t_idx,
+                                    delta_t_h,
+                                    cold_water_temperature,
+                                    event['duration'],
+                                    self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour)
 
             for name, other in self.__other_water_events.items():
                 # Get all other use events for the current timestep
@@ -839,14 +892,15 @@ class Project:
                             )
                         hw_duration += event['duration'] # other minutes duration
                         all_events += 1
-                        pw_losses += calc_pipework_losses(
-                            other.hot_water_demand(other_temp, other_duration),
-                            t_idx,
-                            delta_t_h,
-                            cold_water_temperature,
-                            event['duration'],
-                            self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour
-                            )
+                        if(point_of_use == False):
+                            pw_losses += calc_pipework_losses(
+                                other.hot_water_demand(other_temp, other_duration),
+                                t_idx,
+                                delta_t_h,
+                                cold_water_temperature,
+                                event['duration'],
+                                self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour
+                                )
 
             for name, bath in self.__baths.items():
                 # Get all bath use events for the current timestep
@@ -873,13 +927,14 @@ class Project:
                         hw_duration += bath_duration
                         # litres bath  / litres per minute flowrate = minutes
                         all_events += 1
-                        pw_losses += calc_pipework_losses(
-                            bath.hot_water_demand(bath_temp),
-                            t_idx,
-                            delta_t_h,
-                            cold_water_temperature,
-                            bath_duration,
-                            self.__water_heating_pipework) * (bath_duration/units.minutes_per_hour)
+                        if(point_of_use == False):
+                            pw_losses += calc_pipework_losses(
+                                bath.hot_water_demand(bath_temp),
+                                t_idx,
+                                delta_t_h,
+                                cold_water_temperature,
+                                bath_duration,
+                                self.__water_heating_pipework) * (bath_duration/units.minutes_per_hour)
                         
             return hw_demand, hw_duration, all_events, pw_losses, hw_energy_demand  # litres hot water per timestep, minutes demand per timestep, number of events in timestep
 
@@ -1102,15 +1157,26 @@ class Project:
                 # Sum heating gains (+ve) and cooling gains (-ve) and convert from kWh to W
                 gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
                 # Calculate how much space heating / cooling demand is unmet
-                energy_shortfall_heat = space_heat_demand_zone[z_name] - gains_heat
+                energy_shortfall_heat = max(0, space_heat_demand_zone[z_name] - gains_heat)
                 self.__energy_supply_conn_unmet_demand_zone[z_name].demand_energy(energy_shortfall_heat)
-                energy_shortfall_cool = - (space_cool_demand_zone[z_name] - gains_cool)
+                energy_shortfall_cool = max(0, - (space_cool_demand_zone[z_name] - gains_cool))
                 self.__energy_supply_conn_unmet_demand_zone[z_name].demand_energy(energy_shortfall_cool)
 
                 # Look up convective fraction for heating/cooling for this zone
-                if gains_heat_cool > 0:
+                # Note: gains_heat could be negative (or gains_cool could be
+                #       positive) if thermal mass of emitters causes e.g. the
+                #       heat emitters to absorb energy from the zone.
+                if gains_heat != 0:
+                    # Note: If h_name is None then there will be a KeyError
+                    # exception in the line below, but this should not happen as
+                    # gains_heat != 0 should only occur if a heating system
+                    # has been defined.
                     frac_convective = self.__space_heat_systems[h_name].frac_convective()
-                elif gains_heat_cool < 0:
+                elif gains_cool != 0:
+                    # Note: If c_name is None then there will be a KeyError
+                    # exception in the line below, but this should not happen as
+                    # gains_cool != 0 should only occur if a cooling system
+                    # has been defined.
                     frac_convective = self.__space_cool_systems[c_name].frac_convective()
                 else:
                     frac_convective = 1.0

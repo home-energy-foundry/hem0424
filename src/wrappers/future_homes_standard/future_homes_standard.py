@@ -278,9 +278,9 @@ def create_heating_pattern(project_dict):
                         "weekend": heating_fhs_weekend
                     }
                 }
-            if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
-                spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
-                project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_LivingRoom"
+                if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
+                    spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
+                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_LivingRoom"
                     
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling":
                 project_dict['Zone'][zone]['temp_setpnt_heat'] = restofdwelling_setpoint_fhs
@@ -300,26 +300,28 @@ def create_heating_pattern(project_dict):
                 }
                 if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
                     spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
-                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_LivingRoom"
+                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_RestOfDwelling"
     '''
     water heating pattern - same as space heating
     '''
 
     for hwsource in project_dict['HotWaterSource']:
-        for heatsource in project_dict['HotWaterSource'][hwsource]["HeatSource"]:
-            hwcontrolname = project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"]
-            project_dict["Control"][hwcontrolname] = {
-                "type": "OnOffTimeControl",
-                "start_day" : 0,
-                "time_series_step":0.5,
-                "schedule":{
-                    "main": [{"repeat": 53, "value": "week"}],
-                    "week": [{"repeat": 5, "value": "weekday"},
-                             {"repeat": 2, "value": "weekend"}],
-                    "weekday": heating_nonlivingarea_fhs_weekday,
-                    "weekend": heating_fhs_weekend
+        # Instantaneous water heating systems must be available 24 hours a day
+        if project_dict['HotWaterSource'][hwsource]["type"] == "StorageTank":
+            for heatsource in project_dict['HotWaterSource'][hwsource]["HeatSource"]:
+                hwcontrolname = project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"]
+                project_dict["Control"][hwcontrolname] = {
+                    "type": "OnOffTimeControl",
+                    "start_day" : 0,
+                    "time_series_step":0.5,
+                    "schedule":{
+                        "main": [{"repeat": 53, "value": "week"}],
+                        "week": [{"repeat": 5, "value": "weekday"},
+                                 {"repeat": 2, "value": "weekend"}],
+                        "weekday": heating_nonlivingarea_fhs_weekday,
+                        "weekend": heating_fhs_weekend
+                    }
                 }
-            }
     
 
 
