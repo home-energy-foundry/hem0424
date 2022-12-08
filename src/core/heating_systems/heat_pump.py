@@ -1193,7 +1193,7 @@ class HeatPump:
         # If required output temp is below upper limit
             return energy_output_required
 
-    def __demand_energy(
+    def __run_demand_energy_calc(
             self,
             service_name,
             service_type,
@@ -1208,7 +1208,12 @@ class HeatPump:
             ):
         """ Calculate energy required by heat pump to satisfy demand for the service indicated.
 
-        Note: Call via a HeatPumpService object, not directly.
+        Note: Call via the __demand_energy func, not directly.
+              This function should not save any results to member variables of
+              this class, because it may need to be run more than once (e.g. for
+              exhaust air heat pumps). Results should be returned to the
+              __demand_energy function which calls this one and will save results
+              when appropriate.
         """
         if temp_used_for_scaling is None:
             temp_used_for_scaling = temp_return_feed
@@ -1240,7 +1245,6 @@ class HeatPump:
             energy_output_limited / thermal_capacity_op_cond,
             timestep - self.__total_time_running_current_timestep
             )
-        self.__total_time_running_current_timestep += time_running_current_service
 
         # Calculate load ratio
         load_ratio = time_running_current_service / timestep
@@ -1356,8 +1360,7 @@ class HeatPump:
         energy_delivered_total = energy_delivered_HP + energy_delivered_backup
         energy_input_total = energy_input_HP + energy_input_backup
 
-        # Save results that are needed later (in the timestep_end function)
-        self.__service_results.append({
+        return energy_delivered_total, energy_input_total, {
             'service_name': service_name,
             'service_type': service_type,
             'service_on': service_on,
@@ -1369,7 +1372,43 @@ class HeatPump:
             'use_backup_heater_only': use_backup_heater_only,
             'hp_operating_in_onoff_mode': hp_operating_in_onoff_mode,
             'energy_input_HP_divisor': energy_input_HP_divisor,
-            })
+            }
+
+    def __demand_energy(
+            self,
+            service_name,
+            service_type,
+            energy_output_required,
+            temp_output, # Kelvin
+            temp_return_feed, # Kelvin
+            temp_limit_upper, # Kelvin
+            time_constant_for_service,
+            service_on, # bool - is service allowed to run?
+            temp_spread_correction=1.0,
+            temp_used_for_scaling=None,
+            ):
+        """ Calculate energy required by heat pump to satisfy demand for the service indicated.
+
+        Note: Call via a HeatPumpService object, not directly.
+        """
+        energy_delivered_total, energy_input_total, service_results \
+            = self.__run_demand_energy_calc(
+                service_name,
+                service_type,
+                energy_output_required,
+                temp_output,
+                temp_return_feed,
+                temp_limit_upper,
+                time_constant_for_service,
+                service_on,
+                temp_spread_correction,
+                temp_used_for_scaling,
+                )
+
+        # Save results that are needed later (in the timestep_end function)
+        self.__service_results.append(service_results)
+        self.__total_time_running_current_timestep \
+            += service_results['time_running']
 
         # Feed/return results to other modules
         self.__energy_supply_connections[service_name].demand_energy(energy_input_total)
