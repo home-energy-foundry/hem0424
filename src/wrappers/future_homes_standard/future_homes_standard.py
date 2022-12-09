@@ -42,9 +42,9 @@ def apply_fhs_preprocessing(project_dict):
     create_lighting_gains(project_dict, TFA, N_occupants)
     create_cooking_gains(project_dict,TFA, N_occupants)
     create_appliance_gains(project_dict, TFA, N_occupants)
-    create_hot_water_use_pattern(project_dict, TFA, N_occupants)
+    cold_water_feed_temps = create_cold_water_feed_temps(project_dict)
+    create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed_temps)
     create_cooling(project_dict)
-    create_cold_water_feed_temps(project_dict)
     
     
     return project_dict
@@ -682,7 +682,7 @@ class FHS_HW_events:
     def __init__(self, 
                  project_dict,
                  FHW,
-                 HW_events_valuesdict,
+                 HW_events_energy,
                  behavioural_hw_factorm,
                  other_hw_factorm,
                  partGbonus):
@@ -701,7 +701,7 @@ class FHS_HW_events:
             #change to 0.735/1.4 to reflect that biggest HW drawoff is 0.735/1.4 of shower value in table?
             #dont need to apply FHW here as it has already been applied to valuesdict? but FHW is too close to one to matter
         self.otherdurationfunc = lambda event, monthidx: \
-            6 * (HW_events_valuesdict[event] / 1.4) * other_hw_factorm[monthidx]
+            6 * (HW_events_energy[event] / 1.4) * other_hw_factorm[monthidx]
         '''
         set up events dict
         check if showers/baths are present
@@ -755,7 +755,7 @@ class FHS_HW_events:
         self.which_other = (self.which_other + 1) % len(self.other)
         return self.other[self.which_other]
 
-def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
+def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed_temps):
 
     HW_events_dict = {
         #time in decimal fractions of an hour
@@ -765,17 +765,32 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         'Sunday':   ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Bath']
         }
 
-    HW_events_valuesdict = {
-        #event energy consumption in kWh
+    HW_events_energy = {
+        #event energy consumption in kWh - direct from EN13203-2:2018
         "Small":0.105,
-        "Shower":1.4,
-        "Floor cleaning":0.105,
-        "Sdishwash":0.315,
-        "Ldishwash":0.735,
-        "Household cleaning":0.105,
-        "Bath":1.4,
-        "None":0.0 #not in supplied spec, added for convenience with deleting events.
+        "Shower": 1.4,
+        "Floor cleaning": 0.105,
+        "Sdishwash": 0.315,
+        "Ldishwash": 0.735,
+        "Household cleaning": 0.105,
+        "Bath": 1.4,
+        "None": 0.0 #not in supplied spec, added for convenience with deleting events.
         }
+    
+    HW_events_volume = {
+        #event hot water volume in litres - inferred from EN13203-2:2018,
+        #given 6 minute showers and temperature 41C
+        #TODO change bath value?
+        "Small": 2.7,
+        "Shower": 36.0,
+        "Floor cleaning": 2.7,
+        "Sdishwash": 8.1,
+        "Ldishwash": 18.9,
+        "Household cleaning": 2.7,
+        "Bath": 36.0,
+        "None":0.0 
+        }
+    
     #utility for applying the sap10.2 monly factors (below)
     month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
     #from sap10.2 J5
@@ -783,24 +798,42 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     #from sap10.2 j2
     other_hw_factorm = [1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00]
     
-    Weekday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Weekday']]
-    Saturday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Saturday']]
-    Sunday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Sunday']]
+    #temperature of mixed hot water for event
+    event_temperature = 41.0
+    
     
     annual_HW_events = []
     annual_HW_events_values = []
     startmod = 1 #this changes which day of the week we start on. 0 is sunday.
 
     for i in range(365):
+        #create year long list of hot water events and their associated energy demand,
+        #accounting for variation in feed temperature
         if (i+startmod) % 6 == 0:
             annual_HW_events.extend(HW_events_dict['Saturday'])
-            annual_HW_events_values.extend(Saturday_values)
+            
+            annual_HW_events_values.extend([
+                4.18 / 3600\
+                * (event_temperature - cold_water_feed_temps[24 * i + math.floor(HW_events_dict['Time'][j])])\
+                   * HW_events_volume[x] 
+                for j, x in enumerate(HW_events_dict['Saturday'])
+            ])
         elif(i+startmod) % 7 == 0:
             annual_HW_events.extend(HW_events_dict['Sunday'])
-            annual_HW_events_values.extend(Sunday_values)
+            annual_HW_events_values.extend([
+                4.18 / 3600\
+                * (event_temperature - cold_water_feed_temps[24 * i + math.floor(HW_events_dict['Time'][j])])\
+                   * HW_events_volume[x] 
+                for j, x in enumerate(HW_events_dict['Sunday'])
+            ])
         else:
             annual_HW_events.extend(HW_events_dict['Weekday'])
-            annual_HW_events_values.extend(Weekday_values)
+            annual_HW_events_values.extend([
+                4.18 / 3600\
+                * (event_temperature - cold_water_feed_temps[24 * i + math.floor(HW_events_dict['Time'][j])])\
+                   * HW_events_volume[x] 
+                for j, x in enumerate(HW_events_dict['Weekday'])
+            ])
 
     vol_daily_average = (25 * N_occupants) + 36
 
@@ -828,11 +861,11 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     if ratio < 1.0:
         '''
         for each event type in the valuesdict, we want to eliminate every
-        kth event where k = ROUND(1/1-ratio,0)
-        TODO: replace this with closest fraction to ratio and apply bjorklunds algorithm
+        a fraction of the events approximately equal to the ratio of
+        reference annual DHW energy demand to SAP2012 annual DHW energy demand
+        bjorklund's algorithm spaces the eliminated events as evenly as possible across
+        the year
         '''
-        k=round(1.0/(1-ratio),0)
-        print(k)
         fractionalk = Fraction((1.0-ratio))
         bjorklund_n_events = fractionalk.limit_denominator(8760).numerator
         bjorklund_k_steps = fractionalk.limit_denominator(8760).denominator
@@ -841,7 +874,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         elim_pattern = bjorklund(bjorklund_n_events,bjorklund_k_steps)
         #print(bjorklund(euclidn,euclidk))
         
-        counters={event_type:0 for event_type in HW_events_valuesdict.keys()}
+        counters={event_type:0 for event_type in HW_events_energy.keys()}
         
         for i,event in enumerate(annual_HW_events):
             #NEC = (math.floor(counters[event]/k) + math.floor(k/2)) % k
@@ -859,7 +892,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
         FHW = (SAP2012QHW / QHWEN_eliminations)
         print(FHW)
 
-        HW_events_valuesdict = {key : FHW * HW_events_valuesdict[key] for key in HW_events_valuesdict.keys()}
+        HW_events_energy = {key : FHW * HW_events_energy[key] for key in HW_events_energy.keys()}
     else:
         FHW = 1.0
         
@@ -875,13 +908,13 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     
     FHS_HW_event = FHS_HW_events(project_dict,
                      FHW,
-                     HW_events_valuesdict,
+                     HW_events_energy,
                      behavioural_hw_factorm,
                      other_hw_factorm,
                      partGbonus
                      )
     
-    print(HW_events_valuesdict)
+    print(HW_events_energy)
     '''
     now create lists of events
     Shower events should be  evenly spread across all showers in dwelling
@@ -1028,3 +1061,4 @@ def create_cold_water_feed_temps(project_dict):
         "time_series_step": 1,
         "temperatures": outputfeedtemp
     }
+    return outputfeedtemp
