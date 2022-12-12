@@ -64,7 +64,7 @@ def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy
         ("/kWh", ""),
         ("delivered", "")
     ]
-    
+
     '''
     first read in factors from csv. not all rows have a code yet
     so only read in rows with a fuel code
@@ -78,15 +78,37 @@ def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy
                 #getting rid of keys that aren't factors to be applied to results for ease of looping
                 emissionfactors[this_fuel_code].pop("Fuel Code")
                 emissionfactors[this_fuel_code].pop("Fuel")
+
+    project_dict["EnergySupply"]['_unmet_demand'] = {"fuel": "unmet_demand"}
+
     '''
     loop over all energy supplies in the project dict.
     find all factors for relevant fuel and apply them
     '''
-    project_dict["EnergySupply"]['_unmet_demand'] = {"fuel": "unmet_demand"}
-    for Energysupply in project_dict["EnergySupply"]:
+    for Energysupply in project_dict["EnergySupply"]: 
         this_fuel_code = project_dict["EnergySupply"][Energysupply]["fuel"]
-        #only apply factors to import/export if there is any export
-        if sum(energy_export[Energysupply]) != 0:
+
+        if this_fuel_code == "custom":
+            """ Find all relevant factors for heat networks, apply them, and add to results dictionary. Note that
+            heat networks are treated differently as the PE and CO2 factors are in the input file, not the csv file """
+            for factor in project_dict["EnergySupply"][Energysupply]["factor"]:
+
+                factor_header_part = str(factor)
+                for replacement in header_replacements:
+                    factor_header_part = factor_header_part.replace(*replacement)
+
+                this_header = (str(Energysupply) + 
+                            ' total ' +
+                            factor_header_part
+                            )
+
+                results[this_header] = [
+                    x * float(project_dict["EnergySupply"][Energysupply]["factor"][factor])
+                    for x in results_totals[Energysupply]
+                    ]
+                
+        elif sum(energy_export[Energysupply]) != 0:
+            #only apply factors to import/export if there is any export
             for factor in emissionfactors[this_fuel_code]:
                 
                 factor_header_part = str(factor)
