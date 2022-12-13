@@ -55,6 +55,15 @@ class SourceType(Enum):
             sys.exit('SourceType (' + str(strval) + ') not valid.')
             # TODO Exit just the current case instead of whole program entirely?
 
+    @classmethod
+    def is_exhaust_air(cls, source_type):
+        if source_type in (cls.EXHAUST_AIR_MEV, cls.EXHAUST_AIR_MVHR, cls.EXHAUST_AIR_MIXED):
+            return True
+        elif source_type in (cls.GROUND, cls.OUTSIDE_AIR, cls.WATER_GROUND, cls.WATER_SURFACE):
+            return False
+        else:
+            sys.exit('SourceType (' + str(source_type) + ') not defined as exhaust air or not.')
+
 class SinkType(Enum):
     AIR = auto()
     WATER = auto()
@@ -967,12 +976,13 @@ class HeatPump:
             energy_supply_conn_name_auxiliary,
             simulation_time,
             external_conditions,
+            throughput_exhaust_air=None,
             ):
         """ Construct a HeatPump object
 
         Arguments:
         hp_dict -- dictionary of heat pump characteristics, with the following elements:
-            - test_data -- EN 14825 test data dictionary
+            - test_data -- EN 14825 test data (list of dictionaries)
             - SourceType -- string specifying heat source type, one of:
                 - "Ground"
                 - "OutsideAir"
@@ -1021,6 +1031,7 @@ class HeatPump:
             -- name to be used for EnergySupplyConnection object for auxiliary energy
         simulation_time -- reference to SimulationTime object
         external_conditions -- reference to ExternalConditions object
+        throughput_exhaust_air -- throughput (litres / second) of exhaust air
 
         Other variables:
         energy_supply_connections
@@ -1036,7 +1047,6 @@ class HeatPump:
         self.__energy_supply_connections = {}
         self.__energy_supply_connection_aux \
             = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
-        self.__test_data = HeatPumpTestData(hp_dict['test_data'])
 
         self.__service_results = []
         self.__total_time_running_current_timestep = 0.0
@@ -1060,6 +1070,23 @@ class HeatPump:
         self.__power_standby = hp_dict['power_standby']
         self.__power_crankcase_heater_mode = hp_dict['power_crankcase_heater']
         self.__power_off_mode = hp_dict['power_off']
+
+        # Exhaust air HP requires different/additional initialisation, which is implemented here
+        if SourceType.is_exhaust_air(self.__source_type):
+            lowest_air_flow_rate_in_test_data, hp_dict['test_data'] \
+                = interpolate_exhaust_air_heat_pump_test_data(
+                    throughput_exhaust_air,
+                    hp_dict['test_data'],
+                    )
+            self.__overvent_ratio = max(
+                1.0,
+                lowest_air_flow_rate_in_test_data / throughput_exhaust_air,
+                )
+        else:
+            self.__overvent_ratio = 1.0
+
+        # Parse and initialise heat pump test data
+        self.__test_data = HeatPumpTestData(hp_dict['test_data'])
 
     def __create_service_connection(self, service_name):
         """ Return a HeatPumpService object """
