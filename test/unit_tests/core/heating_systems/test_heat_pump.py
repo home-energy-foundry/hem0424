@@ -13,8 +13,101 @@ from unit_tests.common import test_setup
 test_setup()
 
 # Local imports
-from core.heating_systems.heat_pump import HeatPumpTestData, SourceType, SinkType
+from core.heating_systems.heat_pump import \
+    HeatPumpTestData, SourceType, SinkType, \
+    interpolate_exhaust_air_heat_pump_test_data
 from core.units import Celcius2Kelvin
+
+
+class TestHeatPumpFreeFunctions(unittest.TestCase):
+    """ Unit tests for free functions in heat_pump module """
+
+    def test_interpolate_exhaust_air_heat_pump_test_data(self):
+        """ Test interpolation of exhaust air heat pump test data """
+        data_eahp = [
+            {
+                "air_flow_rate": 100.0,
+                "test_letter": "A",
+                "capacity": 5.0,
+                "cop": 2.0,
+                "degradation_coeff": 0.9,
+                "design_flow_temp": 55,
+                "temp_outlet": 55,
+                "temp_source": 20,
+                "temp_test": -7,
+            },
+            {
+                "air_flow_rate": 200.0,
+                "test_letter": "A",
+                "capacity": 6.0,
+                "cop": 2.5,
+                "degradation_coeff": 0.95,
+                "design_flow_temp": 55,
+                "temp_outlet": 55,
+                "temp_source": 20,
+                "temp_test": -7,
+            },
+            {
+                "air_flow_rate":100.0,
+                "test_letter": "B",
+                "capacity": 5.5,
+                "cop": 2.4,
+                "degradation_coeff": 0.92,
+                "design_flow_temp": 35,
+                "temp_outlet": 34,
+                "temp_source": 20,
+                "temp_test": 2,
+            },
+            {
+                "air_flow_rate": 200.0,
+                "test_letter": "B",
+                "capacity": 6.0,
+                "cop": 3.0,
+                "degradation_coeff": 0.98,
+                "design_flow_temp": 35,
+                "temp_outlet": 34,
+                "temp_source": 20,
+                "temp_test": 2,
+            },
+        ]
+        data_eahp_interpolated = [
+            {
+                "test_letter": "A",
+                "capacity": 5.4,
+                "cop": 2.2,
+                "degradation_coeff": 0.92,
+                "design_flow_temp": 55,
+                "temp_outlet": 55,
+                "temp_source": 20,
+                "temp_test": -7,
+            },
+            {
+                "test_letter": "B",
+                "capacity": 5.7,
+                "cop": 2.64,
+                "degradation_coeff": 0.9440000000000001,
+                "design_flow_temp": 35,
+                "temp_outlet": 34,
+                "temp_source": 20,
+                "temp_test": 2,
+            },
+        ]
+
+        lowest_air_flow_rate_in_test_data, data_eahp_func_result \
+            = interpolate_exhaust_air_heat_pump_test_data(140.0, data_eahp)
+
+        self.assertEqual(
+            lowest_air_flow_rate_in_test_data,
+            100.0,
+            "incorrect lowest air flow rate identified",
+            )
+
+        self.maxDiff = None
+        self.assertEqual(
+            data_eahp_func_result,
+            data_eahp_interpolated,
+            "incorrect interpolation of exhaust air heat pump test data",
+            )
 
 
 # Before defining the code to run the tests, we define the data to be parsed

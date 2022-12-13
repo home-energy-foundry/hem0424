@@ -100,6 +100,98 @@ def carnot_cop(temp_source, temp_outlet, temp_diff_limit_low=None):
         temp_diff = max (temp_diff, temp_diff_limit_low)
     return temp_outlet / temp_diff
 
+def interpolate_exhaust_air_heat_pump_test_data(throughput_exhaust_air, hp_dict_test_data):
+    """ Interpolate between test data records for different air flow rates
+    
+    Arguments:
+    throughput_exhaust_air -- throughput (litres / second) of exhaust air
+    hp_dict_test_data
+        -- list of dictionaries of heat pump test data, each with the following elements:
+                - air_flow_rate
+                - test_letter
+                - capacity
+                - cop
+                - degradation_coeff
+                - design_flow_temp (in Celsius)
+                - temp_outlet (in Celsius)
+                - temp_source (in Celsius)
+                - temp_test (in Celsius)
+    """
+    # Split test records into different lists by air flow rate
+    test_data_by_air_flow_rate = {}
+    for test_data_record in hp_dict_test_data:
+        if test_data_record['air_flow_rate'] not in test_data_by_air_flow_rate.keys():
+            # Initialise list for this air flow rate if it does not already exist
+            test_data_by_air_flow_rate[test_data_record['air_flow_rate']] = []
+        test_data_by_air_flow_rate[test_data_record['air_flow_rate']].append(test_data_record)
+
+    # Check that all lists have same combinations of design flow temp and test letter
+    fixed_temps_and_test_letters = None
+    for air_flow_rate, test_data_record_list in test_data_by_air_flow_rate.items():
+        # Find and save all the combinations of design flow temp and test letter
+        # for this air flow rate
+        fixed_temps_and_test_letters_this = []
+        for test_data_record in test_data_record_list:
+            fixed_temps_and_test_letters_this.append(
+                ( test_data_record['design_flow_temp'],
+                  test_data_record['test_letter'],
+                  test_data_record['temp_outlet'],
+                  test_data_record['temp_source'],
+                  test_data_record['temp_test'],
+                ))
+
+        if fixed_temps_and_test_letters is None:
+            # If we are on the first iteration of the loop, save the list of
+            # design flow temps and test letters from this loop for comparison
+            # in subsequent loops
+            fixed_temps_and_test_letters = fixed_temps_and_test_letters_this
+        else:
+            # If we are not on the first iteration of the loop, check that same
+            # design flow temps and test letters are present for this air flow
+            # rate and the first one
+            assert set(fixed_temps_and_test_letters) \
+                == set(fixed_temps_and_test_letters_this)
+
+    # Construct test data records interpolated by air flow rate
+    air_flow_rates_ordered = sorted(test_data_by_air_flow_rate.keys())
+    hp_dict_test_data_interp_by_air_flow_rate = []
+    for design_flow_temp, test_letter, temp_outlet, temp_source, temp_test \
+    in fixed_temps_and_test_letters:
+        # Create lists of test data values ordered by air flow rate
+        capacity_list = []
+        cop_list = []
+        degradation_coeff_list = []
+        for air_flow_rate in air_flow_rates_ordered:
+            for test_record in test_data_by_air_flow_rate[air_flow_rate]:
+                if test_record['design_flow_temp'] == design_flow_temp \
+                and test_record['test_letter'] == test_letter:
+                    capacity_list.append(test_record['capacity'])
+                    cop_list.append(test_record['cop'])
+                    degradation_coeff_list.append(test_record['degradation_coeff'])
+
+        # Interpolate test data by air flow rate
+        capacity = np.interp(throughput_exhaust_air, air_flow_rates_ordered, capacity_list)
+        cop      = np.interp(throughput_exhaust_air, air_flow_rates_ordered, cop_list)
+        degradation_coeff \
+                 = np.interp(throughput_exhaust_air, air_flow_rates_ordered, degradation_coeff_list)
+
+        # Construct interpolated test data record 
+        hp_dict_test_data_interp_by_air_flow_rate.append({
+            "test_letter": test_letter,
+            "capacity": capacity,
+            "cop": cop,
+            "degradation_coeff": degradation_coeff,
+            "design_flow_temp": design_flow_temp,
+            "temp_outlet": temp_outlet,
+            "temp_source": temp_source,
+            "temp_test": temp_test,
+            })
+
+    # Find lowest air flow rate in test data
+    lowest_air_flow_rate_in_test_data = min(test_data_by_air_flow_rate.keys())
+
+    return lowest_air_flow_rate_in_test_data, hp_dict_test_data_interp_by_air_flow_rate
+
 
 # Classes
 
