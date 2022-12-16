@@ -17,6 +17,7 @@ from core.schedule import expand_schedule, expand_events
 from core.controls.time_control import OnOffTimeControl
 from core.cooling_systems.air_conditioning import AirConditioning
 from core.energy_supply.energy_supply import EnergySupply
+from core.energy_supply.elec_battery import ElectricBattery
 from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.emitters import Emitters
 from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly
@@ -42,6 +43,7 @@ import core.water_heat_demand.misc as misc
 from core.ductwork import Ductwork
 import core.heating_systems.wwhrs as wwhrs
 from core.heating_systems.point_of_use import PointOfUse
+from core.energy_supply import elec_battery
 
 
 class Project:
@@ -134,7 +136,17 @@ class Project:
         energy_supply_unmet_demand = EnergySupply('unmet_demand', self.__simtime)
         self.__energy_supplies['_unmet_demand'] = energy_supply_unmet_demand
         for name, data in proj_dict['EnergySupply'].items():
-            self.__energy_supplies[name] = EnergySupply(data['fuel'], self.__simtime)
+            if 'ElectricBattery' in data:
+                self.__energy_supplies[name] = EnergySupply(
+                    data['fuel'],
+                    self.__simtime,
+                    ElectricBattery(
+                        data['ElectricBattery']['capacity'],
+                        data['ElectricBattery']['charge_discharge_efficiency'],
+                        )
+                    )
+            else:
+                self.__energy_supplies[name] = EnergySupply(data['fuel'], self.__simtime)
             # TODO Consider replacing fuel type string with fuel type object
 
         self.__internal_gains = {}

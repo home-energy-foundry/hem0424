@@ -63,13 +63,14 @@ class EnergySupply:
     #      account for generators? Or do we just handle it in this object and
     #      have an empty list of generators when not electricity?
 
-    def __init__(self, fuel_type, simulation_time):
+    def __init__(self, fuel_type, simulation_time, elec_battery = None):
         """ Construct an EnergySupply object
 
         Arguments:
         fuel_type          -- string denoting type of fuel
                               TODO Consider replacing with fuel_type object
         simulation_time    -- reference to SimulationTime object
+        elec_battery       -- reference to an ElectricBattery object
 
         Other variables:
         demand_total       -- list to hold total demand on this energy supply at each timestep
@@ -78,6 +79,8 @@ class EnergySupply:
         """
         self.__fuel_type          = Fuel_code.from_string(fuel_type)
         self.__simulation_time    = simulation_time
+        self.__elec_battery       = elec_battery
+
         self.__demand_total       = self.__init_demand_list()
         self.__demand_by_end_user = {}
         self.__beta_factor = self.__init_demand_list() #this would be multiple columns if multiple beta factors
@@ -176,7 +179,23 @@ class EnergySupply:
         supply_surplus = sum(supplies) * (1 - self.__beta_factor[t_idx])
         # Elec demand not met by PV (kWh) - ie amount to be imported from the grid or batteries
         demand_not_met = sum(demands) + supply_consumed
-
+        #See if there is a net supply/demand for the timestep
+        tot_demand_supply = demand_not_met + supply_surplus
+        if self.__elec_battery is not None:
+            #See if the battery can deal with excess supply/demand for this timestep
+            energy_out_of_battery = self.__elec_battery.charge_discharge_battery(tot_demand_supply)
+            if energy_out_of_battery < 0:
+                #If there a surplus in energy from the PV, charge the battery as much as possible with the surplus
+                supply_surplus -= energy_out_of_battery - demand_not_met
+                demand_not_met = 0
+                #Update the supply/demand to account for supplying energy to the battery
+            elif energy_out_of_battery > 0:
+                #If there is excess demand, use battery to supply the energy (if possible) first before going to the grid
+                demand_not_met -= energy_out_of_battery - supply_surplus
+                supply_surplus = 0
+                #Update the supply/demand to account for demand on the battery
+            else:
+                pass #If the battery cannot meet the supply/demand requirements then no calculation needs to be done
         self.__supply_surplus[t_idx] += supply_surplus
         self.__demand_not_met[t_idx] += demand_not_met
 
