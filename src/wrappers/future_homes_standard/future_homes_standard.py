@@ -31,7 +31,7 @@ def apply_fhs_preprocessing(project_dict):
     #construct schedules
     schedule_occupancy_weekday, schedule_occupancy_weekend = create_occupancy(N_occupants)
     create_metabolic_gains(
-        project_dict, 
+        project_dict,
         TFA, 
         schedule_occupancy_weekday, 
         schedule_occupancy_weekend)
@@ -259,6 +259,8 @@ def create_heating_pattern(project_dict):
     the heating times are necessarily the same as the living room,
     so the evening heating period would also start at 16:30 on weekdays.
     '''
+    
+    
     for zone in project_dict['Zone']:
         if "SpaceHeatControl" in project_dict["Zone"][zone].keys():
             if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom":
@@ -275,6 +277,10 @@ def create_heating_pattern(project_dict):
                         "weekend": heating_fhs_weekend
                     }
                 }
+                if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
+                    spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
+                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_LivingRoom"
+                    
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling":
                 project_dict['Zone'][zone]['temp_setpnt_heat'] = restofdwelling_setpoint_fhs
                 project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
@@ -291,25 +297,30 @@ def create_heating_pattern(project_dict):
                         "weekend": heating_fhs_weekend
                     }
                 }
+                if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
+                    spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
+                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_RestOfDwelling"
     '''
     water heating pattern - same as space heating
     '''
 
     for hwsource in project_dict['HotWaterSource']:
-        for heatsource in project_dict['HotWaterSource'][hwsource]["HeatSource"]:
-            hwcontrolname = project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"]
-            project_dict["Control"][hwcontrolname] = {
-                "type": "OnOffTimeControl",
-                "start_day" : 0,
-                "time_series_step":0.5,
-                "schedule":{
-                    "main": [{"repeat": 53, "value": "week"}],
-                    "week": [{"repeat": 5, "value": "weekday"},
-                             {"repeat": 2, "value": "weekend"}],
-                    "weekday": heating_nonlivingarea_fhs_weekday,
-                    "weekend": heating_fhs_weekend
+        # Instantaneous water heating systems must be available 24 hours a day
+        if project_dict['HotWaterSource'][hwsource]["type"] == "StorageTank":
+            for heatsource in project_dict['HotWaterSource'][hwsource]["HeatSource"]:
+                hwcontrolname = project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"]
+                project_dict["Control"][hwcontrolname] = {
+                    "type": "OnOffTimeControl",
+                    "start_day" : 0,
+                    "time_series_step":0.5,
+                    "schedule":{
+                        "main": [{"repeat": 53, "value": "week"}],
+                        "week": [{"repeat": 5, "value": "weekday"},
+                                 {"repeat": 2, "value": "weekend"}],
+                        "weekday": heating_nonlivingarea_fhs_weekday,
+                        "weekend": heating_fhs_weekend
+                    }
                 }
-            }
     
 
 
@@ -892,7 +903,7 @@ def create_cooling(project_dict):
                         "main": [{"repeat": 365, "value": cooling_subschedule_restofdwelling}]
                     }
                 }
-        
+
 
 def create_cold_water_feed_temps(project_dict):
     
