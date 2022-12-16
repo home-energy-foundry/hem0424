@@ -50,8 +50,7 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
                  heat_network,
                  service_name,
                  temp_hot_water,
-                 cold_feed,
-                 pump_factor
+                 cold_feed
                 ):
         """ Construct a HeatNetworkWater object
 
@@ -60,14 +59,12 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
         service_name       -- name of the service demanding energy from the heat network
         temp_hot_water     -- temperature of the hot water to be provided, in deg C
         cold_feed          -- reference to ColdWaterSource object
-        pump_factor        -- pumping energy factor
         """
         super().__init__(heat_network, service_name)
 
         self.__temp_hot_water = temp_hot_water
         self.__cold_feed = cold_feed
         self.__service_name = service_name
-        self.__pump_factor = pump_factor
 
     def demand_hot_water(self, volume_demanded, daily_loss):
         """ Demand energy for hot water (in kWh) from the heat network """
@@ -80,7 +77,7 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
 
         # Calculate energy needed to cover losses
         HIU_loss = self.HIU_loss(daily_loss)
-        energy_demand = (energy_demand + HIU_loss) * self.__pump_factor
+        energy_demand = energy_demand + HIU_loss
 
         return self._heat_network._HeatNetwork__demand_energy(energy_demand, self.__service_name)
 
@@ -102,26 +99,23 @@ class HeatNetworkServiceWaterStorage(HeatNetworkService):
     def __init__(
             self,
             heat_network,
-            service_name,
-            pump_factor
+            service_name
             ):
         """ Construct a HeatNetworkWaterStorage object
 
         Arguments:
         heat_network -- reference to the HeatNetwork object providing the service
-        service_name -- name of the service demanding energy from the heat pump
-        pump_factor        -- pumping energy factor
+        service_name -- name of the service demanding energy from the heat network
         """
         super().__init__(heat_network, service_name)
 
         self.__service_name = service_name
-        self.__pump_factor = pump_factor
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat network """
         # Calculate energy needed to cover losses
         cylinder_loss = self.cylinder_loss()
-        energy_demand = (energy_demand + cylinder_loss) * self.__pump_factor
+        energy_demand = energy_demand + cylinder_loss
         return self._heat_network._HeatNetwork__demand_energy(energy_demand, self.__service_name)
 
     def cylinder_loss(self):
@@ -137,22 +131,19 @@ class HeatNetworkServiceSpace(HeatNetworkService):
     This object contains the parts of the heat network calculation that are
     specific to providing space heating-.
     """
-    def __init__(self, heat_network, service_name, pump_factor):
+    def __init__(self, heat_network, service_name):
         """ Construct a HeatNetworkSpace object
 
         Arguments:
         heat_network -- reference to the HeatNetwork object providing the service
         service_name -- name of the service demanding energy from the heat network
-        pump_factor  -- pumping energy factor
         """
         super().__init__(heat_network, service_name)
 
         self.__service_name = service_name
-        self.__pump_factor = pump_factor
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat network """
-        energy_demand = energy_demand * self.__pump_factor
         return self._heat_network._HeatNetwork__demand_energy(energy_demand, self.__service_name)
 
 
@@ -245,13 +236,4 @@ class HeatNetwork:
         self.__energy_supply_connections[service_name].demand_energy(energy_output_required)
 
         return energy_output_required
-
-    def __calc_auxiliary_energy(self, energy_output_required, pump_energy_factor):
-        """ Forward the demand energy for heat distribution (in kWh) for pumping hot water
-        from the heat network to the end user to the energy supply connection object """
-        # pump_energy_factor is the pumping energy factor which is sourced from the PCDB
-        energy_aux = self.__demand_energy(energy_output_required) \
-                                    * pump_energy_factor
-        self.__energy_supply_connection_aux.demand_energy(energy_aux)
-
 

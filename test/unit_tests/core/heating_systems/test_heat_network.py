@@ -186,13 +186,12 @@ class TestHeatNetworkServiceWaterDirect(unittest.TestCase):
         coldwatertemps = [1.0, 1.2]
         coldfeed = ColdWaterSource(coldwatertemps, self.simtime, 0, 1)
         return_temp = 60
-        pump_factor = 1.03
         self.heat_network_service_water_direct = HeatNetworkServiceWaterDirect(
             self.heat_network,
             "heat_network_test", 
             return_temp,
-            coldfeed,
-            pump_factor)
+            coldfeed
+            )
 
     def test_heat_network_service_water(self):
         """ Test that HeatNetwork object returns correct hot water energy demand """
@@ -202,8 +201,8 @@ class TestHeatNetworkServiceWaterDirect(unittest.TestCase):
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.heat_network_service_water_direct.demand_hot_water(volume_demanded[t_idx], daily_loss),
-                    [3.541712, 7.049183][t_idx],
-                    6,
+                    [3.439, 6.844][t_idx],
+                    3,
                     msg="incorrect energy_output_provided"
                     )
     
@@ -294,11 +293,9 @@ class TestHeatNetworkServiceWaterStorage(unittest.TestCase):
         coldwatertemps = [1.0, 1.2]
         coldfeed = ColdWaterSource(coldwatertemps, self.simtime, 0, 1)
         return_temp = 60
-        pump_factor = 1.03
         self.heat_network_service_water_storage= HeatNetworkServiceWaterStorage(
             self.heat_network,
-            "heat_network_test",
-            pump_factor
+            "heat_network_test"
             )
 
     def test_heat_network_service_water_storage(self):
@@ -309,7 +306,7 @@ class TestHeatNetworkServiceWaterStorage(unittest.TestCase):
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.heat_network_service_water_storage.demand_energy(energy_demanded[t_idx]),
-                    [10.3, 2.06][t_idx],
+                    [10.0, 2.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )
     
@@ -395,11 +392,10 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
         self.heat_network._HeatNetwork__create_service_connection("heat_network_test")
 
         # Set up HeatNetworkServiceSpace
-        pump_factor = 1.03
         self.heat_network_service_space = HeatNetworkServiceSpace(
             self.heat_network,
             "heat_network_test",
-            pump_factor)
+            )
 
     def test_heat_network_service_space(self):
         """ Test that HeatNetworkServiceSpace object returns correct space heating energy demand """
@@ -408,6 +404,6 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.heat_network_service_space.demand_energy(energy_demanded[t_idx]),
-                    [10.3, 2.06][t_idx],
+                    [10.0, 2.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )
