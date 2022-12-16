@@ -1074,45 +1074,14 @@ class Project:
             # Calculate space heating and cooling demand for each zone and sum
             # Keep track of how much is from each zone, so that energy provided
             # can be split between them in same proportion later
-
-            space_heat_demand_system = {} # in kWh
-            for heat_system_name in self.__space_heat_systems.keys():
-                space_heat_demand_system[heat_system_name] = 0.0
-
-            space_cool_demand_system = {} # in kWh
-            for cool_system_name in self.__space_cool_systems.keys():
-                space_cool_demand_system[cool_system_name] = 0.0
-
-            space_heat_demand_zone = {}
-            space_cool_demand_zone = {}
-            for z_name, zone in self.__zones.items():
-                # Look up names of relevant heating and cooling systems for this zone
-                h_name = self.__heat_system_name_for_zone[z_name]
-                c_name = self.__cool_system_name_for_zone[z_name]
-                # Look up convective fraction for heating/cooling for this zone
-                if h_name is not None:
-                    frac_convective_heat = self.__space_heat_systems[h_name].frac_convective()
-                else:
-                    frac_convective_heat = 1.0
-                if c_name is not None:
-                    frac_convective_cool = self.__space_cool_systems[c_name].frac_convective()
-                else:
-                    frac_convective_cool = 1.0
-
-                space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
-                    zone.space_heat_cool_demand(
-                        delta_t_h,
-                        temp_ext_air,
-                        gains_internal_zone[z_name],
-                        gains_solar_zone[z_name],
-                        frac_convective_heat,
-                        frac_convective_cool,
-                        )
-
-                if h_name is not None: # If the zone is heated
-                    space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
-                if c_name is not None: # If the zone is cooled
-                    space_cool_demand_system[c_name] += space_cool_demand_zone[z_name]
+            space_heat_demand_system, space_cool_demand_system, \
+                space_heat_demand_zone, space_cool_demand_zone \
+                = self.__space_heat_cool_demand_by_system_and_zone(
+                    delta_t_h,
+                    temp_ext_air,
+                    gains_internal_zone,
+                    gains_solar_zone,
+                    )
 
             # Calculate how much heating the systems can provide
             space_heat_provided = {}
@@ -1334,3 +1303,60 @@ class Project:
             energy_import, energy_export, betafactor, \
             zone_dict, zone_list, hc_system_dict, hot_water_dict, \
             ductwork_gains_dict
+
+    def __space_heat_cool_demand_by_system_and_zone(
+            self,
+            delta_t_h,
+            temp_ext_air,
+            gains_internal_zone,
+            gains_solar_zone,
+            ):
+        """ Calculate space heating and cooling demand for each zone and sum.
+
+        Keep track of how much is from each zone, so that energy provided
+        can be split between them in same proportion later
+        """
+        space_heat_demand_system = {} # in kWh
+        for heat_system_name in self.__space_heat_systems.keys():
+            space_heat_demand_system[heat_system_name] = 0.0
+
+        space_cool_demand_system = {} # in kWh
+        for cool_system_name in self.__space_cool_systems.keys():
+            space_cool_demand_system[cool_system_name] = 0.0
+
+        space_heat_demand_zone = {}
+        space_cool_demand_zone = {}
+        for z_name, zone in self.__zones.items():
+            # Look up names of relevant heating and cooling systems for this zone
+            h_name = self.__heat_system_name_for_zone[z_name]
+            c_name = self.__cool_system_name_for_zone[z_name]
+
+            # Look up convective fraction for heating/cooling for this zone
+            if h_name is not None:
+                frac_convective_heat = self.__space_heat_systems[h_name].frac_convective()
+            else:
+                frac_convective_heat = 1.0
+            if c_name is not None:
+                frac_convective_cool = self.__space_cool_systems[c_name].frac_convective()
+            else:
+                frac_convective_cool = 1.0
+
+            space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] \
+                = zone.space_heat_cool_demand(
+                    delta_t_h,
+                    temp_ext_air,
+                    gains_internal_zone[z_name],
+                    gains_solar_zone[z_name],
+                    frac_convective_heat,
+                    frac_convective_cool,
+                    )
+
+            if h_name is not None: # If the zone is heated
+                space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
+            if c_name is not None: # If the zone is cooled
+                space_cool_demand_system[c_name] += space_cool_demand_zone[z_name]
+
+        return \
+            space_heat_demand_system, space_cool_demand_system, \
+            space_heat_demand_zone, space_cool_demand_zone
+
