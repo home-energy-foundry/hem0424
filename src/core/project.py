@@ -14,7 +14,7 @@ import core.units as units
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
 from core.schedule import expand_schedule, expand_events
-from core.controls.time_control import OnOffTimeControl
+from core.controls.time_control import OnOffTimeControl, SetpointTimeControl
 from core.cooling_systems.air_conditioning import AirConditioning
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
@@ -156,6 +156,9 @@ class Project:
             if ctrl_type == 'OnOffTimeControl':
                 sched = expand_schedule(bool, data['schedule'], "main")
                 ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'], data['time_series_step'])
+            elif ctrl_type == 'SetpointTimeControl':
+                sched = expand_schedule(float, data['schedule'], "main")
+                ctrl = SetpointTimeControl(sched, self.__simtime, data['start_day'], data['time_series_step'])
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
