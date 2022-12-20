@@ -967,8 +967,12 @@ class Project:
                 + hw_pipework["external"].heat_loss(demand_water_temperature, self.__external_conditions.air_temp())
 
             # only calculate loss for times when there is hot water in the pipes - multiply by time fraction to get to kWh
-            pipework_heat_loss = pipework_watts_heat_loss * hot_water_time_fraction * (delta_t_h * units.seconds_per_hour) / units.W_per_kW # convert to kWh
-            
+            pipework_heat_loss \
+                = pipework_watts_heat_loss \
+                * hot_water_time_fraction \
+                * delta_t_h \
+                / units.W_per_kW # convert to kWh
+
             pipework_heat_loss += hw_pipework["internal"].cool_down_loss(
                 demand_water_temperature,
                 internal_air_temperature
