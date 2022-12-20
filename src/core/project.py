@@ -870,7 +870,8 @@ class Project:
                                     delta_t_h,
                                     cold_water_temperature,
                                     event['duration'],
-                                    self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour)
+                                    self.__water_heating_pipework,
+                                    )
 
             for name, other in self.__other_water_events.items():
                 # Get all other use events for the current timestep
@@ -899,7 +900,7 @@ class Project:
                                 delta_t_h,
                                 cold_water_temperature,
                                 event['duration'],
-                                self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour
+                                self.__water_heating_pipework,
                                 )
 
             for name, bath in self.__baths.items():
@@ -934,8 +935,9 @@ class Project:
                                 delta_t_h,
                                 cold_water_temperature,
                                 bath_duration,
-                                self.__water_heating_pipework) * (bath_duration/units.minutes_per_hour)
-                        
+                                self.__water_heating_pipework,
+                                )
+
             return hw_demand, hw_duration, all_events, pw_losses, hw_energy_demand  # litres hot water per timestep, minutes demand per timestep, number of events in timestep
 
         def calc_pipework_losses(hw_demand, t_idx, delta_t_h, cold_water_temperature, hw_duration, hw_pipework):
