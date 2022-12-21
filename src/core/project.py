@@ -241,10 +241,14 @@ class Project:
             return shower
 
         self.__showers = {}
+        no_of_showers = 0
         for name, data in proj_dict['Shower'].items():
             self.__showers[name] = dict_to_shower(name, data)
-            
-           
+            # Count number of showers that draw from HW system
+            if data['type'] != 'InstantElecShower':
+                no_of_showers += 1
+
+
         def dict_to_baths(name, data):
             """ Parse dictionary of bath data and return approprate bath object """
             cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
@@ -271,15 +275,19 @@ class Project:
         for name, data in proj_dict['Other'].items():
             self.__other_water_events[name] = dict_to_other_water_events(name, data)
 
+        total_no_of_hot_water_tapping_points = \
+            no_of_showers + len(self.__baths.keys()) + len(self.__other_water_events.keys())
 
         def dict_to_water_distribution_system(name, data):
             # go through internal then external distribution system
-            # TODO - primary system
-            
+
+            # Calculate average length of pipework between HW system and tapping point
+            length_average = data["length"] / total_no_of_hot_water_tapping_points
+
             pipework = Pipework(
                 data["internal_diameter"],
                 data["external_diameter"],
-                data["length"],
+                length_average,
                 data["insulation_thermal_conductivity"],
                 data["insulation_thickness"],
                 data["surface_reflectivity"],
