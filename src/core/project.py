@@ -462,10 +462,18 @@ class Project:
         def dict_to_zone(name, data):
             # Record which heating and cooling system this zone is heated/cooled by (if applicable)
             if 'SpaceHeatSystem' in data:
+                # Check that no heating system has been assigned to more than one zone
+                if data['SpaceHeatSystem'] in self.__heat_system_name_for_zone.values():
+                    sys.exit('Invalid input: SpaceHeatSystem (' + data['SpaceHeatSystem'] 
+                           + ') has been assigned to more than one Zone')
                 self.__heat_system_name_for_zone[name] = data['SpaceHeatSystem']
             else:
                 self.__heat_system_name_for_zone[name] = None
             if 'SpaceCoolSystem' in data:
+                # Check that no cooling system has been assigned to more than one zone
+                if data['SpaceCoolSystem'] in self.__cool_system_name_for_zone.values():
+                    sys.exit('Invalid input: SpaceCoolSystem (' + data['SpaceCoolSystem'] 
+                           + ') has been assigned to more than one Zone')
                 self.__cool_system_name_for_zone[name] = data['SpaceCoolSystem']
             else:
                 self.__cool_system_name_for_zone[name] = None
@@ -1138,21 +1146,41 @@ class Project:
 
                 # If zone is unheated or there was no demand on heating system,
                 # set heating gains for zone to zero, else calculate
-                if h_name is None or space_heat_demand_system[h_name] == 0.0:
+                # TODO Commented-out code in the block below was used to
+                #      apportion the delivered heating between the zones that
+                #      are served by the system in question, in proportion to
+                #      demand from each zone. However, this does not work when
+                #      the demand is zero but the system is delivering heating
+                #      anyway, e.g. as may be the case with radiators cooling
+                #      down at the end of a heating period. Therefore, for now
+                #      assume that each system only serves a single zone (for
+                #      systems such as boiler feeding radiators, this means one
+                #      emitter system for each zone, but they can all be served
+                #      by the same boiler).
+                if h_name is None: # or space_heat_demand_system[h_name] == 0.0:
                     gains_heat = 0.0
                 else:
-                    frac_heat_zone = space_heat_demand_zone[z_name] \
-                                   / space_heat_demand_system[h_name]
-                    gains_heat = space_heat_provided[h_name] * frac_heat_zone
+                    # frac_heat_zone = space_heat_demand_zone[z_name] \
+                    #                / space_heat_demand_system[h_name]
+                    # gains_heat = space_heat_provided[h_name] * frac_heat_zone
+                    gains_heat = space_heat_provided[h_name]
 
                 # If zone is uncooled or there was no demand on cooling system,
                 # set cooling gains for zone to zero, else calculate
-                if c_name is None or space_cool_demand_system[c_name] == 0.0:
+                # TODO Commented-out code in the block below was used to
+                #      apportion the delivered cooling between the zones that
+                #      are served by the system in question, in proportion to
+                #      demand from each zone. However, this does not work when
+                #      the demand is zero but the system is delivering cooling
+                #      anyway. Therefore, for now assume that each system only
+                #      serves a single zone.
+                if c_name is None: # or space_cool_demand_system[c_name] == 0.0:
                     gains_cool = 0.0
                 else:
-                    frac_cool_zone = space_cool_demand_zone[z_name] \
-                                   / space_cool_demand_system[c_name]
-                    gains_cool = space_cool_provided[c_name] * frac_cool_zone
+                    # frac_cool_zone = space_cool_demand_zone[z_name] \
+                    #                / space_cool_demand_system[c_name]
+                    # gains_cool = space_cool_provided[c_name] * frac_cool_zone
+                    gains_cool = space_cool_provided[c_name]
 
                 # Sum heating gains (+ve) and cooling gains (-ve) and convert from kWh to W
                 gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
