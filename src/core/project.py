@@ -245,10 +245,14 @@ class Project:
             return shower
 
         self.__showers = {}
+        no_of_showers = 0
         for name, data in proj_dict['Shower'].items():
             self.__showers[name] = dict_to_shower(name, data)
-            
-           
+            # Count number of showers that draw from HW system
+            if data['type'] != 'InstantElecShower':
+                no_of_showers += 1
+
+
         def dict_to_baths(name, data):
             """ Parse dictionary of bath data and return approprate bath object """
             cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
@@ -275,15 +279,19 @@ class Project:
         for name, data in proj_dict['Other'].items():
             self.__other_water_events[name] = dict_to_other_water_events(name, data)
 
+        total_no_of_hot_water_tapping_points = \
+            no_of_showers + len(self.__baths.keys()) + len(self.__other_water_events.keys())
 
         def dict_to_water_distribution_system(name, data):
             # go through internal then external distribution system
-            # TODO - primary system
-            
+
+            # Calculate average length of pipework between HW system and tapping point
+            length_average = data["length"] / total_no_of_hot_water_tapping_points
+
             pipework = Pipework(
                 data["internal_diameter"],
                 data["external_diameter"],
-                data["length"],
+                length_average,
                 data["insulation_thermal_conductivity"],
                 data["insulation_thickness"],
                 data["surface_reflectivity"],
@@ -881,7 +889,8 @@ class Project:
                                     delta_t_h,
                                     cold_water_temperature,
                                     event['duration'],
-                                    self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour)
+                                    self.__water_heating_pipework,
+                                    )
 
             for name, other in self.__other_water_events.items():
                 # Get all other use events for the current timestep
@@ -910,7 +919,7 @@ class Project:
                                 delta_t_h,
                                 cold_water_temperature,
                                 event['duration'],
-                                self.__water_heating_pipework) * (event['duration']/units.minutes_per_hour
+                                self.__water_heating_pipework,
                                 )
 
             for name, bath in self.__baths.items():
@@ -945,8 +954,9 @@ class Project:
                                 delta_t_h,
                                 cold_water_temperature,
                                 bath_duration,
-                                self.__water_heating_pipework) * (bath_duration/units.minutes_per_hour)
-                        
+                                self.__water_heating_pipework,
+                                )
+
             return hw_demand, hw_duration, all_events, pw_losses, hw_energy_demand  # litres hot water per timestep, minutes demand per timestep, number of events in timestep
 
         def calc_pipework_losses(hw_demand, t_idx, delta_t_h, cold_water_temperature, hw_duration, hw_pipework):
@@ -976,8 +986,12 @@ class Project:
                 + hw_pipework["external"].heat_loss(demand_water_temperature, self.__external_conditions.air_temp())
 
             # only calculate loss for times when there is hot water in the pipes - multiply by time fraction to get to kWh
-            pipework_heat_loss = pipework_watts_heat_loss * hot_water_time_fraction * (delta_t_h * units.seconds_per_hour) / units.W_per_kW # convert to kWh
-            
+            pipework_heat_loss \
+                = pipework_watts_heat_loss \
+                * hot_water_time_fraction \
+                * delta_t_h \
+                / units.W_per_kW # convert to kWh
+
             pipework_heat_loss += hw_pipework["internal"].cool_down_loss(
                 demand_water_temperature,
                 internal_air_temperature
