@@ -79,7 +79,7 @@ for f in sys.argv[1:]:
 					"start_day": 0,
 					"time_series_step": 1,
 					"schedule": {
-						"main": [{"repeat": 365, "value": setpoint_heat_on}],
+						"main": [{"repeat": 8760, "value": setpoint_heat_on}],
 						}
 					}
 		if 'SpaceCoolSystem' in z_data.keys():
@@ -103,7 +103,7 @@ for f in sys.argv[1:]:
 					"start_day": 0,
 					"time_series_step": 1,
 					"schedule": {
-						"main": [{"repeat": 365, "value": setpoint_cool_on}],
+						"main": [{"repeat": 8760, "value": setpoint_cool_on}],
 						}
 					}
 

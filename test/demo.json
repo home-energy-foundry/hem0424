@@ -98,7 +98,7 @@
 			"start_day": 0,
 			"time_series_step": 1,
 			"schedule": {
-				"main": [{"repeat": 365, "value": 21.0}]
+				"main": [{"repeat": 8760, "value": 21.0}]
 			}
 		}
 	},
