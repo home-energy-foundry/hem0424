@@ -92,6 +92,14 @@
 			"schedule": {
 				"main": [true, true, false, {"value": true, "repeat": 5}]
 			}
+		},
+		"main__new_SetpointControl": {
+			"type": "SetpointTimeControl",
+			"start_day": 0,
+			"time_series_step": 1,
+			"schedule": {
+				"main": [{"repeat": 8760, "value": 21.0}]
+			}
 		}
 	},
 	"HotWaterSource": {
@@ -201,6 +209,7 @@
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
 			"EnergySupply": "mains elec",
+			"Control": "main__new_SetpointControl",
 			"frac_convective": 0.4
 		}
 	},
@@ -232,8 +241,6 @@
 			"SpaceHeatSystem": "main",
 			"area": 80.0,
 			"volume": 250.0,
-			"temp_setpnt_heat": 21.0,
-			"temp_setpnt_cool": 25.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",

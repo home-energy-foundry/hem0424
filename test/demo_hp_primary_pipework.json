@@ -59,6 +59,14 @@
 			"schedule": {
 				"main": [true, false, false, {"value": true, "repeat": 5}]
 			}
+		},
+		"main__space heat timer__converted_from_OnOffTimeControl": {
+			"type": "SetpointTimeControl",
+			"start_day": 0,
+			"time_series_step": 1,
+			"schedule": {
+				"main": [21.0, -273.15, -273.15, {"value": 21.0, "repeat": 5}]
+			}
 		}
 	},
 	"HotWaterSource": {
@@ -271,7 +279,7 @@
 				"name": "hp",
 				"temp_flow_limit_upper": 65.0
 			},
-			"Control": "space heat timer",
+			"Control": "main__space heat timer__converted_from_OnOffTimeControl",
 			"ecodesign_control_class": 2,
 			"design_flow_temp": 55,
 			"Zone": "zone 1"
@@ -301,8 +309,6 @@
 			"SpaceHeatSystem": "main",
 			"area": 80.0,
 			"volume": 250.0,
-			"temp_setpnt_heat": 21.0,
-			"temp_setpnt_cool": 25.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
