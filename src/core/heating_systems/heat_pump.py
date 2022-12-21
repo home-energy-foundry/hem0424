@@ -777,7 +777,7 @@ class HeatPumpServiceSpace(HeatPumpService):
             service_name,
             temp_limit_upper,
             temp_diff_emit_dsgn,
-            control=None,
+            control,
             ):
         """ Construct a BoilerServiceSpace object
 
@@ -786,12 +786,15 @@ class HeatPumpServiceSpace(HeatPumpService):
         service_name -- name of the service demanding energy from the heat pump
         temp_limit_upper -- upper operating limit for temperature, in deg C
         temp_diff_emit_dsgn -- design temperature difference across the emitters, in deg C or K
-        control -- reference to a control object which must implement is_on() func
+        control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
         super().__init__(heat_pump, service_name, control)
 
         self.__temp_limit_upper = Celcius2Kelvin(temp_limit_upper)
         self.__temp_diff_emit_dsgn = temp_diff_emit_dsgn
+
+    def temp_setpnt(self):
+        return self._HeatPumpService__control.setpnt()
 
     def energy_output_max(self, temp_output):
         """ Calculate the maximum energy output of the HP, accounting for time
@@ -1014,7 +1017,7 @@ class HeatPump:
             service_name,
             temp_limit_upper,
             temp_diff_emit_dsgn,
-            control=None,
+            control,
             ):
         """ Return a HeatPumpServiceSpace object and create an EnergySupplyConnection for it
 

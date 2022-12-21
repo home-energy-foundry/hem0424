@@ -42,6 +42,7 @@ import core.water_heat_demand.misc as misc
 from core.ductwork import Ductwork
 import core.heating_systems.wwhrs as wwhrs
 from core.heating_systems.point_of_use import PointOfUse
+from core.units import Kelvin2Celcius
 
 
 class Project:
@@ -496,8 +497,6 @@ class Project:
                 building_elements,
                 thermal_bridging,
                 vent_elements,
-                data['temp_setpnt_heat'],
-                data['temp_setpnt_cool'],
                 )
 
         self.__zones = {}
@@ -723,6 +722,7 @@ class Project:
                 elif isinstance(heat_source, Boiler):
                     heat_source_service = heat_source.create_service_space_heating(
                         data['HeatSource']['name'] + '_space_heating: ' + name,
+                        ctrl,
                         )
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
@@ -1095,12 +1095,18 @@ class Project:
                 # Look up convective fraction for heating/cooling for this zone
                 if h_name is not None:
                     frac_convective_heat = self.__space_heat_systems[h_name].frac_convective()
+                    temp_setpnt_heat = self.__space_heat_systems[h_name].temp_setpnt()
                 else:
                     frac_convective_heat = 1.0
+                    # Set heating setpoint to absolute zero to ensure no heating demand
+                    temp_setpnt_heat = Kelvin2Celcius(0.0)
                 if c_name is not None:
                     frac_convective_cool = self.__space_cool_systems[c_name].frac_convective()
+                    temp_setpnt_cool = self.__space_cool_systems[c_name].temp_setpnt()
                 else:
                     frac_convective_cool = 1.0
+                    # Set cooling setpoint to Planck temperature to ensure no cooling demand
+                    temp_setpnt_cool = Kelvin2Celcius(1.4e32)
 
                 space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
                     zone.space_heat_cool_demand(
@@ -1110,6 +1116,8 @@ class Project:
                         gains_solar_zone[z_name],
                         frac_convective_heat,
                         frac_convective_cool,
+                        temp_setpnt_heat,
+                        temp_setpnt_cool,
                         )
 
                 if h_name is not None: # If the zone is heated

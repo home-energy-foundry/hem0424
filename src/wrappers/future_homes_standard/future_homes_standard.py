@@ -12,6 +12,7 @@ import os
 import json
 import csv
 from core import project, schedule
+from core.units import Kelvin2Celcius
 
 this_directory = os.path.dirname(os.path.relpath(__file__))
 FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_04-11-2022.csv")
@@ -230,7 +231,10 @@ def create_heating_pattern(project_dict):
     
     livingroom_setpoint_fhs = 21.0
     restofdwelling_setpoint_fhs = 18.0
-    
+
+    # Set heating setpoint to absolute zero to ensure no heating demand
+    heating_off_setpoint = Kelvin2Celcius(0.0)
+
     #07:30-09:30 and then 16:30-22:00
     heating_fhs_weekday = (
         [False for x in range(14)] +
@@ -264,17 +268,20 @@ def create_heating_pattern(project_dict):
     for zone in project_dict['Zone']:
         if "SpaceHeatControl" in project_dict["Zone"][zone].keys():
             if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom":
-                project_dict['Zone'][zone]['temp_setpnt_heat'] = livingroom_setpoint_fhs
                 project_dict['Control']['HeatingPattern_LivingRoom'] = {
-                    "type": "OnOffTimeControl",
+                    "type": "SetpointTimeControl",
                     "start_day" : 0,
                     "time_series_step":0.5,
                     "schedule": {
                         "main": [{"repeat": 53, "value": "week"}],
                         "week": [{"repeat": 5, "value": "weekday"},
                                  {"repeat": 2, "value": "weekend"}],
-                        "weekday": heating_fhs_weekday,
-                        "weekend": heating_fhs_weekend
+                        "weekday": [livingroom_setpoint_fhs if x
+                                    else heating_off_setpoint
+                                    for x in heating_fhs_weekday],
+                        "weekend": [livingroom_setpoint_fhs if x
+                                    else heating_off_setpoint
+                                    for x in heating_fhs_weekend],
                     }
                 }
                 if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
@@ -282,19 +289,20 @@ def create_heating_pattern(project_dict):
                     project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_LivingRoom"
                     
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling":
-                project_dict['Zone'][zone]['temp_setpnt_heat'] = restofdwelling_setpoint_fhs
                 project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
-                    "type": "OnOffTimeControl",
+                    "type": "SetpointTimeControl",
                     "start_day" : 0,
                     "time_series_step":0.5,
-                    '''schedules need to be specified in Zone inputs'''
-                    "setpoint":restofdwelling_setpoint_fhs,
                     "schedule":{
                         "main": [{"repeat": 53, "value": "week"}],
                         "week": [{"repeat": 5, "value": "weekday"},
                                  {"repeat": 2, "value": "weekend"}],
-                        "weekday": heating_nonlivingarea_fhs_weekday,
-                        "weekend": heating_fhs_weekend
+                        "weekday": [restofdwelling_setpoint_fhs if x
+                                    else heating_off_setpoint
+                                    for x in heating_nonlivingarea_fhs_weekday],
+                        "weekend": [restofdwelling_setpoint_fhs if x
+                                    else heating_off_setpoint
+                                    for x in heating_fhs_weekend],
                     }
                 }
                 if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
@@ -876,26 +884,50 @@ def create_cooling(project_dict):
     TODO - only do this if there is a cooling system present
     '''
     cooling_setpoint = 24.0
+    # Set cooling setpoint to Planck temperature to ensure no cooling demand
+    cooling_off_setpoint = Kelvin2Celcius(1.4e32)
+
+    # TODO The livingroom subschedules below have the same time pattern as the
+    #      livingroom heating schedules. Consolidate these definitions to avoid
+    #      repetition.
+
+    #07:30-09:30 and then 16:30-22:00
+    cooling_subschedule_livingroom_weekday = (
+        [cooling_off_setpoint for x in range(14)] +
+        [cooling_setpoint for x in range(5)] +
+        [cooling_off_setpoint for x in range(14)] +
+        [cooling_setpoint for x in range(11)] +
+        [cooling_off_setpoint for x in range(4)])
+
+    #08:30 - 22:00
+    cooling_subschedule_livingroom_weekend = (
+        [cooling_off_setpoint for x in range(17)] +
+        [cooling_setpoint for x in range(28)] +
+        [cooling_off_setpoint for x in range(3)])
+
     cooling_subschedule_restofdwelling = (
         #22:00-07:00 - ie nighttime only
-        [True for x in range(14)] +
-        [False for x in range(30)] +
-        [True for x in range(4)]
+        [cooling_setpoint for x in range(14)] +
+        [cooling_off_setpoint for x in range(30)] +
+        [cooling_setpoint for x in range(4)]
     )
     
     for zone in project_dict['Zone']:
         if "SpaceHeatControl" in project_dict['Zone'][zone]:
             if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom" and "Cooling" in project_dict['Zone'][zone]:
-                cooling_schedule_livingroom = project_dict['Control']['HeatingPattern_LivingRoom']['schedule']
-                project_dict['Zone'][zone]['temp_setpnt_cool'] = cooling_setpoint
                 project_dict['Control']['Cooling_LivingRoom'] = {
                     "start_day" : 0,
                     "time_series_step":0.5,
-                    "schedule": cooling_schedule_livingroom
+                    "schedule": {
+                        "main": [{"repeat": 53, "value": "week"}],
+                        "week": [{"repeat": 5, "value": "weekday"},
+                                 {"repeat": 2, "value": "weekend"}],
+                        "weekday": cooling_subschedule_livingroom_weekday,
+                        "weekend": cooling_subschedule_livingroom_weekend,
+                    }
                 }
                 
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" and "Cooling" in project_dict['Zone'][zone]:
-                project_dict['Zone'][zone]['temp_setpnt_cool'] = cooling_setpoint
                 project_dict['Control']['Cooling_RestOfDwelling'] = {
                     "start_day" : 0,
                     "time_series_step":0.5,

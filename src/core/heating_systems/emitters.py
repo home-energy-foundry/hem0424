@@ -68,6 +68,9 @@ class Emitters:
         # Set initial values
         self.__temp_emitter_prev = 20.0
 
+    def temp_setpnt(self):
+        return self.__heat_source.temp_setpnt()
+
     def frac_convective(self):
         return self.__frac_convective
 
