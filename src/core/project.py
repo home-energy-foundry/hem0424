@@ -20,7 +20,7 @@ from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.emitters import Emitters
 from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly
-from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
+from core.heating_systems.storage_tank import ImmersionHeater, SolarThermalSystem, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.heating_systems.boiler import Boiler
 from core.space_heat_demand.zone import Zone
@@ -608,6 +608,30 @@ class Project:
                     self.__simtime,
                     ctrl,
                     )
+            elif heat_source_type == 'SolarThermalSystem':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                heat_source = SolarThermalSystem(
+                    data['sol_loc'],
+                    data['area_module'],
+                    data['modules'],
+                    data['peak_collector_efficiency'],
+                    data['incidence_angle_modifier'],
+                    data['first_order_hlc'],
+                    data['second_order_hlc'],
+                    data['collector_mass_flow_rate'],
+                    data['power_pump'],
+                    data['power_pump_control'],
+                    energy_supply_conn,
+                    data['tilt'],
+                    data['orientation'],
+                    data['solar_loop_piping_hlc'],
+                    self.__external_conditions,
+                    self.__simtime,
+                    )
+                
             elif heat_source_type == 'HeatSourceWet':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.

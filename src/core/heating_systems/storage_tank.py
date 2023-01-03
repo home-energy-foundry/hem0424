@@ -14,6 +14,7 @@ from copy import deepcopy
 from core.material_properties import WATER
 from core.pipework import Pipework
 import core.units as units
+import sys
 
 
 class StorageTank:
@@ -301,7 +302,9 @@ class StorageTank:
 
         return temp_s3_n
 
-    def potential_energy_input(self):
+    # Function needs redifining to include storage tank temperature that is used by the Solar Thermal
+    # Heat source. Addigion of temp_s3_n as an argument
+    def potential_energy_input(self, temp_s3_n):
         """Energy input for the storage from the generation system
         (expressed per energy carrier X)
         Heat Source = energy carrier"""
@@ -311,11 +314,37 @@ class StorageTank:
         #TODO - allow position of heat source to be defined in any layer (assume bottom tank atm)
         #TODO - this should be calculated in accordance to EN 15316-1. check this is used.
         for heat_source in self.__heat_sources:
-            energy_potential = heat_source.energy_output_max()
+            #original code
+            #energy_potential = heat_source.energy_output_max()
+            if isinstance(heat_source, SolarThermalSystem):
+                # We are passing the storage tank object to the SolarThermal as this needs to call
+                # back the storage tank....
+                energy_potential = heat_source.energy_output_max(self, temp_s3_n)
+            else:
+                energy_potential = heat_source.energy_output_max()
+            
             Q_x_in_n[0] += energy_potential
 
         return Q_x_in_n
 
+    # New function in Storage tank called by the Solar Thermal object to calculate the impact in
+    # storage tank temperature due to the propose energy input
+    def storage_tank_potential_effect(self, energy_proposed, temp_s3_n):
+        """ Assuming initially no water draw-off """
+
+        #initialise list of potential energy input for each layer
+        Q_x_in_n = [0] * self.__NB_VOL
+        
+        Q_x_in_n[0] = energy_proposed
+
+        Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
+
+        #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
+        Q_h_sto_s7, temp_s7_n = self.rearrange_temperatures(temp_s6_n)                
+        
+                # assuming [0] is bottom temp and __NB_VOL-1 is inlet
+        return temp_s7_n[0], temp_s7_n[self.__NB_VOL-1]
+  
     def energy_input(self, temp_s3_n, Q_x_in_n):
         """The input of energy(s) is (are) allocated to the specific location(s)
         of the input of energy.
@@ -549,7 +578,11 @@ class StorageTank:
 
         #6.4.3.8 STEP 6 Energy input into the storage
         #input energy delivered to the storage in kWh - timestep dependent
-        Q_x_in_n = self.potential_energy_input()
+        
+        # Note: Function call modified for Solar Thermal as methodology requires to know the storage
+        # tank temperatures (required in the calculation) 
+        # (Sustenic mod - Check with Steve. remove this braket when confirmed)
+        Q_x_in_n = self.potential_energy_input(temp_s3_n)
 
         Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
 
@@ -607,6 +640,8 @@ class StorageTank:
         # if immersion heater, no pipework losses
         if isinstance(heat_source, ImmersionHeater):
             return(heat_source.demand_energy(input_energy_adj))
+        elif isinstance(heat_source, SolarThermalSystem):
+            return(heat_source.demand_energy(input_energy_adj))
         else:
             demand_energy = heat_source.demand_energy(input_energy_adj)
             # primary losses for the timestep calculated from  temperature difference
@@ -663,3 +698,191 @@ class ImmersionHeater:
             power_max = 0.0
 
         return power_max
+
+
+
+""" Following code contains objects that represent solar thermal systems.
+Method 3 in BS EN 15316-4-3:2017.
+"""
+
+class SolarThermalSystem:
+    """ An object to represent a solar thermal system """
+
+    #BS EN 15316-4-3:2017 Appendix B default input data
+    #Model Information
+    #Air temperature in a heated space in the building
+    #Default taken from Table B20 of standard
+    __air_temp_heated_room = 20
+
+    def __init__(self, 
+                 sol_loc,
+                 area_module,
+                 modules,
+                 peak_collector_efficiency,
+                 incidence_angle_modifier,
+                 first_order_hlc,
+                 second_order_hlc,
+                 collector_mass_flow_rate,
+                 power_pump,
+                 power_pump_control,
+                 energy_supply_conn,
+                 tilt,
+                 orientation,
+                 solar_loop_piping_hlc,
+                 ext_cond, 
+                 simulation_time,
+                 contents=WATER,
+                 ):
+        """ Construct a SolarThermalSystem object
+
+        Arguments:
+        sol_loc          -- Peak power in kW; represents the electrical power of a photovoltaic
+                            system with a given area and a for a solar irradiance of 1 kW/m2
+                            on this surface (at 25 degrees)
+                            TODO - Could add other options at a later stage.
+                            Standard has alternative method when peak power is not available
+                            (input type of PV module and Area instead when peak power unknown)
+        ventilation_strategy   -- ventilation strategy of the PV system.
+                                  This will be used to determine the system performance factor
+                                   based on a lookup table
+        pitch            -- is the tilt angle (inclination) of the PV panel from horizontal,
+                            measured upwards facing, 0 to 90, in degrees.
+                            0=horizontal surface, 90=vertical surface.
+                            Needed to calculate solar irradiation at the panel surface.
+        orientation      -- is the orientation angle of the inclined surface, expressed as the
+                            geographical azimuth angle of the horizontal projection of the inclined
+                            surface normal, -180 to 180, in degrees;
+                            Assumed N 180 or -180, E 90, S 0, W -90
+                            TODO - PV standard refers to angle as between 0 to 360?
+                            Needed to calculate solar irradiation at the panel surface.
+        ext_cond         -- reference to ExternalConditions object
+        energy_supply_conn    -- reference to EnergySupplyConnection object
+        simulation_time  -- reference to SimulationTime object
+        overshading      -- TODO could add at a later date. Feed into solar module
+        """
+        self.__sol_loc = sol_loc
+        self.__area_module = area_module
+        self.__modules = modules
+        self.__area = area_module * modules
+        self.__peak_collector_efficiency = peak_collector_efficiency
+        self.__incidence_angle_modifier = incidence_angle_modifier
+        self.__first_order_hlc = first_order_hlc
+        self.__second_order_hlc = second_order_hlc
+        self.__collector_mass_flow_rate = collector_mass_flow_rate
+        self.__power_pump = power_pump
+        self.__power_pump_control = power_pump_control
+        self.__energy_supply_conn = energy_supply_conn
+        self.__tilt = tilt
+        self.__orientation = orientation
+        self.__solar_loop_piping_hlc = solar_loop_piping_hlc
+        self.__external_conditions = ext_cond
+        self.__simulation_time = simulation_time
+        self.__heat_output_collector_loop = 0
+        
+        #water specific heat in kWh/kg.K
+        self.__Cp = contents.specific_heat_capacity()
+
+        """for initial conditions collector water temperatures in the thermal storage unit's
+        bottom layer.
+        """
+        # __temp= average_collector_water_temperature
+        #self.__temp = 20
+        # __inlet_temp
+        self.__inlet_temp=55
+
+    def collector_reference_area(self):
+        """ Calculate total collector reference area from collector module reference area and
+            number of modules
+            eq 50 of STANDARD """
+
+        #collector reference area in m2
+        self.__area = self.__area_module * self.__modules
+
+
+    def energy_output_max(self, storage_tank, temp_s3_n):
+        """ Calculate collector loop heat output
+            eq 49 to 58 of STANDARD """
+
+        """Equation 49 of BS EN 15316-4-3"""
+        
+        if self.__sol_loc == 'HS':
+            self.__air_temp_coll_loop = self.__air_temp_heated_room
+        elif self.__sol_loc == 'NHS':
+            self.__air_temp_coll_loop = (self.__air_temp_heated_room \
+            + self.__external_conditions.air_temp()) / 2
+        elif self.__sol_loc == 'OUT':
+            self.__air_temp_coll_loop = self.__external_conditions.air_temp()
+        else:
+            # MJFC: is this required?
+            sys.exit('SolarThermalSystem: Collector loop location not valid.')
+            
+            
+        #solar_irradiance in W/m2
+        solar_irradiance = self.__external_conditions.calculated_total_solar_irradiance(
+            self.__tilt,
+            self.__orientation
+            )
+        if (solar_irradiance == 0):
+            return 0
+        #First estimation of average collector water temperature. Eq 51
+        #initialise temperature
+        inlet_temp_s1 = deepcopy(self.__inlet_temp)
+        avg_collector_water_temp = inlet_temp_s1 + (0.4 * solar_irradiance * self.__area) / \
+        (self.__collector_mass_flow_rate * self.__Cp * 2)
+        #print(str(avg_collector_water_temp) + " " + str(inlet_temp_s1) + " " + str(solar_irradiance) + " " + str(self.__area) + " " + str(self.__Cp))
+
+        #Calculation of collector efficiency
+        for i in range(0, 4):
+            # Eq 53
+            Th = (avg_collector_water_temp - self.__external_conditions.air_temp()) / (solar_irradiance )
+            #print(str(i) + " " + str(Th) + " " + str(avg_collector_water_temp) + " " + str(self.__external_conditions.air_temp()) + " " + str(solar_irradiance))
+            
+            # Eq 52
+            collector_efficiency = self.__peak_collector_efficiency * \
+            self.__incidence_angle_modifier - \
+            self.__first_order_hlc * Th - \
+            self.__second_order_hlc * Th**2 * solar_irradiance 
+            # Eq 54 ?
+            collector_absorber_heat_input = self.__peak_collector_efficiency * solar_irradiance * \
+            self.__area * self.__simulation_time.timestep() * 0.001
+            # Eq 55
+            collector_output_heat = collector_efficiency * solar_irradiance * \
+            self.__area * self.__simulation_time.timestep() * 0.001
+            #self.__solar_loop_piping_hlc
+            # Eq 56
+            heat_loss_collector_loop_piping = self.__solar_loop_piping_hlc * \
+            (avg_collector_water_temp - self.__air_temp_coll_loop) * self.__simulation_time.timestep() * 0.001
+            # Eq 57
+            self.__heat_output_collector_loop = collector_output_heat - heat_loss_collector_loop_piping
+            if self.__heat_output_collector_loop < self.__power_pump * self.__simulation_time.timestep() * 3 * 0.001:
+                self.__heat_output_collector_loop = 0
+            
+            #Call to the storage tank
+            temp1, inlet_temp2 = storage_tank.storage_tank_potential_effect(self.__heat_output_collector_loop, temp_s3_n)
+
+            # Eq 58
+            avg_collector_water_temp = ( self.__inlet_temp + inlet_temp2 ) / 2 + \
+            self.__heat_output_collector_loop / (self.__collector_mass_flow_rate * self.__Cp * 2)
+                                                
+        # Copy the finishing value of inlet temp ready for start of next timestep
+        self.__inlet_temp = deepcopy(inlet_temp2)
+            
+        # Eq 59 and 60 to calculate auxiliary energy
+        if self.__heat_output_collector_loop == 0: 
+            self.__auxilliary_energy_consumption = ( self.__power_pump_control + self.__power_pump ) \
+            * self.__simulation_time.timestep()
+        else:
+            self.__auxilliary_energy_consumption = self.__power_pump_control * self.__simulation_time.timestep()
+            
+        print("Pot: ")    
+        print(str(self.__heat_output_collector_loop))    
+        return self.__heat_output_collector_loop
+                
+    def demand_energy(self, energy_demand):
+        """ Demand energy (in kWh) from the solar thermal"""
+
+        energy_supplied = min(energy_demand, self.__heat_output_collector_loop )
+                # self.__energy_supply_conn.demand_energy(energy_supplied)
+        print("Actual: ")    
+        print(energy_supplied)    
+        return energy_supplied
