@@ -17,7 +17,7 @@ from core.units import Kelvin2Celcius
 this_directory = os.path.dirname(os.path.relpath(__file__))
 FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_04-11-2022.csv")
 
-def apply_fhs_preprocessing(project_dict):
+def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
     
     project_dict['SimulationTime']["start"] = 0
@@ -39,7 +39,7 @@ def apply_fhs_preprocessing(project_dict):
     
     create_heating_pattern(project_dict)
     create_evaporative_losses(project_dict, TFA, N_occupants)
-    create_lighting_gains(project_dict, TFA, N_occupants)
+    create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc)
     create_cooking_gains(project_dict,TFA, N_occupants)
     create_appliance_gains(project_dict, TFA, N_occupants)
     create_hot_water_use_pattern(project_dict, TFA, N_occupants)
@@ -344,7 +344,7 @@ def create_evaporative_losses(project_dict,TFA, N_occupants):
         }
     } #repeats for length of simulation which in FHS should be whole year.
 
-def create_lighting_gains(project_dict, TFA, N_occupants):
+def create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc):
     '''
     Calculate the annual energy requirement in kWh using the procedure described in SAP 10.2 up to and including step 9.
     Divide this by 365 to get the average daily energy use.
@@ -443,9 +443,12 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
          0.014552683, 0.014347935, 0.014115058, 0.013739051, 0.014944386, 0.017543021, 0.021605977, 0.032100988,
          0.049851633, 0.063453382, 0.072579104, 0.076921792, 0.079601317, 0.079548711, 0.078653413, 0.076225647,
          0.073936893, 0.073585752, 0.071911165, 0.069220452, 0.065925982, 0.059952377, 0.0510938, 0.041481111]]
-    
-    lumens = 11.2 * 59.73 * (TFA * N_occupants) ** 0.4714
-    
+
+    if running_FEE_calc:
+        lumens = TFA * 185
+    else:
+        lumens = 11.2 * 59.73 * (TFA * N_occupants) ** 0.4714
+
     kWhperyear = 1/3 * lumens/21 + 2/3 * lumens/lighting_efficacy
     kWhperday = kWhperyear / 365
     #lighting_energy_kWh=[]
