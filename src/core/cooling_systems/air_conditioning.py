@@ -16,7 +16,7 @@ class AirConditioning:
             frac_convective,
             energy_supply_conn,
             simulation_time,
-            control=None,
+            control,
             ):
         """ Construct an air conditioning object
 
@@ -26,7 +26,7 @@ class AirConditioning:
         frac_convective    -- convective fraction for cooling
         energy_supply_conn -- reference to EnergySupplyConnection object
         simulation_time    -- reference to SimulationTime object
-        control            -- reference to a control object which must implement is_on() func
+        control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
         self.__cooling_capacity = cooling_capacity
         self.__efficiency = efficiency
@@ -34,6 +34,9 @@ class AirConditioning:
         self.__energy_supply_conn = energy_supply_conn
         self.__simulation_time = simulation_time
         self.__control = control
+
+    def temp_setpnt(self):
+        return self.__control.setpnt()
 
     def frac_convective(self):
         return self.__frac_convective

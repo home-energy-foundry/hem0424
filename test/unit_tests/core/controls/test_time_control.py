@@ -14,7 +14,7 @@ test_setup()
 
 # Local imports
 from core.simulation_time import SimulationTime
-from core.controls.time_control import OnOffTimeControl
+from core.controls.time_control import OnOffTimeControl, SetpointTimeControl
 
 class Test_OnOffTimeControl(unittest.TestCase):
     """ Unit tests for OnOffTimeControl class """
@@ -31,6 +31,36 @@ class Test_OnOffTimeControl(unittest.TestCase):
             with self.subTest(i=t_idx):
                 self.assertEqual(
                     self.timecontrol.is_on(),
+                    self.schedule[t_idx],
+                    "incorrect schedule returned",
+                    )
+
+
+class Test_SetpointTimeControl(unittest.TestCase):
+    """ Unit tests for SetpointTimeControl class """
+
+    def setUp(self):
+        """ Create TimeControl object to be tested """
+        self.simtime     = SimulationTime(0, 8, 1)
+        self.schedule    = [21.0, -273.15, 21.0, 21.0, -273.15, 21.0, -273.15, -273.15]
+        self.timecontrol = SetpointTimeControl(self.schedule, self.simtime, 0, 1)
+
+    def test_is_on(self):
+        """ Test that SetpointTimeControl object is always on """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertEqual(
+                    self.timecontrol.is_on(),
+                    True, # Should always be True for this type of control
+                    "incorrect is_on value returned",
+                    )
+
+    def test_setpnt(self):
+        """ Test that SetpointTimeControl object returns correct schedule"""
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertEqual(
+                    self.timecontrol.setpnt(),
                     self.schedule[t_idx],
                     "incorrect schedule returned",
                     )

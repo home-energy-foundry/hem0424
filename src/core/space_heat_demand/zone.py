@@ -6,6 +6,9 @@ This module provides objects to represent the thermal zones in the building,
 and to calculate the temperatures in the zone and associated building elements.
 """
 
+# Standard library imports
+import sys
+
 # Third-party imports
 import numpy as np
 
@@ -36,8 +39,6 @@ class Zone:
             building_elements,
             thermal_bridging,
             vent_elements,
-            temp_setpnt_heat,
-            temp_setpnt_cool,
             ):
         """ Construct a Zone object
 
@@ -50,8 +51,6 @@ class Zone:
                                bridges in the zone, in W / K
                              - list of ThermalBridge objects for this zone
         vent_elements     -- list of ventilation elements (infiltration, mech vent etc.)
-        temp_setpnt_heat  -- temperature setpoint for heating, in deg C
-        temp_setpnt_cool  -- temperature setpoint for cooling, in deg C
 
         Other variables:
         area_el_total     -- total area of all building elements associated
@@ -91,10 +90,6 @@ class Zone:
                 self.__tb_heat_trans_coeff += tb.heat_trans_coeff()
         else:
             self.__tb_heat_trans_coeff = thermal_bridging
-
-        # TODO Make the temperature setpoints inputs for each timestep
-        self.__temp_setpnt_heat = temp_setpnt_heat
-        self.__temp_setpnt_cool = temp_setpnt_cool
 
         self.__area_el_total = sum([eli.area for eli in self.__building_elements])
         self.__c_int = k_m_int * area
@@ -332,6 +327,8 @@ class Zone:
             gains_solar,
             frac_convective_heat,
             frac_convective_cool,
+            temp_setpnt_heat,
+            temp_setpnt_cool,
             ):
         """ Calculate heating and cooling demand in the zone for the current timestep
 
@@ -344,7 +341,12 @@ class Zone:
         gains_solar -- directly transmitted solar gains, in W
         frac_convective_heat -- convective fraction for heating
         frac_convective_cool -- convective fraction for cooling
+        temp_setpnt_heat -- temperature setpoint for heating, in deg C
+        temp_setpnt_cool -- temperature setpoint for cooling, in deg C
         """
+        if temp_setpnt_cool < temp_setpnt_heat:
+            sys.exit('ERROR: Cooling setpoint is below heating setpoint.')
+
         # Calculate timestep in seconds
         delta_t = delta_t_h * units.seconds_per_hour
 
@@ -368,18 +370,18 @@ class Zone:
 
         # Determine relevant setpoint (if neither, then return space heating/cooling demand of zero)
         # Determine maximum heating/cooling
-        if temp_operative_free > self.__temp_setpnt_cool:
+        if temp_operative_free > temp_setpnt_cool:
             # Cooling
             # TODO Implement eqn 26 "if max power available" case rather than just "otherwise" case?
             #      Could max. power be available at this point for all heating/cooling systems?
-            temp_setpnt = self.__temp_setpnt_cool
+            temp_setpnt = temp_setpnt_cool
             heat_cool_load_upper = - 10.0 * self.__useful_area
             frac_convective = frac_convective_cool
-        elif temp_operative_free < self.__temp_setpnt_heat:
+        elif temp_operative_free < temp_setpnt_heat:
             # Heating
             # TODO Implement eqn 26 "if max power available" case rather than just "otherwise" case?
             #      Could max. power be available at this point for all heating/cooling systems?
-            temp_setpnt = self.__temp_setpnt_heat
+            temp_setpnt = temp_setpnt_heat
             heat_cool_load_upper = 10.0 * self.__useful_area
             frac_convective = frac_convective_heat
         else:
