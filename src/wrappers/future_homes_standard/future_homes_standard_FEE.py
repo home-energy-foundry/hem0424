@@ -137,11 +137,6 @@ def apply_fhs_FEE_preprocessing(project_dict):
     # Set capacity such that it should always be sufficient for any realistic demand
     # Efficiency does not matter for this calc so set to 1.0
     # Assume convective fraction for cold air blowing system from BS EN 15316-2:2017 Table B.17
-    '''
-    TODO This does not work due to a bug in the main future_homes_standard wrapper
-         in assigning controls to the cooling system. It can be uncommented when
-         the bug is fixed but leaving it in now will crash the calculation.
-
     project_dict['SpaceCoolSystem'] = {}
     for z_name in project_dict['Zone'].keys():
         c_name = z_name + '_cooling_for_FEE_calc'
@@ -153,7 +148,6 @@ def apply_fhs_FEE_preprocessing(project_dict):
             "frac_convective": 0.95,
             "EnergySupply": "mains elec",
         }
-    '''
 
     # Apply standard FHS preprocessing assumptions. Note these should be applied
     # after the other adjustments are made, because decisions may be based on
