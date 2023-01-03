@@ -101,14 +101,6 @@
 			"schedule": {
 				"main": [{"value": true, "repeat": 8760}]
 			}
-		},
-		"main__new_SetpointControl": {
-			"type": "SetpointTimeControl",
-			"start_day": 0,
-			"time_series_step": 1,
-			"schedule": {
-				"main": [{"repeat": 8760, "value": 21.0}]
-			}
 		}
 	},
 	"SpaceCoolSystem": {
@@ -117,16 +109,14 @@
 			"cooling_capacity": 3.0,
 			"efficiency": 4.3,
 			"frac_convective": 0.95,
-			"EnergySupply": "mains elec",
-			"Control": "hw timer"
+			"EnergySupply": "mains elec"
 		},
 		"cooling system 2": {
 			"type": "AirConditioning",
 			"cooling_capacity": 3.0,
 			"efficiency": 4.3,
 			"frac_convective": 0.95,
-			"EnergySupply": "mains elec",
-			"Control": "hw timer"
+			"EnergySupply": "mains elec"
 		}
 	},
 	"HotWaterSource": {
@@ -213,11 +203,16 @@
 		}
 	},
 	"SpaceHeatSystem": {
-		"main": {
+		"main 1": {
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
 			"frac_convective": 0.4,
-			"Control": "main__new_SetpointControl",
+			"EnergySupply": "mains elec"
+		},
+		"main 2": {
+			"type": "InstantElecHeater",
+			"rated_power": 6.0,
+			"frac_convective": 0.4,
 			"EnergySupply": "mains elec"
 		}
 	},
@@ -248,7 +243,7 @@
 	},
 	"Zone": {
 		"zone 1": {
-			"SpaceHeatSystem": "main",
+			"SpaceHeatSystem": "main 1",
 			"SpaceCoolSystem": "cooling system 1",
 			"SpaceHeatControl":"livingroom",
 			"area": 80.0,
@@ -365,13 +360,11 @@
 			}
 		},
 		"zone 2": {
-			"SpaceHeatSystem": "main",
+			"SpaceHeatSystem": "main 2",
 			"SpaceCoolSystem": "cooling system 2",
 			"SpaceHeatControl":"restofdwelling",
 			"area": 80.0,
 			"volume": 250.0,
-			"temp_setpnt_heat": 21.0,
-			"temp_setpnt_cool": 25.0,
 			"Lighting": {
 				"efficacy": 56.0
 			},
