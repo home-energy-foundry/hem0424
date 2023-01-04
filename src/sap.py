@@ -18,9 +18,17 @@ from read_weather_file import weather_data_to_dict
 from read_CIBSE_weather_file import CIBSE_weather_data_to_dict
 from wrappers.future_homes_standard.future_homes_standard import \
     apply_fhs_preprocessing, apply_fhs_postprocessing
+from wrappers.future_homes_standard.future_homes_standard_FEE import \
+    apply_fhs_FEE_preprocessing
 
 
-def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_assumptions=False):
+def run_project(
+        inp_filename,
+        external_conditions_dict,
+        preproc_only=False,
+        fhs_assumptions=False,
+        fhs_FEE_assumptions=False,
+        ):
     file_path = os.path.splitext(inp_filename)
     output_file = file_path[0] + '_results.csv'
 
@@ -37,6 +45,8 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
     # Apply required preprocessing steps, if any
     if fhs_assumptions:
         project_dict = apply_fhs_preprocessing(project_dict)
+    elif fhs_FEE_assumptions:
+        project_dict = apply_fhs_FEE_preprocessing(project_dict)
 
     if preproc_only:
         with open(file_path[0] + '_preproc.json', 'w') as preproc_file:
@@ -186,16 +196,23 @@ if __name__ == '__main__':
         help='run calculations for different input files in parallel',
         )
     parser.add_argument(
+        '--preprocess-only',
+        action='store_true',
+        default=False,
+        help='run prepocessing step only',
+        )
+    wrapper_options = parser.add_mutually_exclusive_group()
+    wrapper_options.add_argument(
         '--future-homes-standard',
         action='store_true',
         default=False,
         help='use Future Homes Standard calculation assumptions',
         )
-    parser.add_argument(
-        '--preprocess-only',
+    wrapper_options.add_argument(
+        '--future-homes-standard-FEE',
         action='store_true',
         default=False,
-        help='run prepocessing step only',
+        help='use Future Homes Standard Fabric Energy Efficiency assumptions',
         )
     cli_args = parser.parse_args()
 
@@ -203,6 +220,7 @@ if __name__ == '__main__':
     epw_filename = cli_args.epw_file
     cibse_weather_filename = cli_args.CIBSE_weather_file
     fhs_assumptions = cli_args.future_homes_standard
+    fhs_FEE_assumptions = cli_args.future_homes_standard_FEE
     preproc_only = cli_args.preprocess_only
 
     if epw_filename is not None:
@@ -216,12 +234,18 @@ if __name__ == '__main__':
     if not cli_args.parallel:
         print('Running '+str(len(inp_filenames))+' cases in series')
         for inpfile in inp_filenames:
-            run_project(inpfile, external_conditions_dict, preproc_only, fhs_assumptions)
+            run_project(
+                inpfile,
+                external_conditions_dict,
+                preproc_only,
+                fhs_assumptions,
+                fhs_FEE_assumptions,
+                )
     else:
         import multiprocessing as mp
         print('Running '+str(len(inp_filenames))+' cases in parallel')
         run_project_args = [
-            (inpfile, external_conditions_dict, preproc_only, fhs_assumptions)
+            (inpfile, external_conditions_dict, preproc_only, fhs_assumptions, fhs_FEE_assumptions)
             for inpfile in inp_filenames
             ]
         with mp.Pool() as p:
