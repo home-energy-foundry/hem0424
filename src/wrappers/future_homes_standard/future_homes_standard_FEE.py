@@ -83,6 +83,20 @@ def apply_fhs_FEE_preprocessing(project_dict):
         'EnergySupply': 'mains elec',
         'ColdWaterSource': cold_water_source_name,
         }
+    # No hot water distribution pipework for point of use water heaters
+    pipework_none = {
+        'internal_diameter': 0.01,
+        'external_diameter': 0.02,
+        'length': 0.0,
+        'insulation_thermal_conductivity': 0.01,
+        'insulation_thickness': 0.0,
+        'surface_reflectivity': False,
+        'pipe_contents': 'water'
+        }
+    project_dict['Distribution'] = {
+        'internal': pipework_none,
+        'external': pipework_none,
+        }
 
     # One 9.3 kW InstantElecShower, one bath
     project_dict['Shower'] = {
@@ -103,10 +117,10 @@ def apply_fhs_FEE_preprocessing(project_dict):
             'flowrate': 10.0
             }
         }
-    # TODO Should other tapping points be as specified by the user or should
-    #      these be specified here as well?
-    # TODO Should hot water distribution pipework be as specified by the user or
-    #      should this be specified here as well?
+    # Other tapping points are as specified by the user. This shouldn't make any
+    # difference to the space heating/cooling demand, as the number and flowrate
+    # of the tapping points is only relevant for distribution losses, which do
+    # not apply to point of use water heaters.
 
     # Dwelling achieves water use target of not more than 125 litres/day
     project_dict['PartGcompliance'] = True
