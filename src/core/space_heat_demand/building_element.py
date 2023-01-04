@@ -427,7 +427,6 @@ class BuildingElementAdjacentZTC(BuildingElement):
     def fabric_heat_loss(self):
         """ Return the fabric heat loss for the building element """
         return 0.0 # no heat loss to thermally conditioned zones
-    # TODO check this should be set to zero
 
     def heat_capacity(self):
         """ Return the fabric heat capacity for the building element """

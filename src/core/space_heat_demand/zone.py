@@ -456,11 +456,10 @@ class Zone:
         return total_fabric_heat_loss
 
     def total_heat_capacity(self):
-        # TODO check if this is needed
         """ Return the total heat capacity from all building elements in a zone
         excluding ground and transparent elements, in kJ / K """
-        # TODO should party wall just be the k value?
-        # TODO Exclude solid door (opaque building element)
+        # TODO Exclude solid door (opaque building element), or define convention
+        #      that heat capacity of solid doors can be entered as zero
         total_heat_capacity = 0
         for be in self.__building_elements:
             total_heat_capacity += be.heat_capacity()
