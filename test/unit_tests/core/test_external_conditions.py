@@ -174,7 +174,7 @@ class TestExternalConditions(unittest.TestCase):
             self.extcond.wind_speed_annual(),
             4.23,
             2,
-            msg="incorrect annual air temp returned"
+            msg="incorrect annual wind speed returned"
             )
 
     def test_diffuse_horizontal_radiation(self):
