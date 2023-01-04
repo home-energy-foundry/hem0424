@@ -50,7 +50,8 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
                  heat_network,
                  service_name,
                  temp_hot_water,
-                 cold_feed
+                 cold_feed,
+                 simulation_time
                 ):
         """ Construct a HeatNetworkWater object
 
@@ -59,12 +60,14 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
         service_name       -- name of the service demanding energy from the heat network
         temp_hot_water     -- temperature of the hot water to be provided, in deg C
         cold_feed          -- reference to ColdWaterSource object
+        simulation_time    -- reference to SimulationTime object
         """
         super().__init__(heat_network, service_name)
 
         self.__temp_hot_water = temp_hot_water
         self.__cold_feed = cold_feed
         self.__service_name = service_name
+        self.__simulation_time = simulation_time
 
     def demand_hot_water(self, volume_demanded, daily_loss):
         """ Demand energy for hot water (in kWh) from the heat network """
@@ -84,7 +87,7 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
     def HIU_loss(self, daily_loss):
         """ Standing heat loss from the HIU (heat interface unit) in kWh """
         # daily_loss to be sourced from the PCDB, in kW
-        HIU_loss = daily_loss / hours_per_day
+        HIU_loss = daily_loss / hours_per_day * self.__simulation_time.timestep()
 
         return HIU_loss
 

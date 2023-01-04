@@ -567,7 +567,8 @@ class Project:
                     self.__external_conditions,
                     )
                 # Create list of internal gains for each hour of the year, in W / m2
-                internal_gains_HIU = [HeatNetworkServiceWaterDirect(heat_source).HIU_loss \
+                # TODO check how the daily loss is accessed from the dictionary
+                internal_gains_HIU = [HeatNetworkServiceWaterDirect(heat_source).HIU_loss(energy_supply['heat network']['HIU_daily_losses']) \
                                         * units.W_per_kW \
                                         / total_floor_area]
                 total_internal_gains_HIU = internal_gains_HIU * units.days_per_year * units.hours_per_day
@@ -576,8 +577,8 @@ class Project:
                 self.__internal_gains[heat_source_type] = InternalGains(
                                                             total_internal_gains_HIU, 
                                                             self.__simtime,
-                                                            data['start_day'],
-                                                            data['time_series_step']
+                                                            proj_dict['SimulationTime']['start'],
+                                                            proj_dict['SimulationTime']['step']
                                                             )
             else:
                 sys.exit(name + ': heat source type (' \

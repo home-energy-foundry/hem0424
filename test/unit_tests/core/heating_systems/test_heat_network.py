@@ -190,7 +190,8 @@ class TestHeatNetworkServiceWaterDirect(unittest.TestCase):
             self.heat_network,
             "heat_network_test", 
             return_temp,
-            coldfeed
+            coldfeed,
+            self.simtime
             )
 
     def test_heat_network_service_water(self):
