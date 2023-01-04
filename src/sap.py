@@ -31,6 +31,7 @@ def run_project(
         ):
     file_path = os.path.splitext(inp_filename)
     output_file = file_path[0] + '_results.csv'
+    output_file_summary = file_path[0] + '_results_summary.csv'
 
     with open(inp_filename) as json_file:
         project_dict = json.load(json_file)
@@ -73,6 +74,16 @@ def run_project(
         hc_system_dict,
         hot_water_dict,
         ductwork_gains
+        )
+
+    # Sum per-timestep figures as needed
+    space_heat_demand_total = sum(sum(h_dem) for h_dem in zone_dict['Space heat demand'].values())
+    space_cool_demand_total = sum(sum(c_dem) for c_dem in zone_dict['Space cool demand'].values())
+
+    write_core_output_file_summary(
+        output_file_summary,
+        space_heat_demand_total,
+        space_cool_demand_total,
         )
 
     # Apply required postprocessing steps, if any
@@ -169,6 +180,20 @@ def write_core_output_file(
             hw_system_row + hw_system_row_energy + hw_system_row_duration + \
             hw_system_row_events + pw_losses_row + ductwork_row + energy_shortfall
             writer.writerow(row)
+
+def write_core_output_file_summary(
+        output_file_summary,
+        space_heat_demand_total,
+        space_cool_demand_total,
+        ):
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(output_file_summary, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['', '', 'Total'])
+        writer.writerow(['Space heat demand', 'kWh', space_heat_demand_total])
+        writer.writerow(['Space cool demand', 'kWh', space_cool_demand_total])
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='SAP 11')
