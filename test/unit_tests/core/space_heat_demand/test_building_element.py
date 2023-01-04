@@ -17,7 +17,7 @@ from core.external_conditions import ExternalConditions
 from core.simulation_time import SimulationTime
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementGround, BuildingElementTransparent, \
-    BuildingElementAdjacentZTC
+    BuildingElementAdjacentZTC, HeatFlowDirection
 
 class TestBuildingElementOpaque(unittest.TestCase):
     """ Unit tests for BuildingElementOpaque class """
@@ -70,6 +70,33 @@ class TestBuildingElementOpaque(unittest.TestCase):
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
                 self.assertAlmostEqual(be.area, 20.0 + i * area_inc, msg="incorrect area returned")
+
+    def test_heat_flow_direction(self):
+        """ Test that correct heat flow direction is returned when queried """
+        temp_int_air = 20.0
+        temp_int_surface = [19.0, 21.0, 22.0, 21.0, 19.0]
+        results = [HeatFlowDirection.DOWNWARDS, HeatFlowDirection.UPWARDS, HeatFlowDirection.HORIZONTAL, HeatFlowDirection.DOWNWARDS, HeatFlowDirection.UPWARDS]
+
+        for i, be in enumerate(self.test_be_objs):
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    be.heat_flow_direction(temp_int_air, temp_int_surface[i]),
+                    results[i],
+                    msg="incorrect heat flow direction returned"
+                    )
+
+    def test_r_si(self):
+        """ Test that correct r_si is returned when queried """
+        results = [0.17, 0.17, 0.13, 0.10, 0.10]
+
+        for i, be in enumerate(self.test_be_objs):
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    be.r_si(),
+                    results[i],
+                    2,
+                    msg="incorrect r_si returned"
+                    )
 
     def test_h_ci(self):
         """ Test that correct h_ci is returned when queried """
@@ -157,6 +184,29 @@ class TestBuildingElementOpaque(unittest.TestCase):
                 with self.subTest(i = i * t_idx):
                     self.assertEqual(be.temp_ext(), t_idx * 5.0, "incorrect ext temp returned")
 
+    def test_fabric_heat_loss(self):
+        """ Test that the correct fabric heat loss is returned when queried """
+        results = [43.20, 35.15, 27.10, 27.15, 55.54]
+
+        for i, be in enumerate(self.test_be_objs):
+            for t_idx, _, _ in self.simtime:
+                with self.subTest(i = i):
+                    self.assertAlmostEqual(be.fabric_heat_loss(),
+                                            results[i],
+                                            2,
+                                            "incorrect fabric heat loss returned")
+
+    def test_heat_capacity(self):
+        """ Test that the correct heat capacity is returned when queried """
+        results = [380, 405, 425, 440, 450]
+
+        for i, be in enumerate(self.test_be_objs):
+            for t_idx, _, _ in self.simtime:
+                with self.subTest(i = i):
+                    self.assertEqual(be.heat_capacity(),
+                                            results[i],
+                                            "incorrect heat capacity returned")
+
 class TestBuildingElementAdjacentZTC(unittest.TestCase):
     """ Unit tests for BuildingElementAdjacentZTC class """
 
@@ -206,6 +256,33 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
                 self.assertAlmostEqual(be.area, 20.0 + i * area_inc, msg="incorrect area returned")
+
+    def test_heat_flow_direction(self):
+        """ Test that correct heat flow direction is returned when queried """
+        temp_int_air = 20.0
+        temp_int_surface = [19.0, 21.0, 22.0, 21.0, 19.0]
+        results = [HeatFlowDirection.DOWNWARDS, HeatFlowDirection.UPWARDS, HeatFlowDirection.HORIZONTAL, HeatFlowDirection.DOWNWARDS, HeatFlowDirection.UPWARDS]
+
+        for i, be in enumerate(self.test_be_objs):
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    be.heat_flow_direction(temp_int_air, temp_int_surface[i]),
+                    results[i],
+                    msg="incorrect heat flow direction returned"
+                    )
+
+    def test_r_si(self):
+        """ Test that correct r_si is returned when queried """
+        results = [0.17, 0.17, 0.13, 0.10, 0.10]
+
+        for i, be in enumerate(self.test_be_objs):
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    be.r_si(),
+                    results[i],
+                    2,
+                    msg="incorrect r_si returned"
+                    )
 
     def test_h_ci(self):
         """ Test that correct h_ci is returned when queried """
@@ -282,6 +359,26 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
                 self.assertEqual(be.k_pli, results[i], "incorrect k_pli list returned")
 
     # No test for temp_ext - not relevant as the external wall bounds ZTC not the external environment
+
+    def test_fabric_heat_loss(self):
+        """ Test that the correct fabric heat loss is returned when queried """
+        for i, be in enumerate(self.test_be_objs):
+            for t_idx, _, _ in self.simtime:
+                with self.subTest(i = i):
+                    self.assertEqual(be.fabric_heat_loss(),
+                                            0.0,
+                                            "incorrect fabric heat loss returned")
+
+    def test_heat_capacity(self):
+        """ Test that the correct heat capacity is returned when queried """
+        results = [380, 405, 425, 440, 450]
+
+        for i, be in enumerate(self.test_be_objs):
+            for t_idx, _, _ in self.simtime:
+                with self.subTest(i = i):
+                    self.assertEqual(be.heat_capacity(),
+                                            results[i],
+                                            "incorrect heat capacity returned")
 
 class TestBuildingElementGround(unittest.TestCase):
     """ Unit tests for BuildingElementGround class """
@@ -364,6 +461,33 @@ class TestBuildingElementGround(unittest.TestCase):
         for i, be in enumerate(self.test_be_objs):
             with self.subTest(i=i):
                 self.assertAlmostEqual(be.area, 20.0 + i * area_inc, msg="incorrect area returned")
+
+    def test_heat_flow_direction(self):
+        """ Test that correct heat flow direction is returned when queried """
+        temp_int_air = 20.0
+        temp_int_surface = [19.0, 21.0, 22.0, 21.0, 19.0]
+        results = [HeatFlowDirection.DOWNWARDS, HeatFlowDirection.UPWARDS, HeatFlowDirection.HORIZONTAL, HeatFlowDirection.DOWNWARDS, HeatFlowDirection.UPWARDS]
+
+        for i, be in enumerate(self.test_be_objs):
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    be.heat_flow_direction(temp_int_air, temp_int_surface[i]),
+                    results[i],
+                    msg="incorrect heat flow direction returned"
+                    )
+
+    def test_r_si(self):
+        """ Test that correct r_si is returned when queried """
+        results = [0.17, 0.17, 0.13, 0.10, 0.10]
+
+        for i, be in enumerate(self.test_be_objs):
+            with self.subTest(i=i):
+                self.assertAlmostEqual(
+                    be.r_si(),
+                    results[i],
+                    2,
+                    msg="incorrect r_si returned"
+                    )
 
     def test_h_ci(self):
         """ Test that correct h_ci is returned when queried """
@@ -453,6 +577,26 @@ class TestBuildingElementGround(unittest.TestCase):
                 with self.subTest(i = i * t_idx):
                     self.assertEqual(be.temp_ext(), results[t_idx], "incorrect ext temp returned")
 
+    def test_fabric_heat_loss(self):
+        """ Test that the correct fabric heat loss is returned when queried """
+        for i, be in enumerate(self.test_be_objs):
+            with self.subTest(i = i):
+                self.assertAlmostEqual(be.fabric_heat_loss(),
+                                        [30.0, 31.5, 33.25, 34.375, 30.0][i],
+                                        2,
+                                        "incorrect fabric heat loss returned")
+
+    def test_heat_capacity(self):
+        """ Test that the correct heat capacity is returned when queried """
+        results = [380, 405, 425, 440, 450]
+
+        for i, be in enumerate(self.test_be_objs):
+            for t_idx, _, _ in self.simtime:
+                with self.subTest(i = i):
+                    self.assertEqual(be.heat_capacity(),
+                                            results[i],
+                                            "incorrect heat capacity returned")
+
 class TestBuildingElementTransparent(unittest.TestCase):
     """ Unit tests for BuildingElementTransparent class """
 
@@ -489,6 +633,14 @@ class TestBuildingElementTransparent(unittest.TestCase):
     def test_area(self):
         """ Test that correct area is returned when queried """
         self.assertEqual(self.be.area, 5.0, "incorrect area returned")
+
+    def test_heat_flow_direction(self):
+        """ Test that correct heat flow direction is returned when queried """
+        self.assertEqual(self.be.heat_flow_direction(None, None), HeatFlowDirection.HORIZONTAL, "incorrect heat flow direction returned")
+
+    def test_r_si(self):
+        """ Test that correct r_si is returned when queried """
+        self.assertAlmostEqual(self.be.r_si(), 0.13, 2, "incorrect r_si returned")
 
     def test_h_ci(self):
         """ Test that correct h_ci is returned when queried """
@@ -532,3 +684,15 @@ class TestBuildingElementTransparent(unittest.TestCase):
                     "incorrect ext temp returned",
                     )
 
+    def test_fabric_heat_loss(self):
+        """ Test that correct fabric heat loss is returned when queried """
+        self.assertAlmostEqual(self.be.fabric_heat_loss(),
+                               11.36,
+                               2,
+                               "incorrect fabric heat loss returned")
+
+    def test_heat_capacity(self):
+        """ Test that the correct heat capacity is returned when queried """
+        self.assertEqual(self.be.heat_capacity(),
+                                0,
+                                "incorrect heat capacity returned")

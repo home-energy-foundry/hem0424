@@ -14,10 +14,12 @@ method described in BS EN ISO 52016-1:2017, section 6.5.6.
 # Standard library imports
 import sys
 from math import cos, sin, pi, radians
+from enum import Enum, auto
 
 # Local imports
 import core.external_conditions as external_conditions
 from core.units import average_monthly_to_annual
+import core.units as units
 
 # Difference between external air temperature and sky temperature
 # (default value for intermediate climatic region from BS EN ISO 52016-1:2017, Table B.19)
@@ -47,6 +49,14 @@ def calculate_area(height, width):
     area = height * width
     return area
 
+
+class HeatFlowDirection(Enum):
+    # Set up heat flow directions as enums
+    HORIZONTAL = auto()
+    UPWARDS = auto()
+    DOWNWARDS = auto()
+
+
 class BuildingElement:
     """ A base class with common functionality for building elements
 
@@ -73,6 +83,12 @@ class BuildingElement:
     __H_CE = 20.0
     __H_RI = 5.13
     __H_RE = 4.14
+
+    # Surface resistances of building elements, in m2 K / W
+    __R_SI_HORIZONTAL = 1.0 / (__H_RI + __H_CI_HORIZONTAL)
+    __R_SI_UPWARDS = 1.0 / (__H_RI + __H_CI_UPWARDS)
+    __R_SI_DOWNWARDS = 1.0 / (__H_RI + __H_CI_DOWNWARDS)
+    __R_SE = 1.0 / (__H_CE + __H_RE)
 
     # From BR 443: The values under "horizontal" apply to heat flow
     # directions +/- 30 degrees from horizontal plane.
@@ -105,12 +121,11 @@ class BuildingElement:
 
         self.therm_rad_to_sky = f_sky * self.h_re() * temp_diff_sky
 
-    def h_ci(self, temp_int_air, temp_int_surface):
-        """ Return internal convective heat transfer coefficient, in W / (m2.K) """
+    def heat_flow_direction(self, temp_int_air, temp_int_surface):
+        """ Determine direction of heat flow for a surface """
         if self._pitch >= self.__PITCH_LIMIT_HORIZ_CEILING \
         and self._pitch <= self.__PITCH_LIMIT_HORIZ_FLOOR:
-            # Horizontal heat flow
-            return self.__H_CI_HORIZONTAL
+            return HeatFlowDirection.HORIZONTAL
         else:
             inwards_heat_flow = (temp_int_air < temp_int_surface)
             is_floor = (self._pitch > self.__PITCH_LIMIT_HORIZ_FLOOR)
@@ -120,11 +135,35 @@ class BuildingElement:
                  or (is_ceiling and not inwards_heat_flow)
                   )
             if upwards_heat_flow:
-                # Upwards heat flow
-                return self.__H_CI_UPWARDS
+                return HeatFlowDirection.UPWARDS
             else:
-                # Downwards heat flow
-                return self.__H_CI_DOWNWARDS
+                return HeatFlowDirection.DOWNWARDS
+
+    def r_si(self):
+        """ Return internal surface resistance, in m2 K / W """
+        # TODO use is floor and is ceiling functions so determine R SI values
+        if self._pitch >= self.__PITCH_LIMIT_HORIZ_CEILING \
+        and self._pitch <= self.__PITCH_LIMIT_HORIZ_FLOOR:
+            return self.__R_SI_HORIZONTAL
+        elif self._pitch < self.__PITCH_LIMIT_HORIZ_CEILING:
+            return self.__R_SI_UPWARDS
+        elif self._pitch > self.__PITCH_LIMIT_HORIZ_FLOOR:
+            return self.__R_SI_DOWNWARDS
+        else:
+            sys.exit('Pitch class not recognised')
+
+    def r_se(self):
+        """ Return external surface resistance, in m2 K / W """
+        return self.__R_SE
+
+    def h_ci(self, temp_int_air, temp_int_surface):
+        """ Return internal convective heat transfer coefficient, in W / (m2.K) """
+        if self.heat_flow_direction(temp_int_air, temp_int_surface) == HeatFlowDirection.HORIZONTAL:
+            return self.__H_CI_HORIZONTAL
+        elif self.heat_flow_direction(temp_int_air, temp_int_surface) == HeatFlowDirection.UPWARDS:
+            return self.__H_CI_UPWARDS
+        else:
+            return self.__H_CI_DOWNWARDS
 
     def h_ri(self):
         """ Return internal radiative heat transfer coefficient, in W / (m2.K) """
@@ -212,37 +251,40 @@ class BuildingElementOpaque(BuildingElement):
         self.__projected_height = projected_height(pitch, height)
         self.__orientation = orientation
         self.__external_conditions = ext_cond
+        self.__area = area
+        self.__r_c = r_c
+        self.__k_m = k_m
 
         # This is the f_sky value for an unshaded surface
         f_sky = sky_view_factor(pitch)
 
         # Initialise the base BuildingElement class
-        super().__init__(area, pitch, a_sol, f_sky)
+        super().__init__(self.__area, pitch, a_sol, f_sky)
 
         # Calculate node conductances (h_pli) and node heat capacities (k_pli)
         # according to BS EN ISO 52016-1:2017, section 6.5.7.2
 
         def init_h_pli():
-            h_outer = 6.0 / r_c
-            h_inner = 3.0 / r_c
+            h_outer = 6.0 / self.__r_c
+            h_inner = 3.0 / self.__r_c
             return [h_outer, h_inner, h_inner, h_outer]
 
         self.h_pli = init_h_pli()
 
         def init_k_pli():
             if   mass_distribution_class == 'I':
-                return [0.0, 0.0, 0.0, 0.0, k_m]
+                return [0.0, 0.0, 0.0, 0.0, self.__k_m]
             elif mass_distribution_class == 'E':
-                return [k_m, 0.0, 0.0, 0.0, 0.0]
+                return [self.__k_m, 0.0, 0.0, 0.0, 0.0]
             elif mass_distribution_class == 'IE':
-                k_ie = k_m / 2.0
+                k_ie = self.__k_m / 2.0
                 return [k_ie, 0.0, 0.0, 0.0, k_ie]
             elif mass_distribution_class == 'D':
-                k_inner = k_m / 4.0
-                k_outer = k_m / 8.0
+                k_inner = self.__k_m / 4.0
+                k_outer = self.__k_m / 8.0
                 return [k_outer, k_inner, k_inner, k_inner, k_outer]
             elif mass_distribution_class == 'M':
-                return [0.0, 0.0, k_m, 0.0, 0.0]
+                return [0.0, 0.0, self.__k_m, 0.0, 0.0]
             else:
                 sys.exit("Mass distribution class ("+str(mass_distribution_class)+") not valid")
                 # TODO Exit just the current case instead of whole program entirely?
@@ -268,6 +310,17 @@ class BuildingElementOpaque(BuildingElement):
         return self.__external_conditions.air_temp()
         # TODO For now, this only handles building elements to the outdoor
         #      environment, not e.g. elements to adjacent zones.
+
+    def fabric_heat_loss(self):
+        """ Return the fabric heat loss for the building element """
+        U_value = 1.0 / (self.__r_c + self.r_se() + self.r_si())
+        fabric_heat_loss = self.__area * U_value
+        return fabric_heat_loss
+
+    def heat_capacity(self):
+        """ Return the fabric heat capacity for the building element """
+        heat_capacity = self.__area * (self.__k_m / units.J_per_kJ)
+        return heat_capacity
 
 
 class BuildingElementAdjacentZTC(BuildingElement):
@@ -306,6 +359,9 @@ class BuildingElementAdjacentZTC(BuildingElement):
         a_sol    -- solar absorption coefficient at the external surface (dimensionless)
         """
         self.__external_conditions = ext_cond
+        self.__area = area
+        self.__r_c = r_c
+        self.__k_m = k_m
 
         # Element is adjacent to another building / thermally conditioned zone therefore
         # according to BS EN ISO 52016-1:2017, section 6.5.6.3.6:
@@ -315,32 +371,32 @@ class BuildingElementAdjacentZTC(BuildingElement):
         a_sol = 0
 
         # Initialise the base BuildingElement class
-        super().__init__(area, pitch, a_sol, f_sky)
+        super().__init__(self.__area, pitch, a_sol, f_sky)
 
         # Calculate node conductances (h_pli) and node heat capacities (k_pli)
         # according to BS EN ISO 52016-1:2017, section 6.5.7.2
 
         def init_h_pli():
-            h_outer = 6.0 / r_c
-            h_inner = 3.0 / r_c
+            h_outer = 6.0 / self.__r_c
+            h_inner = 3.0 / self.__r_c
             return [h_outer, h_inner, h_inner, h_outer]
 
         self.h_pli = init_h_pli()
 
         def init_k_pli():
             if   mass_distribution_class == 'I':
-                return [0.0, 0.0, 0.0, 0.0, k_m]
+                return [0.0, 0.0, 0.0, 0.0, self.__k_m]
             elif mass_distribution_class == 'E':
-                return [k_m, 0.0, 0.0, 0.0, 0.0]
+                return [self.__k_m, 0.0, 0.0, 0.0, 0.0]
             elif mass_distribution_class == 'IE':
-                k_ie = k_m / 2.0
+                k_ie = self.__k_m / 2.0
                 return [k_ie, 0.0, 0.0, 0.0, k_ie]
             elif mass_distribution_class == 'D':
-                k_inner = k_m / 4.0
-                k_outer = k_m / 8.0
+                k_inner = self.__k_m / 4.0
+                k_outer = self.__k_m / 8.0
                 return [k_outer, k_inner, k_inner, k_inner, k_outer]
             elif mass_distribution_class == 'M':
-                return [0.0, 0.0, k_m, 0.0, 0.0]
+                return [0.0, 0.0, self.__k_m, 0.0, 0.0]
             else:
                 sys.exit("Mass distribution class ("+str(mass_distribution_class)+") not valid")
                 # TODO Exit just the current case instead of whole program entirely?
@@ -367,6 +423,15 @@ class BuildingElementAdjacentZTC(BuildingElement):
         # Air on other side of building element is in ZTC
         # Assume adiabtiatic boundary conditions (BS EN ISO 52016-1:2017, section 6.5.6.3.6)
         # Therefore no heat transfer from external facing node
+
+    def fabric_heat_loss(self):
+        """ Return the fabric heat loss for the building element """
+        return 0.0 # no heat loss to thermally conditioned zones
+
+    def heat_capacity(self):
+        """ Return the fabric heat capacity for the building element """
+        heat_capacity = self.__area * (self.__k_m / units.J_per_kJ)
+        return heat_capacity
 
 
 class BuildingElementAdjacentZTU_Simple(BuildingElement):
@@ -417,6 +482,9 @@ class BuildingElementAdjacentZTU_Simple(BuildingElement):
         """
         self.__external_conditions = ext_cond
         self.__r_u = r_u
+        self.__area = area
+        self.__r_c = r_c
+        self.__k_m = k_m
 
         # Element is adjacent to another building / thermally conditioned zone therefore
         # according to BS EN ISO 52016-1:2017, section 6.5.6.3.6:
@@ -483,6 +551,17 @@ class BuildingElementAdjacentZTU_Simple(BuildingElement):
     def temp_ext(self):
         """ Return the temperature of the air on the other side of the building element """
         return self.__external_conditions.air_temp()
+
+    def fabric_heat_loss(self):
+        """ Return the fabric heat loss for the building element """
+        U_value = 1.0 / (self.__r_c + self.r_se() + self.r_si())
+        fabric_heat_loss = self.__area * U_value
+        return fabric_heat_loss
+
+    def heat_capacity(self):
+        """ Return the fabric heat capacity for the building element """
+        heat_capacity = self.__area * (self.__k_m / units.J_per_kJ)
+        return heat_capacity
 
 
 class BuildingElementGround(BuildingElement):
@@ -555,7 +634,8 @@ class BuildingElementGround(BuildingElement):
         self.__external_conditions = ext_cond
         self.__simulation_time = simulation_time
         self.__temp_int_annual = average_monthly_to_annual(self.__TEMP_INT_MONTHLY)
-
+        self.__area = area
+        self.__k_m = k_m
 
         # Solar absorption coefficient at the external surface of the ground element is zero
         # according to BS EN ISO 52016-1:2017, section 6.5.7.3
@@ -590,7 +670,7 @@ class BuildingElementGround(BuildingElement):
         self.__h_re = 0.0
 
         # Initialise the base BuildingElement class
-        super().__init__(area, pitch, a_sol, f_sky)
+        super().__init__(self.__area, pitch, a_sol, f_sky)
 
         # Calculate node conductances (h_pli) and node heat capacities (k_pli)
         # according to BS EN ISO 52016-1:2017, section 6.5.7.3
@@ -607,18 +687,18 @@ class BuildingElementGround(BuildingElement):
 
         def init_k_pli():
             if   mass_distribution_class == 'I':
-                return [0.0, k_gr, 0.0, 0.0, k_m]
+                return [0.0, k_gr, 0.0, 0.0, self.__k_m]
             elif mass_distribution_class == 'E':
-                return [0.0, k_gr, k_m, 0.0, 0.0]
+                return [0.0, k_gr, self.__k_m, 0.0, 0.0]
             elif mass_distribution_class == 'IE':
-                k_ie = k_m / 2.0
+                k_ie = self.__k_m / 2.0
                 return [0.0, k_gr, k_ie, 0.0, k_ie]
             elif mass_distribution_class == 'D':
-                k_inner = k_m / 2.0
-                k_outer = k_m / 4.0
+                k_inner = self.__k_m / 2.0
+                k_outer = self.__k_m / 4.0
                 return [0.0, k_gr, k_outer, k_inner, k_outer]
             elif mass_distribution_class == 'M':
-                return [0.0, k_gr, 0.0, k_m, 0.0]
+                return [0.0, k_gr, 0.0, self.__k_m, 0.0]
             else:
                 sys.exit("Mass distribution class ("+str(mass_distribution_class)+") not valid")
                 # TODO Exit just the current case instead of whole program entirely?
@@ -659,6 +739,16 @@ class BuildingElementGround(BuildingElement):
             / (self.area * self.__u_value)
 
         return temp_ground_virtual
+
+    def fabric_heat_loss(self):
+        """ Return the fabric heat loss for the building element """
+        fabric_heat_loss = self.__area * self.__u_value
+        return fabric_heat_loss
+
+    def heat_capacity(self):
+        """ Return the fabric heat capacity for the building element """
+        heat_capacity = self.__area * (self.__k_m / units.J_per_kJ)
+        return heat_capacity
 
 
 class BuildingElementTransparent(BuildingElement):
@@ -704,6 +794,7 @@ class BuildingElementTransparent(BuildingElement):
         self.__orientation = orientation
         self.__g_value = g_value
         self.__shading = shading
+        self.__r_c = r_c
         #TODO ISO 52016 offers an input option; either the frame factor directly,
         #or the glazed area of the window and then the frame factor is calculated.
         #assuming for now that frame factor is provided (default 0.25 from App B)
@@ -712,7 +803,7 @@ class BuildingElementTransparent(BuildingElement):
         self.__external_conditions = ext_cond
 
         # calculate area from height & width for transparent elements
-        area = calculate_area(height, width)
+        self.__area = calculate_area(height, width)
 
         # Solar absorption coefficient is zero because element is transparent
         a_sol = 0.0
@@ -721,11 +812,11 @@ class BuildingElementTransparent(BuildingElement):
         f_sky = sky_view_factor(pitch)
 
         # Initialise the base BuildingElement class
-        super().__init__(area, pitch, a_sol, f_sky)
+        super().__init__(self.__area, pitch, a_sol, f_sky)
 
         # Calculate node conductances (h_pli) and node heat capacities (k_pli)
         # according to BS EN ISO 52016-1:2017, section 6.5.7.4
-        self.h_pli = [1.0 / r_c]
+        self.h_pli = [1.0 / self.__r_c]
         self.k_pli = [0.0, 0.0]
 
     def shading_factor(self):
@@ -770,3 +861,18 @@ class BuildingElementTransparent(BuildingElement):
         return self.__external_conditions.air_temp()
         # TODO For now, this only handles building elements to the outdoor
         #      environment, not e.g. elements to adjacent zones.
+
+    def fabric_heat_loss(self):
+        """ Return the fabric heat loss for the building element """
+        # Effective window U-value includes assumed use of curtains/blinds, see
+        # SAP10.2 spec, paragraph 3.2
+        # TODO Confirm this is still the desired approach for SAP 11
+        r_curtains_blinds = 0.04
+        # Add standard surface resistances to resistance of construction when calculating U-value
+        U_value = 1.0 / ((self.__r_c + self.r_si() + self.r_se()) + r_curtains_blinds)
+        fabric_heat_loss = self.__area * U_value
+        return fabric_heat_loss
+
+    def heat_capacity(self):
+        """ Return the fabric heat capacity for the building element """
+        return 0.0 # Set to zero as not included in heat loss calculations

@@ -834,6 +834,51 @@ class Project:
             for name, data in proj_dict['OnSiteGeneration'].items():
                 self.__on_site_generation[name] = dict_to_on_site_generation(name, data)
 
+    def calc_HTC_HLP(self):
+        """ Calculate heat transfer coefficient (HTC) and heat loss parameter (HLP)
+        according to the SAP10.2 specification """
+        # Initialise variables
+        total_fabric_heat_loss = 0
+        total_thermal_bridges= 0
+        total_vent_heat_loss = 0
+
+        # Calculate the total fabric heat loss, total heat capacity, total ventilation heat
+        # loss and total heat transfer coeffient for thermal bridges across all zones
+        for z_name, zone in self.__zones.items():
+            total_fabric_heat_loss += zone.total_fabric_heat_loss()
+            total_thermal_bridges += zone.total_thermal_bridges()
+            total_vent_heat_loss += zone.total_vent_heat_loss()
+
+        # Calculate the heat transfer coefficent (HTC), in W / K
+        # TODO check ventilation losses are correct
+        HTC = total_fabric_heat_loss + total_thermal_bridges + total_vent_heat_loss
+
+        # Calculate the HLP, in W / m2 K
+        total_floor_area = sum(zone.area() for zone in self.__zones.values())
+        HLP = HTC / total_floor_area
+
+        return HTC, HLP
+
+    def calc_TMP(self):
+        """ Calculate the thermal mass parameter (TMP), according to the SAP10.2 specification """
+        # TODO party walls and solid doors should be exluded according to SAP spec - if party walls are
+        # assumed to be ZTU building elements this could be set to zero?
+
+        # Calculate total floor area, in m2
+        total_floor_area = sum(zone.area() for zone in self.__zones.values())
+
+        # Initialise variable
+        total_heat_capacity = 0
+
+        # Calculate the total heat capacity and total zone area
+        for z_name, zone in self.__zones.items():
+            total_heat_capacity += zone.total_heat_capacity()
+
+        # Calculate the thermal mass parameter, in kJ / m2 K
+        TMP = total_heat_capacity / total_floor_area
+
+        return TMP
+
     def run(self):
         """ Run the simulation """
 
