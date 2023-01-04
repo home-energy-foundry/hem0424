@@ -9,6 +9,7 @@ Standard.
 
 # Standard library imports
 import sys
+import csv
 
 # Local imports
 from wrappers.future_homes_standard.future_homes_standard import \
@@ -177,3 +178,17 @@ def apply_fhs_FEE_preprocessing(project_dict):
     project_dict = apply_fhs_preprocessing(project_dict, True)
 
     return project_dict
+
+def apply_fhs_FEE_postprocessing(
+        output_file,
+        space_heat_demand_total,
+        space_cool_demand_total,
+        ):
+    # Subtract cooling demand from heating demand because cooling demand is negative by convention
+    fabric_energy_eff = space_heat_demand_total - space_cool_demand_total
+
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(output_file, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Fabric Energy Efficiency', 'kWh / m2.yr', fabric_energy_eff])

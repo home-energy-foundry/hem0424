@@ -19,7 +19,7 @@ from read_CIBSE_weather_file import CIBSE_weather_data_to_dict
 from wrappers.future_homes_standard.future_homes_standard import \
     apply_fhs_preprocessing, apply_fhs_postprocessing
 from wrappers.future_homes_standard.future_homes_standard_FEE import \
-    apply_fhs_FEE_preprocessing
+    apply_fhs_FEE_preprocessing, apply_fhs_FEE_postprocessing
 
 
 def run_project(
@@ -89,7 +89,9 @@ def run_project(
     # Apply required postprocessing steps, if any
     if fhs_assumptions:
         apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path[0])
-   
+    elif fhs_FEE_assumptions:
+        postprocfile = file_path[0] + '_postproc.csv'
+        apply_fhs_FEE_postprocessing(postprocfile, space_heat_demand_total, space_cool_demand_total)
 
 def write_core_output_file(
         output_file,
