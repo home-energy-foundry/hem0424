@@ -864,11 +864,14 @@ class BuildingElementTransparent(BuildingElement):
 
     def fabric_heat_loss(self):
         """ Return the fabric heat loss for the building element """
-        U_value = 1.0 / ((self.__r_c) + 0.04) # effective window U-value, see SAP10.2 spec, paragraph 3.2
+        # Effective window U-value includes assumed use of curtains/blinds, see
+        # SAP10.2 spec, paragraph 3.2
+        # TODO Confirm this is still the desired approach for SAP 11
+        r_curtains_blinds = 0.04
+        # Add standard surface resistances to resistance of construction when calculating U-value
+        U_value = 1.0 / ((self.__r_c + self.r_si() + self.r_se()) + r_curtains_blinds)
         fabric_heat_loss = self.__area * U_value
         return fabric_heat_loss
-    # TODO check if surface resistance needed for windows and if this varies depending on 
-    # location of window e.g. roof window
 
     def heat_capacity(self):
         """ Return the fabric heat capacity for the building element """
