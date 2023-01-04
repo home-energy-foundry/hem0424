@@ -83,7 +83,9 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
         apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path[0])
 
 def write_static_output_file(output_file, heat_trans_coeff, heat_loss_param, thermal_mass_param):
-    with open(output_file, 'w') as f:
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(output_file, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['Heat transfer coefficient', 'W / K', heat_trans_coeff])
         writer.writerow(['Heat loss parameter', 'W / m2.K', heat_loss_param])
