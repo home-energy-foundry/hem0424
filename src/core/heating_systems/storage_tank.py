@@ -335,6 +335,7 @@ class StorageTank:
         #initialise list of potential energy input for each layer
         Q_x_in_n = [0] * self.__NB_VOL
         
+        # TODO - Ensure we are feeding in the right volumen
         Q_x_in_n[0] = energy_proposed
 
         Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
@@ -342,7 +343,7 @@ class StorageTank:
         #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
         Q_h_sto_s7, temp_s7_n = self.rearrange_temperatures(temp_s6_n)                
         
-                # assuming [0] is bottom temp and __NB_VOL-1 is inlet
+        # TODO - Check [0] is bottom layer temp and that solart thermal inlet is top layer __NB_VOL-1
         return temp_s7_n[0], temp_s7_n[self.__NB_VOL-1]
   
     def energy_input(self, temp_s3_n, Q_x_in_n):
@@ -782,15 +783,8 @@ class SolarThermalSystem:
         #water specific heat in kWh/kg.K
         self.__Cp = contents.specific_heat_capacity()
 
-        """for initial conditions collector water temperatures in the thermal storage unit's
-        bottom layer.
-        """
-        # __temp= average_collector_water_temperature
-        #self.__temp = 20
-        # __inlet_temp
-        self.__inlet_temp=55
 
-    def collector_reference_area(self):
+    def __collector_reference_area(self):
         """ Calculate total collector reference area from collector module reference area and
             number of modules
             eq 50 of STANDARD """
@@ -799,7 +793,7 @@ class SolarThermalSystem:
         self.__area = self.__area_module * self.__modules
 
 
-    def energy_output_max(self, storage_tank, temp_s3_n):
+    def energy_output_max(self, storage_tank, temp_storage_tank_s3_n):
         """ Calculate collector loop heat output
             eq 49 to 58 of STANDARD """
 
@@ -816,20 +810,32 @@ class SolarThermalSystem:
             # MJFC: is this required?
             sys.exit('SolarThermalSystem: Collector loop location not valid.')
             
+
+        #First estimation of average collector water temperature. Eq 51
+        #initialise temperature
+        # If first time step, pick bottom of the tank temperature as inlet_temp_s1
+        # TODO - Check first timestep is 0 and no 1
+        if (self.__simulation_time.index() == 0):
+            inlet_temp_s1 = temp_storage_tank_s3_n[0]
+            self.__inlet_temp = deepcopy(inlet_temp_s1)
+        else:
+            inlet_temp_s1 = deepcopy(self.__inlet_temp)
+
+        print("idx: " + str(self.__simulation_time.index()))
             
         #solar_irradiance in W/m2
-        solar_irradiance = self.__external_conditions.calculated_total_solar_irradiance(
+        solar_irradiance = self.__external_conditions.calculated_total_solar_irradiance( \
             self.__tilt,
             self.__orientation
             )
         if (solar_irradiance == 0):
+            # TODO - Consider the case of energy left from previous step not totally dissipated
+            self.__heat_output_collector_loop = 0
             return 0
-        #First estimation of average collector water temperature. Eq 51
-        #initialise temperature
-        inlet_temp_s1 = deepcopy(self.__inlet_temp)
+            
         avg_collector_water_temp = inlet_temp_s1 + (0.4 * solar_irradiance * self.__area) / \
         (self.__collector_mass_flow_rate * self.__Cp * 2)
-        #print(str(avg_collector_water_temp) + " " + str(inlet_temp_s1) + " " + str(solar_irradiance) + " " + str(self.__area) + " " + str(self.__Cp))
+        print(str(avg_collector_water_temp) + " " + str(inlet_temp_s1) + " " + str(solar_irradiance) + " " + str(self.__area) + " " + str(self.__simulation_time.index()))
 
         #Calculation of collector efficiency
         for i in range(0, 4):
@@ -838,27 +844,32 @@ class SolarThermalSystem:
             #print(str(i) + " " + str(Th) + " " + str(avg_collector_water_temp) + " " + str(self.__external_conditions.air_temp()) + " " + str(solar_irradiance))
             
             # Eq 52
-            collector_efficiency = self.__peak_collector_efficiency * \
-            self.__incidence_angle_modifier - \
-            self.__first_order_hlc * Th - \
-            self.__second_order_hlc * Th**2 * solar_irradiance 
+            collector_efficiency \
+                = self.__peak_collector_efficiency \
+                * self.__incidence_angle_modifier \
+                - self.__first_order_hlc * Th \
+                - self.__second_order_hlc * Th**2 * solar_irradiance 
             # Eq 54 ?
             collector_absorber_heat_input = self.__peak_collector_efficiency * solar_irradiance * \
-            self.__area * self.__simulation_time.timestep() * 0.001
+            self.__area * self.__simulation_time.timestep() / units.W_per_kW
             # Eq 55
             collector_output_heat = collector_efficiency * solar_irradiance * \
-            self.__area * self.__simulation_time.timestep() * 0.001
+            self.__area * self.__simulation_time.timestep() / units.W_per_kW
             #self.__solar_loop_piping_hlc
             # Eq 56
-            heat_loss_collector_loop_piping = self.__solar_loop_piping_hlc * \
-            (avg_collector_water_temp - self.__air_temp_coll_loop) * self.__simulation_time.timestep() * 0.001
+            heat_loss_collector_loop_piping \
+                 = self.__solar_loop_piping_hlc \
+                 * ( avg_collector_water_temp 
+                   - self.__air_temp_coll_loop 
+                   ) \
+                 * self.__simulation_time.timestep() / units.W_per_kW
             # Eq 57
             self.__heat_output_collector_loop = collector_output_heat - heat_loss_collector_loop_piping
-            if self.__heat_output_collector_loop < self.__power_pump * self.__simulation_time.timestep() * 3 * 0.001:
+            if self.__heat_output_collector_loop < self.__power_pump * self.__simulation_time.timestep() * 3 / units.W_per_kW:
                 self.__heat_output_collector_loop = 0
             
             #Call to the storage tank
-            temp1, inlet_temp2 = storage_tank.storage_tank_potential_effect(self.__heat_output_collector_loop, temp_s3_n)
+            temp_layer_0, inlet_temp2 = storage_tank.storage_tank_potential_effect(self.__heat_output_collector_loop, temp_storage_tank_s3_n)
 
             # Eq 58
             avg_collector_water_temp = ( self.__inlet_temp + inlet_temp2 ) / 2 + \
@@ -866,13 +877,6 @@ class SolarThermalSystem:
                                                 
         # Copy the finishing value of inlet temp ready for start of next timestep
         self.__inlet_temp = deepcopy(inlet_temp2)
-            
-        # Eq 59 and 60 to calculate auxiliary energy
-        if self.__heat_output_collector_loop == 0: 
-            self.__auxilliary_energy_consumption = ( self.__power_pump_control + self.__power_pump ) \
-            * self.__simulation_time.timestep()
-        else:
-            self.__auxilliary_energy_consumption = self.__power_pump_control * self.__simulation_time.timestep()
             
         print("Pot: ")    
         print(str(self.__heat_output_collector_loop))    
@@ -882,7 +886,16 @@ class SolarThermalSystem:
         """ Demand energy (in kWh) from the solar thermal"""
 
         energy_supplied = min(energy_demand, self.__heat_output_collector_loop )
-                # self.__energy_supply_conn.demand_energy(energy_supplied)
+
+        # Eq 59 and 60 to calculate auxiliary energy - Potential bug identified by SA corrected.
+        if energy_supplied == 0: 
+            auxilliary_energy_consumption = self.__power_pump_control * self.__simulation_time.timestep()
+        else:
+            auxilliary_energy_consumption = ( self.__power_pump_control + self.__power_pump ) \
+            * self.__simulation_time.timestep()
+            
+        self.__energy_supply_conn.demand_energy(auxilliary_energy_consumption)
+        
         print("Actual: ")    
         print(energy_supplied)    
         return energy_supplied
