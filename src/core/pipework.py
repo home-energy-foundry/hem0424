@@ -48,6 +48,9 @@ class Pipework:
         """
         self.__length = length
         self.__internal_diameter = internal_diameter
+        self.__volume_litres \
+            = pi * (self.__internal_diameter/2) * (self.__internal_diameter/2) \
+            * self.__length * units.litres_per_cubic_metre
 
         """ Set the heat transfer coefficient inside the pipe, in W / m^2 K """
         if contents == 'air':
@@ -77,6 +80,9 @@ class Pipework:
         """ Calculate the external surface resistance, in K m / W  """
         self.__external_surface_resistance = 1.0 / (external_htc * pi * self.__D_insulation)
 
+    def volume_litres(self):
+        return self.__volume_litres
+
     def heat_loss(self, inside_temp, outside_temp):
         """" Return the heat loss from the pipe for the current timestep
 
@@ -102,9 +108,7 @@ class Pipework:
         """
         heat_loss_kWh = (units.seconds_per_hour * self.heat_loss(inside_temp, outside_temp)) / units.W_per_kW # heat loss for the one hour timestep in kWh
 
-        litres = pi * (self.__internal_diameter/2) * (self.__internal_diameter/2) * self.__length * units.litres_per_cubic_metre
-
-        temp_drop = min((heat_loss_kWh * units.J_per_kWh) / (material_properties.WATER.volumetric_heat_capacity() * litres),
+        temp_drop = min((heat_loss_kWh * units.J_per_kWh) / (material_properties.WATER.volumetric_heat_capacity() * self.__volume_litres),
                         inside_temp - outside_temp)  # Q = C m ∆t
         # temperature cannot drop below outside temperature
 
@@ -118,9 +122,7 @@ class Pipework:
         inside_temp   -- temperature of water (or air) inside the pipe, in degrees C
         outside_temp  -- temperature outside the pipe, in degrees C
         """
-        litres = pi * (self.__internal_diameter/2) * (self.__internal_diameter/2) * self.__length * units.litres_per_cubic_metre
-
-        cool_down_loss = (material_properties.WATER.volumetric_energy_content_kWh_per_litre(inside_temp, outside_temp) * litres)
+        cool_down_loss = (material_properties.WATER.volumetric_energy_content_kWh_per_litre(inside_temp, outside_temp) * self.__volume_litres)
 
         return(cool_down_loss) # returns kWh
 
