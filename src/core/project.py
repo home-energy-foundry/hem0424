@@ -1002,6 +1002,11 @@ class Project:
                                 self.__water_heating_pipework,
                                 )
 
+            vol_hot_water_left_in_pipework \
+                = self.__water_heating_pipework['internal'].volume_litres() \
+                + self.__water_heating_pipework['external'].volume_litres()
+            hw_demand += all_events * vol_hot_water_left_in_pipework
+
             return hw_demand, hw_duration, all_events, pw_losses, hw_energy_demand  # litres hot water per timestep, minutes demand per timestep, number of events in timestep
 
         def calc_pipework_losses(hw_demand, t_idx, delta_t_h, cold_water_temperature, hw_duration, hw_pipework):
