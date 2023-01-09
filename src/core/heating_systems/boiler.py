@@ -24,6 +24,7 @@ from numpy import interp
 
 class ServiceType(Enum):
     WATER_COMBI = auto()
+    WATER_REGULAR = auto()
     SPACE = auto()
 
 
@@ -191,6 +192,64 @@ class BoilerServiceWaterCombi(BoilerService):
             exit('Invalid hot water test option')
 
         return combi_loss
+
+    def energy_output_max(self):
+        """ Calculate the maximum energy output of the boiler"""
+        return self._boiler._Boiler__energy_output_max(self.__temp_hot_water)
+
+
+class BoilerServiceWaterRegular(BoilerService):
+    """ An object to represent a water heating service provided by a regular boiler.
+
+    This object contains the parts of the boiler calculation that are
+    specific to providing hot water.
+    """
+
+    def __init__(self,
+                 boiler,
+                 boiler_data,
+                 service_name,
+                 temp_hot_water,
+                 cold_feed,
+                 simulation_time
+                ):
+        """ Construct a BoilerServiceWaterRegular object
+
+        Arguments:
+        boiler       -- reference to the Boiler object providing the service
+        boiler_data       -- regular boiler heating properties
+        service_name -- name of the service demanding energy from the boiler_data
+        temp_hot_water -- temperature of the hot water to be provided, in deg C
+        cold_feed -- reference to ColdWaterSource object
+        simulation_time -- reference to SimulationTime object
+        """
+        super().__init__(boiler, service_name)
+        
+        self.__temp_hot_water = temp_hot_water
+        self.__cold_feed = cold_feed
+        self.__service_name = service_name
+        self.__simulation_time = simulation_time
+
+        
+    def demand_hot_water(self, volume_demanded):
+        """ Demand volume from boiler."""
+        timestep = self.__simulation_time.timestep()
+        return_temperature = 60 
+        
+        energy_content_kWh_per_litre = WATER.volumetric_energy_content_kWh_per_litre(
+            self.__temp_hot_water,
+            self.__cold_feed.temperature()
+            )
+        energy_demand = volume_demanded * energy_content_kWh_per_litre 
+
+
+        return self._boiler._Boiler__demand_energy(
+            self.__service_name,
+            ServiceType.WATER_REGULAR,
+            energy_demand,
+            return_temperature
+            )
+
 
     def energy_output_max(self):
         """ Calculate the maximum energy output of the boiler"""
