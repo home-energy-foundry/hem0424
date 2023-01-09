@@ -19,6 +19,8 @@ from read_weather_file import weather_data_to_dict
 from read_CIBSE_weather_file import CIBSE_weather_data_to_dict
 from wrappers.future_homes_standard.future_homes_standard import \
     apply_fhs_preprocessing, apply_fhs_postprocessing
+from wrappers.future_homes_standard.future_homes_standard_FEE import \
+    apply_fhs_FEE_preprocessing, apply_fhs_FEE_postprocessing
 
 
 def run_project(
@@ -26,10 +28,13 @@ def run_project(
         external_conditions_dict,
         preproc_only=False,
         fhs_assumptions=False,
+        fhs_FEE_assumptions=False,
         heat_balance=False,
         ):
     file_path = os.path.splitext(inp_filename)
     output_file = file_path[0] + '_results.csv'
+    output_file_static = file_path[0] + '_results_static.csv'
+    output_file_summary = file_path[0] + '_results_summary.csv'
 
     with open(inp_filename) as json_file:
         project_dict = json.load(json_file)
@@ -44,6 +49,8 @@ def run_project(
     # Apply required preprocessing steps, if any
     if fhs_assumptions:
         project_dict = apply_fhs_preprocessing(project_dict)
+    elif fhs_FEE_assumptions:
+        project_dict = apply_fhs_FEE_preprocessing(project_dict)
 
     if preproc_only:
         with open(file_path[0] + '_preproc.json', 'w') as preproc_file:
@@ -51,6 +58,18 @@ def run_project(
         return # Skip actual calculation if preproc only option has been selected
 
     project = Project(project_dict, heat_balance)
+
+    # Calculate static parameters and output
+    heat_trans_coeff, heat_loss_param = project.calc_HTC_HLP()
+    thermal_mass_param = project.calc_TMP()
+    write_static_output_file(
+        output_file_static,
+        heat_trans_coeff,
+        heat_loss_param,
+        thermal_mass_param,
+        )
+
+    # Run main simulation
     timestep_array, results_totals, results_end_user, \
         energy_import, energy_export, betafactor, \
         zone_dict, zone_list, hc_system_dict, hot_water_dict,\
@@ -82,10 +101,32 @@ def run_project(
             heat_balance_dict,
             )
 
+    # Sum per-timestep figures as needed
+    space_heat_demand_total = sum(sum(h_dem) for h_dem in zone_dict['Space heat demand'].values())
+    space_cool_demand_total = sum(sum(c_dem) for c_dem in zone_dict['Space cool demand'].values())
+
+    write_core_output_file_summary(
+        output_file_summary,
+        space_heat_demand_total,
+        space_cool_demand_total,
+        )
+
     # Apply required postprocessing steps, if any
     if fhs_assumptions:
         apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path[0])
-   
+    elif fhs_FEE_assumptions:
+        postprocfile = file_path[0] + '_postproc.csv'
+        apply_fhs_FEE_postprocessing(postprocfile, space_heat_demand_total, space_cool_demand_total)
+
+def write_static_output_file(output_file, heat_trans_coeff, heat_loss_param, thermal_mass_param):
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(output_file, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Heat transfer coefficient', 'W / K', heat_trans_coeff])
+        writer.writerow(['Heat loss parameter', 'W / m2.K', heat_loss_param])
+        writer.writerow(['Thermal mass parameter', 'kJ / m2.K', thermal_mass_param])
+
 def write_heat_balance_output_file(
         heat_balance_output_file,
         timestep_array,
@@ -221,6 +262,20 @@ def write_core_output_file(
             hw_system_row_events + pw_losses_row + ductwork_row + energy_shortfall
             writer.writerow(row)
 
+def write_core_output_file_summary(
+        output_file_summary,
+        space_heat_demand_total,
+        space_cool_demand_total,
+        ):
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(output_file_summary, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['', '', 'Total'])
+        writer.writerow(['Space heat demand', 'kWh', space_heat_demand_total])
+        writer.writerow(['Space cool demand', 'kWh', space_cool_demand_total])
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='SAP 11')
     parser.add_argument(
@@ -247,16 +302,23 @@ if __name__ == '__main__':
         help='run calculations for different input files in parallel',
         )
     parser.add_argument(
+        '--preprocess-only',
+        action='store_true',
+        default=False,
+        help='run prepocessing step only',
+        )
+    wrapper_options = parser.add_mutually_exclusive_group()
+    wrapper_options.add_argument(
         '--future-homes-standard',
         action='store_true',
         default=False,
         help='use Future Homes Standard calculation assumptions',
         )
-    parser.add_argument(
-        '--preprocess-only',
+    wrapper_options.add_argument(
+        '--future-homes-standard-FEE',
         action='store_true',
         default=False,
-        help='run prepocessing step only',
+        help='use Future Homes Standard Fabric Energy Efficiency assumptions',
         )
     parser.add_argument(
         '--heat-balance',
@@ -270,6 +332,7 @@ if __name__ == '__main__':
     epw_filename = cli_args.epw_file
     cibse_weather_filename = cli_args.CIBSE_weather_file
     fhs_assumptions = cli_args.future_homes_standard
+    fhs_FEE_assumptions = cli_args.future_homes_standard_FEE
     preproc_only = cli_args.preprocess_only
     heat_balance = cli_args.heat_balance
 
@@ -284,12 +347,19 @@ if __name__ == '__main__':
     if not cli_args.parallel:
         print('Running '+str(len(inp_filenames))+' cases in series')
         for inpfile in inp_filenames:
-            run_project(inpfile, external_conditions_dict, preproc_only, fhs_assumptions, heat_balance)
+            run_project(
+                inpfile,
+                external_conditions_dict,
+                preproc_only,
+                fhs_assumptions,
+                fhs_FEE_assumptions,
+                heat_balance,
+                )
     else:
         import multiprocessing as mp
         print('Running '+str(len(inp_filenames))+' cases in parallel')
         run_project_args = [
-            (inpfile, external_conditions_dict, preproc_only, fhs_assumptions, heat_balance)
+            (inpfile, external_conditions_dict, preproc_only, fhs_assumptions, fhs_FEE_assumptions, heat_balance)
             for inpfile in inp_filenames
             ]
         with mp.Pool() as p:

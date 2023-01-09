@@ -480,3 +480,34 @@ class Zone:
             self.__print_heat_balance,
             )
         return heat_balance_dict
+
+    def total_fabric_heat_loss(self):
+        """ Return the total fabric heat loss from all 
+        building elements in a zone, in W / K """
+        total_fabric_heat_loss = 0
+        for be in self.__building_elements:
+            total_fabric_heat_loss += be.fabric_heat_loss()
+        return total_fabric_heat_loss
+
+    def total_heat_capacity(self):
+        """ Return the total heat capacity from all building elements in a zone
+        excluding ground and transparent elements, in kJ / K """
+        # TODO Exclude solid door (opaque building element), or define convention
+        #      that heat capacity of solid doors can be entered as zero
+        total_heat_capacity = 0
+        for be in self.__building_elements:
+            total_heat_capacity += be.heat_capacity()
+        return total_heat_capacity
+
+    def total_thermal_bridges(self):
+        """ Return the total heat transfer coefficient for all
+        thermal bridges in a zone, in W / K """
+        return self.__tb_heat_trans_coeff
+
+    def total_vent_heat_loss(self):
+        """ Return the ventilation heat loss from all ventilation elements, in W / K """
+        total_vent_heat_loss = 0
+        for ve in self.__vent_elements:
+            total_vent_heat_loss += ve.h_ve_average(self.__volume)
+        return total_vent_heat_loss
+        
