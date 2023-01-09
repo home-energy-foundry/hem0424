@@ -48,13 +48,14 @@ from core.units import Kelvin2Celcius
 class Project:
     """ An object to represent the overall model to be simulated """
 
-    def __init__(self, proj_dict):
+    def __init__(self, proj_dict, print_heat_balance):
         """ Construct a Project object and the various components of the simulation
 
         Arguments:
         proj_dict -- dictionary of project data, containing nested dictionaries
                      and lists of input data for system components, external
                      conditions, occupancy etc.
+        print_heat_balance -- flag to idindicate whether to print the heat balance outputs
 
         Other (self.__) variables:
         simtime            -- SimulationTime object for this Project
@@ -513,6 +514,7 @@ class Project:
                 building_elements,
                 thermal_bridging,
                 vent_elements,
+                print_heat_balance,
                 )
 
         self.__zones = {}
@@ -1164,6 +1166,7 @@ class Project:
             # update resultant temperatures in zones.
             internal_air_temp = {}
             operative_temp = {}
+            heat_balance_dict = {}
             for z_name, zone in self.__zones.items():
                 # Look up names of relevant heating and cooling systems for this zone
                 h_name = self.__heat_system_name_for_zone[z_name]
@@ -1234,7 +1237,7 @@ class Project:
                 else:
                     frac_convective = 1.0
 
-                zone.update_temperatures(
+                heat_balance_dict[z_name] = zone.update_temperatures(
                     delta_t,
                     temp_ext_air,
                     gains_internal_zone[z_name],
@@ -1255,7 +1258,7 @@ class Project:
                    operative_temp, internal_air_temp, \
                    space_heat_demand_zone, space_cool_demand_zone, \
                    space_heat_demand_system, space_cool_demand_system, \
-                   ductwork_losses
+                   ductwork_losses, heat_balance_dict
 
         timestep_array = []
         gains_internal_dict = {}
@@ -1273,6 +1276,7 @@ class Project:
         hot_water_no_events_dict = {}
         hot_water_pipework_dict = {}
         ductwork_gains_dict = {}
+        heat_balance_all_dict = {}
 
         for z_name in self.__zones.keys():
             gains_internal_dict[z_name] = []
@@ -1282,6 +1286,7 @@ class Project:
             space_heat_demand_dict[z_name] = []
             space_cool_demand_dict[z_name] = []
             zone_list.append(z_name)
+            heat_balance_all_dict[z_name] = {}
 
         for z_name, h_name in self.__heat_system_name_for_zone.items():
             space_heat_demand_system_dict[h_name] = []
@@ -1312,7 +1317,7 @@ class Project:
                 operative_temp, internal_air_temp, \
                 space_heat_demand_zone, space_cool_demand_zone, \
                 space_heat_demand_system, space_cool_demand_system, \
-                ductwork_gains \
+                ductwork_gains, heat_balance_dict \
                 = calc_space_heating(delta_t_h, gains_internal_dhw)
 
             # Perform calculations that can only be done after all heating
@@ -1343,7 +1348,15 @@ class Project:
 
             for c_name, demand in space_cool_demand_system.items():
                 space_cool_demand_system_dict[c_name].append(demand)
-                
+
+            for z_name, gains_losses_dict in heat_balance_dict.items():
+                if gains_losses_dict is not None:
+                    for heat_gains_losses_name, heat_gains_losses_value in gains_losses_dict.items():
+                        if heat_gains_losses_name in heat_balance_all_dict[z_name].keys():
+                            heat_balance_all_dict[z_name][heat_gains_losses_name].append(heat_gains_losses_value)
+                        else:
+                            heat_balance_all_dict[z_name][heat_gains_losses_name] =[heat_gains_losses_value]
+
             hot_water_demand_dict['demand'].append(hw_demand)
             hot_water_energy_demand_dict['energy_demand'].append(hw_energy_demand)
             hot_water_duration_dict['duration'].append(hw_duration)
@@ -1386,4 +1399,4 @@ class Project:
             timestep_array, results_totals, results_end_user, \
             energy_import, energy_export, betafactor, \
             zone_dict, zone_list, hc_system_dict, hot_water_dict, \
-            ductwork_gains_dict
+            ductwork_gains_dict, heat_balance_all_dict

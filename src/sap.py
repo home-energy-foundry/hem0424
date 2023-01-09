@@ -14,13 +14,20 @@ import argparse
 
 # Local imports
 from core.project import Project
+import core.units as units
 from read_weather_file import weather_data_to_dict
 from read_CIBSE_weather_file import CIBSE_weather_data_to_dict
 from wrappers.future_homes_standard.future_homes_standard import \
     apply_fhs_preprocessing, apply_fhs_postprocessing
 
 
-def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_assumptions=False):
+def run_project(
+        inp_filename,
+        external_conditions_dict,
+        preproc_only=False,
+        fhs_assumptions=False,
+        heat_balance=False,
+        ):
     file_path = os.path.splitext(inp_filename)
     output_file = file_path[0] + '_results.csv'
 
@@ -43,11 +50,11 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
             json.dump(project_dict, preproc_file, sort_keys=True, indent=4)
         return # Skip actual calculation if preproc only option has been selected
 
-    project = Project(project_dict)
+    project = Project(project_dict, heat_balance)
     timestep_array, results_totals, results_end_user, \
         energy_import, energy_export, betafactor, \
         zone_dict, zone_list, hc_system_dict, hot_water_dict,\
-        ductwork_gains \
+        ductwork_gains, heat_balance_dict \
         = project.run()
 
     write_core_output_file(
@@ -65,10 +72,64 @@ def run_project(inp_filename, external_conditions_dict, preproc_only=False, fhs_
         ductwork_gains
         )
 
+    if heat_balance:
+        heat_balance_output_file = file_path[0] + '_results_heat_balance.csv'
+        hour_per_step = project_dict['SimulationTime']['step']
+        write_heat_balance_output_file(
+            heat_balance_output_file,
+            timestep_array,
+            hour_per_step,
+            heat_balance_dict,
+            )
+
     # Apply required postprocessing steps, if any
     if fhs_assumptions:
         apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path[0])
    
+def write_heat_balance_output_file(
+        heat_balance_output_file,
+        timestep_array,
+        hour_per_step,
+        heat_balance_dict,
+        ):
+    with open(heat_balance_output_file, 'w', newline='') as f:
+        writer = csv.writer(f)
+        headings = ['Timestep']
+        units_row = ['index']
+        rows = ['']
+
+        headings_annual = []
+        units_annual = []
+
+        for z_name, heat_loss_gain_dict in heat_balance_dict.items():
+            for heat_loss_gain_name in heat_loss_gain_dict.keys():
+                headings.append(z_name+': '+heat_loss_gain_name)
+                units_row.append('[W]')
+
+        for z_name, heat_loss_gain_dict in heat_balance_dict.items():
+            annual_totals = [0]*len(heat_loss_gain_dict.keys())
+            for heat_loss_gain_name in heat_loss_gain_dict.keys():
+                headings_annual.append(z_name+': annual total '+heat_loss_gain_name)
+                units_annual.append('[kWh]')
+
+        for t_idx, timestep in enumerate(timestep_array):
+            row = [t_idx]
+            annual_totals_index = 0
+            for z_name, heat_loss_gain_dict in heat_balance_dict.items():
+                for heat_loss_gain_name in heat_loss_gain_dict.keys():
+                    row.append(heat_loss_gain_dict[heat_loss_gain_name][t_idx])
+                    annual_totals[annual_totals_index] += \
+                        heat_loss_gain_dict[heat_loss_gain_name][t_idx]*hour_per_step/units.W_per_kW
+                    annual_totals_index += 1
+            rows.append(row)
+
+        writer.writerow(headings_annual)
+        writer.writerow(units_annual)
+        writer.writerow(annual_totals)
+        writer.writerow([''])
+        writer.writerow(headings)
+        writer.writerow(units_row)
+        writer.writerows(rows)
 
 def write_core_output_file(
         output_file,
@@ -197,6 +258,12 @@ if __name__ == '__main__':
         default=False,
         help='run prepocessing step only',
         )
+    parser.add_argument(
+        '--heat-balance',
+        action='store_true',
+        default=False,
+        help='output heat balance for each zone',
+        )
     cli_args = parser.parse_args()
 
     inp_filenames = cli_args.input_file
@@ -204,6 +271,7 @@ if __name__ == '__main__':
     cibse_weather_filename = cli_args.CIBSE_weather_file
     fhs_assumptions = cli_args.future_homes_standard
     preproc_only = cli_args.preprocess_only
+    heat_balance = cli_args.heat_balance
 
     if epw_filename is not None:
         external_conditions_dict = weather_data_to_dict(epw_filename)
@@ -216,12 +284,12 @@ if __name__ == '__main__':
     if not cli_args.parallel:
         print('Running '+str(len(inp_filenames))+' cases in series')
         for inpfile in inp_filenames:
-            run_project(inpfile, external_conditions_dict, preproc_only, fhs_assumptions)
+            run_project(inpfile, external_conditions_dict, preproc_only, fhs_assumptions, heat_balance)
     else:
         import multiprocessing as mp
         print('Running '+str(len(inp_filenames))+' cases in parallel')
         run_project_args = [
-            (inpfile, external_conditions_dict, preproc_only, fhs_assumptions)
+            (inpfile, external_conditions_dict, preproc_only, fhs_assumptions, heat_balance)
             for inpfile in inp_filenames
             ]
         with mp.Pool() as p:
