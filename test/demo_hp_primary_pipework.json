@@ -163,6 +163,7 @@
 			"power_standby": 0.015,
 			"power_crankcase_heater": 0.01,
 			"power_off": 0.015,
+			"power_max_backup": 6.0,
 			"test_data": [
 				{
 					"test_letter": "A",
