@@ -590,6 +590,8 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         [0.022095847, 0.020796091, 0.019496336, 0.022095847, 0.023395603, 0.029894381, 0.040292427, 0.046791206, 0.049390717, 0.04549145, 0.046791206, 0.049390717, 0.04549145, 0.044191694, 0.04549145, 0.053289984, 0.067587297, 0.07278632, 0.066287542, 0.059788763, 0.053289984, 0.042891939, 0.031194137, 0.023395603],
         [0.024695359, 0.022095847, 0.020796091, 0.020796091, 0.020796091, 0.024695359, 0.029894381, 0.042891939, 0.048090962, 0.049390717, 0.04549145, 0.04549145, 0.046791206, 0.046791206, 0.044191694, 0.051990229, 0.064987786, 0.08188461, 0.076685587, 0.067587297, 0.061088519, 0.05458974, 0.04549145, 0.032493893],
         [0.025995114, 0.023395603, 0.022095847, 0.020796091, 0.019496336, 0.022095847, 0.02729487, 0.032493893, 0.048090962, 0.053289984, 0.051990229, 0.05458974, 0.057189252, 0.051990229, 0.055889496, 0.058489007, 0.075385832, 0.083184366, 0.08188461, 0.068887053, 0.062388274, 0.055889496, 0.046791206, 0.033793649]]
+    #old relation based on sap2012, efus 1998 data verified in 2013
+    #EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
     
     EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
     
@@ -698,8 +700,7 @@ class FHS_HW_events:
             6 * FHW  * behavioural_hw_factorm[monthidx]
         self.bathdurationfunc = lambda event, monthidx: \
             6 * FHW  * behavioural_hw_factorm[monthidx] * partGbonus
-            #change to 0.735/1.4 to reflect that biggest HW drawoff is 0.735/1.4 of shower value in table?
-            #dont need to apply FHW here as it has already been applied to valuesdict? but FHW is too close to one to matter
+            #dont need to apply FHW here as it has already been applied to HW_events_energy
         self.otherdurationfunc = lambda event, monthidx: \
             6 * (HW_events_energy[event] / 1.4) * other_hw_factorm[monthidx]
         '''
@@ -780,7 +781,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     HW_events_volume = {
         #event hot water volume in litres - inferred from EN13203-2:2018,
         #given 6 minute showers and temperature 41C
-        #TODO change bath value?
+        #TODO change bath value to align with size of bath in project dict?
         "Small": 2.7,
         "Shower": 36.0,
         "Floor cleaning": 2.7,
