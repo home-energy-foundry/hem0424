@@ -133,22 +133,46 @@ def write_core_output_file(
     # character is written when running on Windows
     with open(output_file, 'w', newline='') as f:
         writer = csv.writer(f)
-
         headings = ['Timestep']
+        units_row = ['[count]']
         for totals_key in results_totals.keys():
             totals_header = str(totals_key)
             totals_header = totals_header + ' total'
             headings.append(totals_header)
+            units_row.append('[kWh]')
             for end_user_key in results_end_user[totals_key].keys():
                 headings.append(end_user_key)
+                units_row.append('[kWh]')
             headings.append(str(totals_key) + ' import')
+            units_row.append('[kWh]')
             headings.append(str(totals_key) + ' export')
+            units_row.append('[kWh]')
             headings.append(str(totals_key) + ' beta factor')
+            units_row.append('[ratio]')
+
+        # Dictionary for most of the units (future output headings need respective units)
+        unitsDict = {
+            'Internal gains': '[W]',
+            'Solar gains': '[W]',
+            'Operative temp': '[deg C]',
+            'Internal air temp': '[deg C]',
+            'Space heat demand': '[kWh]',
+            'Space cool demand': '[kWh]',
+            'Hot water demand': '[litres]',
+            'Hot water energy demand': '[kWh]',
+            'Hot water duration': '[mins]',
+            'Hot Water Events': '[count]',
+            'Pipework losses': '[kWh]'
+        }
 
         for zone in zone_list:
             for zone_outputs in zone_dict.keys():
                 zone_headings = zone_outputs + ' ' + zone
                 headings.append(zone_headings)
+                if zone_outputs in unitsDict:
+                    units_row.append(unitsDict.get(zone_outputs))
+                else:
+                    units_row.append('Unit not defined (unitsDict sap.py)')
 
         for system in hc_system_dict:
             for hc_name in hc_system_dict[system].keys():
@@ -158,10 +182,21 @@ def write_core_output_file(
                 else:
                     hc_system_headings = system + ' ' + hc_name
                 headings.append(hc_system_headings)
+                units_row.append('[kWh]')
+        #Hot_water_dict headings
         for system in hot_water_dict:
             headings.append(system)
+            if system in unitsDict:
+                units_row.append(unitsDict.get(system))
+            else:
+                units_row.append('Unit not defined (add to unitsDict sap.py)')
+
         headings.append('Ductwork gains')
+        units_row.append('[kWh]')
+
+        # Write headings & units to output file
         writer.writerow(headings)
+        writer.writerow(units_row)
 
         for t_idx, timestep in enumerate(timestep_array):
             energy_use_row = []
@@ -200,6 +235,7 @@ def write_core_output_file(
             hw_system_row_events.append(hot_water_dict['Hot Water Events']['no_events'][t_idx])
             ductwork_row.append(ductwork_gains['ductwork_gains'][t_idx])
 
+            # create row of outputs and write to output file
             row = [t_idx] + energy_use_row + zone_row + hc_system_row + \
             hw_system_row + hw_system_row_energy + hw_system_row_duration + \
             hw_system_row_events + pw_losses_row + ductwork_row + energy_shortfall
