@@ -777,7 +777,7 @@ class HeatPumpServiceSpace(HeatPumpService):
             service_name,
             temp_limit_upper,
             temp_diff_emit_dsgn,
-            control=None,
+            control,
             ):
         """ Construct a BoilerServiceSpace object
 
@@ -786,12 +786,15 @@ class HeatPumpServiceSpace(HeatPumpService):
         service_name -- name of the service demanding energy from the heat pump
         temp_limit_upper -- upper operating limit for temperature, in deg C
         temp_diff_emit_dsgn -- design temperature difference across the emitters, in deg C or K
-        control -- reference to a control object which must implement is_on() func
+        control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
         super().__init__(heat_pump, service_name, control)
 
         self.__temp_limit_upper = Celcius2Kelvin(temp_limit_upper)
         self.__temp_diff_emit_dsgn = temp_diff_emit_dsgn
+
+    def temp_setpnt(self):
+        return self._HeatPumpService__control.setpnt()
 
     def energy_output_max(self, temp_output):
         """ Calculate the maximum energy output of the HP, accounting for time
@@ -924,6 +927,7 @@ class HeatPump:
             - power_standby -- power (kW) consumption in standby mode
             - power_crankcase_heater -- power (kW) consumption in crankcase heater mode
             - power_off -- power (kW) consumption in off mode
+            - power_max_backup -- max. power (kW) of backup heater
         energy_supply -- reference to EnergySupply object
         energy_supply_conn_name_auxiliary
             -- name to be used for EnergySupplyConnection object for auxiliary energy
@@ -968,6 +972,7 @@ class HeatPump:
         self.__power_standby = hp_dict['power_standby']
         self.__power_crankcase_heater_mode = hp_dict['power_crankcase_heater']
         self.__power_off_mode = hp_dict['power_off']
+        self.__power_max_backup = hp_dict['power_max_backup']
 
     def __create_service_connection(self, service_name):
         """ Return a HeatPumpService object """
@@ -1014,7 +1019,7 @@ class HeatPump:
             service_name,
             temp_limit_upper,
             temp_diff_emit_dsgn,
-            control=None,
+            control,
             ):
         """ Return a HeatPumpServiceSpace object and create an EnergySupplyConnection for it
 
@@ -1236,10 +1241,9 @@ class HeatPump:
             )
 
         # Calculate running time of HP
-        time_running_current_service = min( \
-            energy_output_limited / thermal_capacity_op_cond,
-            timestep - self.__total_time_running_current_timestep
-            )
+        time_required = energy_output_limited / thermal_capacity_op_cond
+        time_available = timestep - self.__total_time_running_current_timestep
+        time_running_current_service = min(time_required, time_available)
         self.__total_time_running_current_timestep += time_running_current_service
 
         # Calculate load ratio
@@ -1337,13 +1341,17 @@ class HeatPump:
                 energy_input_HP_divisor = None
 
         # Calculate energy delivered by backup heater
-        # TODO Add a power limit for the backup heater, or call another heating
-        #      system object. For now, assume no power limit.
         if self.__backup_ctrl == BackupCtrlType.NONE or not service_on:
             energy_delivered_backup = 0.0
         elif self.__backup_ctrl == BackupCtrlType.TOPUP \
         or self.__backup_ctrl == BackupCtrlType.SUBSTITUTE:
-            energy_delivered_backup = max(energy_output_required - energy_delivered_HP, 0.0)
+            energy_delivered_backup = max(
+                min(
+                    self.__power_max_backup * time_available,
+                    energy_output_required - energy_delivered_HP,
+                ),
+                0.0,
+                )
         else:
             sys.exit('Invalid BackupCtrlType')
 

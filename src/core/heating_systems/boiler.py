@@ -203,16 +203,20 @@ class BoilerServiceSpace(BoilerService):
     This object contains the parts of the boiler calculation that are
     specific to providing space heating-.
     """
-    def __init__(self, boiler, service_name):
+    def __init__(self, boiler, service_name, control):
         """ Construct a BoilerServiceSpace object
 
         Arguments:
         boiler       -- reference to the Boiler object providing the service
         service_name -- name of the service demanding energy from the boiler
+        control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
         super().__init__(boiler, service_name)
         self.__service_name = service_name
+        self.__control = control
 
+    def temp_setpnt(self):
+        return self.__control.setpnt()
 
     def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the boiler """
@@ -353,17 +357,21 @@ class Boiler:
 
     def create_service_space_heating(
             self,
-            service_name
+            service_name,
+            control,
             ):
         """ Return a BoilerServiceSpace object and create an EnergySupplyConnection for it
 
         Arguments:
         service_name -- name of the service demanding energy from the boiler
+        control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
         self.__create_service_connection(service_name)
         return BoilerServiceSpace(
             self,
-            service_name)
+            service_name,
+            control,
+            )
 
     def __cycling_adjustment(self, temp_return_feed, standing_loss, prop_of_timestep_at_min_rate):
         ton_toff = (1.0 - prop_of_timestep_at_min_rate) / prop_of_timestep_at_min_rate
