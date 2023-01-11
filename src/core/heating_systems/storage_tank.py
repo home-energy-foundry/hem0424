@@ -835,7 +835,7 @@ class SolarThermalSystem:
             
         avg_collector_water_temp = inlet_temp_s1 + (0.4 * solar_irradiance * self.__area) / \
         (self.__collector_mass_flow_rate * self.__Cp * 2)
-        print(str(avg_collector_water_temp) + " " + str(inlet_temp_s1) + " " + str(solar_irradiance) + " " + str(self.__area) + " " + str(self.__simulation_time.index()))
+        print(str(avg_collector_water_temp) + " " + str(inlet_temp_s1) + " Irradiance: " + str(solar_irradiance) + " " + str(self.__area) + " " + str(self.__simulation_time.index()))
 
         #Calculation of collector efficiency
         for i in range(0, 4):
@@ -855,6 +855,11 @@ class SolarThermalSystem:
             # Eq 55
             collector_output_heat = collector_efficiency * solar_irradiance * \
             self.__area * self.__simulation_time.timestep() / units.W_per_kW
+
+            #print("collector efficiency: " + str(collector_efficiency))
+            print("collector_output_heat: " + str(collector_output_heat))
+            
+            
             #self.__solar_loop_piping_hlc
             # Eq 56
             heat_loss_collector_loop_piping \
@@ -870,7 +875,8 @@ class SolarThermalSystem:
             
             #Call to the storage tank
             temp_layer_0, inlet_temp2 = storage_tank.storage_tank_potential_effect(self.__heat_output_collector_loop, temp_storage_tank_s3_n)
-
+            
+            print("Temp diff: " + str(temp_layer_0 - inlet_temp2) + "   layer_0: " + str(temp_layer_0) + "  inlet_temp2: " + str(inlet_temp2))
             # Eq 58
             avg_collector_water_temp = ( self.__inlet_temp + inlet_temp2 ) / 2 + \
             self.__heat_output_collector_loop / (self.__collector_mass_flow_rate * self.__Cp * 2)
