@@ -628,7 +628,7 @@ class Project:
                 elif isinstance(heat_source_wet, Boiler):
                     heat_source = heat_source_wet.create_service_hot_water_regular(
                         data,
-                        data['HeatSourceWet'] + '_water_heating',
+                        data['name'] + '_water_heating',
                         55, # TODO Remove hard-coding of HW temp
                         cold_water_source
                         )

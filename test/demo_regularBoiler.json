@@ -41,6 +41,9 @@
 	"EnergySupply": {
 		"mains elec": {
 			"fuel": "electricity"
+		},
+		"mains gas": {
+			"fuel": "mains_gas"
 		}
 	},
 	"Control": {
