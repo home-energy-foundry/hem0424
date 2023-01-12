@@ -11,7 +11,7 @@ schedules) in input files.
 import sys
 from math import floor
 
-def expand_schedule(sched_type, sched_dict, sched_main):
+def expand_schedule(sched_type, sched_dict, sched_main, nullable):
     """ Construct a schedule from direct entries or sub-schedules.
 
     Arguments:
@@ -27,6 +27,7 @@ def expand_schedule(sched_type, sched_dict, sched_main):
                   - a value of the type given in the sched_type argument
     sched_main -- name of main top-level schedule in sched_dict where processing
                   should start
+    nullable -- flag denoting whether null values are allowed (True) or not (False)
     """
     if sched_type == dict or sched_type == str:
         # Exit with error if specified value type is dict or string, as these have special meanings
@@ -43,7 +44,7 @@ def expand_schedule(sched_type, sched_dict, sched_main):
             # Note that the variable val below is a list
             val = process_schedule_entry(sched_entry['value'])
             return val * sched_entry['repeat']
-        elif isinstance(sched_entry, sched_type):
+        elif isinstance(sched_entry, sched_type) or (nullable and sched_entry is None):
             # If entry is a value of the expected type (e.g. bool or float), store as-is
             # Note: must return a list here, to be consistent with the other returns from this func
             return [sched_entry]
