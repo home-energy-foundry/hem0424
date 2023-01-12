@@ -145,6 +145,7 @@ class Project:
                                                  float,
                                                  data['schedule'],
                                                  "main",
+                                                 False,
                                                  ),
                                              self.__simtime,
                                              data['start_day'],
@@ -155,11 +156,30 @@ class Project:
             """ Parse dictionary of control data and return approprate control object """
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
-                sched = expand_schedule(bool, data['schedule'], "main")
+                sched = expand_schedule(bool, data['schedule'], "main", False)
                 ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'], data['time_series_step'])
             elif ctrl_type == 'SetpointTimeControl':
-                sched = expand_schedule(float, data['schedule'], "main")
-                ctrl = SetpointTimeControl(sched, self.__simtime, data['start_day'], data['time_series_step'])
+                sched = expand_schedule(float, data['schedule'], "main", True)
+
+                setpoint_min = None
+                setpoint_max = None
+                default_to_max = None
+                if 'setpoint_min' in data:
+                    setpoint_min = data['setpoint_min']
+                if 'setpoint_max' in data:
+                    setpoint_max = data['setpoint_max']
+                if 'default_to_max' in data:
+                    default_to_max = data['default_to_max']
+
+                ctrl = SetpointTimeControl(
+                    sched,
+                    self.__simtime,
+                    data['start_day'],
+                    data['time_series_step'],
+                    setpoint_min,
+                    setpoint_max,
+                    default_to_max,
+                    )
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -533,7 +553,7 @@ class Project:
             
             # Convert energy supplied to appliances from W to W / m2
             total_energy_supply = []
-            for energy_data in expand_schedule(float, data['schedule'], "main"):
+            for energy_data in expand_schedule(float, data['schedule'], "main", False):
                 total_energy_supply.append(energy_data / total_floor_area)
 
             self.__internal_gains[name] = ApplianceGains(
@@ -1170,13 +1190,20 @@ class Project:
                     temp_setpnt_heat = self.__space_heat_systems[h_name].temp_setpnt()
                 else:
                     frac_convective_heat = 1.0
-                    # Set heating setpoint to absolute zero to ensure no heating demand
-                    temp_setpnt_heat = Kelvin2Celcius(0.0)
+                    temp_setpnt_heat = None
                 if c_name is not None:
                     frac_convective_cool = self.__space_cool_systems[c_name].frac_convective()
                     temp_setpnt_cool = self.__space_cool_systems[c_name].temp_setpnt()
                 else:
                     frac_convective_cool = 1.0
+                    temp_setpnt_cool = None
+
+                # Use default setpoints when there is no heat/cool system or
+                # there is no setpoint for the current timestep
+                if temp_setpnt_heat is None:
+                    # Set heating setpoint to absolute zero to ensure no heating demand
+                    temp_setpnt_heat = Kelvin2Celcius(0.0)
+                if temp_setpnt_cool is None:
                     # Set cooling setpoint to Planck temperature to ensure no cooling demand
                     temp_setpnt_cool = Kelvin2Celcius(1.4e32)
 
