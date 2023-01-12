@@ -381,7 +381,7 @@ class Boiler:
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
 
-    def create_service_hot_water(
+    def create_service_hot_water_combi(
             self,
             boiler_data,
             service_name,
