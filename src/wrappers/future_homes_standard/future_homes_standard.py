@@ -283,7 +283,10 @@ def create_heating_pattern(project_dict):
                 if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
                     spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
                     project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_LivingRoom"
-                    
+                    if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
+                        project_dict['Control']['HeatingPattern_LivingRoom']['setpoint_min'] \
+                            = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
+
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling":
                 project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
                     "type": "SetpointTimeControl",
@@ -304,6 +307,9 @@ def create_heating_pattern(project_dict):
                 if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
                     spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
                     project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_RestOfDwelling"
+                    if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
+                        project_dict['Control']['HeatingPattern_RestOfDwelling']['setpoint_min'] \
+                            = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
     '''
     water heating pattern - same as space heating
     '''
@@ -923,6 +929,9 @@ def create_cooling(project_dict):
                 }
                 spacecoolsystem = project_dict["Zone"][zone]["SpaceCoolSystem"]
                 project_dict["SpaceCoolSystem"][spacecoolsystem]["Control"] = "Cooling_LivingRoom"
+                if 'temp_setback' in project_dict["SpaceCoolSystem"][spacecoolsystem].keys():
+                    project_dict['Control']['Cooling_LivingRoom']['setpoint_max'] \
+                        = project_dict["SpaceCoolSystem"][spacecoolsystem]['temp_setback']
 
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" and "SpaceCoolSystem" in project_dict['Zone'][zone]:
                 project_dict['Control']['Cooling_RestOfDwelling'] = {
@@ -936,6 +945,9 @@ def create_cooling(project_dict):
                 }
                 spacecoolsystem = project_dict["Zone"][zone]["SpaceCoolSystem"]
                 project_dict["SpaceCoolSystem"][spacecoolsystem]["Control"] = "Cooling_RestOfDwelling"
+                if 'temp_setback' in project_dict["SpaceCoolSystem"][spacecoolsystem].keys():
+                    project_dict['Control']['Cooling_RestOfDwelling']['setpoint_max'] \
+                        = project_dict["SpaceCoolSystem"][spacecoolsystem]['temp_setback']
 
 
 def create_cold_water_feed_temps(project_dict):
