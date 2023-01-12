@@ -139,10 +139,10 @@ def write_heat_balance_output_file(
         units_row = ['index']
         rows = ['']
 
-        headings_annual = []
-        units_annual = []
+        headings_annual = ['']
+        units_annual = ['']
 
-        nbr_of_zones = 1
+        nbr_of_zones = 0
         for z_name, heat_loss_gain_dict in heat_balance_dict.items():
             for heat_loss_gain_name in heat_loss_gain_dict.keys():
                 headings.append(z_name+': '+heat_loss_gain_name)
@@ -150,14 +150,15 @@ def write_heat_balance_output_file(
             nbr_of_zones += 1
 
         for z_name, heat_loss_gain_dict in heat_balance_dict.items():
-            annual_totals = [0]*len(heat_loss_gain_dict.keys())*nbr_of_zones
+            annual_totals = [0]*(len(heat_loss_gain_dict.keys())*nbr_of_zones)
+            annual_totals.insert(0,'')
             for heat_loss_gain_name in heat_loss_gain_dict.keys():
                 headings_annual.append(z_name+': annual total '+heat_loss_gain_name)
                 units_annual.append('[kWh]')
 
         for t_idx, timestep in enumerate(timestep_array):
             row = [t_idx]
-            annual_totals_index = 0
+            annual_totals_index = 1
             for z_name, heat_loss_gain_dict in heat_balance_dict.items():
                 for heat_loss_gain_name in heat_loss_gain_dict.keys():
                     row.append(heat_loss_gain_dict[heat_loss_gain_name][t_idx])
