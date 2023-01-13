@@ -745,21 +745,21 @@ class SolarThermalSystem:
         """ Construct a SolarThermalSystem object
 
         Arguments:
-        sol_loc         -- 
-        area_module     -- 
-        modules         --
+        sol_loc         -- Location of the main part of the collector loop piping
+        area_module     -- Collector module reference area 
+        modules         -- Number of collector modules installed
         peak_collector_efficiency 
-                        --
+                        -- Peak collector efficiency
         incidence_angle_modifier 
-                        --
-        first_order_hlc --
+                        -- Hemispherical incidence angle modifier
+        first_order_hlc -- First order heat loss coefficient
         second_order_hlc 
-                        --
+                        -- Second order heat loss coefficient
         collector_mass_flow_rate 
-                        --
-        power_pump      --
+                        -- Mass flow rate solar loop
+        power_pump      -- Power of collector pump
         power_pump_control
-                        --
+                        -- Power of collector pump controller
         energy_supply_conn    
                         -- reference to EnergySupplyConnection object
         tilt            -- is the tilt angle (inclination) of the PV panel from horizontal,
@@ -773,7 +773,7 @@ class SolarThermalSystem:
                             TODO - PV standard refers to angle as between 0 to 360?
                             Needed to calculate solar irradiation at the panel surface.
         solar_loop_piping_hlc 
-                        --                    
+                        -- Heat loss coefficient of the collector loop piping                   
         ext_cond        -- reference to ExternalConditions object
         simulation_time -- reference to SimulationTime object
         contents        -- reference to MaterialProperties object
@@ -796,19 +796,10 @@ class SolarThermalSystem:
         self.__external_conditions = ext_cond
         self.__simulation_time = simulation_time
         self.__heat_output_collector_loop = 0
+        self.__energy_supplied = 0 
         
         #water specific heat in kWh/kg.K
         self.__Cp = contents.specific_heat_capacity()
-
-
-    def __collector_reference_area(self):
-        """ Calculate total collector reference area from collector module reference area and
-            number of modules
-            eq 50 of STANDARD """
-
-        #collector reference area in m2
-        self.__area = self.__area_module * self.__modules
-
 
     def energy_output_max(self, storage_tank, temp_storage_tank_s3_n):
         """ Calculate collector loop heat output
