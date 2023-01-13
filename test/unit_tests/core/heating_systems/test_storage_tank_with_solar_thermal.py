@@ -112,28 +112,32 @@ class Test_StorageTankWithSolarThermal(unittest.TestCase):
                                                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
                                                   [t_idx])
+                               
+                self.assertEqual(
+                    self.storagetank.test_energy_demand(),
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                     0.3944013153635651, 0.7205382866008986, 1.1792815529120688, 0.9563670953583516, 1.066201484260018, 0.2842009512268733, 0.07050814814814632, 0.07050814814814682,
+                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0][t_idx],
+                    "incorrect energy demand from tank",
+                    )
+                self.assertEqual(
+                    self.solthermal.test_energy_potential(),
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                     0.3944013153635651, 0.7205382866008986, 1.1792815529120688, 0.9563670953583516, 1.066201484260018, 1.3754941274949404, 0.788682346923819, 0.4490991945005249,
+                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0][t_idx],
+                    "incorrect energy potential by solar thermal returned",
+                    )
+                self.assertEqual(
+                    self.solthermal.test_energy_supplied(),
+                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                     0.3944013153635651, 0.7205382866008986, 1.1792815529120688, 0.9563670953583516, 1.066201484260018, 0.2842009512268733, 0.07050814814814632, 0.07050814814814682,
+                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0][t_idx],
+                    "incorrect energy supplied by solar thermal returned",
+                    )
                 self.assertEqual(
                     self.energysupply.results_by_end_user()["solarthermal"][t_idx],
                     [10, 10, 10, 10, 10, 10, 10, 10,
                      110, 110, 110, 110, 110, 110, 110, 110,
                      10, 10, 10, 10, 10, 10, 10, 10,][t_idx],
-                    "incorrect energy consumed returned",
+                    "incorrect electric energy consumed returned",
                     )
-                
-    def test_demand_energy(self):
-        for t_idx, _, _ in self.simtime:
-            with self.subTest(i=t_idx):
-                self.storagetank.demand_hot_water([100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                                   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-                                                  [t_idx])
-                self.assertEqual(
-                    self.solthermal.demand_energy([3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
-                                                   3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0,
-                                                   3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0][t_idx]),
-                    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                     0.3944013153635651, 0.7205382866008986, 1.1792815529120688, 0.9563670953583516, 1.066201484260018, 0.2842009512268733, 0.07050814814814632, 0.07050814814814682,
-                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0][t_idx],
-                    "incorrect energy supplied returned",
-                    )
-

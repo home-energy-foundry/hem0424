@@ -111,6 +111,7 @@ class StorageTank:
          We are expecting to run a "warm-up" period for the main calculation so this doesn't matter.
          """
         self.__temp_n = [self.__temp_set_on] * self.__NB_VOL
+        self.__energy_demand_test = 0
         
         if primary_pipework is not None:
             self.__primary_pipework = Pipework(
@@ -613,6 +614,10 @@ class StorageTank:
 
         #demand adjusted energy from heat source (before was just using potential without taking it)
         input_energy_adj = deepcopy(Q_in_H_W)
+        
+        #energy demand saved for unittest
+        self.__energy_demand_test = deepcopy(input_energy_adj)
+        
         for heat_source in self.__heat_sources:
             input_energy_adj = input_energy_adj - self.get_demand_energy(heat_source, input_energy_adj)
 
@@ -627,6 +632,9 @@ class StorageTank:
             Vol_use_W_n, temp_s3_n, Q_x_in_n, Q_s6, temp_s6_n,
             temp_s7_n, Q_in_H_W, Q_ls, temp_s8_n,
             )"""
+    
+    def test_energy_demand(self):
+        return(self.__energy_demand_test)
 
     def internal_gains(self):
         """ Return the DHW recoverable heat losses as internal gain for the current timestep in W"""
@@ -737,33 +745,42 @@ class SolarThermalSystem:
         """ Construct a SolarThermalSystem object
 
         Arguments:
-        sol_loc          -- Peak power in kW; represents the electrical power of a photovoltaic
-                            system with a given area and a for a solar irradiance of 1 kW/m2
-                            on this surface (at 25 degrees)
-                            TODO - Could add other options at a later stage.
-                            Standard has alternative method when peak power is not available
-                            (input type of PV module and Area instead when peak power unknown)
-        ventilation_strategy   -- ventilation strategy of the PV system.
-                                  This will be used to determine the system performance factor
-                                   based on a lookup table
-        pitch            -- is the tilt angle (inclination) of the PV panel from horizontal,
+        sol_loc         -- 
+        area_module     -- 
+        modules         --
+        peak_collector_efficiency 
+                        --
+        incidence_angle_modifier 
+                        --
+        first_order_hlc --
+        second_order_hlc 
+                        --
+        collector_mass_flow_rate 
+                        --
+        power_pump      --
+        power_pump_control
+                        --
+        energy_supply_conn    
+                        -- reference to EnergySupplyConnection object
+        tilt            -- is the tilt angle (inclination) of the PV panel from horizontal,
                             measured upwards facing, 0 to 90, in degrees.
                             0=horizontal surface, 90=vertical surface.
                             Needed to calculate solar irradiation at the panel surface.
-        orientation      -- is the orientation angle of the inclined surface, expressed as the
+        orientation     -- is the orientation angle of the inclined surface, expressed as the
                             geographical azimuth angle of the horizontal projection of the inclined
                             surface normal, -180 to 180, in degrees;
                             Assumed N 180 or -180, E 90, S 0, W -90
                             TODO - PV standard refers to angle as between 0 to 360?
                             Needed to calculate solar irradiation at the panel surface.
-        ext_cond         -- reference to ExternalConditions object
-        energy_supply_conn    -- reference to EnergySupplyConnection object
-        simulation_time  -- reference to SimulationTime object
-        overshading      -- TODO could add at a later date. Feed into solar module
+        solar_loop_piping_hlc 
+                        --                    
+        ext_cond        -- reference to ExternalConditions object
+        simulation_time -- reference to SimulationTime object
+        contents        -- reference to MaterialProperties object
+
+        overshading     -- TODO could add at a later date. Feed into solar module
         """
         self.__sol_loc = sol_loc
-        self.__area_module = area_module
-        self.__modules = modules
         self.__area = area_module * modules
         self.__peak_collector_efficiency = peak_collector_efficiency
         self.__incidence_angle_modifier = incidence_angle_modifier
@@ -897,14 +914,20 @@ class SolarThermalSystem:
         print("Pot: ")    
         print(str(self.__heat_output_collector_loop))    
         return self.__heat_output_collector_loop
-                
+    
+    def test_energy_potential(self):
+        return(self.__heat_output_collector_loop)
+
+    def test_energy_supplied(self):
+        return(self.__energy_supplied)
+               
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the solar thermal"""
 
-        energy_supplied = min(energy_demand, self.__heat_output_collector_loop )
+        self.__energy_supplied = min(energy_demand, self.__heat_output_collector_loop )
 
         # Eq 59 and 60 to calculate auxiliary energy - Potential bug identified by SA corrected.
-        if energy_supplied == 0: 
+        if self.__energy_supplied == 0: 
             auxilliary_energy_consumption = self.__power_pump_control * self.__simulation_time.timestep()
         else:
             auxilliary_energy_consumption = ( self.__power_pump_control + self.__power_pump ) \
@@ -913,5 +936,5 @@ class SolarThermalSystem:
         self.__energy_supply_conn.demand_energy(auxilliary_energy_consumption)
         
         print("Actual: ")    
-        print(energy_supplied)    
-        return energy_supplied
+        print(self.__energy_supplied)    
+        return self.__energy_supplied
