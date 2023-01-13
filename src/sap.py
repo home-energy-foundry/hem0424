@@ -153,7 +153,7 @@ def write_heat_balance_output_file(
             annual_totals = [0]*(len(heat_loss_gain_dict.keys())*nbr_of_zones)
             annual_totals.insert(0,'')
             for heat_loss_gain_name in heat_loss_gain_dict.keys():
-                headings_annual.append(z_name+': annual total '+heat_loss_gain_name)
+                headings_annual.append(z_name+': total '+heat_loss_gain_name)
                 units_annual.append('[kWh]')
 
         for t_idx, timestep in enumerate(timestep_array):
