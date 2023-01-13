@@ -802,8 +802,10 @@ class SolarThermalSystem:
         if self.__sol_loc == 'HS':
             self.__air_temp_coll_loop = self.__air_temp_heated_room
         elif self.__sol_loc == 'NHS':
-            self.__air_temp_coll_loop = (self.__air_temp_heated_room \
-            + self.__external_conditions.air_temp()) / 2
+            self.__air_temp_coll_loop \
+                = ( self.__air_temp_heated_room
+                + self.__external_conditions.air_temp()
+                ) / 2
         elif self.__sol_loc == 'OUT':
             self.__air_temp_coll_loop = self.__external_conditions.air_temp()
         else:
@@ -836,6 +838,17 @@ class SolarThermalSystem:
         avg_collector_water_temp = inlet_temp_s1 + (0.4 * solar_irradiance * self.__area) / \
         (self.__collector_mass_flow_rate * self.__Cp * 2)
         print(str(avg_collector_water_temp) + " " + str(inlet_temp_s1) + " Irradiance: " + str(solar_irradiance) + " " + str(self.__area) + " " + str(self.__simulation_time.index()))
+        avg_collector_water_temp \
+            = inlet_temp_s1 \
+            + ( 0.4 * solar_irradiance * self.__area ) \
+            / ( self.__collector_mass_flow_rate * self.__Cp * 2 )
+            
+        print(str(avg_collector_water_temp) 
+              + " " + str(inlet_temp_s1) 
+              + " " + str(solar_irradiance) 
+              + " " + str(self.__area) 
+              + " " + str(self.__simulation_time.index())
+              )
 
         #Calculation of collector efficiency
         for i in range(0, 4):
