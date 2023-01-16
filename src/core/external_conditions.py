@@ -151,7 +151,7 @@ class ExternalConditions:
             o.write(",")
             o.write(str(self.a_over_b(tilt, orientation)))
             o.write(",")
-            o.write(str(self.diffuse_irradiance(tilt, orientation)))
+            o.write(str(self.diffuse_irradiance(tilt, orientation)[0]))
             o.write(",")
             o.write(str(self.ground_reflection_irradiance(tilt)))
             o.write(",")
@@ -772,15 +772,15 @@ class ExternalConditions:
         Gsol_d = self.diffuse_horizontal_radiation()
         F1 = self.F1()
         F2 = self.F2()
-        a_over_b = self.a_over_b(tilt, orientation)
 
-        #main calculation using all the above parameters
-        diffuse_irradiance = Gsol_d * ( (1 - F1) \
-                            * ((1 + cos(radians(tilt))) / 2) \
-                            + F1 * a_over_b + F2 * sin(radians(tilt)) \
-                            )
+        # Calculate components of diffuse radiation
+        diffuse_irr_sky = Gsol_d * (1 - F1) * ((1 + cos(radians(tilt))) / 2)
+        diffuse_irr_circumsolar = self.circumsolar_irradiance(tilt, orientation)
+        diffuse_irr_horiz = Gsol_d * F2 * sin(radians(tilt))
 
-        return diffuse_irradiance
+        diffuse_irr_total = diffuse_irr_sky + diffuse_irr_circumsolar + diffuse_irr_horiz
+
+        return diffuse_irr_total, diffuse_irr_sky, diffuse_irr_circumsolar, diffuse_irr_horiz
 
     def ground_reflection_irradiance(self, tilt):
         """  calculates the contribution of the ground reflection to the irradiance on the inclined surface, 
@@ -848,8 +848,11 @@ class ExternalConditions:
                           surface normal, -180 to 180, in degrees;
         """
 
-        calculated_diffuse = self.diffuse_irradiance(tilt, orientation) \
-                           - self.circumsolar_irradiance(tilt, orientation) \
+        diffuse_irr_total, _, diffuse_irr_circumsolar, _ \
+            = self.diffuse_irradiance(tilt, orientation)
+
+        calculated_diffuse = diffuse_irr_total \
+                           - diffuse_irr_circumsolar \
                            + self.ground_reflection_irradiance(tilt)
 
         return calculated_diffuse
@@ -873,11 +876,12 @@ class ExternalConditions:
         return total_irradiance
 
     def calculated_direct_diffuse_total_irradiance(self, tilt, orientation):
-        circumsolar_irradiance = self.circumsolar_irradiance(tilt, orientation)
+        diffuse_irr_total, _, diffuse_irr_circumsolar, _ \
+            = self.diffuse_irradiance(tilt, orientation)
 
-        calculated_direct = self.direct_irradiance(tilt, orientation) + circumsolar_irradiance
-        calculated_diffuse = self.diffuse_irradiance(tilt, orientation) \
-                           - circumsolar_irradiance \
+        calculated_direct = self.direct_irradiance(tilt, orientation) + diffuse_irr_circumsolar
+        calculated_diffuse = diffuse_irr_total \
+                           - diffuse_irr_circumsolar \
                            + self.ground_reflection_irradiance(tilt)
         total_irradiance = calculated_direct \
                          + calculated_diffuse
