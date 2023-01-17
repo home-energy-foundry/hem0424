@@ -91,6 +91,13 @@
 		},
 		"mains gas": {
 			"fuel": "mains_gas"
+		},
+		"heat network": {
+			"fuel": "custom",
+			"factor":{
+				"Emissions Factor kgCO2e/kWh": 0.07,
+				"Emissions Factor kgCO2e/kWh including out-of-scope emissions": 0.06,
+				"Primary Energy Factor kWh/kWh delivered": 1.7}
 		}
 	},
 	"Control": {
