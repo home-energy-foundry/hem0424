@@ -630,7 +630,8 @@ class Project:
                         data,
                         data['name'] + '_water_heating',
                         55, # TODO Remove hard-coding of HW temp
-                        cold_water_source
+                        cold_water_source,
+                        data['temp_return']
                         )
                     
                 else:

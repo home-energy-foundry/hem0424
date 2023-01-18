@@ -211,6 +211,7 @@ class BoilerServiceWaterRegular(BoilerService):
                  service_name,
                  temp_hot_water,
                  cold_feed,
+                 temp_return,
                  simulation_time
                 ):
         """ Construct a BoilerServiceWaterRegular object
@@ -229,17 +230,17 @@ class BoilerServiceWaterRegular(BoilerService):
         self.__cold_feed = cold_feed
         self.__service_name = service_name
         self.__simulation_time = simulation_time
+        self.__temp_return = temp_return
 
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the boiler """
-        return_temperature = 60
         
         return self._boiler._Boiler__demand_energy(
             self.__service_name,
             ServiceType.WATER_REGULAR,
             energy_demand,
-            return_temperature
+            self.__temp_return
             )
 
 
@@ -411,7 +412,8 @@ class Boiler:
             boiler_data,
             service_name,
             temp_hot_water,
-            cold_feed
+            cold_feed,
+            temp_return
             ):
             """ Return a BoilerServiceWaterRegular object and create an EnergySupplyConnection for it
 
@@ -430,6 +432,7 @@ class Boiler:
                 service_name,
                 temp_hot_water,
                 cold_feed,
+                temp_return,
                 self.__simulation_time
                 )
 

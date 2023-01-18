@@ -93,7 +93,8 @@
 					"temp_flow_limit_upper": 65,
 					"ColdWaterSource": "mains water",
 					"EnergySupply": "mains elec",
-					"Control": "hw timer"
+					"Control": "hw timer",
+					"temp_return": 60
 				}
 			},
 			"primary_pipework": {
