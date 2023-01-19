@@ -687,7 +687,7 @@ class Project:
                     hw_source.add_heat_source(heat_source, 1.0)
             elif hw_source_type == 'CombiBoiler':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
-                hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water(
+                hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_combi(
                     data,
                     data['HeatSourceWet'] + '_water_heating',
                     55, # TODO Remove hard-coding of HW temp
