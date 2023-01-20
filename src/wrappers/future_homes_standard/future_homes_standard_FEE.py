@@ -181,11 +181,12 @@ def apply_fhs_FEE_preprocessing(project_dict):
 
 def apply_fhs_FEE_postprocessing(
         output_file,
+        total_floor_area,
         space_heat_demand_total,
         space_cool_demand_total,
         ):
     # Subtract cooling demand from heating demand because cooling demand is negative by convention
-    fabric_energy_eff = space_heat_demand_total - space_cool_demand_total
+    fabric_energy_eff = (space_heat_demand_total - space_cool_demand_total) / total_floor_area
 
     # Note: need to specify newline='' below, otherwise an extra carriage return
     # character is written when running on Windows
