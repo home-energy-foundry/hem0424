@@ -100,6 +100,10 @@ class StorageTank:
         self.__V_total = volume
         #list of volume of layers in litres
         self.__Vol_n = [self.__V_total / self.__NB_VOL] * self.__NB_VOL
+        #thermostat position is typically fitted 1/3rd from the bottom of the tank
+        self.__thermostat_pos = 1.0 / 3.0
+        # layer number of thermostat
+        self.__thermostat_layer = int(self.__thermostat_pos * self.__NB_VOL)
         #water specific heat in kWh/kg.K
         self.__Cp = contents.specific_heat_capacity_kWh()
         #volumic mass in kg/litre
@@ -579,6 +583,11 @@ class StorageTank:
 
         #demand adjusted energy from heat source (before was just using potential without taking it)
         input_energy_adj = deepcopy(Q_in_H_W)
+        #No demand from heat source if the temperature of the tank at the 
+        #thermostat position is below the set point
+        if temp_s6_n[self.__thermostat_layer] >= self.__temp_out_W_min:
+            input_energy_adj = 0.0
+
         for heat_source in self.__heat_sources:
             input_energy_adj = input_energy_adj - self.get_demand_energy(heat_source, input_energy_adj)
 
