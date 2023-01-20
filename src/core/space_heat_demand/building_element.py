@@ -177,13 +177,9 @@ class BuildingElement:
         """ Return external radiative heat transfer coefficient, in W / (m2.K) """
         return self.__H_RE
 
-    def i_sol_dir(self):
-        """ Return default of zero for i_sol_dir """
-        return 0
-
-    def i_sol_dif(self):
-        """ Return default of zero for i_sol_dif """
-        return 0
+    def i_sol_dir_dif(self):
+        """ Return default of zero for i_sol_dir and i_sol_dif """
+        return 0.0, 0.0
 
     def solar_gains(self):
         """ Return default of zero for solar gains """
@@ -291,13 +287,11 @@ class BuildingElementOpaque(BuildingElement):
 
         self.k_pli = init_k_pli()
 
-    def i_sol_dir(self):
-        """ Return calculated i_sol_dir using pitch and orientation of element """
-        return self.__external_conditions.calculated_direct_irradiance(self._pitch, self.__orientation)
-
-    def i_sol_dif(self):
-        """ Return calculated i_sol_dif using pitch and orientation of element """
-        return self.__external_conditions.calculated_diffuse_irradiance(self._pitch, self.__orientation)
+    def i_sol_dir_dif(self):
+        """ Return calculated i_sol_dir and i_sol_dif using pitch and orientation of element """
+        i_sol_dir, i_sol_dif, _ \
+            = self.__external_conditions.calculated_direct_diffuse_total_irradiance(self._pitch, self.__orientation)
+        return i_sol_dir, i_sol_dif
 
     def shading_factor(self):
         """ return calculated shading factor """
@@ -847,8 +841,8 @@ class BuildingElementTransparent(BuildingElement):
     def solar_gains(self):
         """ Return calculated solar gains using pitch and orientation of element """
 
-        i_sol_dir = self.__external_conditions.calculated_direct_irradiance(self._pitch, self.__orientation)
-        i_sol_dif = self.__external_conditions.calculated_diffuse_irradiance(self._pitch, self.__orientation)
+        i_sol_dir, i_sol_dif, _ \
+            = self.__external_conditions.calculated_direct_diffuse_total_irradiance(self._pitch, self.__orientation)
         g_value = self.convert_g_value()
 
         solar_gains = g_value * (i_sol_dif + i_sol_dir * self.shading_factor()) \
