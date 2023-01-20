@@ -544,7 +544,7 @@ class Project:
             self.__energy_supply_conn_unmet_demand_zone[name] \
                 = self.__energy_supplies['_unmet_demand'].connection(name)
 
-        total_floor_area = sum(zone.area() for zone in self.__zones.values())
+        self.__total_floor_area = sum(zone.area() for zone in self.__zones.values())
 
         # Add internal gains from applicances to the internal gains dictionary and
         # create an energy supply connection for appliances
@@ -556,7 +556,7 @@ class Project:
             # Convert energy supplied to appliances from W to W / m2
             total_energy_supply = []
             for energy_data in expand_schedule(float, data['schedule'], "main", False):
-                total_energy_supply.append(energy_data / total_floor_area)
+                total_energy_supply.append(energy_data / self.__total_floor_area)
 
             self.__internal_gains[name] = ApplianceGains(
                                              total_energy_supply,
@@ -856,6 +856,9 @@ class Project:
             for name, data in proj_dict['OnSiteGeneration'].items():
                 self.__on_site_generation[name] = dict_to_on_site_generation(name, data)
 
+    def total_floor_area(self):
+        return self.__total_floor_area
+
     def calc_HTC_HLP(self):
         """ Calculate heat transfer coefficient (HTC) and heat loss parameter (HLP)
         according to the SAP10.2 specification """
@@ -876,8 +879,7 @@ class Project:
         HTC = total_fabric_heat_loss + total_thermal_bridges + total_vent_heat_loss
 
         # Calculate the HLP, in W / m2 K
-        total_floor_area = sum(zone.area() for zone in self.__zones.values())
-        HLP = HTC / total_floor_area
+        HLP = HTC / self.__total_floor_area
 
         return HTC, HLP
 
@@ -885,9 +887,6 @@ class Project:
         """ Calculate the thermal mass parameter (TMP), according to the SAP10.2 specification """
         # TODO party walls and solid doors should be exluded according to SAP spec - if party walls are
         # assumed to be ZTU building elements this could be set to zero?
-
-        # Calculate total floor area, in m2
-        total_floor_area = sum(zone.area() for zone in self.__zones.values())
 
         # Initialise variable
         total_heat_capacity = 0
@@ -897,7 +896,7 @@ class Project:
             total_heat_capacity += zone.total_heat_capacity()
 
         # Calculate the thermal mass parameter, in kJ / m2 K
-        TMP = total_heat_capacity / total_floor_area
+        TMP = total_heat_capacity / self.__total_floor_area
 
         return TMP
 
@@ -1139,8 +1138,6 @@ class Project:
             temp_ext_air = self.__external_conditions.air_temp()
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
-            # Calculate total floor area, in m2
-            total_floor_area = sum(zone.area() for zone in self.__zones.values())
 
             ductwork_losses, overall_zone_volume, ductwork_losses_per_m3 = 0.0, 0.0, 0.0
             # ductwork gains/losses only for MVHR
@@ -1153,7 +1150,7 @@ class Project:
             gains_solar_zone = {}
             for z_name, zone in self.__zones.items():
                 # Initialise to dhw internal gains split proportionally to zone floor area
-                gains_internal_zone_inner = gains_internal_dhw * zone.area() / total_floor_area
+                gains_internal_zone_inner = gains_internal_dhw * zone.area() / self.__total_floor_area
                 for internal_gains_name, internal_gains_object in self.__internal_gains.items():
                     gains_internal_zone_inner\
                         += internal_gains_object.total_internal_gain(zone.area())
