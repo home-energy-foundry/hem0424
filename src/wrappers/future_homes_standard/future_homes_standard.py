@@ -13,6 +13,7 @@ import json
 import csv
 from fractions import Fraction
 from core import project, schedule
+from cmath import log
 
 this_directory = os.path.dirname(os.path.relpath(__file__))
 FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_04-11-2022.csv")
@@ -628,7 +629,8 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
     #old relation based on sap2012, efus 1998 data verified in 2013
     #EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
     
-    EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
+    #new relation based on analysis of EFUS 2017 monitoring data
+    EA_annual_kWh = 184.32 * (TFA * N_occupants) ** 0.4425
     
     appliance_gains_W = []
     for monthly_profile in avg_monthly_hr_profiles:
@@ -871,7 +873,11 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 for j, x in enumerate(HW_events_dict['Weekday'])
             ])
 
-    vol_daily_average = (25 * N_occupants) + 36
+    #SAP 2012 relation
+    #vol_daily_average = (25 * N_occupants) + 36
+    
+    #new relation based on Boiler Manufacturer data and EST surveys
+    vol_daily_average = 74.4 *math.log(N_occupants) +42.2
 
     # Add daily average hot water use to hot water only heat pump (HWOHP) object, if present
     # TODO This is probably only valid if HWOHP is the only heat source for the
