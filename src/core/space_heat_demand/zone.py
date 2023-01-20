@@ -212,9 +212,10 @@ class Zone:
             matrix_a[idx][idx + 1] = - eli.h_pli[i]
             # RHS of heat balance eqn for this node
             i_sol_dir, i_sol_dif = eli.i_sol_dir_dif()
+            f_sh_dir, f_sh_dif = eli.shading_factors_direct_diffuse()
             vector_b[idx] = (eli.k_pli[i] / delta_t) * temp_prev[idx] \
                           + (eli.h_ce() + eli.h_re()) * eli.temp_ext() \
-                          + eli.a_sol * (i_sol_dif + i_sol_dir * eli.shading_factor()) \
+                          + eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
                           - eli.therm_rad_to_sky
 
             # Inside node(s), if any (eqn 40)
