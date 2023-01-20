@@ -91,13 +91,6 @@
 		},
 		"mains gas": {
 			"fuel": "mains_gas"
-		},
-		"heat network": {
-			"fuel": "custom",
-			"factor":{
-				"Emissions Factor kgCO2e/kWh": 0.07,
-				"Emissions Factor kgCO2e/kWh including out-of-scope emissions": 0.06,
-				"Primary Energy Factor kWh/kWh delivered": 1.7}
 		}
 	},
 	"Control": {
@@ -112,6 +105,7 @@
 	},
 	"SpaceCoolSystem": {
 		"cooling system 1": {
+			"temp_setback": 28.0,
 			"type": "AirConditioning",
 			"cooling_capacity": 3.0,
 			"efficiency": 4.3,
@@ -119,6 +113,7 @@
 			"EnergySupply": "mains elec"
 		},
 		"cooling system 2": {
+			"temp_setback": 28.0,
 			"type": "AirConditioning",
 			"cooling_capacity": 3.0,
 			"efficiency": 4.3,
@@ -211,12 +206,14 @@
 	},
 	"SpaceHeatSystem": {
 		"main 1": {
+			"temp_setback": 16.0,
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
 			"frac_convective": 0.4,
 			"EnergySupply": "mains elec"
 		},
 		"main 2": {
+			"temp_setback": 16.0,
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
 			"frac_convective": 0.4,

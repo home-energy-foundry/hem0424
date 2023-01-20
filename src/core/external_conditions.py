@@ -872,6 +872,17 @@ class ExternalConditions:
 
         return total_irradiance
 
+    def calculated_direct_diffuse_total_irradiance(self, tilt, orientation):
+        circumsolar_irradiance = self.circumsolar_irradiance(tilt, orientation)
+
+        calculated_direct = self.direct_irradiance(tilt, orientation) + circumsolar_irradiance
+        calculated_diffuse = self.diffuse_irradiance(tilt, orientation) \
+                           - circumsolar_irradiance \
+                           + self.ground_reflection_irradiance(tilt)
+        total_irradiance = calculated_direct \
+                         + calculated_diffuse
+        return calculated_direct, calculated_diffuse, total_irradiance
+
     # end of sun path calculations from ISO 52010
     # below are overshading calculations from ISO 52016
 
@@ -1079,8 +1090,7 @@ class ExternalConditions:
         # first chceck if there is any radiation. This is needed to prevent a potential 
         # divide by zero error in the final step, but also, if there is no radiation 
         # then shading is irrelevant and we can skip the whole calculation
-        direct = self.calculated_direct_irradiance(tilt, orientation)
-        diffuse = self.calculated_diffuse_irradiance(tilt, orientation)
+        direct, diffuse, _ = self.calculated_direct_diffuse_total_irradiance(tilt, orientation)
         if direct + diffuse == 0:
             return 0
 

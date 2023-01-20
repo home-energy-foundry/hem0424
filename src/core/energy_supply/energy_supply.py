@@ -14,6 +14,7 @@ class Fuel_code(Enum):
     MAINS_GAS = auto()
     ELECTRICITY = auto()
     UNMET_DEMAND = auto()
+    CUSTOM = auto()
 
     @classmethod
     def from_string(cls, strval):
@@ -23,6 +24,8 @@ class Fuel_code(Enum):
             return cls.ELECTRICITY
         elif strval == 'unmet_demand':
             return cls.UNMET_DEMAND
+        elif strval == 'custom':
+            return cls.CUSTOM
         else:
             sys.exit('fuel code ('+ str(strval) + ') not valid')
 
