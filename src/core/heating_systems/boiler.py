@@ -24,6 +24,7 @@ from numpy import interp
 
 class ServiceType(Enum):
     WATER_COMBI = auto()
+    WATER_REGULAR = auto()
     SPACE = auto()
 
 
@@ -197,6 +198,57 @@ class BoilerServiceWaterCombi(BoilerService):
         return self._boiler._Boiler__energy_output_max(self.__temp_hot_water)
 
 
+class BoilerServiceWaterRegular(BoilerService):
+    """ An object to represent a water heating service provided by a regular boiler.
+
+    This object contains the parts of the boiler calculation that are
+    specific to providing hot water.
+    """
+
+    def __init__(self,
+                 boiler,
+                 boiler_data,
+                 service_name,
+                 temp_hot_water,
+                 cold_feed,
+                 temp_return,
+                 simulation_time
+                ):
+        """ Construct a BoilerServiceWaterRegular object
+
+        Arguments:
+        boiler       -- reference to the Boiler object providing the service
+        boiler_data       -- regular boiler heating properties
+        service_name -- name of the service demanding energy from the boiler_data
+        temp_hot_water -- temperature of the hot water to be provided, in deg C
+        cold_feed -- reference to ColdWaterSource object
+        simulation_time -- reference to SimulationTime object
+        """
+        super().__init__(boiler, service_name)
+        
+        self.__temp_hot_water = temp_hot_water
+        self.__cold_feed = cold_feed
+        self.__service_name = service_name
+        self.__simulation_time = simulation_time
+        self.__temp_return = temp_return
+
+
+    def demand_energy(self, energy_demand):
+        """ Demand energy (in kWh) from the boiler """
+        
+        return self._boiler._Boiler__demand_energy(
+            self.__service_name,
+            ServiceType.WATER_REGULAR,
+            energy_demand,
+            self.__temp_return
+            )
+
+
+    def energy_output_max(self):
+        """ Calculate the maximum energy output of the boiler"""
+        return self._boiler._Boiler__energy_output_max(self.__temp_hot_water)
+
+
 class BoilerServiceSpace(BoilerService):
     """ An object to represent a space heating service provided by a boiler to e.g. a cylinder.
 
@@ -330,7 +382,7 @@ class Boiler:
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
 
-    def create_service_hot_water(
+    def create_service_hot_water_combi(
             self,
             boiler_data,
             service_name,
@@ -354,6 +406,35 @@ class Boiler:
             cold_feed,
             self.__simulation_time
             )
+    
+    def create_service_hot_water_regular(
+            self,
+            boiler_data,
+            service_name,
+            temp_hot_water,
+            cold_feed,
+            temp_return
+            ):
+            """ Return a BoilerServiceWaterRegular object and create an EnergySupplyConnection for it
+
+            Arguments:
+            service_name -- name of the service demanding energy from the boiler
+            temp_hot_water -- temperature of the hot water to be provided, in deg C
+            temp_limit_upper -- upper operating limit for temperature, in deg C
+            cold_feed -- reference to ColdWaterSource object
+            control -- reference to a control object which must implement is_on() func
+            """
+            
+            self.__create_service_connection(service_name)
+            return BoilerServiceWaterRegular(
+                self,
+                boiler_data,
+                service_name,
+                temp_hot_water,
+                cold_feed,
+                temp_return,
+                self.__simulation_time
+                )
 
     def create_service_space_heating(
             self,

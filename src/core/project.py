@@ -647,6 +647,15 @@ class Project:
                         cold_water_source,
                         ctrl,
                         )
+                elif isinstance(heat_source_wet, Boiler):
+                    heat_source = heat_source_wet.create_service_hot_water_regular(
+                        data,
+                        data['name'] + '_water_heating',
+                        55, # TODO Remove hard-coding of HW temp
+                        cold_water_source,
+                        data['temp_return']
+                        )
+                    
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
@@ -700,7 +709,7 @@ class Project:
                     hw_source.add_heat_source(heat_source, 1.0)
             elif hw_source_type == 'CombiBoiler':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
-                hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water(
+                hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_combi(
                     data,
                     data['HeatSourceWet'] + '_water_heating',
                     55, # TODO Remove hard-coding of HW temp
