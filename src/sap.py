@@ -116,7 +116,13 @@ def run_project(
         apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path[0])
     elif fhs_FEE_assumptions:
         postprocfile = file_path[0] + '_postproc.csv'
-        apply_fhs_FEE_postprocessing(postprocfile, space_heat_demand_total, space_cool_demand_total)
+        total_floor_area = project.total_floor_area()
+        apply_fhs_FEE_postprocessing(
+            postprocfile,
+            total_floor_area,
+            space_heat_demand_total,
+            space_cool_demand_total,
+            )
 
 def write_static_output_file(output_file, heat_trans_coeff, heat_loss_param, thermal_mass_param):
     # Note: need to specify newline='' below, otherwise an extra carriage return
