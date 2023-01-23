@@ -185,9 +185,9 @@ class BuildingElement:
         """ Return default of zero for solar gains """
         return 0
 
-    def shading_factor(self):
+    def shading_factors_direct_diffuse(self):
         """ Return default of one for shading factor (no shading) """
-        return 1
+        return 1.0, 1.0
 
     def no_of_nodes(self):
         """ Return number of nodes including external and internal layers """
@@ -293,9 +293,9 @@ class BuildingElementOpaque(BuildingElement):
             = self.__external_conditions.calculated_direct_diffuse_total_irradiance(self._pitch, self.__orientation)
         return i_sol_dir, i_sol_dif
 
-    def shading_factor(self):
+    def shading_factors_direct_diffuse(self):
         """ return calculated shading factor """
-        return self.__external_conditions.shading_reduction_factor( \
+        return self.__external_conditions.shading_reduction_factor_direct_diffuse( \
                 self.__base_height, self.__projected_height, self.__width, \
                 self._pitch, self.__orientation, False)
 
@@ -813,9 +813,9 @@ class BuildingElementTransparent(BuildingElement):
         self.h_pli = [1.0 / self.__r_c]
         self.k_pli = [0.0, 0.0]
 
-    def shading_factor(self):
+    def shading_factors_direct_diffuse(self):
         """ return calculated shading factor """
-        return self.__external_conditions.shading_reduction_factor( \
+        return self.__external_conditions.shading_reduction_factor_direct_diffuse( \
                 self.__base_height, self.__projected_height, self.__width, \
                 self._pitch, self.__orientation, self.__shading)
 
@@ -845,7 +845,8 @@ class BuildingElementTransparent(BuildingElement):
             = self.__external_conditions.calculated_direct_diffuse_total_irradiance(self._pitch, self.__orientation)
         g_value = self.convert_g_value()
 
-        solar_gains = g_value * (i_sol_dif + i_sol_dir * self.shading_factor()) \
+        f_sh_dir, f_sh_dif = self.shading_factors_direct_diffuse()
+        solar_gains = g_value * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
                     * self.area * (1 - self.__frame_area_fraction)
 
         return solar_gains
