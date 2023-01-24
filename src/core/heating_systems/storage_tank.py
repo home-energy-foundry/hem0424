@@ -585,7 +585,7 @@ class StorageTank:
         input_energy_adj = deepcopy(Q_in_H_W)
         #No demand from heat source if the temperature of the tank at the 
         #thermostat position is below the set point
-        if temp_s6_n[self.__thermostat_layer] >= self.__temp_out_W_min:
+        if temp_s3_n[self.__thermostat_layer] >= self.__temp_out_W_min:
             input_energy_adj = 0.0
 
         for heat_source in self.__heat_sources:
