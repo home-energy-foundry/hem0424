@@ -447,11 +447,11 @@ class Boiler:
             control,
             )
 
-    def __cycling_adjustment(self, temp_return_feed, standing_loss, prop_of_timestep_at_min_rate):
+    def __cycling_adjustment(self, temp_return_feed, standing_loss, prop_of_timestep_at_min_rate, temp_boiler_loc):
         ton_toff = (1.0 - prop_of_timestep_at_min_rate) / prop_of_timestep_at_min_rate
         cycling_adjustment = standing_loss \
                              * ton_toff \
-                             * ((temp_return_feed - self.__temp_boiler_loc) \
+                             * ((temp_return_feed - temp_boiler_loc) \
                              / (self.__temp_rise_standby_loss) \
                              ) \
                              ** self.__sby_loss_idx
@@ -459,11 +459,11 @@ class Boiler:
         return cycling_adjustment
 
 
-    def location_adjustment(self, temp_return_feed, standing_loss):
+    def location_adjustment(self, temp_return_feed, standing_loss, temp_boiler_loc):
         location_adjustment \
             = max((standing_loss * \
                     ((temp_return_feed - self.__room_temp))**self.__sby_loss_idx \
-                    - (temp_return_feed - self.__temp_boiler_loc)**self.__sby_loss_idx)\
+                    - (temp_return_feed - temp_boiler_loc)**self.__sby_loss_idx)\
                     , 0.0
                  )
         return location_adjustment
@@ -478,7 +478,7 @@ class Boiler:
         """ Calculate energy required by boiler to satisfy demand for the service indicated."""
         timestep = self.__simulation_time.timestep()
         #use weather temperature at timestep
-        self.__outside_temp = self.__external_conditions.air_temp()
+        outside_temp = self.__external_conditions.air_temp()
 
         energy_output_max_power = self.__boiler_power * (timestep - self.__total_time_running_current_timestep)
         energy_output_provided = min(energy_output_required, energy_output_max_power)
@@ -512,22 +512,24 @@ class Boiler:
         # The following adjustment is made when the boiler is located outside 
         # (when installed inside no adjustment is necessary so location_adjustment=0)
         if self.__boiler_location == "external":
-            self.__temp_boiler_loc = self.__outside_temp
+            temp_boiler_loc = outside_temp
         elif self.__boiler_location == "internal":
-            self.__temp_boiler_loc = self.__room_temp
+            temp_boiler_loc = self.__room_temp
         else:
             sys.exit('boiler location ('+ str(self.__boiler_location) + ') not valid')
 
         location_adjustment = 0.0
         if self.__boiler_location == "external":
             location_adjustment = self.location_adjustment(temp_return_feed,
-                                                       standing_loss
+                                                       standing_loss,
+                                                       temp_boiler_loc
                                                        )
         cycling_adjustment = 0.0
         if (0.0 < prop_of_timestep_at_min_rate < 1.0) and service_type != ServiceType.WATER_COMBI:
             cycling_adjustment = self.__cycling_adjustment(temp_return_feed,
                                                            standing_loss,
-                                                           prop_of_timestep_at_min_rate
+                                                           prop_of_timestep_at_min_rate,
+                                                           temp_boiler_loc
                                                            )
 
         cyclic_location_adjustment = cycling_adjustment + location_adjustment
