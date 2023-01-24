@@ -1213,29 +1213,53 @@ class ExternalConditions:
         # obstacles
         # TODO Uncomment these lines when definitions of P1 and P2 in formula
         #      for F_w_r have been confirmed.
-        # F_sh_dif_setback = (1 - F_w_r) * F_w_sky \
-        #                  / view_factor_sky_no_obstacles
-        # F_sh_ref_setback = (1 - F_w_r) * (1 - F_w_sky) \
-        #                  / view_factor_ground_no_obstacles
+        # if view_factor_sky_no_obstacles == 0:
+        #     # Shading makes no difference if sky not visible (avoid divide-by-zero)
+        #     F_sh_dif_setback = 1.0
+        # else:
+        #     F_sh_dif_setback = (1 - F_w_r) * F_w_sky \
+        #                      / view_factor_sky_no_obstacles
+        # if view_factor_ground_no_obstacles == 0:
+        #     # Shading makes no difference if ground not visible (avoid divide-by-zero)
+        #     F_sh_ref_setback = 1.0
+        # else:
+        #     F_sh_ref_setback = (1 - F_w_r) * (1 - F_w_sky) \
+        #                      / view_factor_ground_no_obstacles
 
         # Fins and remote obstacles (eqns F.11 and F.12): Top half of each eqn
         # is view factor to sky (F.11) or ground (F.12) with fins and distant
         # obstacles
-        F_sh_dif_fins = (1 - F_w_s) * F_w_sky \
-                      / view_factor_sky_no_obstacles
-        F_sh_ref_fins = (1 - F_w_s) * (1 - F_w_sky) \
-                      / view_factor_ground_no_obstacles
+        if view_factor_sky_no_obstacles == 0:
+            # Shading makes no difference if sky not visible (avoid divide-by-zero)
+            F_sh_dif_fins = 1.0
+        else:
+            F_sh_dif_fins = (1 - F_w_s) * F_w_sky \
+                          / view_factor_sky_no_obstacles
+        if view_factor_ground_no_obstacles == 0:
+            # Shading makes no difference if ground not visible (avoid divide-by-zero)
+            F_sh_ref_fins = 1.0
+        else:
+            F_sh_ref_fins = (1 - F_w_s) * (1 - F_w_sky) \
+                          / view_factor_ground_no_obstacles
 
         # Overhangs and remote obstacles (eqns F.13 and F.14)
         # Top half of eqn F.13 is view factor to sky with overhangs
-        F_sh_dif_overhangs = (F_w_sky - F_w_o) \
-                           / view_factor_sky_no_obstacles
+        if view_factor_sky_no_obstacles == 0:
+            # Shading makes no difference if sky not visible (avoid divide-by-zero)
+            F_sh_dif_overhangs = 1.0
+        else:
+            F_sh_dif_overhangs = (F_w_sky - F_w_o) \
+                               / view_factor_sky_no_obstacles
         # Top half of eqn F.14 is view factor to ground with distant obstacles,
         # but does not account for overhangs blocking any part of the view of
         # the ground, presumably because this will not happen in the vast
         # majority of cases
-        F_sh_ref_overhangs = (1 - F_w_sky) \
-                           / view_factor_ground_no_obstacles
+        if view_factor_ground_no_obstacles == 0:
+            # Shading makes no difference if ground not visible (avoid divide-by-zero)
+            F_sh_ref_overhangs = 1.0
+        else:
+            F_sh_ref_overhangs = (1 - F_w_sky) \
+                               / view_factor_ground_no_obstacles
 
         # Keep the smallest of the three shading reduction factors as the
         # diffuse or reflected shading factor. Also enforce that these cannot be
