@@ -552,8 +552,13 @@ class StorageTank:
         #TODO - 6.4.3.7 STEP 5 Temperature of the storage after volume withdrawn (for Heating)
 
         #6.4.3.8 STEP 6 Energy input into the storage
-        #input energy delivered to the storage in kWh - timestep dependent
-        Q_x_in_n = self.potential_energy_input()
+        #No demand from heat source if the temperature of the tank at the 
+        #thermostat position is below the set point
+        if temp_s3_n[self.__thermostat_layer] >= self.__temp_out_W_min:
+            Q_x_in_n = [0] * self.__NB_VOL
+        else:
+            #input energy delivered to the storage in kWh - timestep dependent
+            Q_x_in_n = self.potential_energy_input()
 
         Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
 
@@ -583,10 +588,6 @@ class StorageTank:
 
         #demand adjusted energy from heat source (before was just using potential without taking it)
         input_energy_adj = deepcopy(Q_in_H_W)
-        #No demand from heat source if the temperature of the tank at the 
-        #thermostat position is below the set point
-        if temp_s3_n[self.__thermostat_layer] >= self.__temp_out_W_min:
-            input_energy_adj = 0.0
 
         for heat_source in self.__heat_sources:
             input_energy_adj = input_energy_adj - self.get_demand_energy(heat_source, input_energy_adj)
