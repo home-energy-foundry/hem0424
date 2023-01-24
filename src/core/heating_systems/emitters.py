@@ -94,7 +94,7 @@ class Emitters:
             # low heat demand but not during high demand. 
             
             # use weather temperature at the timestep
-            self.__outside_temp = self.__external_conditions.air_temp()
+            outside_temp = self.__external_conditions.air_temp()
             # weather compensation properties could be an input
             # setting max flow temp as the design flow temperature
             min_outdoor_temp = -4.0 
@@ -105,7 +105,7 @@ class Emitters:
             flow_temp_limits = [min_flow_temp, self.__design_flow_temp]
 
             # Uses numpy interp
-            flow_temp = interp(self.__outside_temp, outdoor_temp_limits, flow_temp_limits)
+            flow_temp = interp(outside_temp, outdoor_temp_limits, flow_temp_limits)
 
         elif self.__ecodesign_control_class == Ecodesign_control_class.class_I \
             or self.__ecodesign_control_class == Ecodesign_control_class.class_IV :
