@@ -1000,8 +1000,8 @@ def create_cooling(project_dict):
 
     #07:30-09:30 and then 16:30-22:00
     cooling_subschedule_livingroom_weekday = (
-        [None for x in range(14)] +
-        [cooling_setpoint for x in range(5)] +
+        [None for x in range(15)] +
+        [cooling_setpoint for x in range(4)] +
         [None for x in range(14)] +
         [cooling_setpoint for x in range(11)] +
         [None for x in range(4)])
@@ -1009,8 +1009,8 @@ def create_cooling(project_dict):
     #08:30 - 22:00
     cooling_subschedule_livingroom_weekend = (
         [None for x in range(17)] +
-        [cooling_setpoint for x in range(28)] +
-        [None for x in range(3)])
+        [cooling_setpoint for x in range(27)] +
+        [None for x in range(4)])
 
     cooling_subschedule_restofdwelling = (
         #22:00-07:00 - ie nighttime only
