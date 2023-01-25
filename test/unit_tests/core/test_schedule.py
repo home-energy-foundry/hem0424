@@ -81,7 +81,7 @@ class TestSchedule(unittest.TestCase):
         # Run the concise schedule through the expand_schedule function and
         # check it matches the expanded schedule as expected
         self.assertEqual(
-            expand_schedule(bool, self.schedule, "main"),
+            expand_schedule(bool, self.schedule, "main", False),
             self.schedule_expanded,
             "incorrect schedule expansion"
             )
