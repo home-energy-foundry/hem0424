@@ -257,16 +257,16 @@ def create_heating_pattern(project_dict):
 
     #07:30-09:30 and then 16:30-22:00
     heating_fhs_weekday = (
-        [False for x in range(14)] +
-        [True for x in range(5)] +
+        [False for x in range(15)] +
+        [True for x in range(4)] +
         [False for x in range(14)] +
         [True for x in range(11)] +
         [False for x in range(4)])
     
     #07:30-09:30 and then 18:30-22:00
     heating_nonlivingarea_fhs_weekday = (
-        [False for x in range(14)] +
-        [True for x in range(5)] +
+        [False for x in range(15)] +
+        [True for x in range(4)] +
         [False for x in range(18)] +
         [True for x in range(7)] +
         [False for x in range(4)])
@@ -274,8 +274,8 @@ def create_heating_pattern(project_dict):
     #08:30 - 22:00
     heating_fhs_weekend = (
         [False for x in range(17)] +
-        [True for x in range(28)] +
-        [False for x in range(3)])
+        [True for x in range(27)] +
+        [False for x in range(4)])
 
     '''
     if there is not separate time control of the non-living rooms
