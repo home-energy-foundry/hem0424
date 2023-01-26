@@ -153,9 +153,7 @@ class TestZone(unittest.TestCase):
                          125.0,
                          be_objs,
                          tb_objs,
-                         ve_objs,
-                         18.0,
-                         25.0)
+                         ve_objs)
 
     def test_volume(self):
         """ Test that the correct volume is returned when queried """
@@ -171,7 +169,7 @@ class TestZone(unittest.TestCase):
         temp_int_surface = 19.0
 
         self.assertAlmostEqual(self.zone.total_fabric_heat_loss(),
-                               177.78,
+                               174.58,
                                2,
                                "incorrect total fabric heat loss returned")
 

@@ -452,7 +452,7 @@ class TestBoilerServiceSpace(unittest.TestCase):
             extcond
             )
         self.boiler._Boiler__create_service_connection("boiler_test")
-        self.boiler_service_space = BoilerServiceSpace(self.boiler, "boiler_test")
+        self.boiler_service_space = BoilerServiceSpace(self.boiler, "boiler_test", False)
 
     def test_boiler_service_space(self):
         """ Test that Boiler object returns correct space heating energy demand """
