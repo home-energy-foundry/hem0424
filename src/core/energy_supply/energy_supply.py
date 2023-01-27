@@ -180,22 +180,16 @@ class EnergySupply:
         # Elec demand not met by PV (kWh) - ie amount to be imported from the grid or batteries
         demand_not_met = sum(demands) + supply_consumed
         #See if there is a net supply/demand for the timestep
-        tot_demand_supply = demand_not_met + supply_surplus
         if self.__elec_battery is not None:
             #See if the battery can deal with excess supply/demand for this timestep
-            energy_out_of_battery = self.__elec_battery.charge_discharge_battery(tot_demand_supply)
-            if energy_out_of_battery < 0:
-                #If there a surplus in energy from the PV, charge the battery as much as possible with the surplus
-                supply_surplus -= energy_out_of_battery - demand_not_met
-                demand_not_met = 0
-                #Update the supply/demand to account for supplying energy to the battery
-            elif energy_out_of_battery > 0:
-                #If there is excess demand, use battery to supply the energy (if possible) first before going to the grid
-                demand_not_met -= energy_out_of_battery - supply_surplus
-                supply_surplus = 0
-                #Update the supply/demand to account for demand on the battery
-            else:
-                pass #If the battery cannot meet the supply/demand requirements then no calculation needs to be done
+            #supply_surplus is -ve by convention and demand_not_met is +ve
+            #TODO: assumption made here that supply is done before demand, could
+            #      revise in future if more evidence becomes available.
+            energy_out_of_battery = self.__elec_battery.charge_discharge_battery(supply_surplus)
+            supply_surplus -= energy_out_of_battery
+            energy_out_of_battery = self.__elec_battery.charge_discharge_battery(demand_not_met)
+            demand_not_met -= energy_out_of_battery
+
         self.__supply_surplus[t_idx] += supply_surplus
         self.__demand_not_met[t_idx] += demand_not_met
 

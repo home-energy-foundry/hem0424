@@ -41,7 +41,10 @@ class ElectricBattery:
                                                constraints of the battery (kWh)
         energy_accepted_by_battery -- The total energy the battery is able to supply or charge (kWh)
         """
-        energy_available_to_charge_battery = (-elec_demand)*((self.__charge_discharge_efficiency) ** 0.5)
+        if elec_demand < 0: #Charging battery
+            energy_available_to_charge_battery = (-elec_demand)*((self.__charge_discharge_efficiency) ** 0.5)
+        else: #Discharging battery
+            energy_available_to_charge_battery = (-elec_demand)/((self.__charge_discharge_efficiency) ** 0.5)
         #Charge/discharge the battery by the amount available
         current_energy_stored_unconstrained = self.__current_energy_stored + energy_available_to_charge_battery
         prev_energy_stored = self.__current_energy_stored
@@ -49,4 +52,7 @@ class ElectricBattery:
         self.__current_energy_stored = min(self.__capacity, max(0, current_energy_stored_unconstrained))
         energy_accepted_by_battery = self.__current_energy_stored - prev_energy_stored
         #Return the supply/demand energy the battery can accept (including charging/discharging losses)
-        return -energy_accepted_by_battery/((self.__charge_discharge_efficiency) ** 0.5)
+        if elec_demand < 0: #Charging battery
+            return -energy_accepted_by_battery/((self.__charge_discharge_efficiency) ** 0.5)
+        else: #Discharging battery
+            return -energy_accepted_by_battery*((self.__charge_discharge_efficiency) ** 0.5)

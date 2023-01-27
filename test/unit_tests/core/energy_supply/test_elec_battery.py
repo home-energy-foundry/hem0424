@@ -27,15 +27,30 @@ class TestElectricBattery(unittest.TestCase):
         """ Test the charge_discharge_battery function including for
             overcharging and overdischarging.
         """
-        #Demand on battery exceeds limit
-        self.elec_battery = ElectricBattery(2000, 0.8)
-        self.assertAlmostEqual(self.elec_battery.charge_discharge_battery(-100), 0)
-
-        #Normal supply cases
-        self.assertAlmostEqual(self.elec_battery.charge_discharge_battery(10), 10)
-        self.elec_battery = ElectricBattery(2000, 0.8)
-        self.assertAlmostEqual(self.elec_battery.charge_discharge_battery(100), 100)
-
         #Supply to battery exceeds limit
-        self.elec_battery = ElectricBattery(2000, 0.8)
-        self.assertAlmostEqual(self.elec_battery.charge_discharge_battery(1000000), 2000/(0.8**0.5))
+        self.assertAlmostEqual(
+            self.elec_battery.charge_discharge_battery(-1000000),
+            -2000/(0.8**0.5),
+            msg = "Test failed: Supply to battery exceeds limit",
+            )
+
+        #Demand on battery exceeds limit
+        self.assertAlmostEqual(
+            self.elec_battery.charge_discharge_battery(100000000),
+            2000*(0.8**0.5),
+            msg = "Test failed: Demand on battery exceeds limit",
+            )
+
+        #Normal charge
+        self.assertAlmostEqual(
+            self.elec_battery.charge_discharge_battery(-200),
+            -200,
+            msg = "Test failed: Normal charge",
+            )
+
+        #Normal discharge
+        self.assertAlmostEqual(
+            self.elec_battery.charge_discharge_battery(100),
+            100,
+            msg = "Test failed: Normal discharge",
+            )
