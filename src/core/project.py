@@ -22,6 +22,7 @@ from core.heating_systems.emitters import Emitters
 from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
+from core.heating_systems.elec_storage_heater import ElecStorageHeater
 from core.heating_systems.boiler import Boiler
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
@@ -757,6 +758,19 @@ class Project:
                     self.__simtime,
                     ctrl,
                     )
+            elif space_heater_type == 'ElecStorageHeater':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+#    STORAGE HEATERS: Update the method below with storage heater inputs once these are known.
+                space_heater = ElecStorageHeater(
+                    data['rated_power'],
+                    data['frac_convective'],
+                    energy_supply_conn,
+                    self.__simtime,
+                    ctrl,
+                    )
             elif space_heater_type == 'WetDistribution':
                 heat_source = self.__heat_sources_wet[data['HeatSource']['name']]
                 if isinstance(heat_source, HeatPump):
@@ -1328,6 +1342,12 @@ class Project:
                     gains_heat_cool,
                     frac_convective,
                     )
+                
+                # STORAGE HEATERS: print statements for testing    
+                print("%.2f" % zone.temp_operative(), end=" ") 
+                print("\t", end=" ")
+                print("%.2f" % zone.temp_internal_air()) 
+
 
                 if h_name is None:
                     space_heat_demand_system[h_name] = 'n/a'
