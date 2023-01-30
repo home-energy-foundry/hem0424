@@ -231,7 +231,7 @@ class Emitters:
             = self.__thermal_mass * (temp_emitter_req - self.__temp_emitter_prev)
         energy_req_from_heat_source = max(energy_req_to_warm_emitters + energy_demand,0.0)
 
-        # Calculate target emitter and flow temperature
+        # Calculate target flow and return temperature
         temp_flow_target, temp_return_target = self.temp_flow_return()
 
         # Get energy output of heat source (i.e. energy input to emitters)
