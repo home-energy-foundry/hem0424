@@ -22,7 +22,7 @@ from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.heating_systems.boiler import Boiler
-from core.heating_systems.heat_network import HeatNetwork, HeatNetworkServiceWaterDirect
+from core.heating_systems.heat_network import HeatNetwork
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
@@ -556,7 +556,7 @@ class Project:
                     self.__external_conditions,
                     )
                 self.__timestep_end_calcs.append(heat_source)
-            elif heat_source_type == 'HeatNetwork':
+            elif heat_source_type == 'HIU':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 energy_supply_conn_name_auxiliary = 'HeatNetwork_auxiliary: ' + name
                 heat_source = HeatNetwork(
@@ -567,8 +567,7 @@ class Project:
                     self.__external_conditions,
                     )
                 # Create list of internal gains for each hour of the year, in W / m2
-                # TODO check how the daily loss is accessed from the dictionary
-                internal_gains_HIU = [HeatNetworkServiceWaterDirect(heat_source).HIU_loss(energy_supply['heat network']['HIU_daily_losses']) \
+                internal_gains_HIU = [heat_source.HIU_loss(data['HIU_daily_loss']) \
                                         * units.W_per_kW \
                                         / total_floor_area]
                 total_internal_gains_HIU = internal_gains_HIU * units.days_per_year * units.hours_per_day
@@ -699,13 +698,13 @@ class Project:
                     55, # TODO Remove hard-coding of HW temp
                     cold_water_source
                     )
-            elif hw_source_type == 'HeatNetwork':
+            elif hw_source_type == 'HIU':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
-                hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water(
-                    data,
+                hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_direct(
                     data['HeatSourceWet'] + '_water_heating',
                     55, # TODO Remove hard-coding of HW temp
-                    cold_water_source
+                    cold_water_source,
+                    data['HIU_daily_loss']
                     )
             else:
                 sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')

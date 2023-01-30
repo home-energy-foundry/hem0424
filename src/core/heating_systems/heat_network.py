@@ -69,8 +69,9 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
         self.__service_name = service_name
         self.__simulation_time = simulation_time
 
-    def demand_hot_water(self, volume_demanded, daily_loss):
+    def demand_hot_water(self, volume_demanded):
         """ Demand energy for hot water (in kWh) from the heat network """
+        return_temperature = 60
         # Calculate energy needed to meet hot water demand
         energy_content_kWh_per_litre = WATER.volumetric_energy_content_kWh_per_litre(
             self.__temp_hot_water,
@@ -78,18 +79,11 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
             )
         energy_demand = volume_demanded * energy_content_kWh_per_litre 
 
-        # Calculate energy needed to cover losses
-        HIU_loss = self.HIU_loss(daily_loss)
-        energy_demand = energy_demand + HIU_loss
-
-        return self._heat_network._HeatNetwork__demand_energy(energy_demand, self.__service_name)
-
-    def HIU_loss(self, daily_loss):
-        """ Standing heat loss from the HIU (heat interface unit) in kWh """
-        # daily_loss to be sourced from the PCDB, in kW
-        HIU_loss = daily_loss / hours_per_day * self.__simulation_time.timestep()
-
-        return HIU_loss
+        return self._heat_network._HeatNetwork__demand_energy(
+            self.__service_name,
+            energy_demand,
+            return_temperature
+            )
 
 
 class HeatNetworkServiceWaterStorage(HeatNetworkService):
@@ -117,15 +111,14 @@ class HeatNetworkServiceWaterStorage(HeatNetworkService):
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat network """
         # Calculate energy needed to cover losses
+        return_temperature = 60
         cylinder_loss = self.cylinder_loss()
         energy_demand = energy_demand + cylinder_loss
-        return self._heat_network._HeatNetwork__demand_energy(energy_demand, self.__service_name)
-
-    def cylinder_loss(self):
-        """ Standing heat loss from the storage cylinder in kWh """
-        # TODO add losses from storage cylinder - to come from the storage tank module
-        # and needs to be linked to heat network similar to boilers/heatpumps and immersion heaters
-        return 0.0
+        return self._heat_network._HeatNetwork__demand_energy(
+            self.__service_name,
+            energy_demand,
+            return_temperature
+            )
 
 
 class HeatNetworkServiceSpace(HeatNetworkService):
@@ -145,9 +138,18 @@ class HeatNetworkServiceSpace(HeatNetworkService):
 
         self.__service_name = service_name
 
-    def demand_energy(self, energy_demand):
+    def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the heat network """
-        return self._heat_network._HeatNetwork__demand_energy(energy_demand, self.__service_name)
+        return_temperature = 60
+        return self._heat_network._HeatNetwork__demand_energy(
+            self.__service_name,
+            energy_demand,
+            return_temperature
+            )
+
+    def energy_output_max(self, temp_output):
+        """ Calculate the maximum energy output of the heat network"""
+        return self._heat_network._HeatNetwork__energy_output_max(temp_output)
 
 
 class HeatNetwork:
@@ -177,6 +179,7 @@ class HeatNetwork:
         """
 
         self.__energy_supply = energy_supply
+        self.__simulation_time = simulation_time
         self.__energy_supply_connections = {}
         self.__energy_supply_connection_aux \
             = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
@@ -196,7 +199,8 @@ class HeatNetwork:
             self,
             service_name,
             temp_hot_water,
-            cold_feed
+            cold_feed,
+            daily_loss
             ):
         """ Return a HeatNetworkSeriviceWaterDirect object and create an EnergySupplyConnection for it
         
@@ -204,6 +208,7 @@ class HeatNetwork:
         service_name      -- name of the service demanding energy from the heat network
         temp_hot_water    -- temperature of the hot water to be provided, in deg C
         cold_feed         -- reference to ColdWaterSource object
+        daily_loss        -- daily loss from the HIU, in kW
         """
         self.__create_service_connection(service_name)
 
@@ -212,6 +217,7 @@ class HeatNetwork:
             service_name,
             temp_hot_water,
             cold_feed,
+            self.__simulation_time
             )
 
     def create_service_hot_water_storage(self, service_name):
@@ -234,9 +240,20 @@ class HeatNetwork:
 
         return HeatNetworkServiceSpace(self, service_name)
 
-    def __demand_energy(self, energy_output_required, service_name):
+    def __demand_energy(
+            self,
+            service_name,
+            energy_output_required,
+            temp_return_feed
+            ):
         """ Calculate energy required by heat network to satisfy demand for the service indicated."""
         self.__energy_supply_connections[service_name].demand_energy(energy_output_required)
 
         return energy_output_required
 
+    def HIU_loss(self, daily_loss):
+        """ Standing heat loss from the HIU (heat interface unit) in kWh """
+        # daily_loss to be sourced from the PCDB, in kW
+        HIU_loss = daily_loss / hours_per_day * self.__simulation_time.timestep()
+
+        return HIU_loss
