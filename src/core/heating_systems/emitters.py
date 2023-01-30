@@ -231,21 +231,7 @@ class Emitters:
             = self.__thermal_mass * (temp_emitter_req - self.__temp_emitter_prev)
         energy_req_from_heat_source = max(energy_req_to_warm_emitters + energy_demand,0.0)
 
-        # Calculate emitter temp that can be achieved if heating on full power
-        # (adjusted for time spent on higher-priority services)
-        heating_sys_energy_max = self.__heat_source.energy_output_max(temp_flow_req)
-        heating_sys_power_max = heating_sys_energy_max / timestep
-        temp_emitter_max = self.temp_emitter(
-            0.0,
-            timestep,
-            self.__temp_emitter_prev,
-            temp_rm_prev,
-            heating_sys_power_max,
-            )
-
-        # Calculate target emitter and flow temperature, accounting for the
-        # max power of the heat source
-        temp_emitter_target = min(temp_emitter_req, temp_emitter_max)
+        # Calculate target emitter and flow temperature
         temp_flow_target, temp_return_target = self.temp_flow_return()
 
         # Get energy output of heat source (i.e. energy input to emitters)
