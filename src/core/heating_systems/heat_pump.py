@@ -1146,6 +1146,14 @@ class HeatPump:
         else:
             self.__overvent_ratio = 1.0
 
+        # Check there is no remaining test data specific to an air flow rate
+        # For exhaust air HPs, this should have been eliminated in the
+        # interpolation above and for other HPs, it should not be present in the
+        # first place.
+        for test_data_record in hp_dict['test_data']:
+            if 'air_flow_rate' in test_data_record:
+                sys.exit('Unexpected test data specific to an air flow rate')
+
         # Parse and initialise heat pump test data
         self.__test_data = HeatPumpTestData(hp_dict['test_data'])
 
