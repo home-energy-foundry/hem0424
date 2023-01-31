@@ -95,12 +95,14 @@ class TestHeatNetwork(unittest.TestCase):
     def test_energy_output_provided(self):
         """ Test that HeatNetwork object returns correct energy and fuel demand """
         energy_output_required = [2.0, 10.0]
+        temp_return = [50.0, 60.0]
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.heat_network._HeatNetwork__demand_energy(
+                                        "heat_network_test",
                                         energy_output_required[t_idx],
-                                        "heat_network_test"),
+                                        temp_return),
                     [2.0, 10.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )
@@ -108,6 +110,17 @@ class TestHeatNetwork(unittest.TestCase):
                     self.energysupply.results_by_end_user()["heat_network_test"][t_idx],
                     [2.0, 10.0][t_idx],
                     msg="incorrect fuel demand"
+                    )
+
+    def test_HIU_loss(self):
+        """ Test that HeatNetwork object returns correct HIU loss """
+        daily_loss = 0.24
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertAlmostEqual(
+                    self.heat_network.HIU_loss(daily_loss),
+                    0.01,
+                    msg="incorrect HIU loss returned"
                     )
 
 
@@ -196,26 +209,14 @@ class TestHeatNetworkServiceWaterDirect(unittest.TestCase):
 
     def test_heat_network_service_water(self):
         """ Test that HeatNetwork object returns correct hot water energy demand """
-        daily_loss = 0.24
         volume_demanded = [50.0, 100.0]
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
-                    self.heat_network_service_water_direct.demand_hot_water(volume_demanded[t_idx], daily_loss),
-                    [3.439, 6.844][t_idx],
+                    self.heat_network_service_water_direct.demand_hot_water(volume_demanded[t_idx]),
+                    [3.429, 6.834][t_idx],
                     3,
                     msg="incorrect energy_output_provided"
-                    )
-    
-    def test_HIU_loss(self):
-        """ Test that HeatNetwork object returns correct HIU loss """
-        daily_loss = 0.24
-        for t_idx, _, _ in self.simtime:
-            with self.subTest(i=t_idx):
-                self.assertAlmostEqual(
-                    self.heat_network_service_water_direct.HIU_loss(daily_loss),
-                    0.01,
-                    msg="incorrect HIU loss returned"
                     )
 
 
@@ -310,16 +311,6 @@ class TestHeatNetworkServiceWaterStorage(unittest.TestCase):
                     [10.0, 2.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )
-    
-    def test_cylinder_loss(self):
-        """ Test that HeatNetwork object returns correct cylinder loss """
-        for t_idx, _, _ in self.simtime:
-            with self.subTest(i=t_idx):
-                self.assertAlmostEqual(
-                    self.heat_network_service_water_storage.cylinder_loss(),
-                    0.0,
-                    msg="incorrect cylinder loss returned"
-                    )
 
 
 class TestHeatNetworkServiceSpace(unittest.TestCase):
@@ -396,15 +387,21 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
         self.heat_network_service_space = HeatNetworkServiceSpace(
             self.heat_network,
             "heat_network_test",
+            False
             )
 
     def test_heat_network_service_space(self):
         """ Test that HeatNetworkServiceSpace object returns correct space heating energy demand """
         energy_demanded = [10.0, 2.0]
+        temp_flow = [55.0, 65.0]
+        temp_return = [50.0, 60.0]
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
-                    self.heat_network_service_space.demand_energy(energy_demanded[t_idx]),
+                    self.heat_network_service_space.demand_energy(
+                        energy_demanded[t_idx],
+                        temp_flow[t_idx],
+                        temp_return[t_idx]),
                     [10.0, 2.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )

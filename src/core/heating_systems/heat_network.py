@@ -112,8 +112,6 @@ class HeatNetworkServiceWaterStorage(HeatNetworkService):
         """ Demand energy (in kWh) from the heat network """
         # Calculate energy needed to cover losses
         return_temperature = 60
-        cylinder_loss = self.cylinder_loss()
-        energy_demand = energy_demand + cylinder_loss
         return self._heat_network._HeatNetwork__demand_energy(
             self.__service_name,
             energy_demand,
