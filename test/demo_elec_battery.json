@@ -1,21 +1,21 @@
 {
-	"PartGcompliance":true,
 	"SimulationTime": {
-		"start": 0,
-		"end": 8,
+		"start": 5088,
+		"end": 5112,
 		"step": 1
 	},
 	"ExternalConditions": {
-		"air_temperatures": [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0],
-		"wind_speeds": [3.9, 3.8, 3.9, 4.1, 3.8, 4.2, 4.3, 4.1],
-		"diffuse_horizontal_radiation": [0, 0, 0, 0, 0, 0, 0, 0],
-		"direct_beam_radiation": [0, 0, 0, 0, 0, 0, 0, 0],
-		"solar_reflectivity_of_ground": [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
-		"latitude": 51.42,
-		"longitude": -0.75,
+		"air_temperatures": [19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0],
+		"wind_speeds": [3.9, 3.8, 3.9, 4.1, 3.8, 4.2, 4.3, 4.1, 3.9, 3.8, 3.9, 4.1, 3.8, 4.2, 4.3, 4.1, 3.9, 3.8, 3.9, 4.1, 3.8, 4.2, 4.3, 4.1],
+		"ground_temperatures": [8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7, 8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7, 8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7],
+		"diffuse_horizontal_radiation": [0, 0, 0, 0, 35, 73, 139, 244, 320, 361, 369, 348, 318, 249, 225, 198, 121, 68, 19, 0, 0, 0, 0, 0],
+		"direct_beam_radiation": [0, 0, 0, 0, 0, 0, 7, 53, 63, 164, 339, 242, 315, 577, 385, 285, 332, 126, 7, 0, 0, 0, 0, 0],
+		"solar_reflectivity_of_ground": [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
+		"latitude": 51.383,
+		"longitude": -0.783,
 		"timezone": 0,
-		"start_day": 0,
-		"end_day": 0,
+		"start_day": 212,
+		"end_day": 212,
 		"time_series_step": 1,
 		"january_first": 1,
 		"daylight_savings": "not applicable",
@@ -38,92 +38,68 @@
 		
 	},
 	"InternalGains": {
-		"metabolic gains": {
-			"start_day": 0,
+		"metabolic gains":{
+			"start_day": 212,
 			"time_series_step": 1,
 			"schedule": {
-				"main": [3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1]
+				"main": [3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1]
+			}
+		},
+		"other": {
+			"start_day": 212,
+			"time_series_step": 1,
+			"schedule": {
+				"main": [1.1, 2.5, 2.3, 4.7, 7.2, 6.8, 9.1, 7.6, 1.1, 2.5, 2.3, 4.7, 7.2, 6.8, 9.1, 7.6, 1.1, 2.5, 2.3, 4.7, 7.2, 6.8, 9.1, 7.6]
 			}
 		}
 	},
 	"ApplianceGains": {
 		"lighting": {
-			"type": "lighting",
-			"start_day": 0,
+			"start_day": 212,
 			"time_series_step": 1,
 			"gains_fraction": 0.5,
 			"EnergySupply": "mains elec",
 			"schedule": {
-				"main": [32.0, 46.0, 33.0, 21.0, 12.0, 17.0, 25.0, 46.0]
+				"8hrs": [32.0, 46.0, 33.0, 21.0, 12.0, 17.0, 25.0, 46.0],
+				"main": [{"value": "8hrs", "repeat": 3}]
 			}
 		},
-		"cooking1": {
-			"type": "cooking",
-			"start_day": 0,
+		"cooking": {
+			"start_day": 212,
 			"time_series_step": 1,
 			"gains_fraction": 1,
 			"EnergySupply": "mains elec",
 			"schedule": {
-				"main": [300.0, 120.0, 220.0, 750.0, 890.0, 150.0, 550.0, 280.0]
-			}
-		},
-		"cooking2": {
-			"type": "cooking",
-			"start_day": 0,
-			"time_series_step": 1,
-			"gains_fraction": 1,
-			"EnergySupply": "mains gas",
-			"schedule": {
-				"main": [300.0, 120.0, 220.0, 750.0, 890.0, 150.0, 550.0, 280.0]
+				"8hrs": [300.0, 120.0, 220.0, 750.0, 890.0, 150.0, 550.0, 280.0],
+				"main": [{"value": "8hrs", "repeat": 3}]
 			}
 		}
 	},
 	"ColdWaterSource": {
 		"mains water": {
-			"start_day": 0,
-			"temperatures": [3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7],
+			"start_day": 212,
+			"temperatures": [17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.0, 17.1, 17.2, 17.3,
+							 17.4, 17.5, 17.6, 17.7, 17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7],
 			"time_series_step": 1
 		}
 	},
 	"EnergySupply": {
 		"mains elec": {
-			"fuel": "electricity"
-		},
-		"mains gas": {
-			"fuel": "mains_gas"
-		},
-		"heat network": {
-			"fuel": "custom",
-			"factor":{
-				"Emissions Factor kgCO2e/kWh": 0.07,
-				"Emissions Factor kgCO2e/kWh including out-of-scope emissions": 0.06,
-				"Primary Energy Factor kWh/kWh delivered": 1.7}
+			"fuel": "electricity",
+			"ElectricBattery": {
+				"capacity": 2000,
+				"charge_discharge_efficiency": 0.8
+			}
 		}
 	},
 	"Control": {
 		"hw timer": {
 			"type": "OnOffTimeControl",
-			"start_day": 0,
+			"start_day": 212,
 			"time_series_step": 1,
 			"schedule": {
-				"main": [{"value": true, "repeat": 8760}]
+				"main": [{"value": true, "repeat": 24}]
 			}
-		}
-	},
-	"SpaceCoolSystem": {
-		"cooling system 1": {
-			"type": "AirConditioning",
-			"cooling_capacity": 3.0,
-			"efficiency": 4.3,
-			"frac_convective": 0.95,
-			"EnergySupply": "mains elec"
-		},
-		"cooling system 2": {
-			"type": "AirConditioning",
-			"cooling_capacity": 3.0,
-			"efficiency": 4.3,
-			"frac_convective": 0.95,
-			"EnergySupply": "mains elec"
 		}
 	},
 	"HotWaterSource": {
@@ -192,6 +168,7 @@
 		"Shower": {
 			"IES": [
 				{"start": 4.1, "duration": 6, "temperature": 41.0},
+				{"start": 4.5, "duration": 6, "temperature": 41.0},
 				{"start": 6, "duration": 6, "temperature": 41.0}
 			],
 			"mixer": [
@@ -210,17 +187,22 @@
 		}
 	},
 	"SpaceHeatSystem": {
-		"main 1": {
+		"main": {
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
 			"frac_convective": 0.4,
-			"EnergySupply": "mains elec"
-		},
-		"main 2": {
-			"type": "InstantElecHeater",
-			"rated_power": 6.0,
-			"frac_convective": 0.4,
-			"EnergySupply": "mains elec"
+			"EnergySupply": "mains elec",
+			"Control": "hw timer"
+		}
+	},
+	"SpaceCoolSystem": {
+		"cooling system 1": {
+			"type": "AirConditioning",
+			"cooling_capacity": 3.0,
+			"efficiency": 4.3,
+			"frac_convective": 0.95,
+			"EnergySupply": "mains elec",
+			"Control": "hw timer"
 		}
 	},
 	"Ventilation": {
@@ -234,8 +216,8 @@
 		"shelter": "normal",
 		"build_type": "house",
 		"test_result": 4.0,
-		"test_type": "50Pa",
-		"env_area": 125.0,
+		"test_type": "4Pa",
+		"env_area": 105.0,
 		"volume": 250.0,
 		"sheltered_sides": 1,
 		"open_chimneys": 1,
@@ -243,21 +225,19 @@
 		"closed_fire": 2,
 		"flues_d": 1,
 		"flues_e": 1,
-		"blocked_chimneys": 0,
+		"blocked_chimneys": 1,
 		"extract_fans": 2,
 		"passive_vents": 2,
-		"gas_fires": 0
+		"gas_fires": 1
 	},
 	"Zone": {
 		"zone 1": {
-			"SpaceHeatSystem": "main 1",
+			"SpaceHeatSystem": "main",
 			"SpaceCoolSystem": "cooling system 1",
-			"SpaceHeatControl":"livingroom",
 			"area": 80.0,
 			"volume": 250.0,
-			"Lighting": {
-				"efficacy": 56.0
-			},
+			"temp_setpnt_heat": 21.0,
+			"temp_setpnt_cool": 25.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
@@ -365,32 +345,16 @@
 					"heat_transfer_coeff": 2.0
 				}
 			}
-		},
-		"zone 2": {
-			"SpaceHeatSystem": "main 2",
-			"SpaceCoolSystem": "cooling system 2",
-			"SpaceHeatControl":"restofdwelling",
-			"area": 80.0,
-			"volume": 250.0,
-			"Lighting": {
-				"efficacy": 56.0
-			},
-			"BuildingElement": {
-				"wall 0": {
-					"type": "BuildingElementOpaque",
-					"a_sol": 0.6,
-					"r_c": 0.7,
-					"k_m": 19000,
-					"mass_distribution_class": "IE",
-					"pitch": 90,
-					"orientation": 90,
-					"base_height": 0,
-					"height": 2.5,
-					"width": 10,
-					"area": 20.0
-				}
-			},
-			"ThermalBridging": 1.0
+		}
+	},
+	"OnSiteGeneration": {
+		"PV 1": {
+			"type": "PhotovoltaicSystem",
+			"peak_power": 2.5,
+			"ventilation_strategy": "moderately_ventilated",
+			"pitch": 30,
+			"orientation": 0,
+			"EnergySupply": "mains elec"
 		}
 	}
 }

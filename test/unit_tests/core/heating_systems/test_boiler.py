@@ -15,14 +15,14 @@ test_setup()
 # Local imports
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
-from core.heating_systems.boiler import Boiler, BoilerServiceWaterCombi, BoilerServiceSpace, ServiceType
+from core.heating_systems.boiler import Boiler, BoilerServiceWaterCombi, BoilerServiceWaterRegular, BoilerServiceSpace, ServiceType
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.energy_supply.energy_supply import EnergySupply
 from core.material_properties import WATER, MaterialProperties
 
 
 class TestBoiler(unittest.TestCase):
-    """ Unit tests for Boiler class """
+    """ Unit tests for Combi Boiler class """
 
     def setUp(self):
         """ Create Boiler object to be tested """
@@ -169,6 +169,7 @@ class TestBoilerServiceWaterCombi(unittest.TestCase):
             "electricity_full_load" : 0.0388,
             "electricity_standby" : 0.0244
             }
+        
         boilerservicewatercombi_dict = {
             "separate_DHW_tests": "M&L",
             "fuel_energy_1": 7.099,
@@ -261,7 +262,119 @@ class TestBoilerServiceWaterCombi(unittest.TestCase):
                     [0.7241412, 0.1748878][t_idx],
                     msg="incorrect energy_output_provided"
                     )
-                
+
+class TestBoilerServiceWaterRegular(unittest.TestCase):
+    """ Unit tests for Regular Boiler class """
+
+    def setUp(self):
+        """ Create Regular Boiler object to be tested """
+        boiler_dict = {
+            "type": "Boiler",
+            "EnergySupply": "mains gas",
+            "rated_power": 24.0,
+            "temperature_return_": 60,
+            "efficiency_full_load": 0.891,
+            "efficiency_part_load": 0.991,
+            "boiler_location": "internal",
+            "modulation_load": 0.3,
+            "electricity_circ_pump": 0.0600,
+            "electricity_part_load" : 0.0131,
+            "electricity_full_load" : 0.0388,
+            "electricity_standby" : 0.0244
+            }
+        
+        boilerservicewaterregular_dict = {
+            "temp_return": 60
+            }
+        
+        self.simtime = SimulationTime(0, 2, 1)
+        self.energysupply = EnergySupply("mains_gas", self.simtime)
+        self.volume_demanded = [10, 2]
+        self.temp_return_feed = [51.05, 60.00]
+
+        self.windspeed = [3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4]
+        self.airtemp = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
+        energy_supply_conn_name_auxiliary = 'Boiler_auxiliary'
+        self.airtemp = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
+        self.diffuse_horizontal_radiation = [333, 610, 572, 420, 0, 10, 90, 275]
+        self.direct_beam_radiation = [420, 750, 425, 500, 0, 40, 0, 388]
+        self.solar_reflectivity_of_ground = [0.2] * 8760
+        self.latitude = 51.42
+        self.longitude = -0.75
+        self.timezone = 0
+        self.start_day = 0
+        self.end_day = 0
+        self.time_series_step = 1
+        self.january_first = 1
+        self.daylight_savings = "not applicable"
+        self.leap_day_included = False
+        self.direct_beam_conversion_needed = False
+        self.shading_segments = [
+            {"number": 1, "start": 180, "end": 135},
+            {"number": 2, "start": 135, "end": 90},
+            {"number": 3, "start": 90, "end": 45},
+            {"number": 4, "start": 45, "end": 0},
+            {"number": 5, "start": 0, "end": -45},
+            {"number": 6, "start": -45, "end": -90},
+            {"number": 7, "start": -90, "end": -135},
+            {"number": 8, "start": -135, "end": -180}
+        ]
+        extcond = ExternalConditions(
+            self.simtime,
+            self.airtemp,
+            self.windspeed,
+            self.diffuse_horizontal_radiation,
+            self.direct_beam_radiation,
+            self.solar_reflectivity_of_ground,
+            self.latitude,
+            self.longitude,
+            self.timezone,
+            self.start_day,
+            self.end_day,
+            self.time_series_step,
+            self.january_first,
+            self.daylight_savings,
+            self.leap_day_included,
+            self.direct_beam_conversion_needed,
+            self.shading_segments
+            )
+
+        self.boiler = Boiler(
+            boiler_dict,
+            self.energysupply,
+            energy_supply_conn_name_auxiliary,
+            self.simtime,
+            extcond
+            )
+        self.boiler._Boiler__create_service_connection("boiler_test")
+
+        coldwatertemps = [1.0, 1.2]
+        coldfeed = ColdWaterSource(coldwatertemps, self.simtime, 0, 1)
+        return_temp = 60
+        self.boiler_service_water = BoilerServiceWaterRegular(
+            self.boiler,
+            boilerservicewaterregular_dict,
+            "boiler_test",
+            return_temp,
+            coldfeed,
+            return_temp,
+            self.simtime)
+
+    def test_boiler_service_water(self):
+        """ Test that Regular Boiler object returns correct hot water energy demand """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertAlmostEqual(
+                    self.boiler._Boiler__demand_energy(
+                        "boiler_test",
+                        ServiceType.WATER_REGULAR,
+                        [0.7241412, 0.1748878][t_idx],
+                        self.temp_return_feed[t_idx]
+                        ),
+                    [0.7241412, 0.1748878][t_idx],
+                    msg="incorrect energy_output_provided"
+                    )
+    
 class TestBoilerServiceSpace(unittest.TestCase):
     """ Unit tests for Boiler class """
 
@@ -339,7 +452,7 @@ class TestBoilerServiceSpace(unittest.TestCase):
             extcond
             )
         self.boiler._Boiler__create_service_connection("boiler_test")
-        self.boiler_service_space = BoilerServiceSpace(self.boiler, "boiler_test")
+        self.boiler_service_space = BoilerServiceSpace(self.boiler, "boiler_test", False)
 
     def test_boiler_service_space(self):
         """ Test that Boiler object returns correct space heating energy demand """

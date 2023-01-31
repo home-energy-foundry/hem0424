@@ -61,12 +61,15 @@ class Emitters:
         self.__zone = zone
         self.__simtime = simulation_time
         self.__external_conditions = ext_cond
-        self.__outside_temp = self.__external_conditions.air_temp()
+
         self.__ecodesign_control_class = Ecodesign_control_class.from_num(control_class)
         self.__design_flow_temp = design_flow_temp
         
         # Set initial values
         self.__temp_emitter_prev = 20.0
+
+    def temp_setpnt(self):
+        return self.__heat_source.temp_setpnt()
 
     def frac_convective(self):
         return self.__frac_convective
@@ -89,7 +92,9 @@ class Emitters:
             # TODO Ecodesign class VI has additional benefits from the use of an 
             # indoor temperature sensor to restrict boiler temperatures during 
             # low heat demand but not during high demand. 
-
+            
+            # use weather temperature at the timestep
+            outside_temp = self.__external_conditions.air_temp()
             # weather compensation properties could be an input
             # setting max flow temp as the design flow temperature
             min_outdoor_temp = -4.0 
@@ -100,7 +105,7 @@ class Emitters:
             flow_temp_limits = [min_flow_temp, self.__design_flow_temp]
 
             # Uses numpy interp
-            flow_temp = interp(self.__outside_temp, outdoor_temp_limits, flow_temp_limits)
+            flow_temp = interp(outside_temp, outdoor_temp_limits, flow_temp_limits)
 
         elif self.__ecodesign_control_class == Ecodesign_control_class.class_I \
             or self.__ecodesign_control_class == Ecodesign_control_class.class_IV :
@@ -226,21 +231,7 @@ class Emitters:
             = self.__thermal_mass * (temp_emitter_req - self.__temp_emitter_prev)
         energy_req_from_heat_source = max(energy_req_to_warm_emitters + energy_demand,0.0)
 
-        # Calculate emitter temp that can be achieved if heating on full power
-        # (adjusted for time spent on higher-priority services)
-        heating_sys_energy_max = self.__heat_source.energy_output_max(temp_flow_req)
-        heating_sys_power_max = heating_sys_energy_max / timestep
-        temp_emitter_max = self.temp_emitter(
-            0.0,
-            timestep,
-            self.__temp_emitter_prev,
-            temp_rm_prev,
-            heating_sys_power_max,
-            )
-
-        # Calculate target emitter and flow temperature, accounting for the
-        # max power of the heat source
-        temp_emitter_target = min(temp_emitter_req, temp_emitter_max)
+        # Calculate target flow and return temperature
         temp_flow_target, temp_return_target = self.temp_flow_return()
 
         return energy_req_from_heat_source, temp_flow_target, temp_return_target

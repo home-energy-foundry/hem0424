@@ -22,7 +22,6 @@ class TestExternalConditions(unittest.TestCase):
     def setUp(self):
         """ Create ExternalConditions object to be tested """
         self.simtime = SimulationTime(0, 8, 1)
-        self.windspeed = [3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4]
 
         air_temp_day_Jan = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 7.5,
                             10.0, 12.5, 15.0, 19.5, 17.0, 15.0, 12.0, 10.0, 7.0, 5.0, 3.0, 1.0
@@ -52,6 +51,35 @@ class TestExternalConditions(unittest.TestCase):
         self.airtemp.extend(air_temp_day_Oct * 31)
         self.airtemp.extend(air_temp_day_Nov * 30)
         self.airtemp.extend(air_temp_day_Dec * 31)
+
+        wind_speed_day_Jan = [4.7, 4.8, 4.9, 5.0, 5.1, 5.2, 5.3, 5.4, 5.7, 5.4, 5.6, 5.3,
+                              5.1, 4.8, 4.7, 4.6, 4.5, 4.2, 4.9, 4.3, 4.4, 4.5, 4.3, 4.6
+                           ]
+        wind_speed_day_Feb = [x - 0.1 for x in wind_speed_day_Jan]
+        wind_speed_day_Mar = [x - 0.2 for x in wind_speed_day_Jan]
+        wind_speed_day_Apr = [x - 0.6 for x in wind_speed_day_Jan]
+        wind_speed_day_May = [x - 0.8 for x in wind_speed_day_Jan]
+        wind_speed_day_Jun = [x - 1.1 for x in wind_speed_day_Jan]
+        wind_speed_day_Jul = [x - 1.2 for x in wind_speed_day_Jan]
+        wind_speed_day_Aug = [x - 1.2 for x in wind_speed_day_Jan]
+        wind_speed_day_Sep = [x - 1.1 for x in wind_speed_day_Jan]
+        wind_speed_day_Oct = [x - 0.7 for x in wind_speed_day_Jan]
+        wind_speed_day_Nov = [x - 0.5 for x in wind_speed_day_Jan]
+        wind_speed_day_Dec = [x - 0.3 for x in wind_speed_day_Jan]
+
+        self.windspeed = []
+        self.windspeed.extend(wind_speed_day_Jan * 31)
+        self.windspeed.extend(wind_speed_day_Feb * 28)
+        self.windspeed.extend(wind_speed_day_Mar * 31)
+        self.windspeed.extend(wind_speed_day_Apr * 30)
+        self.windspeed.extend(wind_speed_day_May * 31)
+        self.windspeed.extend(wind_speed_day_Jun * 30)
+        self.windspeed.extend(wind_speed_day_Jul * 31)
+        self.windspeed.extend(wind_speed_day_Aug * 31)
+        self.windspeed.extend(wind_speed_day_Sep * 30)
+        self.windspeed.extend(wind_speed_day_Oct * 31)
+        self.windspeed.extend(wind_speed_day_Nov * 30)
+        self.windspeed.extend(wind_speed_day_Dec * 31)
 
         self.diffuse_horizontal_radiation = [333, 610, 572, 420, 0, 10, 90, 275]
         self.direct_beam_radiation = [420, 750, 425, 500, 0, 40, 0, 388]
@@ -139,6 +167,15 @@ class TestExternalConditions(unittest.TestCase):
                     self.windspeed[t_idx],
                     "incorrect wind speed returned",
                     )
+
+    def test_wind_speed_annual(self):
+        """ Test that ExternalConditions object returns correct annual wind speed """
+        self.assertAlmostEqual(
+            self.extcond.wind_speed_annual(),
+            4.23,
+            2,
+            msg="incorrect annual wind speed returned"
+            )
 
     def test_diffuse_horizontal_radiation(self):
         """ Test that ExternalConditions object returns correct diffuse_horizontal_radiation """

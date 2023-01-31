@@ -239,6 +239,27 @@ class VentilationElementInfiltration:
         # TODO b_ztu needs to be applied in the case if ventilation element
         #      is adjacent to a thermally unconditioned zone.
 
+    def h_ve_average(self, zone_volume):
+        """ Calculate the heat transfer coefficient (h_ve), in W/K,
+        according to ISO 52016-1:2017, Section 6.5.10.1, for a constant average windspeed
+        
+        Arguments:
+        zone_volume -- volume of zone, in m3
+        """
+
+        # Apply wind speed correction factor
+        wind_factor = self.__external_conditions.wind_speed_annual() / 4.0  # using average annual wind speed
+        inf_rate = self.__infiltration * wind_factor
+
+        # Convert infiltration rate from ach to m^3/s
+        q_v = inf_rate * zone_volume / seconds_per_hour
+
+        # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
+        h_ve_average = p_a * c_a * q_v
+        return h_ve_average
+        # TODO b_ztu needs to be applied in the case if ventilation element
+        #      is adjacent to a thermally unconditioned zone.
+
     def temp_supply(self):
         """ Calculate the supply temperature of the air flow element
         according to ISO 52016-1:2017, Section 6.5.10.2 """
@@ -295,6 +316,11 @@ class MechnicalVentilationHeatRecovery:
         # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
         h_ve = p_a * c_a * q_v_effective
         return h_ve
+        # TODO b_ztu needs to be applied in the case if ventilation element
+        #      is adjacent to a thermally unconditioned zone.
+
+    def h_ve_average(self, zone_volume):
+        return self.h_ve(zone_volume)
         # TODO b_ztu needs to be applied in the case if ventilation element
         #      is adjacent to a thermally unconditioned zone.
 
@@ -398,6 +424,25 @@ class WholeHouseExtractVentilation:
         # TODO b_ztu needs to be applied in the case if ventilation element
         #      is adjacent to a thermally unconditioned zone.
 
+    def h_ve_average(self, zone_volume):
+        """ Calculate the heat transfer coefficient (h_ve), in W/K,
+        according to ISO 52016-1:2017, Section 6.5.10.1 using an average windspeed of 4 m/s
+
+        Arguments:
+        zone_volume -- volume of zone, in m3
+        """
+
+        infiltration_rate_adj \
+            = self.__infiltration_rate * self.__external_conditions.wind_speed_annual() / 4.0  # using average annual wind speed
+        ach = self.air_change_rate(infiltration_rate_adj)
+        q_v = air_change_rate_to_flow_rate(ach, zone_volume)
+
+        # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
+        h_ve_average = p_a * c_a * q_v
+        return h_ve_average
+        # TODO b_ztu needs to be applied in the case if ventilation element
+        #      is adjacent to a thermally unconditioned zone.
+
     def fans(self, zone_volume):
         """ Calculate gains and energy use due to fans """
         # Calculate energy use by fans (does not contribute to internal gains as
@@ -467,6 +512,25 @@ class NaturalVentilation:
         # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
         h_ve = p_a * c_a * q_v
         return h_ve
+        # TODO b_ztu needs to be applied in the case if ventilation element
+        #      is adjacent to a thermally unconditioned zone.
+
+    def h_ve_average(self, zone_volume):
+        """ Calculate the heat transfer coefficient (h_ve), in W/K,
+        according to ISO 52016-1:2017, Section 6.5.10.1
+
+        Arguments:
+        zone_volume -- volume of zone, in m3
+        """
+
+        infiltration_rate_adj \
+            = self.__infiltration_rate * self.__external_conditions.wind_speed_annual() / 4.0  # using average annual wind speed
+        ach = self.air_change_rate(infiltration_rate_adj)
+        q_v = air_change_rate_to_flow_rate(ach, zone_volume)
+
+        # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
+        h_ve_average = p_a * c_a * q_v
+        return h_ve_average
         # TODO b_ztu needs to be applied in the case if ventilation element
         #      is adjacent to a thermally unconditioned zone.
 

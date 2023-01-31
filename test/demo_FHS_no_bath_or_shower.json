@@ -101,6 +101,14 @@
 			"schedule": {
 				"main": [{"value": true, "repeat": 8760}]
 			}
+		},
+		"main__new_SetpointControl": {
+			"type": "SetpointTimeControl",
+			"start_day": 0,
+			"time_series_step": 1,
+			"schedule": {
+				"main": [{"repeat": 8760, "value": 21.0}]
+			}
 		}
 	},
 	"HotWaterSource": {
@@ -175,6 +183,7 @@
 			"type": "InstantElecHeater",
 			"rated_power": 6.0,
 			"frac_convective": 0.4,
+			"Control": "main__new_SetpointControl",
 			"EnergySupply": "mains elec"
 		}
 	},
