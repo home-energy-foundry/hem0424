@@ -11,7 +11,7 @@ based on BS EN ISO 52010-1:2017.
 
 # Standard library imports
 import sys
-from math import cos, sin, tan, pi, asin, acos, radians, degrees, exp, sqrt
+from math import cos, sin, tan, pi, asin, acos, radians, degrees, exp, sqrt, floor
 
 # Local imports
 import core.units as units
@@ -84,6 +84,72 @@ class ExternalConditions:
         self.__shading_segments = shading_segments
         self.__time_series_step = time_series_step
 
+        days_in_year = 366 if leap_day_included else 365
+        hours_in_year = days_in_year * 24
+        time_shift = self.__init_time_shift()
+
+        # Calculate earth orbit deviation for each day of year
+        earth_orbit_deviation = [
+            self.__init_earth_orbit_deviation(current_day)
+            for current_day in range(0, days_in_year)
+            ]
+        # Calculate extra terrestrial radiation
+        self.__extra_terrestrial_radiation = [
+            self.__init_extra_terrestrial_radiation(earth_orbit_deviation[current_day])
+            for current_day in range(0, days_in_year)
+            ]
+        # Calculate solar declination for each day of year
+        self.__solar_declination = [
+            self.__init_solar_declination(earth_orbit_deviation[current_day])
+            for current_day in range(0, days_in_year)
+            ]
+        # Calculate equation of time for each day of year
+        equation_of_time = [
+            self.__init_equation_of_time(current_day)
+            for current_day in range(0, days_in_year)
+            ]
+        # Calculate solar time for each hour of year
+        self.__solar_time = [
+            self.__init_solar_time(
+                floor(current_hour % 24),
+                equation_of_time[floor(current_hour / 24)],
+                time_shift,
+                )
+            for current_hour in range(0, hours_in_year)
+            ]
+        # Calculate solar hour angle for each hour of year
+        self.__solar_hour_angle = [
+            self.__init_solar_hour_angle(self.__solar_time[current_hour])
+            for current_hour in range(0, hours_in_year)
+            ]
+        # Calculate solar altitude for each hour of year
+        self.__solar_altitude = [
+            self.__init_solar_altitude(
+                self.__solar_declination[floor(current_hour / 24)],
+                self.__solar_hour_angle[current_hour],
+                )
+            for current_hour in range(0, hours_in_year)
+            ]
+        # Calculate solar zenith angle for each hour of year
+        self.__solar_zenith_angle = [
+            self.__init_solar_zenith_angle(self.__solar_altitude[current_hour])
+            for current_hour in range(0, hours_in_year)
+            ]
+        # Calculate solar azimuth angle for each hour of year
+        self.__solar_azimuth_angle = [
+            self.__init_solar_azimuth_angle(
+                self.__solar_declination[floor(current_hour / 24)],
+                self.__solar_hour_angle[current_hour],
+                self.__solar_altitude[current_hour],
+                )
+            for current_hour in range(0, hours_in_year)
+            ]
+        # Calculate air mass for each hour of year
+        self.__air_mass = [
+            self.__init_air_mass(self.__solar_altitude[current_hour])
+            for current_hour in range(0, hours_in_year)
+            ]
+
     def testoutput_setup(self,tilt,orientation):
         """ print output to a file for analysis """
 
@@ -115,23 +181,25 @@ class ExternalConditions:
         """ print output to a file for analysis """
 
         #call this function once during every timestep to test outputs
+        current_hour = self.__simulation_time.current_hour()
+        current_day = self.__simulation_time.current_day()
 
         #write headers
         with open("test_sunpath.txt", "a") as o:
             o.write("\n")
             o.write(str(self.__simulation_time.hour_of_day()))
             o.write(",")
-            o.write(str(self.solar_time()))
+            o.write(str(self.__solar_time[current_hour]))
             o.write(",")
-            o.write(str(self.solar_declination()))
+            o.write(str(self.__solar_declination[current_day]))
             o.write(",")
-            o.write(str(self.solar_hour_angle()))
+            o.write(str(self.__solar_hour_angle[current_hour]))
             o.write(",")
-            o.write(str(self.solar_altitude()))
+            o.write(str(self.__solar_altitude[current_hour]))
             o.write(",")
-            o.write(str(self.solar_azimuth_angle()))
+            o.write(str(self.__solar_azimuth_angle[current_hour]))
             o.write(",")
-            o.write(str(self.air_mass()))
+            o.write(str(self.__air_mass[current_hour]))
             o.write(",")
             o.write(str(self.sun_surface_azimuth(orientation)))
             o.write(",")
@@ -139,7 +207,7 @@ class ExternalConditions:
             o.write(",")
             o.write(str(self.solar_angle_of_incidence(tilt, orientation)))
             o.write(",")
-            o.write(str(self.extra_terrestrial_radiation()))
+            o.write(str(self.__extra_terrestrial_radiation[current_day]))
             o.write(",")
             o.write(str(self.F1()))
             o.write(",")
@@ -217,7 +285,8 @@ class ExternalConditions:
         normal beam irradiance is very sensative for tiny errors in the calculation of the 
         solar altitude."""
         if self.__direct_beam_conversion_needed:
-            sin_asol = sin(radians(self.solar_altitude()))
+            current_hour = self.__simulation_time.current_hour()
+            sin_asol = sin(radians(self.__solar_altitude[current_hour]))
             #prevent division by zero error. if sin_asol = 0 then the sun is lower than the
             #horizon and there will be no direct radiation to convert
             if sin_asol > 0:
@@ -284,10 +353,10 @@ class ExternalConditions:
         # or a statement of the contents of the weather data file
         # not current used
 
-    def earth_orbit_deviation(self):
+    def __init_earth_orbit_deviation(self, current_day):
         """ Calculate Rdc, the earth orbit deviation, as a function of the day, in degrees """
 
-        nday = self.__simulation_time.current_day() + 1
+        nday = current_day + 1
         # nday is the day of the year, from 1 to 365 or 366 (leap year)
         # Note that current_day function returns days numbered 0 to 364 or 365,
         # so we need to add 1 above
@@ -296,10 +365,10 @@ class ExternalConditions:
 
         return Rdc
 
-    def solar_declination(self):
+    def __init_solar_declination(self, earth_orbit_deviation):
         """ Calculate solar declination in degrees """
 
-        Rdc = radians(self.earth_orbit_deviation())
+        Rdc = radians(earth_orbit_deviation)
         # note we convert to radians for the python cos & sin inputs in formula below
 
         solar_declination = 0.33281 - 22.984 * cos(Rdc) - 0.3499 * cos(2 * Rdc) \
@@ -308,7 +377,7 @@ class ExternalConditions:
 
         return solar_declination
 
-    def equation_of_time(self):
+    def __init_equation_of_time(self, current_day):
         """ Calculate the equation of time """
 
         """ 
@@ -316,7 +385,7 @@ class ExternalConditions:
         nday is the day of the year, from 1 to 365 or 366 (leap year)
         """    
 
-        nday = self.__simulation_time.current_day() + 1
+        nday = current_day + 1
         # nday is the day of the year, from 1 to 365 or 366 (leap year)
         # Note that current_day function returns days numbered 0 to 364 or 365,
         # so we need to add 1 here
@@ -340,7 +409,7 @@ class ExternalConditions:
 
         return teq
 
-    def time_shift(self):
+    def __init_time_shift(self):
         """ Calculate the time shift, in hours, resulting from the fact that the 
         longitude and the path of the sun are not equal
 
@@ -350,7 +419,7 @@ class ExternalConditions:
         tshift = self.timezone() - self.longitude() / 15
         return tshift
 
-    def solar_time(self):
+    def __init_solar_time(self, hour_of_day, equation_of_time, time_shift):
         """ Calculate the solar time, tsol, as a function of the equation of time, 
         the time shift and the hour of the day """
 
@@ -358,14 +427,14 @@ class ExternalConditions:
         tsol is the solar time, in h
         nhour is the actual (clock) time for the location, the hour of the day, in h
         """
-        nhour = self.__simulation_time.hour_of_day() + 1
+        nhour = hour_of_day + 1
         #note we +1 here because the simulation hour of day starts at 0
         #while the sun path standard hour of day starts at 1 (hour 0 to 1)
-        tsol = nhour - (self.equation_of_time() / 60) - self.time_shift()
+        tsol = nhour - (equation_of_time / 60) - time_shift
 
         return tsol
 
-    def solar_hour_angle(self):
+    def __init_solar_hour_angle(self, solar_time):
         """ Calculate the solar hour angle, in the middle of the 
         current hour as a function of the solar time """
 
@@ -385,7 +454,7 @@ class ExternalConditions:
         at (solar) time = (N -0,5) h of the (solar) day.
         """
 
-        w = (180 / 12) * (12.5 - self.solar_time())
+        w = (180 / 12) * (12.5 - solar_time)
 
         if w > 180:
             w = w - 360
@@ -394,7 +463,7 @@ class ExternalConditions:
 
         return w
 
-    def solar_altitude(self):
+    def __init_solar_altitude(self, solar_declination, solar_hour_angle):
         """  the angle between the solar beam and the horizontal surface, determined 
              in the middle of the current hour as a function of the solar hour angle, 
              the solar declination and the latitude """
@@ -410,22 +479,24 @@ class ExternalConditions:
         # note that we convert to radians for the sin & cos python functions and then
         # we need to convert the result back to degrees after the arcsin transformation
 
-        asol = asin( sin(radians(self.solar_declination())) * sin(radians(self.latitude())) \
-                    + cos(radians(self.solar_declination())) * cos(radians(self.latitude())) * cos(radians(self.solar_hour_angle())))
+        asol = asin(
+            sin(radians(solar_declination)) * sin(radians(self.latitude())) \
+          + cos(radians(solar_declination)) * cos(radians(self.latitude())) * cos(radians(solar_hour_angle))
+          )
 
         if degrees(asol) < 0.0001:
             return (0)
 
         return degrees(asol)
 
-    def solar_zenith_angle(self):
+    def __init_solar_zenith_angle(self, solar_altitude):
         """  the complementary angle of the solar altitude """
 
-        zenith = 90 - self.solar_altitude()
+        zenith = 90 - solar_altitude
 
         return zenith
 
-    def solar_azimuth_angle(self):
+    def __init_solar_azimuth_angle(self, solar_declination, solar_hour_angle, solar_altitude):
         """  calculates the solar azimuth angle,
         angle from South, eastwards positive, westwards negative, in degrees """
 
@@ -434,14 +505,16 @@ class ExternalConditions:
         objects are in the direction of the sun
         """
 
-        sin_aux1_numerator = cos(radians(self.solar_declination())) * sin(radians(180 - self.solar_hour_angle()))
+        sin_aux1_numerator \
+            = cos(radians(solar_declination)) \
+            * sin(radians(180 - solar_hour_angle))
 
         cos_aux1_numerator = cos(radians(self.latitude())) \
-                    * sin(radians(self.solar_declination())) + sin(radians(self.latitude())) \
-                    * cos(radians(self.solar_declination())) \
-                    * cos(radians(180 - self.solar_hour_angle()))
+                    * sin(radians(solar_declination)) + sin(radians(self.latitude())) \
+                    * cos(radians(solar_declination)) \
+                    * cos(radians(180 - solar_hour_angle))
 
-        denominator = cos(asin(sin(radians(self.solar_altitude()))))
+        denominator = cos(asin(sin(radians(solar_altitude))))
 
         sin_aux1 = sin_aux1_numerator / denominator            
         cos_aux1 = cos_aux1_numerator / denominator 
@@ -459,11 +532,11 @@ class ExternalConditions:
 
         return solar_azimuth
 
-    def air_mass(self):
+    def __init_air_mass(self, solar_altitude):
         """  calculates the air mass, m, the distance the solar beam travels through the earth atmosphere.
         The air mass is determined as a function of the sine of the solar altitude angle """
 
-        sa = self.solar_altitude()
+        sa = solar_altitude
 
         if sa >= 10:
             m = 1 / sin(radians(sa))
@@ -485,17 +558,21 @@ class ExternalConditions:
                           surface normal, -180 to 180, in degrees;
         """
 
-        # set up the parameters first just to make the very long equation slightly more readable     
-        sin_dec = sin(radians(self.solar_declination()))
-        cos_dec = cos(radians(self.solar_declination()))
+        # set up the parameters first just to make the very long equation slightly more readable
+        current_day = self.__simulation_time.current_day()
+        solar_declination = self.__solar_declination[current_day]
+        sin_dec = sin(radians(solar_declination))
+        cos_dec = cos(radians(solar_declination))
         sin_lat = sin(radians(self.latitude()))
         cos_lat = cos(radians(self.latitude()))
         sin_t = sin(radians(tilt))
         cos_t = cos(radians(tilt))
         sin_o = sin(radians(orientation))
         cos_o = cos(radians(orientation))
-        sin_sha = sin(radians(self.solar_hour_angle()))
-        cos_sha = cos(radians(self.solar_hour_angle()))
+        current_hour = self.__simulation_time.current_hour()
+        solar_hour_angle = self.__solar_hour_angle[current_hour]
+        sin_sha = sin(radians(solar_hour_angle))
+        cos_sha = cos(radians(solar_hour_angle))
 
         solar_angle_of_incidence = acos( \
                                    sin_dec * sin_lat * cos_t \
@@ -582,7 +659,7 @@ class ExternalConditions:
 
         return direct_irradiance
 
-    def extra_terrestrial_radiation(self):
+    def __init_extra_terrestrial_radiation(self, earth_orbit_deviation):
         """  calculates the extra terrestrial radiation, the normal irradiance out of the atmosphere 
         as a function of the day
 
@@ -600,7 +677,7 @@ class ExternalConditions:
         #when it should be the solar constant, given elsewhere as 1367
         #we use the correct version of the formula here
 
-        extra_terrestrial_radiation = 1367 * (1 + 0.033 * cos(radians(self.earth_orbit_deviation())))
+        extra_terrestrial_radiation = 1367 * (1 + 0.033 * cos(radians(earth_orbit_deviation)))
 
         return extra_terrestrial_radiation
 
@@ -658,6 +735,7 @@ class ExternalConditions:
                           surface normal, -180 to 180, in degrees;
         """
 
+        current_hour = self.__simulation_time.current_hour()
         E = self.dimensionless_clearness_parameter()
         delta = self.dimensionless_sky_brightness_parameter()
 
@@ -668,7 +746,7 @@ class ExternalConditions:
         #The formulation of F1 is made so as to avoid non-physical negative values 
         #that may occur and result in unacceptable distortions if the model is used 
         #for very low solar elevation angles
-        F1 = max(0, f11 + f12 * delta + f13 * (pi * self.solar_zenith_angle() / 180))
+        F1 = max(0, f11 + f12 * delta + f13 * (pi * self.__solar_zenith_angle[current_hour] / 180))
 
         return F1
 
@@ -683,6 +761,7 @@ class ExternalConditions:
                           surface normal, -180 to 180, in degrees;
         """
 
+        current_hour = self.__simulation_time.current_hour()
         E = self.dimensionless_clearness_parameter()
         delta = self.dimensionless_sky_brightness_parameter()
 
@@ -698,16 +777,17 @@ class ExternalConditions:
         #away from the horizon. For overcast skies the horizon brightening has a 
         #negative value since for such skies the sky radiance increases rather than 
         #decreases away from the horizon.
-        F2 = f21 + f22 * delta + f23 * (pi * self.solar_zenith_angle() / 180)
+        F2 = f21 + f22 * delta + f23 * (pi * self.__solar_zenith_angle[current_hour] / 180)
 
         return F2
 
     def dimensionless_clearness_parameter(self):
         """ returns the dimensionless clearness parameter, E, anisotropic sky conditions (Perez model)"""
 
+        current_hour = self.__simulation_time.current_hour()
         Gsol_d = self.diffuse_horizontal_radiation()
         Gsol_b = self.direct_beam_radiation()
-        asol = self.solar_altitude()
+        asol = self.__solar_altitude[current_hour]
 
         #constant parameter for the clearness formula, K, in rad^-3 from table 9 of ISO 52010
         K = 1.014
@@ -732,8 +812,10 @@ class ExternalConditions:
 
         """
 
-        delta = self.air_mass() * self.diffuse_horizontal_radiation() \
-              / self.extra_terrestrial_radiation()
+        current_hour = self.__simulation_time.current_hour()
+        current_day = self.__simulation_time.current_day()
+        delta = self.__air_mass[current_hour] * self.diffuse_horizontal_radiation() \
+              / self.__extra_terrestrial_radiation[current_day]
 
         return delta
 
@@ -748,11 +830,12 @@ class ExternalConditions:
                           surface normal, -180 to 180, in degrees;
         """
 
+        current_hour = self.__simulation_time.current_hour()
         #dimensionless parameters a & b
         #describing the incidence-weighted solid angle sustained by the circumsolar region as seen 
         #respectively by the tilted surface and the horizontal. 
         a = max(0, cos(radians(self.solar_angle_of_incidence(tilt, orientation))))
-        b = max(cos(radians(85)), cos(radians(self.solar_zenith_angle())))
+        b = max(cos(radians(85)), cos(radians(self.__solar_zenith_angle[current_hour])))
 
         return a / b
 
@@ -793,9 +876,10 @@ class ExternalConditions:
         """
 
         #first set up parameters needed for the calculation
+        current_hour = self.__simulation_time.current_hour()
         Gsol_d = self.diffuse_horizontal_radiation()
         Gsol_b = self.direct_beam_radiation()
-        asol = radians(self.solar_altitude())
+        asol = radians(self.__solar_altitude[current_hour])
 
         ground_reflection_irradiance = (Gsol_d + Gsol_b * sin(asol)) * self.solar_reflectivity_of_ground() \
                                      * ((1 - cos(radians(tilt))) / 2)
@@ -916,8 +1000,9 @@ class ExternalConditions:
                           
         """
 
-        test1 = orientation - self.solar_azimuth_angle()
-        test2 = tilt - self.solar_altitude()
+        current_hour = self.__simulation_time.current_hour()
+        test1 = orientation - self.__solar_azimuth_angle[current_hour]
+        test2 = tilt - self.__solar_altitude[current_hour]
 
         if (-90 > test1 or test1 > 90):
             # surface outside solar beam
@@ -935,7 +1020,8 @@ class ExternalConditions:
 
         """
 
-        azimuth = self.solar_azimuth_angle()
+        current_hour = self.__simulation_time.current_hour()
+        azimuth = self.__solar_azimuth_angle[current_hour]
 
         for segment in self.__shading_segments:
             if (azimuth < segment["start"] and azimuth > segment["end"]):
@@ -956,7 +1042,8 @@ class ExternalConditions:
                          and the shading obstacle p in segment i, in m
         """
 
-        Hshade = max(0, Hobst - Hkbase - Lkobst * tan(radians(self.solar_altitude())))
+        current_hour = self.__simulation_time.current_hour()
+        Hshade = max(0, Hobst - Hkbase - Lkobst * tan(radians(self.__solar_altitude[current_hour])))
         return Hshade
 
     def overhang_shading_height(self, Hk, Hkbase, Hovh, Lkovh ):
@@ -1021,8 +1108,9 @@ class ExternalConditions:
         # (note only applicable to transparent building elements so window_shading
         # will always be False for other elements)
         if window_shading:
-            altitude = self.solar_altitude()
-            azimuth = self.solar_azimuth_angle()
+            current_hour = self.__simulation_time.current_hour()
+            altitude = self.__solar_altitude[current_hour]
+            azimuth = self.__solar_azimuth_angle[current_hour]
             # if there is then loop through all objects and calc shading heights/widths
             for shade_obj in window_shading:
                 depth = shade_obj["depth"]
