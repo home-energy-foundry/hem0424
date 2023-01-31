@@ -111,6 +111,8 @@ class TestVentilationElementInfiltration(unittest.TestCase):
                     "incorrect heat transfer coeffient (h_ve) returned"
                     )
 
+    # TODO add tests for h_ve_average - requires wind speeds for whole year
+
     def test_temp_supply(self):
         """ Test that the correct external temperature is returned when queried """
         for t_idx, _, _ in self.simtime:
@@ -162,6 +164,8 @@ class TestMechnicalVentilationHeatRecovery(unittest.TestCase):
                     4.28975166666666,
                     msg="incorrect heat transfer coeffient (h_ve) returned"
                     )
+
+    # TODO add tests for h_ve_average
 
     def test_fans(self):
         """ Test that correct fan gains and energy use are calculated """
@@ -238,6 +242,8 @@ class TestWholeHouseExtractVentilation(unittest.TestCase):
                     results[t_idx],
                     msg="incorrect heat transfer coeffient (h_ve) returned"
                     )
+
+    # TODO add tests for h_ve_average
 
     def test_fans(self):
         """ Test that correct fan gains and energy use are calculated """

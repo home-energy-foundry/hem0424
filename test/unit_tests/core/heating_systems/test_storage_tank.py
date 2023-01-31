@@ -28,7 +28,7 @@ class Test_StorageTank(unittest.TestCase):
         coldwatertemps = [10.0, 10.1, 10.2, 10.5, 10.6, 11.0, 11.5, 12.1]
         self.simtime     = SimulationTime(0, 8, 1)
         coldfeed         = ColdWaterSource(coldwatertemps, self.simtime, 0, 1)
-        self.storagetank = StorageTank(150.0, 1.68, 55.0, coldfeed, self.simtime, None, WATER)
+        self.storagetank = StorageTank(150.0, 1.68, 55.0, coldfeed, self.simtime, None, None, WATER)
         control          = OnOffTimeControl(
                                [True, False, False, False, True, True, True, True],
                                self.simtime,
@@ -48,27 +48,27 @@ class Test_StorageTank(unittest.TestCase):
                 #print(self.storagetank._StorageTank__temp_n)
                 self.assertListEqual(
                     self.storagetank._StorageTank__temp_n,
-                    [[55, 55, 55, 55],
-                     [43.538093827160495, 54.595555555555556, 54.595555555555556, 54.595555555555556],
-                     [30.827117778420643, 50.07409375884502, 54.19530534979424, 54.19530534979424],
-                     [20.483675222718627, 40.07251184772483, 51.73330420939261, 53.79920588690749],
+                    [[43.5117037037037, 54.595555555555556, 54.595555555555556, 54.595555555555556],
+                     [34.923351362284535, 51.44088940589104, 54.19530534979424, 54.19530534979424],
+                     [25.428671888696492, 44.86111831060492, 52.763271736704276, 53.79920588690749],
+                     [17.778914378539547, 34.731511258769736, 48.38455458241966, 52.883165319588585],
                      [55, 55, 55, 55],
+                     [32.955654320987655, 54.595555555555556, 54.595555555555556, 54.595555555555556],
                      [55, 55, 55, 55],
-                     [55, 55, 55, 55],
-                     [55, 55, 55, 55]][t_idx],
+                     [33.53623703703703, 54.595555555555556, 54.595555555555556, 54.595555555555556]][t_idx],
                     "incorrect temperatures returned"
                     )
                 #print(self.energysupply.results_by_end_user()["immersion"][t_idx])
                 self.assertEqual(
                     self.energysupply.results_by_end_user()["immersion"][t_idx],
-                    [0.5586414814814873,
+                    [0.0,
                      0.0,
                      0.0,
                      0.0,
-                     3.3824624299642423,
-                     1.0235303703703664,
-                     1.0119081481481444,
-                     0.9979614814814752][t_idx],
+                     3.9189973050595626,
+                     0.0,
+                     2.0255553251028573,
+                     0.0][t_idx],
                     "incorrect energy supplied returned",
                     )
 

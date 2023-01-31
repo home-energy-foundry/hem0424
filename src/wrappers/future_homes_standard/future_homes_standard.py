@@ -16,13 +16,13 @@ from core import project, schedule
 this_directory = os.path.dirname(os.path.relpath(__file__))
 FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_04-11-2022.csv")
 
-def apply_fhs_preprocessing(project_dict):
+def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
     
     project_dict['SimulationTime']["start"] = 0
     project_dict['SimulationTime']["end"] = 8760
     
-    project_dict['InternalGains'].pop("total_internal_gains", None)
+    project_dict['InternalGains']={}
     
     
     TFA = calc_TFA(project_dict)
@@ -31,14 +31,14 @@ def apply_fhs_preprocessing(project_dict):
     #construct schedules
     schedule_occupancy_weekday, schedule_occupancy_weekend = create_occupancy(N_occupants)
     create_metabolic_gains(
-        project_dict, 
+        project_dict,
         TFA, 
         schedule_occupancy_weekday, 
         schedule_occupancy_weekend)
     
     create_heating_pattern(project_dict)
     create_evaporative_losses(project_dict, TFA, N_occupants)
-    create_lighting_gains(project_dict, TFA, N_occupants)
+    create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc)
     create_cooking_gains(project_dict,TFA, N_occupants)
     create_appliance_gains(project_dict, TFA, N_occupants)
     create_hot_water_use_pattern(project_dict, TFA, N_occupants)
@@ -252,7 +252,7 @@ def create_heating_pattern(project_dict):
     
     livingroom_setpoint_fhs = 21.0
     restofdwelling_setpoint_fhs = 18.0
-    
+
     #07:30-09:30 and then 16:30-22:00
     heating_fhs_weekday = (
         [False for x in range(14)] +
@@ -281,30 +281,70 @@ def create_heating_pattern(project_dict):
     the heating times are necessarily the same as the living room,
     so the evening heating period would also start at 16:30 on weekdays.
     '''
+    
+    
     for zone in project_dict['Zone']:
         if "SpaceHeatControl" in project_dict["Zone"][zone].keys():
             if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom":
-                project_dict['Zone'][zone]['temp_setpnt_heat'] = livingroom_setpoint_fhs
                 project_dict['Control']['HeatingPattern_LivingRoom'] = {
-                    "type": "OnOffTimeControl",
+                    "type": "SetpointTimeControl",
                     "start_day" : 0,
                     "time_series_step":0.5,
                     "schedule": {
                         "main": [{"repeat": 53, "value": "week"}],
                         "week": [{"repeat": 5, "value": "weekday"},
                                  {"repeat": 2, "value": "weekend"}],
-                        "weekday": heating_fhs_weekday,
-                        "weekend": heating_fhs_weekend
+                        "weekday": [livingroom_setpoint_fhs if x
+                                    else None
+                                    for x in heating_fhs_weekday],
+                        "weekend": [livingroom_setpoint_fhs if x
+                                    else None
+                                    for x in heating_fhs_weekend],
                     }
                 }
+                if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
+                    spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
+                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_LivingRoom"
+                    if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
+                        project_dict['Control']['HeatingPattern_LivingRoom']['setpoint_min'] \
+                            = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
+
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling":
-                project_dict['Zone'][zone]['temp_setpnt_heat'] = restofdwelling_setpoint_fhs
                 project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
+                    "type": "SetpointTimeControl",
+                    "start_day" : 0,
+                    "time_series_step":0.5,
+                    "schedule":{
+                        "main": [{"repeat": 53, "value": "week"}],
+                        "week": [{"repeat": 5, "value": "weekday"},
+                                 {"repeat": 2, "value": "weekend"}],
+                        "weekday": [restofdwelling_setpoint_fhs if x
+                                    else None
+                                    for x in heating_nonlivingarea_fhs_weekday],
+                        "weekend": [restofdwelling_setpoint_fhs if x
+                                    else None
+                                    for x in heating_fhs_weekend],
+                    }
+                }
+                if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
+                    spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
+                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_RestOfDwelling"
+                    if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
+                        project_dict['Control']['HeatingPattern_RestOfDwelling']['setpoint_min'] \
+                            = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
+    '''
+    water heating pattern - same as space heating
+    '''
+
+    for hwsource in project_dict['HotWaterSource']:
+        # Instantaneous water heating systems must be available 24 hours a day
+        if project_dict['HotWaterSource'][hwsource]["type"] == "StorageTank":
+            for heatsource in project_dict['HotWaterSource'][hwsource]["HeatSource"]:
+                hwcontrolname = project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"]
+                project_dict["Control"][hwcontrolname] = {
                     "type": "OnOffTimeControl",
                     "start_day" : 0,
                     "time_series_step":0.5,
-                    '''schedules need to be specified in Zone inputs'''
-                    "setpoint":restofdwelling_setpoint_fhs,
                     "schedule":{
                         "main": [{"repeat": 53, "value": "week"}],
                         "week": [{"repeat": 5, "value": "weekday"},
@@ -313,25 +353,6 @@ def create_heating_pattern(project_dict):
                         "weekend": heating_fhs_weekend
                     }
                 }
-    '''
-    water heating pattern - same as space heating
-    '''
-
-    for hwsource in project_dict['HotWaterSource']:
-        for heatsource in project_dict['HotWaterSource'][hwsource]["HeatSource"]:
-            hwcontrolname = project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"]
-            project_dict["Control"][hwcontrolname] = {
-                "type": "OnOffTimeControl",
-                "start_day" : 0,
-                "time_series_step":0.5,
-                "schedule":{
-                    "main": [{"repeat": 53, "value": "week"}],
-                    "week": [{"repeat": 5, "value": "weekday"},
-                             {"repeat": 2, "value": "weekend"}],
-                    "weekday": heating_nonlivingarea_fhs_weekday,
-                    "weekend": heating_fhs_weekend
-                }
-            }
     
 
 
@@ -347,7 +368,7 @@ def create_evaporative_losses(project_dict,TFA, N_occupants):
         }
     } #repeats for length of simulation which in FHS should be whole year.
 
-def create_lighting_gains(project_dict, TFA, N_occupants):
+def create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc):
     '''
     Calculate the annual energy requirement in kWh using the procedure described in SAP 10.2 up to and including step 9.
     Divide this by 365 to get the average daily energy use.
@@ -446,9 +467,12 @@ def create_lighting_gains(project_dict, TFA, N_occupants):
          0.014552683, 0.014347935, 0.014115058, 0.013739051, 0.014944386, 0.017543021, 0.021605977, 0.032100988,
          0.049851633, 0.063453382, 0.072579104, 0.076921792, 0.079601317, 0.079548711, 0.078653413, 0.076225647,
          0.073936893, 0.073585752, 0.071911165, 0.069220452, 0.065925982, 0.059952377, 0.0510938, 0.041481111]]
-    
-    lumens = 11.2 * 59.73 * (TFA * N_occupants) ** 0.4714
-    
+
+    if running_FEE_calc:
+        lumens = TFA * 185
+    else:
+        lumens = 11.2 * 59.73 * (TFA * N_occupants) ** 0.4714
+
     kWhperyear = 1/3 * lumens/21 + 2/3 * lumens/lighting_efficacy
     kWhperday = kWhperyear / 365
     #lighting_energy_kWh=[]
@@ -883,38 +907,70 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
 
 
 def create_cooling(project_dict):
-    '''
-    TODO - only do this if there is a cooling system present
-    '''
     cooling_setpoint = 24.0
+
+    # TODO The livingroom subschedules below have the same time pattern as the
+    #      livingroom heating schedules. Consolidate these definitions to avoid
+    #      repetition.
+
+    #07:30-09:30 and then 16:30-22:00
+    cooling_subschedule_livingroom_weekday = (
+        [None for x in range(14)] +
+        [cooling_setpoint for x in range(5)] +
+        [None for x in range(14)] +
+        [cooling_setpoint for x in range(11)] +
+        [None for x in range(4)])
+
+    #08:30 - 22:00
+    cooling_subschedule_livingroom_weekend = (
+        [None for x in range(17)] +
+        [cooling_setpoint for x in range(28)] +
+        [None for x in range(3)])
+
     cooling_subschedule_restofdwelling = (
         #22:00-07:00 - ie nighttime only
-        [True for x in range(14)] +
-        [False for x in range(30)] +
-        [True for x in range(4)]
+        [cooling_setpoint for x in range(14)] +
+        [None for x in range(30)] +
+        [cooling_setpoint for x in range(4)]
     )
     
     for zone in project_dict['Zone']:
         if "SpaceHeatControl" in project_dict['Zone'][zone]:
-            if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom" and "Cooling" in project_dict['Zone'][zone]:
-                cooling_schedule_livingroom = project_dict['Control']['HeatingPattern_LivingRoom']['schedule']
-                project_dict['Zone'][zone]['temp_setpnt_cool'] = cooling_setpoint
+            if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom" and "SpaceCoolSystem" in project_dict['Zone'][zone]:
                 project_dict['Control']['Cooling_LivingRoom'] = {
-                    "start_day" : 0,
-                    "time_series_step":0.5,
-                    "schedule": cooling_schedule_livingroom
-                }
-                
-            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" and "Cooling" in project_dict['Zone'][zone]:
-                project_dict['Zone'][zone]['temp_setpnt_cool'] = cooling_setpoint
-                project_dict['Control']['Cooling_RestOfDwelling'] = {
+                    "type": "SetpointTimeControl",
                     "start_day" : 0,
                     "time_series_step":0.5,
                     "schedule": {
-                        "main": [{"repeat": 365, "value": cooling_subschedule_restofdwelling}]
+                        "main": [{"repeat": 53, "value": "week"}],
+                        "week": [{"repeat": 5, "value": "weekday"},
+                                 {"repeat": 2, "value": "weekend"}],
+                        "weekday": cooling_subschedule_livingroom_weekday,
+                        "weekend": cooling_subschedule_livingroom_weekend,
                     }
                 }
-        
+                spacecoolsystem = project_dict["Zone"][zone]["SpaceCoolSystem"]
+                project_dict["SpaceCoolSystem"][spacecoolsystem]["Control"] = "Cooling_LivingRoom"
+                if 'temp_setback' in project_dict["SpaceCoolSystem"][spacecoolsystem].keys():
+                    project_dict['Control']['Cooling_LivingRoom']['setpoint_max'] \
+                        = project_dict["SpaceCoolSystem"][spacecoolsystem]['temp_setback']
+
+            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" and "SpaceCoolSystem" in project_dict['Zone'][zone]:
+                project_dict['Control']['Cooling_RestOfDwelling'] = {
+                    "type": "SetpointTimeControl",
+                    "start_day" : 0,
+                    "time_series_step":0.5,
+                    "schedule": {
+                        "main": [{"repeat": 365, "value": "day"}],
+                        "day": cooling_subschedule_restofdwelling
+                    }
+                }
+                spacecoolsystem = project_dict["Zone"][zone]["SpaceCoolSystem"]
+                project_dict["SpaceCoolSystem"][spacecoolsystem]["Control"] = "Cooling_RestOfDwelling"
+                if 'temp_setback' in project_dict["SpaceCoolSystem"][spacecoolsystem].keys():
+                    project_dict['Control']['Cooling_RestOfDwelling']['setpoint_max'] \
+                        = project_dict["SpaceCoolSystem"][spacecoolsystem]['temp_setback']
+
 
 def create_cold_water_feed_temps(project_dict):
     

@@ -11,7 +11,10 @@ based on BS EN ISO 52010-1:2017.
 
 # Standard library imports
 import sys
-from math import cos, sin, tan, pi, asin, acos, radians, degrees
+from math import cos, sin, tan, pi, asin, acos, radians, degrees, exp, sqrt
+
+# Local imports
+import core.units as units
 
 class ExternalConditions:
     """ An object to store and look up data on external conditions """
@@ -148,7 +151,7 @@ class ExternalConditions:
             o.write(",")
             o.write(str(self.a_over_b(tilt, orientation)))
             o.write(",")
-            o.write(str(self.diffuse_irradiance(tilt, orientation)))
+            o.write(str(self.diffuse_irradiance(tilt, orientation)[0]))
             o.write(",")
             o.write(str(self.ground_reflection_irradiance(tilt)))
             o.write(",")
@@ -183,6 +186,13 @@ class ExternalConditions:
     def wind_speed(self):
         """ Return the wind speed for the current timestep """
         return self.__wind_speeds[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
+
+    def wind_speed_annual(self):
+        """ Return the average wind speed for the year """
+        # Only works if data for whole year has been provided, so assert this is true
+        assert len(self.__wind_speeds) \
+            == units.hours_per_day * units.days_per_year / self.__time_series_step
+        return sum(self.__wind_speeds) / len(self.__wind_speeds)
 
     def diffuse_horizontal_radiation(self):
         """ Return the diffuse_horizontal_radiation for the current timestep """
@@ -762,15 +772,15 @@ class ExternalConditions:
         Gsol_d = self.diffuse_horizontal_radiation()
         F1 = self.F1()
         F2 = self.F2()
-        a_over_b = self.a_over_b(tilt, orientation)
 
-        #main calculation using all the above parameters
-        diffuse_irradiance = Gsol_d * ( (1 - F1) \
-                            * ((1 + cos(radians(tilt))) / 2) \
-                            + F1 * a_over_b + F2 * sin(radians(tilt)) \
-                            )
+        # Calculate components of diffuse radiation
+        diffuse_irr_sky = Gsol_d * (1 - F1) * ((1 + cos(radians(tilt))) / 2)
+        diffuse_irr_circumsolar = self.circumsolar_irradiance(tilt, orientation)
+        diffuse_irr_horiz = Gsol_d * F2 * sin(radians(tilt))
 
-        return diffuse_irradiance
+        diffuse_irr_total = diffuse_irr_sky + diffuse_irr_circumsolar + diffuse_irr_horiz
+
+        return diffuse_irr_total, diffuse_irr_sky, diffuse_irr_circumsolar, diffuse_irr_horiz
 
     def ground_reflection_irradiance(self, tilt):
         """  calculates the contribution of the ground reflection to the irradiance on the inclined surface, 
@@ -838,8 +848,11 @@ class ExternalConditions:
                           surface normal, -180 to 180, in degrees;
         """
 
-        calculated_diffuse = self.diffuse_irradiance(tilt, orientation) \
-                           - self.circumsolar_irradiance(tilt, orientation) \
+        diffuse_irr_total, _, diffuse_irr_circumsolar, _ \
+            = self.diffuse_irradiance(tilt, orientation)
+
+        calculated_diffuse = diffuse_irr_total \
+                           - diffuse_irr_circumsolar \
                            + self.ground_reflection_irradiance(tilt)
 
         return calculated_diffuse
@@ -861,6 +874,29 @@ class ExternalConditions:
                          + self.calculated_diffuse_irradiance(tilt, orientation)
 
         return total_irradiance
+
+    def calculated_direct_diffuse_total_irradiance(self, tilt, orientation, diffuse_breakdown=False):
+        diffuse_irr_total, diffuse_irr_sky, diffuse_irr_circumsolar, diffuse_irr_horiz \
+            = self.diffuse_irradiance(tilt, orientation)
+        ground_refl_irr = self.ground_reflection_irradiance(tilt)
+
+        calculated_direct = self.direct_irradiance(tilt, orientation) + diffuse_irr_circumsolar
+        calculated_diffuse = diffuse_irr_total \
+                           - diffuse_irr_circumsolar \
+                           + ground_refl_irr
+        total_irradiance = calculated_direct \
+                         + calculated_diffuse
+
+        if diffuse_breakdown:
+            diffuse_res_breakdown = {
+                'sky': diffuse_irr_sky,
+                'circumsolar': diffuse_irr_circumsolar,
+                'horiz': diffuse_irr_horiz,
+                'ground_refl': ground_refl_irr,
+                }
+            return calculated_direct, calculated_diffuse, total_irradiance, diffuse_res_breakdown
+        else:
+            return calculated_direct, calculated_diffuse, total_irradiance
 
     # end of sun path calculations from ISO 52010
     # below are overshading calculations from ISO 52016
@@ -1048,8 +1084,210 @@ class ExternalConditions:
 
         return Fdir
 
-    def shading_reduction_factor(self, base_height, height, width, tilt, orientation, window_shading):
-        """ calculates the shading factor due to external
+    def diffuse_shading_reduction_factor(
+            self,
+            diffuse_breakdown,
+            tilt,
+            height,
+            width,
+            window_shading,
+            ):
+        """ calculates the shading factor of diffuse radiation due to external
+        shading objects
+
+        Arguments:
+        height         -- is the height of the shaded surface (if surface is tilted then
+                          this must be the vertical projection of the height), in m
+        base_height    -- is the base height of the shaded surface k, in m
+        width          -- is the width of the shaded surface, in m
+        orientation    -- is the orientation angle of the inclined surface, expressed as the 
+                          geographical azimuth angle of the horizontal projection of the 
+                          inclined surface normal, -180 to 180, in degrees;
+        window_shading -- data on overhangs and side fins associated to this building element
+                          includes the shading object type, depth, and distance from element
+        """
+        # Note: Shading factor for circumsolar radiation is same as for direct.
+        #       As circumsolar radiation will be subtracted from diffuse and
+        #       added to direct later on, we don't need to do anything for
+        #       circumsolar radiation here and it is excluded.
+        diffuse_irr_sky = diffuse_breakdown['sky']
+        diffuse_irr_hor = diffuse_breakdown['horiz']
+        diffuse_irr_ref = diffuse_breakdown['ground_refl']
+        diffuse_irr_total = diffuse_irr_sky + diffuse_irr_hor + diffuse_irr_ref
+
+        # TODO Calculate shading from distant objects (PD CEN ISO/TR 52016-2:2017 Section F.6.2)
+        # TODO Loop over segments
+        # TODO     Calculate sky-diffuse shading factor for the segment
+        # TODO     Calculate horiz-diffuse shading factor for the segment
+        # TODO Sum product of shading factor and irradiance for each element
+
+        # Calculate shading from fins and overhangs (PD CEN ISO/TR 52016-2:2017 Section F.6.3)
+        # TODO Alpha is not defined in this standard but is possibly the angular
+        #      height of the horizon. This would make some sense as raising the
+        #      horizon angle would have essentially the same effect as increasing
+        #      the tilt of the building element so it would make sense to add it
+        #      to beta when calculating the sky view factor. The overall effect
+        #      of changing alpha when there are no fins or overhangs seems to be
+        #      to decrease the shading factor (meaning more shading) for diffuse
+        #      radiation from sky and horizon, and to increase the shading factor
+        #      for radiation reflected from the ground (sometimes to above 1),
+        #      which would also seem to make sense as in this case there is less
+        #      sky and more ground in view than in the basic assumption of
+        #      perfectly flat surroundings.
+        # TODO Should angular height of horizon be user input or derived from
+        #      calculation of distant shading objects above? Set to zero for now
+        angular_height_of_horizon = 0.0
+        alpha = radians(angular_height_of_horizon)
+        # TODO Beta is not defined in this standard but is used for tilt of the
+        #      building element in BS EN ISO 52016-1:2017, so assuming the same.
+        #      This seems to give sensible numbers for the sky view factor
+        #      F_w_sky when alpha = 0
+        beta = radians(tilt)
+
+        # Unpack window shading details
+        D_ovh = 0.0
+        L_ovh = 1.0 # Cannot be zero as this leads to divide-by-zero later on
+        D_finR = 0.0
+        L_finR = 1.0 # Cannot be zero as this leads to divide-by-zero later on
+        D_finL = 0.0
+        L_finL = 1.0 # Cannot be zero as this leads to divide-by-zero later on
+        if window_shading:
+            for shade_obj in window_shading:
+                if shade_obj["type"] == "overhang":
+                    D_ovh = shade_obj["depth"]
+                    L_ovh = shade_obj["distance"]
+                elif shade_obj["type"] == "sidefinright":
+                    D_finR = shade_obj["depth"]
+                    L_finR = shade_obj["distance"]
+                elif shade_obj["type"] == "sidefinleft":
+                    D_finL = shade_obj["depth"]
+                    L_finL = shade_obj["distance"]
+                else:
+                    sys.exit("shading object type" + shade_obj["type"] + "not recognised")
+
+        # Calculate required geometric ratios
+        # Note: PD CEN ISO/TR 52016-2:2017 Section F.6.3 refers to ISO 52016-1:2017
+        #       Section F.5.5.1.6 for the definition of P1 and P2. However, this
+        #       section does not exist. Therefore, these definitions have been
+        #       taken from Section F.3.5.1.2 instead, also supported by Table F.6
+        #       in PD CEN ISO/TR 52016-2:2017. These sources define P1 and P2
+        #       differently for fins and for overhangs so it is assumed that
+        #       should also apply here.
+        P1_ovh = D_ovh / height
+        P2_ovh = L_ovh / height
+        P1_finL = D_finL / width
+        P2_finL = L_finL / width
+        P1_finR = D_finR / width
+        P2_finR = L_finR / width
+
+        # Calculate view factors (eqns F.15 to F.18) required for eqns F.9 to F.14
+        # Note: The equations in the standard refer to P1 and P2, but as per the
+        #       comment above, there are different definitions of these for fins
+        #       and for overhangs. The decision on which ones to use for each of
+        #       the equations below has been made depending on which of the
+        #       subsequent equations the resulting variables are used in (e.g.
+        #       F_w_s is used to calculate F_sh_dif_fins so we use P1 and P2 for
+        #       fins).
+        # Note: For F_w_r, we could set P1 equal to P1 for fins and P2 equal to
+        #       P1 (not P2) for overhangs, as this appears to be consistent with
+        #       example in Table F.6
+        # F_w_r = 1 - exp(-0.8632 * (P1_fin + P1_ovh))
+        # Note: Formula in standard for view factor to fins seems to assume that
+        #       fins are the same on each side. Therefore, here we take the
+        #       average of this view factor calculated with the dimensions of
+        #       each fin.
+        F_w_s \
+            = ( 0.6514 * (1 - (P2_finL / sqrt(P1_finL * P1_finL + P2_finL * P2_finL)))
+              + 0.6514 * (1 - (P2_finR / sqrt(P1_finR * P1_finR + P2_finR * P2_finR)))
+              ) \
+            / 2
+        F_w_o = 0.3282 * (1 - (P2_ovh / sqrt(P1_ovh * P1_ovh + P2_ovh * P2_ovh)))
+        F_w_sky = (1 - sin(alpha + beta - radians(90))) / 2
+
+        # Calculate denominators of eqns F.9 to F.14
+        view_factor_sky_no_obstacles = (1 + cos(beta)) / 2
+        view_factor_ground_no_obstacles = (1 - cos(beta)) / 2
+
+        # Setback and remote obstacles (eqns F.9 and F.10): Top half of each eqn
+        # is view factor to sky (F.9) or ground (F.10) with setback and distant
+        # obstacles
+        # TODO Uncomment these lines when definitions of P1 and P2 in formula
+        #      for F_w_r have been confirmed.
+        # if view_factor_sky_no_obstacles == 0:
+        #     # Shading makes no difference if sky not visible (avoid divide-by-zero)
+        #     F_sh_dif_setback = 1.0
+        # else:
+        #     F_sh_dif_setback = (1 - F_w_r) * F_w_sky \
+        #                      / view_factor_sky_no_obstacles
+        # if view_factor_ground_no_obstacles == 0:
+        #     # Shading makes no difference if ground not visible (avoid divide-by-zero)
+        #     F_sh_ref_setback = 1.0
+        # else:
+        #     F_sh_ref_setback = (1 - F_w_r) * (1 - F_w_sky) \
+        #                      / view_factor_ground_no_obstacles
+
+        # Fins and remote obstacles (eqns F.11 and F.12): Top half of each eqn
+        # is view factor to sky (F.11) or ground (F.12) with fins and distant
+        # obstacles
+        if view_factor_sky_no_obstacles == 0:
+            # Shading makes no difference if sky not visible (avoid divide-by-zero)
+            F_sh_dif_fins = 1.0
+        else:
+            F_sh_dif_fins = (1 - F_w_s) * F_w_sky \
+                          / view_factor_sky_no_obstacles
+        if view_factor_ground_no_obstacles == 0:
+            # Shading makes no difference if ground not visible (avoid divide-by-zero)
+            F_sh_ref_fins = 1.0
+        else:
+            F_sh_ref_fins = (1 - F_w_s) * (1 - F_w_sky) \
+                          / view_factor_ground_no_obstacles
+
+        # Overhangs and remote obstacles (eqns F.13 and F.14)
+        # Top half of eqn F.13 is view factor to sky with overhangs
+        if view_factor_sky_no_obstacles == 0:
+            # Shading makes no difference if sky not visible (avoid divide-by-zero)
+            F_sh_dif_overhangs = 1.0
+        else:
+            F_sh_dif_overhangs = (F_w_sky - F_w_o) \
+                               / view_factor_sky_no_obstacles
+        # Top half of eqn F.14 is view factor to ground with distant obstacles,
+        # but does not account for overhangs blocking any part of the view of
+        # the ground, presumably because this will not happen in the vast
+        # majority of cases
+        if view_factor_ground_no_obstacles == 0:
+            # Shading makes no difference if ground not visible (avoid divide-by-zero)
+            F_sh_ref_overhangs = 1.0
+        else:
+            F_sh_ref_overhangs = (1 - F_w_sky) \
+                               / view_factor_ground_no_obstacles
+
+        # Keep the smallest of the three shading reduction factors as the
+        # diffuse or reflected shading factor. Also enforce that these cannot be
+        # negative (which may happen with some extreme tilt values)
+        # TODO Add setback shading factors to the arguments to min function when
+        #      definitions of P1 and P2 in formula for F_w_r have been confirmed.
+        # F_sh_dif = max(0.0, min(F_sh_dif_setback, F_sh_dif_fins, F_sh_dif_overhangs))
+        # F_sh_ref = max(0.0, min(F_sh_ref_setback, F_sh_ref_fins, F_sh_ref_overhangs))
+        F_sh_dif = max(0.0, min(F_sh_dif_fins, F_sh_dif_overhangs))
+        F_sh_ref = max(0.0, min(F_sh_ref_fins, F_sh_ref_overhangs))
+
+        Fdiff = ( F_sh_dif * (diffuse_irr_sky + diffuse_irr_hor)
+                + F_sh_ref * diffuse_irr_ref
+                ) \
+              / diffuse_irr_total
+
+        return Fdiff
+
+    def shading_reduction_factor_direct_diffuse(
+            self,
+            base_height,
+            height,
+            width,
+            tilt,
+            orientation,
+            window_shading,
+            ):
+        """ calculates the direct and diffuse shading factors due to external
         shading objects
 
         Arguments:
@@ -1069,10 +1307,10 @@ class ExternalConditions:
         # first chceck if there is any radiation. This is needed to prevent a potential 
         # divide by zero error in the final step, but also, if there is no radiation 
         # then shading is irrelevant and we can skip the whole calculation
-        direct = self.calculated_direct_irradiance(tilt, orientation)
-        diffuse = self.calculated_diffuse_irradiance(tilt, orientation)
+        direct, diffuse, _, diffuse_breakdown \
+            = self.calculated_direct_diffuse_total_irradiance(tilt, orientation, True)
         if direct + diffuse == 0:
-            return 0
+            return 0.0, 0.0
 
         # first check if the surface is outside the solar beam
         # if so then direct shading is complete and we don't need to
@@ -1083,7 +1321,15 @@ class ExternalConditions:
             Fdir = self.direct_shading_reduction_factor \
                     (base_height, height, width, orientation, window_shading)
 
-        return Fdir
+        Fdiff = self.diffuse_shading_reduction_factor(
+            diffuse_breakdown,
+            tilt,
+            height,
+            width,
+            window_shading,
+            )
+
+        return Fdir, Fdiff
 
         # TODO suspected bug identified in ISO 52016 as it conflicts with ISO 52010:
         #ISO 52010 states that (6.4.5.2.1) the total irradiance on the inclined surface is

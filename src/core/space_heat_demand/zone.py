@@ -6,6 +6,9 @@ This module provides objects to represent the thermal zones in the building,
 and to calculate the temperatures in the zone and associated building elements.
 """
 
+# Standard library imports
+import sys
+
 # Third-party imports
 import numpy as np
 
@@ -36,8 +39,7 @@ class Zone:
             building_elements,
             thermal_bridging,
             vent_elements,
-            temp_setpnt_heat,
-            temp_setpnt_cool,
+            print_heat_balance = False,
             ):
         """ Construct a Zone object
 
@@ -50,8 +52,7 @@ class Zone:
                                bridges in the zone, in W / K
                              - list of ThermalBridge objects for this zone
         vent_elements     -- list of ventilation elements (infiltration, mech vent etc.)
-        temp_setpnt_heat  -- temperature setpoint for heating, in deg C
-        temp_setpnt_cool  -- temperature setpoint for cooling, in deg C
+        print_heat_balance-- flag to indicate whether to print the heat balance breakdown
 
         Other variables:
         area_el_total     -- total area of all building elements associated
@@ -92,10 +93,6 @@ class Zone:
         else:
             self.__tb_heat_trans_coeff = thermal_bridging
 
-        # TODO Make the temperature setpoints inputs for each timestep
-        self.__temp_setpnt_heat = temp_setpnt_heat
-        self.__temp_setpnt_cool = temp_setpnt_cool
-
         self.__area_el_total = sum([eli.area for eli in self.__building_elements])
         self.__c_int = k_m_int * area
 
@@ -116,6 +113,8 @@ class Zone:
         # Set starting point for temperatures (self.__temp_prev)
         # TODO Currently hard-coded to 10.0 deg C - make this configurable?
         self.__temp_prev = [10.0] * self.__no_of_temps
+
+        self.__print_heat_balance = print_heat_balance
 
     def area(self):
         return self.__useful_area
@@ -141,6 +140,7 @@ class Zone:
             gains_solar,
             gains_heat_cool,
             f_hc_c,
+            print_heat_balance = False,
             ):
         """ Calculate temperatures according to procedure in BS EN ISO 52016-1:2017, section 6.5.6
 
@@ -152,6 +152,7 @@ class Zone:
         gains_solar     -- directly transmitted solar gains, in W
         gains_heat_cool -- gains from heating (positive) or cooling (negative), in W
         f_hc_c          -- convective fraction for heating/cooling
+        print_heat_balance -- flag to record whether to return the heat balance outputs
 
         Temperatures are calculated by solving (for X) a matrix equation A.X = B, where:
         A is a matrix of known coefficients
@@ -210,9 +211,11 @@ class Zone:
             # Coeff for temperature of next node
             matrix_a[idx][idx + 1] = - eli.h_pli[i]
             # RHS of heat balance eqn for this node
+            i_sol_dir, i_sol_dif = eli.i_sol_dir_dif()
+            f_sh_dir, f_sh_dif = eli.shading_factors_direct_diffuse()
             vector_b[idx] = (eli.k_pli[i] / delta_t) * temp_prev[idx] \
                           + (eli.h_ce() + eli.h_re()) * eli.temp_ext() \
-                          + eli.a_sol * (eli.i_sol_dif() + eli.i_sol_dir() * eli.shading_factor()) \
+                          + eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
                           - eli.therm_rad_to_sky
 
             # Inside node(s), if any (eqn 40)
@@ -297,7 +300,30 @@ class Zone:
 
         # Solve matrix eqn A.X = B to calculate vector_x (temperatures)
         vector_x = np.linalg.solve(matrix_a, vector_b)
-        return vector_x
+
+        if print_heat_balance:
+            #collect heat balance outputs in W
+            temp_internal = vector_x[self.__zone_idx]
+            hb_gains_solar = f_sol_c * gains_solar
+            hb_gains_internal = f_int_c * gains_internal
+            hb_gains_heat_cool = f_hc_c * gains_heat_cool
+            hb_energy_to_change_temp = (self.__c_int / delta_t)*(temp_internal-temp_prev[self.__zone_idx])
+            hb_loss_thermal_bridges = self.__tb_heat_trans_coeff*(temp_internal-temp_ext_air)
+            hb_loss_ventilation = sum([vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply()) for vei in self.__vent_elements])
+            hb_loss_fabric = (hb_gains_solar+hb_gains_internal+hb_gains_heat_cool+hb_energy_to_change_temp)\
+                            -(hb_loss_thermal_bridges+hb_loss_ventilation)
+            heat_balance_dict = {
+                'solar gains' : hb_gains_solar,
+                'internal gains' : hb_gains_internal,
+                'heating or cooling system gains' : hb_gains_heat_cool,
+                'energy to change internal temperature' : hb_energy_to_change_temp,
+                'heat loss through thermal bridges' : hb_loss_thermal_bridges,
+                'heat loss through ventilation' : hb_loss_ventilation,
+                'fabric heat loss' : hb_loss_fabric
+                                }
+        else:
+            heat_balance_dict = None
+        return vector_x, heat_balance_dict
 
     def __temp_operative(self, temp_vector):
         """ Calculate the operative temperature, in deg C
@@ -332,6 +358,8 @@ class Zone:
             gains_solar,
             frac_convective_heat,
             frac_convective_cool,
+            temp_setpnt_heat,
+            temp_setpnt_cool,
             ):
         """ Calculate heating and cooling demand in the zone for the current timestep
 
@@ -344,7 +372,12 @@ class Zone:
         gains_solar -- directly transmitted solar gains, in W
         frac_convective_heat -- convective fraction for heating
         frac_convective_cool -- convective fraction for cooling
+        temp_setpnt_heat -- temperature setpoint for heating, in deg C
+        temp_setpnt_cool -- temperature setpoint for cooling, in deg C
         """
+        if temp_setpnt_cool < temp_setpnt_heat:
+            sys.exit('ERROR: Cooling setpoint is below heating setpoint.')
+
         # Calculate timestep in seconds
         delta_t = delta_t_h * units.seconds_per_hour
 
@@ -352,7 +385,7 @@ class Zone:
         gains_heat_cool = 0.0
 
         # Calculate node and internal air temperatures with heating/cooling gains of zero
-        temp_vector_no_heat_cool = self.__calc_temperatures(
+        temp_vector_no_heat_cool, _ = self.__calc_temperatures(
             delta_t,
             self.__temp_prev,
             temp_ext_air,
@@ -368,25 +401,25 @@ class Zone:
 
         # Determine relevant setpoint (if neither, then return space heating/cooling demand of zero)
         # Determine maximum heating/cooling
-        if temp_operative_free > self.__temp_setpnt_cool:
+        if temp_operative_free > temp_setpnt_cool:
             # Cooling
             # TODO Implement eqn 26 "if max power available" case rather than just "otherwise" case?
             #      Could max. power be available at this point for all heating/cooling systems?
-            temp_setpnt = self.__temp_setpnt_cool
+            temp_setpnt = temp_setpnt_cool
             heat_cool_load_upper = - 10.0 * self.__useful_area
             frac_convective = frac_convective_cool
-        elif temp_operative_free < self.__temp_setpnt_heat:
+        elif temp_operative_free < temp_setpnt_heat:
             # Heating
             # TODO Implement eqn 26 "if max power available" case rather than just "otherwise" case?
             #      Could max. power be available at this point for all heating/cooling systems?
-            temp_setpnt = self.__temp_setpnt_heat
+            temp_setpnt = temp_setpnt_heat
             heat_cool_load_upper = 10.0 * self.__useful_area
             frac_convective = frac_convective_heat
         else:
             return 0.0, 0.0 # No heating or cooling load
 
         # Calculate node and internal air temperatures with maximum heating/cooling
-        temp_vector_upper_heat_cool = self.__calc_temperatures(
+        temp_vector_upper_heat_cool, _ = self.__calc_temperatures(
             delta_t,
             self.__temp_prev,
             temp_ext_air,
@@ -433,11 +466,12 @@ class Zone:
         gains_solar     -- directly transmitted solar gains, in W
         gains_heat_cool -- gains from heating (positive) or cooling (negative), in W
         frac_convective -- convective fraction for heating/cooling (as appropriate)
+        heat_balance_dict -- dictionary to record heat balance outputs
         """
 
         # Calculate node and internal air temperatures with calculated heating/cooling gains.
         # Save as "previous" temperatures for next timestep
-        self.__temp_prev = self.__calc_temperatures(
+        self.__temp_prev, heat_balance_dict = self.__calc_temperatures(
             delta_t,
             self.__temp_prev,
             temp_ext_air,
@@ -445,4 +479,37 @@ class Zone:
             gains_solar,
             gains_heat_cool,
             frac_convective,
+            self.__print_heat_balance,
             )
+        return heat_balance_dict
+
+    def total_fabric_heat_loss(self):
+        """ Return the total fabric heat loss from all 
+        building elements in a zone, in W / K """
+        total_fabric_heat_loss = 0
+        for be in self.__building_elements:
+            total_fabric_heat_loss += be.fabric_heat_loss()
+        return total_fabric_heat_loss
+
+    def total_heat_capacity(self):
+        """ Return the total heat capacity from all building elements in a zone
+        excluding ground and transparent elements, in kJ / K """
+        # TODO Exclude solid door (opaque building element), or define convention
+        #      that heat capacity of solid doors can be entered as zero
+        total_heat_capacity = 0
+        for be in self.__building_elements:
+            total_heat_capacity += be.heat_capacity()
+        return total_heat_capacity
+
+    def total_thermal_bridges(self):
+        """ Return the total heat transfer coefficient for all
+        thermal bridges in a zone, in W / K """
+        return self.__tb_heat_trans_coeff
+
+    def total_vent_heat_loss(self):
+        """ Return the ventilation heat loss from all ventilation elements, in W / K """
+        total_vent_heat_loss = 0
+        for ve in self.__vent_elements:
+            total_vent_heat_loss += ve.h_ve_average(self.__volume)
+        return total_vent_heat_loss
+        
