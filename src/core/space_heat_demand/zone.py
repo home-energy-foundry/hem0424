@@ -6,11 +6,17 @@ This module provides objects to represent the thermal zones in the building,
 and to calculate the temperatures in the zone and associated building elements.
 """
 
+# Standard library imports
+import sys
+
 # Third-party imports
 import numpy as np
 
 # Local imports
 import core.units as units
+from core.space_heat_demand.ventilation_element import \
+    MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation, \
+    VentilationElementInfiltration, NaturalVentilation
 
 # Convective fractions
 # (default values from BS EN ISO 52016-1:2017, Table B.11)
@@ -141,6 +147,7 @@ class Zone:
             gains_solar,
             gains_heat_cool,
             f_hc_c,
+            throughput_factor=1.0,
             ):
         """ Calculate temperatures according to procedure in BS EN ISO 52016-1:2017, section 6.5.6
 
@@ -152,6 +159,8 @@ class Zone:
         gains_solar     -- directly transmitted solar gains, in W
         gains_heat_cool -- gains from heating (positive) or cooling (negative), in W
         f_hc_c          -- convective fraction for heating/cooling
+        throughput_factor -- proportional increase in ventilation rate due to
+                             overventilation requirement
 
         Temperatures are calculated by solving (for X) a matrix equation A.X = B, where:
         A is a matrix of known coefficients
@@ -267,6 +276,24 @@ class Zone:
         # - Calculate RHS of zone heat balance eqn and add to vector_b
 
         # Coeff for temperature of thermal zone
+        # TODO Throughput factor only applies to MVHR and WHEV, therefore only
+        #      these systems accept throughput_factor as an argument to the h_ve
+        #      function, hence the branch on the type in the loop below. This
+        #      means that the MVHR and WHEV classes no longer have the same
+        #      interface as other ventilation element classes, which could make
+        #      future development more difficult. Ideally, we would find a
+        #      cleaner way to implement this difference.
+        sum_vent_elements_h_ve = 0.0
+        for vei in self.__vent_elements:
+            if type(vei) in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation):
+                sum_vent_elements_h_ve \
+                    += vei.h_ve(self.__volume, throughput_factor)
+            elif type(vei) in (VentilationElementInfiltration, NaturalVentilation):
+                sum_vent_elements_h_ve \
+                    += vei.h_ve(self.__volume)
+            else:
+                sys.exit( 'Applicability of throughput factor not defined for '
+                        + 'ventilation element type ' + type(vei))
         matrix_a[self.__zone_idx][self.__zone_idx] \
             = (self.__c_int / delta_t) \
             + sum([ eli.area
@@ -276,7 +303,7 @@ class Zone:
                       )
                   for eli in self.__building_elements
                   ]) \
-            + sum([vei.h_ve(self.__volume) for vei in self.__vent_elements]) \
+            + sum_vent_elements_h_ve \
             + self.__tb_heat_trans_coeff
         # Add final sum term for LHS of eqn 38 in loop below.
         # These are coeffs for temperatures of internal surface nodes of
@@ -287,9 +314,27 @@ class Zone:
                 = - eli.area \
                 * eli.h_ci(temp_prev[self.__zone_idx], temp_prev[self.__element_positions[eli][1]])
         # RHS of heat balance eqn for zone
+        # TODO Throughput factor only applies to MVHR and WHEV, therefore only
+        #      these systems accept throughput_factor as an argument to the h_ve
+        #      function, hence the branch on the type in the loop below. This
+        #      means that the MVHR and WHEV classes no longer have the same
+        #      interface as other ventilation element classes, which could make
+        #      future development more difficult. Ideally, we would find a
+        #      cleaner way to implement this difference.
+        sum_vent_elements_h_ve_times_temp_supply = 0.0
+        for vei in self.__vent_elements:
+            if type(vei) in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation):
+                sum_vent_elements_h_ve_times_temp_supply \
+                    += vei.h_ve(self.__volume, throughput_factor) * vei.temp_supply()
+            elif type(vei) in (VentilationElementInfiltration, NaturalVentilation):
+                sum_vent_elements_h_ve_times_temp_supply \
+                    += vei.h_ve(self.__volume) * vei.temp_supply()
+            else:
+                sys.exit( 'Applicability of throughput factor not defined for '
+                        + 'ventilation element type ' + type(vei))
         vector_b[self.__zone_idx] \
             = (self.__c_int / delta_t) * temp_prev[self.__zone_idx] \
-            + sum([vei.h_ve(self.__volume) * vei.temp_supply() for vei in self.__vent_elements]) \
+            + sum_vent_elements_h_ve_times_temp_supply \
             + self.__tb_heat_trans_coeff * temp_ext_air \
             + f_int_c * gains_internal \
             + f_sol_c * gains_solar \
@@ -332,6 +377,7 @@ class Zone:
             gains_solar,
             frac_convective_heat,
             frac_convective_cool,
+            throughput_factor=1.0,
             ):
         """ Calculate heating and cooling demand in the zone for the current timestep
 
@@ -344,6 +390,8 @@ class Zone:
         gains_solar -- directly transmitted solar gains, in W
         frac_convective_heat -- convective fraction for heating
         frac_convective_cool -- convective fraction for cooling
+        throughput_factor -- proportional increase in ventilation rate due to
+                             overventilation requirement
         """
         # Calculate timestep in seconds
         delta_t = delta_t_h * units.seconds_per_hour
@@ -360,6 +408,7 @@ class Zone:
             gains_solar,
             gains_heat_cool,
             1.0, # Value does not matter as gains_heat_cool = 0.0
+            throughput_factor,
             )
 
         # Calculate internal operative temperature at free-floating conditions
@@ -394,6 +443,7 @@ class Zone:
             gains_solar,
             heat_cool_load_upper,
             frac_convective,
+            throughput_factor,
             )
 
         # Calculate internal operative temperature with maximum heating/cooling
@@ -423,6 +473,7 @@ class Zone:
             gains_solar,
             gains_heat_cool,
             frac_convective,
+            throughput_factor=1.0,
             ):
         """ Update node and internal air temperatures for calculation of next timestep
 
@@ -433,6 +484,8 @@ class Zone:
         gains_solar     -- directly transmitted solar gains, in W
         gains_heat_cool -- gains from heating (positive) or cooling (negative), in W
         frac_convective -- convective fraction for heating/cooling (as appropriate)
+        throughput_factor -- proportional increase in ventilation rate due to
+                             overventilation requirement
         """
 
         # Calculate node and internal air temperatures with calculated heating/cooling gains.
@@ -445,4 +498,5 @@ class Zone:
             gains_solar,
             gains_heat_cool,
             frac_convective,
+            throughput_factor,
             )

@@ -57,6 +57,10 @@ class SourceType(Enum):
 
     @classmethod
     def is_exhaust_air(cls, source_type):
+        # If string has been provided, convert to SourceType before running check
+        if isinstance(source_type, str):
+            source_type = cls.from_string(source_type)
+
         if source_type in (cls.EXHAUST_AIR_MEV, cls.EXHAUST_AIR_MVHR, cls.EXHAUST_AIR_MIXED):
             return True
         elif source_type in (cls.GROUND, cls.OUTSIDE_AIR, cls.WATER_GROUND, cls.WATER_SURFACE):

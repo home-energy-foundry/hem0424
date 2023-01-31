@@ -22,6 +22,13 @@ def air_change_rate_to_flow_rate(air_change_rate, zone_volume):
     return air_change_rate * zone_volume / seconds_per_hour
 
 
+# TODO Throughput factor only applies to MVHR and WHEV, therefore only these
+#      systems accept throughput_factor as an argument to the h_ve function.
+#      This means that the MVHR and WHEV classes no longer have the same
+#      interface as other ventilation element classes, which could make future
+#      development more difficult. Ideally, we would find a cleaner way to
+#      implement this difference.
+
 class VentilationElementInfiltration:
     """ A class to represent infiltration ventilation elements """
 
@@ -266,15 +273,17 @@ class MechnicalVentilationHeatRecovery:
         self.__external_conditions = ext_con
         self.__simtime = simulation_time
 
-    def h_ve(self, zone_volume):
+    def h_ve(self, zone_volume, throughput_factor=1.0):
         """ Calculate the heat transfer coefficient (h_ve), in W/K,
         according to ISO 52016-1:2017, Section 6.5.10.1
 
         Arguments:
         zone_volume -- volume of zone, in m3
+        throughput_factor -- proportional increase in ventilation rate due to
+                             overventilation requirement
         """
 
-        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume)
+        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume) * throughput_factor
 
         # Calculate effective flow rate of external air
         # NOTE: Technically, the MVHR system supplies air at a higher temperature
@@ -368,19 +377,20 @@ class WholeHouseExtractVentilation:
             ach = 0.5 * self.__air_change_rate_req
         return ach
 
-    def h_ve(self, zone_volume):
+    def h_ve(self, zone_volume, throughput_factor=1.0):
         """ Calculate the heat transfer coefficient (h_ve), in W/K,
         according to ISO 52016-1:2017, Section 6.5.10.1
 
         Arguments:
         zone_volume -- volume of zone, in m3
-        inf_rate -- air change rate of ventilation system
+        throughput_factor -- proportional increase in ventilation rate due to
+                             overventilation requirement
         """
 
         infiltration_rate_adj \
             = self.__infiltration_rate * self.__external_conditions.wind_speed() / 4.0
         ach = self.air_change_rate(infiltration_rate_adj)
-        q_v = air_change_rate_to_flow_rate(ach, zone_volume)
+        q_v = air_change_rate_to_flow_rate(ach, zone_volume) * throughput_factor
 
         # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
         h_ve = p_a * c_a * q_v
