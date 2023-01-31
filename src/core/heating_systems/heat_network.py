@@ -127,16 +127,18 @@ class HeatNetworkServiceSpace(HeatNetworkService):
     This object contains the parts of the heat network calculation that are
     specific to providing space heating-.
     """
-    def __init__(self, heat_network, service_name):
+    def __init__(self, heat_network, service_name, control):
         """ Construct a HeatNetworkSpace object
 
         Arguments:
         heat_network -- reference to the HeatNetwork object providing the service
         service_name -- name of the service demanding energy from the heat network
+        control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
         super().__init__(heat_network, service_name)
 
         self.__service_name = service_name
+        self.__control = control
 
     def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the heat network """
@@ -150,6 +152,9 @@ class HeatNetworkServiceSpace(HeatNetworkService):
     def energy_output_max(self, temp_output):
         """ Calculate the maximum energy output of the heat network"""
         return self._heat_network._HeatNetwork__energy_output_max(temp_output)
+
+    def temp_setpnt(self):
+        return self.__control.setpnt()
 
 
 class HeatNetwork:
@@ -230,15 +235,16 @@ class HeatNetwork:
 
         return HeatNetworkServiceWaterStorage(self, service_name)
 
-    def create_service_space_heating(self, service_name):
+    def create_service_space_heating(self, service_name, control):
         """ Return a HeatNetworkServiceSpace object and create an EnergySupplyConnection for it
 
         Arguments:
         service_name -- name of the service demanding energy from the heat network
+        control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
         self.__create_service_connection(service_name)
 
-        return HeatNetworkServiceSpace(self, service_name)
+        return HeatNetworkServiceSpace(self, service_name, control)
 
     def __demand_energy(
             self,

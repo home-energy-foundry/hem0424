@@ -622,7 +622,7 @@ class Project:
                 # Create list of internal gains for each hour of the year, in W / m2
                 internal_gains_HIU = [heat_source.HIU_loss(data['HIU_daily_loss']) \
                                         * units.W_per_kW \
-                                        / total_floor_area]
+                                        / self.__total_floor_area]
                 total_internal_gains_HIU = internal_gains_HIU * units.days_per_year * units.hours_per_day
                 # TODO do we need to include losses from HW cylinder here?
                 # Append internal gains object to self.__internal_gains dictionary
@@ -826,6 +826,7 @@ class Project:
                 elif isinstance(heat_source, HeatNetwork):
                     heat_source_service = heat_source.create_service_space_heating(
                         data['HeatSource']['name'] + '_space_heating: ' + name,
+                        ctrl,
                         )
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
