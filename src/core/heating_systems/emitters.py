@@ -184,7 +184,7 @@ class Emitters:
         temp_diff_emitter_rm_final = temp_diff_emitter_rm_results.y[0][-1]
         return temp_rm + temp_diff_emitter_rm_final
 
-    def __energy_provided_by_heat_source(self, energy_demand, timestep, temp_rm_prev):
+    def __energy_required_from_heat_source(self, energy_demand, timestep, temp_rm_prev):
         # When there is some demand, calculate max. emitter temperature
         # achievable and emitter temperature required, and base calculation
         # on the lower of the two.
@@ -243,15 +243,7 @@ class Emitters:
         temp_emitter_target = min(temp_emitter_req, temp_emitter_max)
         temp_flow_target, temp_return_target = self.temp_flow_return()
 
-        # Get energy output of heat source (i.e. energy input to emitters)
-        # TODO Instead of passing temp_flow_req into heating system module,
-        #      calculate average flow temp achieved across timestep?
-        energy_provided_by_heat_source = self.__heat_source.demand_energy(
-            energy_req_from_heat_source,
-            temp_flow_target,
-            temp_return_target,
-            )
-        return energy_provided_by_heat_source
+        return energy_req_from_heat_source, temp_flow_target, temp_return_target
 
     def demand_energy(self, energy_demand):
         """ Demand energy from emitters and calculate how much energy can be provided
@@ -267,8 +259,16 @@ class Emitters:
             energy_provided_by_heat_source = 0.0
         else:
             # Emitters warming up or cooling down to a target temperature
-            energy_provided_by_heat_source \
-                = self.__energy_provided_by_heat_source(energy_demand, timestep, temp_rm_prev)
+            energy_req_from_heat_source, temp_flow_target, temp_return_target \
+                = self.__energy_required_from_heat_source(energy_demand, timestep, temp_rm_prev)
+            # Get energy output of heat source (i.e. energy input to emitters)
+            # TODO Instead of passing temp_flow_req into heating system module,
+            #      calculate average flow temp achieved across timestep?
+            energy_provided_by_heat_source = self.__heat_source.demand_energy(
+                energy_req_from_heat_source,
+                temp_flow_target,
+                temp_return_target,
+                )
 
         # Calculate emitter temperature and output achieved at end of timestep.
         # Do not allow emitter temp to fall below room temp
@@ -289,6 +289,37 @@ class Emitters:
         self.__temp_emitter_prev = temp_emitter
 
         return energy_released_from_emitters
+
+    def running_time_throughput_factor(
+            self,
+            energy_demand,
+            space_heat_running_time_cumulative,
+            ):
+        """ Return the cumulative running time and throughput factor for the heat source
+
+        Arguments:
+        energy_demand -- in kWh
+        space_heat_running_time_cumulative
+            -- running time spent on higher-priority space heating services
+        """
+        timestep = self.__simtime.timestep()
+        temp_rm_prev = self.__zone.temp_internal_air()
+
+        if energy_demand <= 0:
+            # Emitters cooling down or at steady-state with heating off
+            # In this case, running time is 0.0 and throughput factor is 1.0
+            return 0.0, 1.0
+        else:
+            # Emitters warming up or cooling down to a target temperature
+            energy_req_from_heat_source, temp_flow_target, temp_return_target \
+                = self.__energy_required_from_heat_source(energy_demand, timestep, temp_rm_prev)
+            return self.__heat_source.running_time_throughput_factor(
+                space_heat_running_time_cumulative,
+                energy_req_from_heat_source,
+                temp_flow_target,
+                temp_return_target,
+                )
+
 
 class Ecodesign_control_class(Enum):
     # on/off room thermostat

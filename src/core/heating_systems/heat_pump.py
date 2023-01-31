@@ -64,6 +64,37 @@ class SourceType(Enum):
         else:
             sys.exit('SourceType (' + str(source_type) + ') not defined as exhaust air or not.')
 
+    @classmethod
+    def source_fluid_is_air(cls, source_type):
+        # If string has been provided, convert to SourceType before running check
+        if isinstance(source_type, str):
+            source_type = cls.from_string(source_type)
+
+        if source_type \
+        in (cls.OUTSIDE_AIR, cls.EXHAUST_AIR_MEV, cls.EXHAUST_AIR_MVHR, cls.EXHAUST_AIR_MIXED):
+            return True
+        elif source_type in (cls.GROUND, cls.WATER_GROUND, cls.WATER_SURFACE):
+            return False
+        else:
+            sys.exit( 'SourceType (' + str(source_type) \
+                    + ') not defined as having air as source fluid or not.')
+
+    @classmethod
+    def source_fluid_is_water(cls, source_type):
+        # If string has been provided, convert to SourceType before running check
+        if isinstance(source_type, str):
+            source_type = cls.from_string(source_type)
+
+        if source_type in (cls.GROUND, cls.WATER_GROUND, cls.WATER_SURFACE):
+            return True
+        elif source_type \
+        in (cls.OUTSIDE_AIR, cls.EXHAUST_AIR_MEV, cls.EXHAUST_AIR_MVHR, cls.EXHAUST_AIR_MIXED):
+            return False
+        else:
+            sys.exit( 'SourceType (' + str(source_type) \
+                    + ') not defined as having water as source fluid or not.')
+
+
 class SinkType(Enum):
     AIR = auto()
     WATER = auto()
@@ -924,6 +955,31 @@ class HeatPumpServiceSpace(HeatPumpService):
             temp_spread_correction = self.temp_spread_correction,
             )
 
+    def running_time_throughput_factor(
+            self,
+            space_heat_running_time_cumulative,
+            energy_demand,
+            temp_flow,
+            temp_return,
+            ):
+        """ Return the cumulative running time and throughput factor (exhaust air HPs only) """
+        service_on = self.is_on()
+        if not service_on:
+            energy_demand = 0.0
+
+        return self._HeatPumpService__hp._HeatPump__running_time_throughput_factor(
+            space_heat_running_time_cumulative,
+            self._HeatPumpService__service_name,
+            ServiceType.SPACE,
+            energy_demand,
+            Celcius2Kelvin(temp_flow),
+            Celcius2Kelvin(temp_return),
+            self.__temp_limit_upper,
+            self.__TIME_CONSTANT_SPACE,
+            service_on,
+            temp_spread_correction = self.temp_spread_correction,
+            )
+
     def temp_spread_correction(self, temp_output, temp_source):
         """Calculate temperature spread correction """
         # Average temperature difference between heat transfer medium and
@@ -936,9 +992,9 @@ class HeatPumpServiceSpace(HeatPumpService):
         #      in BS EN ISO 15316-4-2:2008 were positive (although some were
         #      different numbers) and signs in temp_spread_correction equation
         #      have not changed, so need to check which is correct.
-        if self._HeatPumpService__hp._HeatPump__source_type == SourceType.OUTSIDE_AIR:
+        if SourceType.source_fluid_is_air(self._HeatPumpService__hp._HeatPump__source_type):
             temp_diff_evaporator = - 15.0
-        elif self._HeatPumpService__hp._HeatPump__source_type == SourceType.GROUND:
+        elif SourceType.source_fluid_is_water(self._HeatPumpService__hp._HeatPump__source_type):
             temp_diff_evaporator = - 10.0
         else:
             sys.exit('SourceType not recognised')
@@ -1043,6 +1099,7 @@ class HeatPump:
         self.__energy_supply = energy_supply
         self.__simulation_time = simulation_time
         self.__external_conditions = external_conditions
+        self.__throughput_exhaust_air = throughput_exhaust_air
 
         self.__energy_supply_connections = {}
         self.__energy_supply_connection_aux \
@@ -1087,6 +1144,9 @@ class HeatPump:
 
         # Parse and initialise heat pump test data
         self.__test_data = HeatPumpTestData(hp_dict['test_data'])
+
+    def source_is_exhaust_air(self):
+        return SourceType.is_exhaust_air(self.__source_type)
 
     def __create_service_connection(self, service_name):
         """ Return a HeatPumpService object """
@@ -1160,10 +1220,12 @@ class HeatPump:
             temp_source = max(0, min(8, temp_ext * 0.25806 + 2.8387))
         elif self.__source_type == SourceType.OUTSIDE_AIR:
             temp_source = self.__external_conditions.air_temp()
-        # elif self.__source_type == SourceType.EXHAUST_AIR_MEV:
-        #     # TODO Get from internal air temp of zone?
-        # elif self.__source_type == SourceType.EXHAUST_AIR_MVHR:
-        #     # TODO Get from internal air temp of zone?
+        elif self.__source_type == SourceType.EXHAUST_AIR_MEV:
+            # TODO Get from internal air temp of zone?
+            temp_source = 20.0
+        elif self.__source_type == SourceType.EXHAUST_AIR_MVHR:
+            # TODO Get from internal air temp of zone?
+            temp_source = 20.0
         # elif self.__source_type == SourceType.EXHAUST_AIR_MIXED:
         #     # TODO
         # elif self.__source_type == SourceType.WATER_GROUND:
@@ -1324,6 +1386,7 @@ class HeatPump:
             service_on, # bool - is service allowed to run?
             temp_spread_correction=1.0,
             temp_used_for_scaling=None,
+            additional_time_unavailable=0.0,
             ):
         """ Calculate energy required by heat pump to satisfy demand for the service indicated.
 
@@ -1333,6 +1396,11 @@ class HeatPump:
               exhaust air heat pumps). Results should be returned to the
               __demand_energy function which calls this one and will save results
               when appropriate.
+        Note: The optional variable additional_time_unavailable is used for
+              calculating running time without needing to update any state - the
+              variable contains the time already committed to other services
+              where the running time has not been added to
+              self.__total_time_running_current_timestep
         """
         if temp_used_for_scaling is None:
             temp_used_for_scaling = temp_return_feed
@@ -1362,7 +1430,7 @@ class HeatPump:
         # Calculate running time of HP
         time_running_current_service = min( \
             energy_output_limited / thermal_capacity_op_cond,
-            timestep - self.__total_time_running_current_timestep
+            timestep - self.__total_time_running_current_timestep - additional_time_unavailable,
             )
 
         # Calculate load ratio
@@ -1532,6 +1600,58 @@ class HeatPump:
         # Feed/return results to other modules
         self.__energy_supply_connections[service_name].demand_energy(energy_input_total)
         return energy_delivered_total
+
+    def __running_time_throughput_factor(
+            self,
+            space_heat_running_time_cumulative,
+            service_name,
+            service_type,
+            energy_output_required,
+            temp_output,
+            temp_return_feed,
+            temp_limit_upper,
+            time_constant_for_service,
+            service_on,
+            temp_spread_correction,
+            ):
+        """ Return the cumulative running time and throughput factor (exhaust air HPs only) """
+
+        timestep = self.__simulation_time.timestep()
+
+        # TODO Run HP calculation to get total running time incl space heating,
+        #      but do not save space heating running time
+        energy_delivered_total, energy_input_total, service_results \
+            = self.__run_demand_energy_calc(
+                service_name,
+                service_type,
+                energy_output_required,
+                temp_output,
+                temp_return_feed,
+                temp_limit_upper,
+                time_constant_for_service,
+                service_on,
+                temp_spread_correction,
+                additional_time_unavailable=space_heat_running_time_cumulative,
+                )
+
+        # Add running time for the current space heating service to the cumulative total
+        space_heat_running_time_cumulative += service_results['time_running']
+        # Total running time for calculating throughput factor is time already
+        # spent on water heating plus (unsaved) time running space heating. This
+        # assumes that water heating service is always calculated before space
+        # heating service.
+        total_running_time \
+            = self.__total_time_running_current_timestep + space_heat_running_time_cumulative
+
+        # Apply overventilation ratio to part of timestep where HP is running
+        # to calculate throughput_factor.
+        throughput_factor \
+            = ( (timestep - total_running_time) \
+              + self.__overvent_ratio * total_running_time \
+              ) \
+            / timestep
+
+        return total_running_time, throughput_factor
 
     def __calc_ancillary_energy(self, timestep, time_remaining_current_timestep):
         """ Calculate ancillary energy for each service """

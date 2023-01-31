@@ -790,6 +790,40 @@ class TestSourceType(unittest.TestCase):
                 "incorrectly identified whether or not source type is exhaust air",
                 )
 
+    def test_source_fluid_is_air(self):
+        """ Test that source_fluid_is_air function returns correct results """
+        for source_type, result in [
+            [SourceType.GROUND, False],
+            [SourceType.OUTSIDE_AIR, True],
+            [SourceType.EXHAUST_AIR_MEV, True],
+            [SourceType.EXHAUST_AIR_MVHR, True],
+            [SourceType.EXHAUST_AIR_MIXED, True],
+            [SourceType.WATER_GROUND, False],
+            [SourceType.WATER_SURFACE, False],
+            ]:
+            self.assertEqual(
+                SourceType.source_fluid_is_air(source_type),
+                result,
+                "incorrectly identified whether or not source fluid is air",
+                )
+
+    def test_source_fluid_is_water(self):
+        """ Test that source_fluid_is_water function returns correct results """
+        for source_type, result in [
+            [SourceType.GROUND, True],
+            [SourceType.OUTSIDE_AIR, False],
+            [SourceType.EXHAUST_AIR_MEV, False],
+            [SourceType.EXHAUST_AIR_MVHR, False],
+            [SourceType.EXHAUST_AIR_MIXED, False],
+            [SourceType.WATER_GROUND, True],
+            [SourceType.WATER_SURFACE, True],
+            ]:
+            self.assertEqual(
+                SourceType.source_fluid_is_water(source_type),
+                result,
+                "incorrectly identified whether or not source fluid is air",
+                )
+
 
 class TestSinkType(unittest.TestCase):
     """ Unit tests for SinkType """
