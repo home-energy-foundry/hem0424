@@ -324,12 +324,13 @@ class MechnicalVentilationHeatRecovery:
         # TODO b_ztu needs to be applied in the case if ventilation element
         #      is adjacent to a thermally unconditioned zone.
 
-    def fans(self, zone_volume):
-        """ Calculate gains and energy use due to fans """
+    def fans(self, zone_volume, throughput_factor=1.0):
+        """ Calculate gains and energy use due to fans"""
         # Calculate energy use by fans (only fans on intake/supply side
         # contribute to internal gains - assume that this is half of the fan
         # power)
-        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume)
+        q_v = air_change_rate_to_flow_rate(self.__air_change_rate, zone_volume) \
+            * throughput_factor
         fan_power_W = self.__sfp * (q_v * litres_per_cubic_metre)
         fan_energy_use_kWh = (fan_power_W  / W_per_kW) * self.__simtime.timestep()
 
@@ -443,11 +444,12 @@ class WholeHouseExtractVentilation:
         # TODO b_ztu needs to be applied in the case if ventilation element
         #      is adjacent to a thermally unconditioned zone.
 
-    def fans(self, zone_volume):
+    def fans(self, zone_volume, throughput_factor=1.0):
         """ Calculate gains and energy use due to fans """
         # Calculate energy use by fans (does not contribute to internal gains as
         # this is extract-only ventilation)
-        q_v = air_change_rate_to_flow_rate(self.__air_change_rate_req, zone_volume)
+        q_v = air_change_rate_to_flow_rate(self.__air_change_rate_req, zone_volume) \
+            * throughput_factor
         fan_power_W = self.__sfp * (q_v * litres_per_cubic_metre)
         fan_energy_use_kWh = (fan_power_W  / W_per_kW) * self.__simtime.timestep()
 

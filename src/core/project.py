@@ -1198,8 +1198,7 @@ class Project:
                     gains_internal_zone_inner\
                         += internal_gains_object.total_internal_gain(zone.area())
                 gains_internal_zone[z_name] = gains_internal_zone_inner
-                # Add gains from ventilation fans (make sure this is only called
-                # once per timestep per zone)
+                # Add gains from ventilation fans (also calculates elec demand from fans)
                 # TODO Remove the branch on the type of ventilation (find a better way)
                 if self.__ventilation is not None \
                 and not isinstance(self.__ventilation, NaturalVentilation):
@@ -1248,6 +1247,13 @@ class Project:
             #      merits of iterating over this calculation until converging on
             #      a solution should be considered in the future.
             if throughput_factor > 1.0:
+                for z_name, zone in self.__zones.items():
+                    # Add additional gains from ventilation fans
+                    # TODO Remove the branch on the type of ventilation (find a better way)
+                    if self.__ventilation is not None \
+                    and not isinstance(self.__ventilation, NaturalVentilation):
+                        gains_internal_zone[z_name] \
+                            += self.__ventilation.fans(zone.volume(), throughput_factor - 1.0)
                 space_heat_demand_system, space_cool_demand_system, \
                     space_heat_demand_zone, space_cool_demand_zone \
                     = self.__space_heat_cool_demand_by_system_and_zone(
