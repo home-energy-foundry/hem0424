@@ -624,7 +624,6 @@ class Project:
                                         * units.W_per_kW \
                                         / self.__total_floor_area]
                 total_internal_gains_HIU = internal_gains_HIU * units.days_per_year * units.hours_per_day
-                # TODO do we need to include losses from HW cylinder here?
                 # Append internal gains object to self.__internal_gains dictionary
                 self.__internal_gains[heat_source_type] = InternalGains(
                                                             total_internal_gains_HIU, 
