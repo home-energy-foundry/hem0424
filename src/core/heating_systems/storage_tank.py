@@ -326,8 +326,13 @@ class StorageTank:
                 # back the storage tank....
                 energy_potential = heat_source.energy_output_max(self, temp_s3_n)
             else:
-                energy_potential = heat_source.energy_output_max()
-            
+                #No demand from heat source if the temperature of the tank at the 
+                #thermostat position is below the set point
+                if temp_s3_n[self.__thermostat_layer] >= self.__temp_out_W_min:
+                    energy_potential = 0.0
+                else:
+                    energy_potential = heat_source.energy_output_max()
+
             Q_x_in_n[0] += energy_potential
 
         return Q_x_in_n
@@ -583,16 +588,11 @@ class StorageTank:
         #TODO - 6.4.3.7 STEP 5 Temperature of the storage after volume withdrawn (for Heating)
 
         #6.4.3.8 STEP 6 Energy input into the storage
-        #No demand from heat source if the temperature of the tank at the 
-        #thermostat position is below the set point
-        if temp_s3_n[self.__thermostat_layer] >= self.__temp_out_W_min:
-            Q_x_in_n = [0] * self.__NB_VOL
-        else:
-            #input energy delivered to the storage in kWh - timestep dependent
-            # Note: Function call modified for Solar Thermal as methodology requires to know the storage
-            # tank temperatures (required in the calculation) 
-            # (Sustenic mod - Check with Steve. remove this braket when confirmed)
-            Q_x_in_n = self.potential_energy_input(temp_s3_n)
+        #input energy delivered to the storage in kWh - timestep dependent
+        # Note: Function call modified for Solar Thermal as methodology requires to know the storage
+        # tank temperatures (required in the calculation) 
+        # (Sustenic mod - Check with Steve. remove this braket when confirmed)
+        Q_x_in_n = self.potential_energy_input(temp_s3_n)
 
         Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
 
