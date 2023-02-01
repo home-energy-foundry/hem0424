@@ -24,6 +24,7 @@ from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.heating_systems.boiler import Boiler
+from core.heating_systems.heat_network import HeatNetwork
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
@@ -608,6 +609,28 @@ class Project:
                     self.__external_conditions,
                     )
                 self.__timestep_end_calcs.append(heat_source)
+            elif heat_source_type == 'HIU':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                energy_supply_conn_name_auxiliary = 'HeatNetwork_auxiliary: ' + name
+                heat_source = HeatNetwork(
+                    data,
+                    energy_supply,
+                    energy_supply_conn_name_auxiliary,
+                    self.__simtime,
+                    self.__external_conditions,
+                    )
+                # Create list of internal gains for each hour of the year, in W / m2
+                internal_gains_HIU = [heat_source.HIU_loss(data['HIU_daily_loss']) \
+                                        * units.W_per_kW \
+                                        / self.__total_floor_area]
+                total_internal_gains_HIU = internal_gains_HIU * units.days_per_year * units.hours_per_day
+                # Append internal gains object to self.__internal_gains dictionary
+                self.__internal_gains[heat_source_type] = InternalGains(
+                                                            total_internal_gains_HIU, 
+                                                            self.__simtime,
+                                                            proj_dict['SimulationTime']['start'],
+                                                            proj_dict['SimulationTime']['step']
+                                                            )
             else:
                 sys.exit(name + ': heat source type (' \
                        + heat_source_type + ') not recognised.')
@@ -666,7 +689,16 @@ class Project:
                         cold_water_source,
                         data['temp_return']
                         )
-                    
+                elif isinstance(heat_source_wet, HeatNetwork):
+                    # Add heat network hot water service for feeding hot water cylinder
+                    heat_source = heat_source_wet.create_service_hot_water(
+                        data['name'] + '_water_heating',
+                        55, # TODO Remove hard-coding of HW temp
+                        50, # TODO Remove hard-coding of return temp
+                        data['temp_flow_limit_upper'],
+                        cold_water_source,
+                        ctrl,
+                        )
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
@@ -739,6 +771,14 @@ class Project:
                     self.__simtime,
                     cold_water_source
                 )
+            elif hw_source_type == 'HIU':
+                cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_direct(
+                    data['HeatSourceWet'] + '_water_heating',
+                    55, # TODO Remove hard-coding of HW temp
+                    cold_water_source,
+                    data['HIU_daily_loss']
+                    )
             else:
                 sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -778,6 +818,11 @@ class Project:
                         ctrl,
                         )
                 elif isinstance(heat_source, Boiler):
+                    heat_source_service = heat_source.create_service_space_heating(
+                        data['HeatSource']['name'] + '_space_heating: ' + name,
+                        ctrl,
+                        )
+                elif isinstance(heat_source, HeatNetwork):
                     heat_source_service = heat_source.create_service_space_heating(
                         data['HeatSource']['name'] + '_space_heating: ' + name,
                         ctrl,
