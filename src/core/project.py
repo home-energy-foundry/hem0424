@@ -20,7 +20,7 @@ from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.elec_battery import ElectricBattery
 from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.emitters import Emitters
-from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly
+from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly, SourceType
 from core.heating_systems.storage_tank import ImmersionHeater, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.heating_systems.boiler import Boiler
@@ -31,7 +31,8 @@ from core.space_heat_demand.building_element import \
     BuildingElementAdjacentZTC, BuildingElementAdjacentZTU_Simple
 from core.space_heat_demand.ventilation_element import \
     VentilationElementInfiltration, WholeHouseExtractVentilation, \
-    MechnicalVentilationHeatRecovery, NaturalVentilation
+    MechnicalVentilationHeatRecovery, NaturalVentilation,\
+    air_change_rate_to_flow_rate
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -474,6 +475,7 @@ class Project:
         if 'Ventilation' in proj_dict:
             self.__ventilation, self.__space_heating_ductwork = \
                 dict_to_ventilation_element('Ventilation system', proj_dict['Ventilation'])
+            air_change_rate_req = proj_dict['Ventilation']['req_ach']
         else:
             self.__ventilation, self.__space_heating_ductwork = None, None
 
@@ -557,6 +559,7 @@ class Project:
                 = self.__energy_supplies['_unmet_demand'].connection(name)
 
         self.__total_floor_area = sum(zone.area() for zone in self.__zones.values())
+        total_volume = sum(zone.volume() for zone in self.__zones.values())
 
         # Add internal gains from applicances to the internal gains dictionary and
         # create an energy supply connection for appliances
@@ -588,6 +591,17 @@ class Project:
         def dict_to_heat_source_wet(name, data):
             heat_source_type = data['type']
             if heat_source_type == 'HeatPump':
+                if SourceType.is_exhaust_air(data['source_type']):
+                    # Check that ventilation system is compatible with exhaust air HP
+                    if type(self.__ventilation) \
+                    not in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation):
+                        sys.exit('Exhaust air heat pump requires ventilation to be MVHR or WHEV.')
+                    throughput_exhaust_air \
+                        = air_change_rate_to_flow_rate(air_change_rate_req, total_volume) \
+                        * units.litres_per_cubic_metre
+                else:
+                    throughput_exhaust_air = None
+
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 energy_supply_conn_name_auxiliary = 'HeatPump_auxiliary: ' + name
                 heat_source = HeatPump(
@@ -596,6 +610,7 @@ class Project:
                     energy_supply_conn_name_auxiliary,
                     self.__simtime,
                     self.__external_conditions,
+                    throughput_exhaust_air,
                     )
                 self.__timestep_end_calcs.append(heat_source)
             elif heat_source_type == 'Boiler':
@@ -788,6 +803,10 @@ class Project:
         for name, data in proj_dict['HotWaterSource'].items():
             self.__hot_water_sources[name] = dict_to_hot_water_source(name, data)
 
+        # Some systems (e.g. exhaust air heat pumps) may require overventilation
+        # so initialise an empty list to hold the names of these systems
+        self.__heat_system_names_requiring_overvent = []
+
         def dict_to_space_heat_system(name, data):
             if 'Control' in data.keys():
                 ctrl = self.__controls[data['Control']]
@@ -817,6 +836,10 @@ class Project:
                         data['temp_diff_emit_dsgn'],
                         ctrl,
                         )
+                    if heat_source.source_is_exhaust_air():
+                        # Record heating system as potentially requiring overventilation
+                        self.__heat_system_names_requiring_overvent.append(name)
+
                 elif isinstance(heat_source, Boiler):
                     heat_source_service = heat_source.create_service_space_heating(
                         data['HeatSource']['name'] + '_space_heating: ' + name,
@@ -1220,8 +1243,7 @@ class Project:
                     gains_internal_zone_inner\
                         += internal_gains_object.total_internal_gain(zone.area())
                 gains_internal_zone[z_name] = gains_internal_zone_inner
-                # Add gains from ventilation fans (make sure this is only called
-                # once per timestep per zone)
+                # Add gains from ventilation fans (also calculates elec demand from fans)
                 # TODO Remove the branch on the type of ventilation (find a better way)
                 if self.__ventilation is not None \
                 and not isinstance(self.__ventilation, NaturalVentilation):
@@ -1233,60 +1255,59 @@ class Project:
             # Calculate space heating and cooling demand for each zone and sum
             # Keep track of how much is from each zone, so that energy provided
             # can be split between them in same proportion later
+            space_heat_demand_system, space_cool_demand_system, \
+                space_heat_demand_zone, space_cool_demand_zone \
+                = self.__space_heat_cool_demand_by_system_and_zone(
+                    delta_t_h,
+                    temp_ext_air,
+                    gains_internal_zone,
+                    gains_solar_zone,
+                    )
 
-            space_heat_demand_system = {} # in kWh
-            for heat_system_name in self.__space_heat_systems.keys():
-                space_heat_demand_system[heat_system_name] = 0.0
+            # If any heating systems potentially require overventilation,
+            # calculate running time and throughput factor for all services
+            # combined based on space heating demand assuming no overventilation
+            space_heat_running_time_cumulative = 0.0
+            throughput_factor = 1.0
+            for heat_system_name, heat_system in self.__space_heat_systems.items():
+                if heat_system_name in self.__heat_system_names_requiring_overvent:
+                    space_heat_running_time_cumulative, throughput_factor \
+                        = heat_system.running_time_throughput_factor(
+                            space_heat_demand_system[heat_system_name],
+                            space_heat_running_time_cumulative,
+                            )
 
-            space_cool_demand_system = {} # in kWh
-            for cool_system_name in self.__space_cool_systems.keys():
-                space_cool_demand_system[cool_system_name] = 0.0
-
-            space_heat_demand_zone = {}
-            space_cool_demand_zone = {}
-            for z_name, zone in self.__zones.items():
-                # Look up names of relevant heating and cooling systems for this zone
-                h_name = self.__heat_system_name_for_zone[z_name]
-                c_name = self.__cool_system_name_for_zone[z_name]
-                # Look up convective fraction for heating/cooling for this zone
-                if h_name is not None:
-                    frac_convective_heat = self.__space_heat_systems[h_name].frac_convective()
-                    temp_setpnt_heat = self.__space_heat_systems[h_name].temp_setpnt()
-                else:
-                    frac_convective_heat = 1.0
-                    temp_setpnt_heat = None
-                if c_name is not None:
-                    frac_convective_cool = self.__space_cool_systems[c_name].frac_convective()
-                    temp_setpnt_cool = self.__space_cool_systems[c_name].temp_setpnt()
-                else:
-                    frac_convective_cool = 1.0
-                    temp_setpnt_cool = None
-
-                # Use default setpoints when there is no heat/cool system or
-                # there is no setpoint for the current timestep
-                if temp_setpnt_heat is None:
-                    # Set heating setpoint to absolute zero to ensure no heating demand
-                    temp_setpnt_heat = Kelvin2Celcius(0.0)
-                if temp_setpnt_cool is None:
-                    # Set cooling setpoint to Planck temperature to ensure no cooling demand
-                    temp_setpnt_cool = Kelvin2Celcius(1.4e32)
-
-                space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] = \
-                    zone.space_heat_cool_demand(
+            # If there is overventilation due to heating or hot water system (e.g.
+            # exhaust air heat pump) then recalculate space heating/cooling demand
+            # with additional ventilation calculated based on throughput factor
+            # based on original space heating demand calculation. Note the
+            # additional ventilation throughput is the result of the HP running
+            # to satisfy both space and water heating demand but will affect
+            # space heating demand only
+            # TODO The space heating demand is only recalculated once, rather
+            #      than feeding back in to the throughput factor calculation
+            #      above to get a further-refined space heating demand. This is
+            #      consistent with the approach in SAP 10.2 and keeps the
+            #      execution time of the calculation bounded. However, the
+            #      merits of iterating over this calculation until converging on
+            #      a solution should be considered in the future.
+            if throughput_factor > 1.0:
+                for z_name, zone in self.__zones.items():
+                    # Add additional gains from ventilation fans
+                    # TODO Remove the branch on the type of ventilation (find a better way)
+                    if self.__ventilation is not None \
+                    and not isinstance(self.__ventilation, NaturalVentilation):
+                        gains_internal_zone[z_name] \
+                            += self.__ventilation.fans(zone.volume(), throughput_factor - 1.0)
+                space_heat_demand_system, space_cool_demand_system, \
+                    space_heat_demand_zone, space_cool_demand_zone \
+                    = self.__space_heat_cool_demand_by_system_and_zone(
                         delta_t_h,
                         temp_ext_air,
-                        gains_internal_zone[z_name],
-                        gains_solar_zone[z_name],
-                        frac_convective_heat,
-                        frac_convective_cool,
-                        temp_setpnt_heat,
-                        temp_setpnt_cool,
+                        gains_internal_zone,
+                        gains_solar_zone,
+                        throughput_factor,
                         )
-
-                if h_name is not None: # If the zone is heated
-                    space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
-                if c_name is not None: # If the zone is cooled
-                    space_cool_demand_system[c_name] += space_cool_demand_zone[z_name]
 
             # Calculate how much heating the systems can provide
             space_heat_provided = {}
@@ -1539,3 +1560,77 @@ class Project:
             energy_import, energy_export, betafactor, \
             zone_dict, zone_list, hc_system_dict, hot_water_dict, \
             ductwork_gains_dict, heat_balance_all_dict
+
+    def __space_heat_cool_demand_by_system_and_zone(
+            self,
+            delta_t_h,
+            temp_ext_air,
+            gains_internal_zone,
+            gains_solar_zone,
+            throughput_factor=1.0,
+            ):
+        """ Calculate space heating and cooling demand for each zone and sum.
+
+        Keep track of how much is from each zone, so that energy provided
+        can be split between them in same proportion later
+        """
+        space_heat_demand_system = {} # in kWh
+        for heat_system_name in self.__space_heat_systems.keys():
+            space_heat_demand_system[heat_system_name] = 0.0
+
+        space_cool_demand_system = {} # in kWh
+        for cool_system_name in self.__space_cool_systems.keys():
+            space_cool_demand_system[cool_system_name] = 0.0
+
+        space_heat_demand_zone = {}
+        space_cool_demand_zone = {}
+        for z_name, zone in self.__zones.items():
+            # Look up names of relevant heating and cooling systems for this zone
+            h_name = self.__heat_system_name_for_zone[z_name]
+            c_name = self.__cool_system_name_for_zone[z_name]
+
+            # Look up convective fraction for heating/cooling for this zone
+            if h_name is not None:
+                frac_convective_heat = self.__space_heat_systems[h_name].frac_convective()
+                temp_setpnt_heat = self.__space_heat_systems[h_name].temp_setpnt()
+            else:
+                frac_convective_heat = 1.0
+                temp_setpnt_heat = None
+            if c_name is not None:
+                frac_convective_cool = self.__space_cool_systems[c_name].frac_convective()
+                temp_setpnt_cool = self.__space_cool_systems[c_name].temp_setpnt()
+            else:
+                frac_convective_cool = 1.0
+                temp_setpnt_cool = None
+
+            # Use default setpoints when there is no heat/cool system or
+            # there is no setpoint for the current timestep
+            if temp_setpnt_heat is None:
+                # Set heating setpoint to absolute zero to ensure no heating demand
+                temp_setpnt_heat = Kelvin2Celcius(0.0)
+            if temp_setpnt_cool is None:
+                # Set cooling setpoint to Planck temperature to ensure no cooling demand
+                temp_setpnt_cool = Kelvin2Celcius(1.4e32)
+
+            space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] \
+                = zone.space_heat_cool_demand(
+                    delta_t_h,
+                    temp_ext_air,
+                    gains_internal_zone[z_name],
+                    gains_solar_zone[z_name],
+                    frac_convective_heat,
+                    frac_convective_cool,
+                    temp_setpnt_heat,
+                    temp_setpnt_cool,
+                    throughput_factor,
+                    )
+
+            if h_name is not None: # If the zone is heated
+                space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
+            if c_name is not None: # If the zone is cooled
+                space_cool_demand_system[c_name] += space_cool_demand_zone[z_name]
+
+        return \
+            space_heat_demand_system, space_cool_demand_system, \
+            space_heat_demand_zone, space_cool_demand_zone
+

@@ -164,6 +164,11 @@ class TestMechnicalVentilationHeatRecovery(unittest.TestCase):
                     4.28975166666666,
                     msg="incorrect heat transfer coeffient (h_ve) returned"
                     )
+                self.assertAlmostEqual(
+                    self.mvhr.h_ve(75.0, 1.2),
+                    5.147701999999999,
+                    msg="incorrect heat transfer coeffient (h_ve) returned"
+                    )
 
     # TODO add tests for h_ve_average
 
@@ -235,11 +240,26 @@ class TestWholeHouseExtractVentilation(unittest.TestCase):
             7.657876998697917,
             7.585921145833332,
             ]
+        results_with_throughput_factor = [
+            9.757213648437498,
+            9.656672593749999,
+            9.5584972109375,
+            9.4626875,
+            9.3692434609375,
+            9.27816509375,
+            9.1894523984375,
+            9.103105374999997,
+            ]
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.whev.h_ve(75.0),
                     results[t_idx],
+                    msg="incorrect heat transfer coeffient (h_ve) returned"
+                    )
+                self.assertAlmostEqual(
+                    self.whev.h_ve(75.0, 1.2),
+                    results_with_throughput_factor[t_idx],
                     msg="incorrect heat transfer coeffient (h_ve) returned"
                     )
 
