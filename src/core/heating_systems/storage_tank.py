@@ -591,7 +591,6 @@ class StorageTank:
         #input energy delivered to the storage in kWh - timestep dependent
         # Note: Function call modified for Solar Thermal as methodology requires to know the storage
         # tank temperatures (required in the calculation) 
-        # (Sustenic mod - Check with Steve. remove this braket when confirmed)
         Q_x_in_n = self.potential_energy_input(temp_s3_n)
 
         Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
@@ -908,7 +907,8 @@ class SolarThermalSystem:
 
         self.__energy_supplied = min(energy_demand, self.__heat_output_collector_loop )
 
-        # Eq 59 and 60 to calculate auxiliary energy - Potential bug identified by SA corrected.
+        # Eq 59 and 60 to calculate auxiliary energy - note that the if condition
+        # is the wrong way round in BS EN 15316-4-3:2017
         if self.__energy_supplied == 0: 
             auxilliary_energy_consumption = self.__power_pump_control * self.__simulation_time.timestep()
         else:
