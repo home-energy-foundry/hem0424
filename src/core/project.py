@@ -17,6 +17,7 @@ from core.schedule import expand_schedule, expand_events
 from core.controls.time_control import OnOffTimeControl, SetpointTimeControl
 from core.cooling_systems.air_conditioning import AirConditioning
 from core.energy_supply.energy_supply import EnergySupply
+from core.energy_supply.elec_battery import ElectricBattery
 from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.emitters import Emitters
 from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly
@@ -48,13 +49,14 @@ from core.units import Kelvin2Celcius
 class Project:
     """ An object to represent the overall model to be simulated """
 
-    def __init__(self, proj_dict):
+    def __init__(self, proj_dict, print_heat_balance):
         """ Construct a Project object and the various components of the simulation
 
         Arguments:
         proj_dict -- dictionary of project data, containing nested dictionaries
                      and lists of input data for system components, external
                      conditions, occupancy etc.
+        print_heat_balance -- flag to idindicate whether to print the heat balance outputs
 
         Other (self.__) variables:
         simtime            -- SimulationTime object for this Project
@@ -135,7 +137,17 @@ class Project:
         energy_supply_unmet_demand = EnergySupply('unmet_demand', self.__simtime)
         self.__energy_supplies['_unmet_demand'] = energy_supply_unmet_demand
         for name, data in proj_dict['EnergySupply'].items():
-            self.__energy_supplies[name] = EnergySupply(data['fuel'], self.__simtime)
+            if 'ElectricBattery' in data:
+                self.__energy_supplies[name] = EnergySupply(
+                    data['fuel'],
+                    self.__simtime,
+                    ElectricBattery(
+                        data['ElectricBattery']['capacity'],
+                        data['ElectricBattery']['charge_discharge_efficiency'],
+                        )
+                    )
+            else:
+                self.__energy_supplies[name] = EnergySupply(data['fuel'], self.__simtime)
             # TODO Consider replacing fuel type string with fuel type object
 
         self.__internal_gains = {}
@@ -145,6 +157,7 @@ class Project:
                                                  float,
                                                  data['schedule'],
                                                  "main",
+                                                 False,
                                                  ),
                                              self.__simtime,
                                              data['start_day'],
@@ -155,11 +168,30 @@ class Project:
             """ Parse dictionary of control data and return approprate control object """
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
-                sched = expand_schedule(bool, data['schedule'], "main")
+                sched = expand_schedule(bool, data['schedule'], "main", False)
                 ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'], data['time_series_step'])
             elif ctrl_type == 'SetpointTimeControl':
-                sched = expand_schedule(float, data['schedule'], "main")
-                ctrl = SetpointTimeControl(sched, self.__simtime, data['start_day'], data['time_series_step'])
+                sched = expand_schedule(float, data['schedule'], "main", True)
+
+                setpoint_min = None
+                setpoint_max = None
+                default_to_max = None
+                if 'setpoint_min' in data:
+                    setpoint_min = data['setpoint_min']
+                if 'setpoint_max' in data:
+                    setpoint_max = data['setpoint_max']
+                if 'default_to_max' in data:
+                    default_to_max = data['default_to_max']
+
+                ctrl = SetpointTimeControl(
+                    sched,
+                    self.__simtime,
+                    data['start_day'],
+                    data['time_series_step'],
+                    setpoint_min,
+                    setpoint_max,
+                    default_to_max,
+                    )
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -513,6 +545,7 @@ class Project:
                 building_elements,
                 thermal_bridging,
                 vent_elements,
+                print_heat_balance,
                 )
 
         self.__zones = {}
@@ -522,7 +555,7 @@ class Project:
             self.__energy_supply_conn_unmet_demand_zone[name] \
                 = self.__energy_supplies['_unmet_demand'].connection(name)
 
-        total_floor_area = sum(zone.area() for zone in self.__zones.values())
+        self.__total_floor_area = sum(zone.area() for zone in self.__zones.values())
 
         # Add internal gains from applicances to the internal gains dictionary and
         # create an energy supply connection for appliances
@@ -533,8 +566,8 @@ class Project:
             
             # Convert energy supplied to appliances from W to W / m2
             total_energy_supply = []
-            for energy_data in expand_schedule(float, data['schedule'], "main"):
-                total_energy_supply.append(energy_data / total_floor_area)
+            for energy_data in expand_schedule(float, data['schedule'], "main", False):
+                total_energy_supply.append(energy_data / self.__total_floor_area)
 
             self.__internal_gains[name] = ApplianceGains(
                                              total_energy_supply,
@@ -649,6 +682,15 @@ class Project:
                         cold_water_source,
                         ctrl,
                         )
+                elif isinstance(heat_source_wet, Boiler):
+                    heat_source = heat_source_wet.create_service_hot_water_regular(
+                        data,
+                        data['name'] + '_water_heating',
+                        55, # TODO Remove hard-coding of HW temp
+                        cold_water_source,
+                        data['temp_return']
+                        )
+                    
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
@@ -702,7 +744,7 @@ class Project:
                     hw_source.add_heat_source(heat_source, 1.0)
             elif hw_source_type == 'CombiBoiler':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
-                hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water(
+                hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_combi(
                     data,
                     data['HeatSourceWet'] + '_water_heating',
                     55, # TODO Remove hard-coding of HW temp
@@ -858,6 +900,50 @@ class Project:
             for name, data in proj_dict['OnSiteGeneration'].items():
                 self.__on_site_generation[name] = dict_to_on_site_generation(name, data)
 
+    def total_floor_area(self):
+        return self.__total_floor_area
+
+    def calc_HTC_HLP(self):
+        """ Calculate heat transfer coefficient (HTC) and heat loss parameter (HLP)
+        according to the SAP10.2 specification """
+        # Initialise variables
+        total_fabric_heat_loss = 0
+        total_thermal_bridges= 0
+        total_vent_heat_loss = 0
+
+        # Calculate the total fabric heat loss, total heat capacity, total ventilation heat
+        # loss and total heat transfer coeffient for thermal bridges across all zones
+        for z_name, zone in self.__zones.items():
+            total_fabric_heat_loss += zone.total_fabric_heat_loss()
+            total_thermal_bridges += zone.total_thermal_bridges()
+            total_vent_heat_loss += zone.total_vent_heat_loss()
+
+        # Calculate the heat transfer coefficent (HTC), in W / K
+        # TODO check ventilation losses are correct
+        HTC = total_fabric_heat_loss + total_thermal_bridges + total_vent_heat_loss
+
+        # Calculate the HLP, in W / m2 K
+        HLP = HTC / self.__total_floor_area
+
+        return HTC, HLP
+
+    def calc_TMP(self):
+        """ Calculate the thermal mass parameter (TMP), according to the SAP10.2 specification """
+        # TODO party walls and solid doors should be exluded according to SAP spec - if party walls are
+        # assumed to be ZTU building elements this could be set to zero?
+
+        # Initialise variable
+        total_heat_capacity = 0
+
+        # Calculate the total heat capacity and total zone area
+        for z_name, zone in self.__zones.items():
+            total_heat_capacity += zone.total_heat_capacity()
+
+        # Calculate the thermal mass parameter, in kJ / m2 K
+        TMP = total_heat_capacity / self.__total_floor_area
+
+        return TMP
+
     def run(self):
         """ Run the simulation """
 
@@ -981,6 +1067,11 @@ class Project:
                                 self.__water_heating_pipework,
                                 )
 
+            vol_hot_water_left_in_pipework \
+                = self.__water_heating_pipework['internal'].volume_litres() \
+                + self.__water_heating_pipework['external'].volume_litres()
+            hw_demand += all_events * vol_hot_water_left_in_pipework
+
             return hw_demand, hw_duration, all_events, pw_losses, hw_energy_demand  # litres hot water per timestep, minutes demand per timestep, number of events in timestep
 
         def calc_pipework_losses(hw_demand, t_idx, delta_t_h, cold_water_temperature, hw_duration, hw_pipework):
@@ -1091,8 +1182,6 @@ class Project:
             temp_ext_air = self.__external_conditions.air_temp()
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
-            # Calculate total floor area, in m2
-            total_floor_area = sum(zone.area() for zone in self.__zones.values())
 
             ductwork_losses, overall_zone_volume, ductwork_losses_per_m3 = 0.0, 0.0, 0.0
             # ductwork gains/losses only for MVHR
@@ -1105,7 +1194,7 @@ class Project:
             gains_solar_zone = {}
             for z_name, zone in self.__zones.items():
                 # Initialise to dhw internal gains split proportionally to zone floor area
-                gains_internal_zone_inner = gains_internal_dhw * zone.area() / total_floor_area
+                gains_internal_zone_inner = gains_internal_dhw * zone.area() / self.__total_floor_area
                 for internal_gains_name, internal_gains_object in self.__internal_gains.items():
                     gains_internal_zone_inner\
                         += internal_gains_object.total_internal_gain(zone.area())
@@ -1144,13 +1233,20 @@ class Project:
                     temp_setpnt_heat = self.__space_heat_systems[h_name].temp_setpnt()
                 else:
                     frac_convective_heat = 1.0
-                    # Set heating setpoint to absolute zero to ensure no heating demand
-                    temp_setpnt_heat = Kelvin2Celcius(0.0)
+                    temp_setpnt_heat = None
                 if c_name is not None:
                     frac_convective_cool = self.__space_cool_systems[c_name].frac_convective()
                     temp_setpnt_cool = self.__space_cool_systems[c_name].temp_setpnt()
                 else:
                     frac_convective_cool = 1.0
+                    temp_setpnt_cool = None
+
+                # Use default setpoints when there is no heat/cool system or
+                # there is no setpoint for the current timestep
+                if temp_setpnt_heat is None:
+                    # Set heating setpoint to absolute zero to ensure no heating demand
+                    temp_setpnt_heat = Kelvin2Celcius(0.0)
+                if temp_setpnt_cool is None:
                     # Set cooling setpoint to Planck temperature to ensure no cooling demand
                     temp_setpnt_cool = Kelvin2Celcius(1.4e32)
 
@@ -1188,6 +1284,7 @@ class Project:
             # update resultant temperatures in zones.
             internal_air_temp = {}
             operative_temp = {}
+            heat_balance_dict = {}
             for z_name, zone in self.__zones.items():
                 # Look up names of relevant heating and cooling systems for this zone
                 h_name = self.__heat_system_name_for_zone[z_name]
@@ -1258,7 +1355,7 @@ class Project:
                 else:
                     frac_convective = 1.0
 
-                zone.update_temperatures(
+                heat_balance_dict[z_name] = zone.update_temperatures(
                     delta_t,
                     temp_ext_air,
                     gains_internal_zone[z_name],
@@ -1279,7 +1376,7 @@ class Project:
                    operative_temp, internal_air_temp, \
                    space_heat_demand_zone, space_cool_demand_zone, \
                    space_heat_demand_system, space_cool_demand_system, \
-                   ductwork_losses
+                   ductwork_losses, heat_balance_dict
 
         timestep_array = []
         gains_internal_dict = {}
@@ -1297,6 +1394,7 @@ class Project:
         hot_water_no_events_dict = {}
         hot_water_pipework_dict = {}
         ductwork_gains_dict = {}
+        heat_balance_all_dict = {}
 
         for z_name in self.__zones.keys():
             gains_internal_dict[z_name] = []
@@ -1306,6 +1404,7 @@ class Project:
             space_heat_demand_dict[z_name] = []
             space_cool_demand_dict[z_name] = []
             zone_list.append(z_name)
+            heat_balance_all_dict[z_name] = {}
 
         for z_name, h_name in self.__heat_system_name_for_zone.items():
             space_heat_demand_system_dict[h_name] = []
@@ -1336,7 +1435,7 @@ class Project:
                 operative_temp, internal_air_temp, \
                 space_heat_demand_zone, space_cool_demand_zone, \
                 space_heat_demand_system, space_cool_demand_system, \
-                ductwork_gains \
+                ductwork_gains, heat_balance_dict \
                 = calc_space_heating(delta_t_h, gains_internal_dhw)
 
             # Perform calculations that can only be done after all heating
@@ -1367,7 +1466,15 @@ class Project:
 
             for c_name, demand in space_cool_demand_system.items():
                 space_cool_demand_system_dict[c_name].append(demand)
-                
+
+            for z_name, gains_losses_dict in heat_balance_dict.items():
+                if gains_losses_dict is not None:
+                    for heat_gains_losses_name, heat_gains_losses_value in gains_losses_dict.items():
+                        if heat_gains_losses_name in heat_balance_all_dict[z_name].keys():
+                            heat_balance_all_dict[z_name][heat_gains_losses_name].append(heat_gains_losses_value)
+                        else:
+                            heat_balance_all_dict[z_name][heat_gains_losses_name] =[heat_gains_losses_value]
+
             hot_water_demand_dict['demand'].append(hw_demand)
             hot_water_energy_demand_dict['energy_demand'].append(hw_energy_demand)
             hot_water_duration_dict['duration'].append(hw_duration)
@@ -1410,4 +1517,4 @@ class Project:
             timestep_array, results_totals, results_end_user, \
             energy_import, energy_export, betafactor, \
             zone_dict, zone_list, hc_system_dict, hot_water_dict, \
-            ductwork_gains_dict
+            ductwork_gains_dict, heat_balance_all_dict

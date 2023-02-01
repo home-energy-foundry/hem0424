@@ -69,7 +69,7 @@ class PhotovoltaicSystem:
             according to BS EN 15316-4-3:2017 """
 
         #solar_irradiance in W/m2
-        solar_irradiance = self.__external_conditions.calculated_total_solar_irradiance(
+        _, _, solar_irradiance = self.__external_conditions.calculated_direct_diffuse_total_irradiance(
             self.__pitch,
             self.__orientation
             )

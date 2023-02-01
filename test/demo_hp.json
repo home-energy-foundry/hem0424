@@ -65,7 +65,7 @@
 			"start_day": 0,
 			"time_series_step": 1,
 			"schedule": {
-				"main": [21.0, -273.15, -273.15, {"value": 21.0, "repeat": 5}]
+				"main": [21.0, null, null, {"value": 21.0, "repeat": 5}]
 			}
 		},
 		"zone 2 radiators__space heat timer__converted_from_OnOffTimeControl": {
@@ -73,7 +73,7 @@
 			"start_day": 0,
 			"time_series_step": 1,
 			"schedule": {
-				"main": [21.0, -273.15, -273.15, {"value": 21.0, "repeat": 5}]
+				"main": [21.0, null, null, {"value": 21.0, "repeat": 5}]
 			}
 		}
 	},
@@ -171,6 +171,7 @@
 			"power_standby": 0.015,
 			"power_crankcase_heater": 0.01,
 			"power_off": 0.015,
+			"power_max_backup": 3.0,
 			"test_data": [
 				{
 					"test_letter": "A",

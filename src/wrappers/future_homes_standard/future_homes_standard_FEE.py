@@ -1,0 +1,195 @@
+#!/usr/bin/env python3
+
+""" TODO Copyright & licensing notices
+
+This module provides functions to implement pre- and post-processing
+steps for the Fabric Energy Efficiency calculation run for the Future Homes
+Standard.
+"""
+
+# Standard library imports
+import sys
+import csv
+
+# Local imports
+from wrappers.future_homes_standard.future_homes_standard import \
+    apply_fhs_preprocessing, calc_TFA
+
+def apply_fhs_FEE_preprocessing(project_dict):
+    # Calculation assumptions (expressed in comments) are based on SAP 10.2 FEE specification
+
+    # Climate should be UK average, but weather data is external to this program
+    # so it will have to specified by the user or user interface
+
+    # No heat gain from pumps or fans. Water and space heating systems selected
+    # have no pumps or fans, and the only ventilation fans are extract-only so
+    # do not lead to heat gains either, so no additional action required for this
+
+    # Overshading of windows not less than average
+    # TODO There is not really an equivalent input for this in SAP 11, so for
+    #      now the shading will be as specified by the user
+
+    # Set the number of each of the following to zero:
+    # - open chimneys
+    # - open flues
+    # - chimneys/flues attached to closed fire
+    # - flues attached to solid fuel boiler
+    # - flues attached to other heater
+    # - blocked chimneys
+    # - passive vents
+    # - flueless gas fires
+    project_dict['Infiltration']['open_chimneys'] = 0
+    project_dict['Infiltration']['open_flues'] = 0
+    project_dict['Infiltration']['closed_fire'] = 0
+    project_dict['Infiltration']['flues_d'] = 0
+    project_dict['Infiltration']['flues_e'] = 0
+    project_dict['Infiltration']['blocked_chimneys'] = 0
+    project_dict['Infiltration']['passive_vents'] = 0
+    project_dict['Infiltration']['gas_fires'] = 0
+
+    # Use natural ventilation with intermittent extract fans
+    req_ach = project_dict['Ventilation']['req_ach']
+    project_dict['Ventilation'] = {
+        'type': 'NatVent',
+        'req_ach': req_ach,
+        }
+    # No of extract fans based on total floor area (TFA) in m2:
+    #   0 < TFA <=  70: 2 extract fans
+    #  70 < TFA <= 100: 3 extract fans
+    # 100 < TFA       : 4 extract fans
+    total_floor_area = calc_TFA(project_dict)
+    if total_floor_area <= 0:
+        sys.exit('Invalid input(s): total floor area must be greater than zero')
+    elif total_floor_area <= 70:
+        no_of_extract_fans = 2
+    elif total_floor_area <= 100:
+        no_of_extract_fans = 3
+    else:
+        no_of_extract_fans = 4
+    project_dict['Infiltration']['extract_fans'] = no_of_extract_fans
+
+    # Use instantaneous electric water heater
+    # Set power such that it should always be sufficient for any realistic demand
+    # Look up cold water feed type
+    # TODO The cold_water_source_name here needs to match the one defined in the
+    #      standard FHS wrapper - ideally these would only be defined in one place
+    if "header tank" in project_dict["ColdWaterSource"]:
+        cold_water_source_name = "header tank"
+    else:
+        cold_water_source_name = "mains water"
+    project_dict['HotWaterSource']['hw cylinder'] = {
+        'type': 'PointOfUse',
+        'power': 10000.0,
+        'efficiency': 1.0,
+        'EnergySupply': 'mains elec',
+        'ColdWaterSource': cold_water_source_name,
+        }
+    # No hot water distribution pipework for point of use water heaters
+    pipework_none = {
+        'internal_diameter': 0.01,
+        'external_diameter': 0.02,
+        'length': 0.0,
+        'insulation_thermal_conductivity': 0.01,
+        'insulation_thickness': 0.0,
+        'surface_reflectivity': False,
+        'pipe_contents': 'water'
+        }
+    project_dict['Distribution'] = {
+        'internal': pipework_none,
+        'external': pipework_none,
+        }
+
+    # One 9.3 kW InstantElecShower, one bath
+    project_dict['Shower'] = {
+        'IES_for_FEE_calc': {
+            'type': 'InstantElecShower',
+            'rated_power': 9.3,
+            'EnergySupply': 'mains elec',
+            'ColdWaterSource': cold_water_source_name,
+            }
+        }
+    # TODO The flowrate for the bath hot tap is based on a quick online search
+    #      and would ideally be better-evidenced, but it does not make much
+    #      difference to the calculation overall
+    project_dict['Bath'] = {
+        'bath for FEE calc': {
+            'size': 73, # Based on SAP 10.2 assumption in App J
+            'ColdWaterSource': cold_water_source_name,
+            'flowrate': 10.0
+            }
+        }
+    # Other tapping points are as specified by the user. This shouldn't make any
+    # difference to the space heating/cooling demand, as the number and flowrate
+    # of the tapping points is only relevant for distribution losses, which do
+    # not apply to point of use water heaters.
+
+    # Dwelling achieves water use target of not more than 125 litres/day
+    project_dict['PartGcompliance'] = True
+
+    # Fixed lighting capacity = TFA * 185 lumens, efficacy 66.9 lumens/W
+    # Note: lighting capacity is set in apply_fhs_preprocessing function (which
+    # is called later in this function) rather than here. Setting the
+    # running_FEE_calc flag in the function call to True specifies that the
+    # lighting capacity formula for the FEE calculation will be used.
+    for z_name in project_dict['Zone'].keys():
+        project_dict['Zone'][z_name]['Lighting']['efficacy'] = 66.9
+
+    # Space heating from InstantElecHeater
+    # Set power such that it should always be sufficient for any realistic demand
+    # Assume convective fraction for fan heater from BS EN 15316-2:2017 Table B.17
+    project_dict['SpaceHeatSystem'] = {}
+    for z_name in project_dict['Zone'].keys():
+        h_name = z_name + '_heating_for_FEE_calc'
+        project_dict['Zone'][z_name]['SpaceHeatSystem'] = h_name
+        project_dict['SpaceHeatSystem'][h_name] = {
+            'type': 'InstantElecHeater',
+            'rated_power': 10000.0,
+            'frac_convective': 0.95,
+            'EnergySupply': 'mains elec',
+            }
+
+    # Cooling from air conditioning
+    # Set capacity such that it should always be sufficient for any realistic demand
+    # Efficiency does not matter for this calc so set to 1.0
+    # Assume convective fraction for cold air blowing system from BS EN 15316-2:2017 Table B.17
+    project_dict['SpaceCoolSystem'] = {}
+    for z_name in project_dict['Zone'].keys():
+        c_name = z_name + '_cooling_for_FEE_calc'
+        project_dict['Zone'][z_name]['SpaceCoolSystem'] = c_name
+        project_dict['SpaceCoolSystem'][c_name] = {
+            "type": "AirConditioning",
+            "cooling_capacity": 10000.0,
+            "efficiency": 1.0,
+            "frac_convective": 0.95,
+            "EnergySupply": "mains elec",
+        }
+
+    # Apply standard FHS preprocessing assumptions. Note these should be applied
+    # after the other adjustments are made, because decisions may be based on
+    # e.g. the heating system type.
+    # Note: In SAP 10.2, different gains assumptions were used for the cooling
+    # calculation compared to the heating calculation. However, only one set of
+    # standardised gains have so far been defined here.
+    # TODO Use control type 2 (seperate temperature control but no separate time
+    #      control). Control schedules in standard FHS preprocessing assumptions
+    #      are currently equivalent to control type 3 (separate temperature and
+    #      time control). Need to define schedules for control type 2 before it
+    #      can be selected.
+    project_dict = apply_fhs_preprocessing(project_dict, True)
+
+    return project_dict
+
+def apply_fhs_FEE_postprocessing(
+        output_file,
+        total_floor_area,
+        space_heat_demand_total,
+        space_cool_demand_total,
+        ):
+    # Subtract cooling demand from heating demand because cooling demand is negative by convention
+    fabric_energy_eff = (space_heat_demand_total - space_cool_demand_total) / total_floor_area
+
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(output_file, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Fabric Energy Efficiency', 'kWh / m2.yr', fabric_energy_eff])
