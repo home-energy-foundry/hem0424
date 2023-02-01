@@ -902,7 +902,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
         bjorklund_k_steps = fractionalk.limit_denominator(len(annual_HW_events)).denominator
         print(bjorklund_n_events)
         print(bjorklund_k_steps)
-        elim_pattern = bjorklund(bjorklund_n_events, bjorklund_k_steps)
+        elim_pattern = bjorklund(bjorklund_k_steps, bjorklund_n_events)
         
         counters={event_type:0 for event_type in HW_events_energy.keys()}
         
