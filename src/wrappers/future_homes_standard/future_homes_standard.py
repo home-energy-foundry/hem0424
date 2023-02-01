@@ -14,6 +14,7 @@ import csv
 from fractions import Fraction
 from core import project, schedule
 from cmath import log
+from third_party.bjorklund import bjorklund
 
 this_directory = os.path.dirname(os.path.relpath(__file__))
 FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_04-11-2022.csv")
@@ -672,47 +673,6 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
             "dec": appliance_gains_W[11]
         }
     }
-    
-def bjorklund(events, steps):
-    '''
-    implementation of bjorklund's algorithm, which spaces n events over k steps as evenly as possible
-    using repeated integer division.
-    used here to determine which hw events to eliminate
-    '''
-    steps = int(steps)
-    events = int(events)
-    if events > steps:
-        raise ValueError
-    pattern = []
-    counts = []
-    remainders = []
-    divisor = steps - events
-    remainders.append(events)
-    level = 0
-    while True:
-        counts.append(divisor // remainders[level])
-        remainders.append(divisor % remainders[level])
-        divisor = remainders[level]
-        level = level + 1
-        if remainders[level] <= 1:
-            break
-    counts.append(divisor)
-    
-    def build(level):
-        if level == -1:
-            pattern.append(0)
-        elif level == -2:
-            pattern.append(1)         
-        else:
-            for i in range(0, counts[level]):
-                build(level - 1)
-            if remainders[level] != 0:
-                build(level - 2)
-    
-    build(level)
-    i = pattern.index(1)
-    pattern = pattern[i:] + pattern[0:i]
-    return pattern
 
 class FHS_HW_events:
     '''
