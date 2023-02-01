@@ -284,6 +284,16 @@ def create_heating_pattern(project_dict):
     the heating times are necessarily the same as the living room,
     so the evening heating period would also start at 16:30 on weekdays.
     '''
+    controltype = 0
+    if project_dict["HeatingControlType"]:
+        if project_dict["HeatingControlType"] =="SeparateTimeAndTempControl":
+            controltype = 3
+        elif project_dict["HeatingControlType"] =="SeparateTempControl":
+            controltype = 2
+        else:
+            sys.exit("invalid HeatingControlType (SeparateTempControl or SeparateTimeAndTempControl)")
+    else:
+        sys.exit("missing HeatingControlType (SeparateTempControl or SeparateTimeAndTempControl)")
     
     
     for zone in project_dict['Zone']:
@@ -311,8 +321,34 @@ def create_heating_pattern(project_dict):
                     if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
                         project_dict['Control']['HeatingPattern_LivingRoom']['setpoint_min'] \
                             = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
-
-            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling":
+            
+            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" \
+            and controltype == 2:
+                project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
+                    "type": "SetpointTimeControl",
+                    "start_day" : 0,
+                    "time_series_step":0.5,
+                    "schedule":{
+                        "main": [{"repeat": 53, "value": "week"}],
+                        "week": [{"repeat": 5, "value": "weekday"},
+                                 {"repeat": 2, "value": "weekend"}],
+                        "weekday": [restofdwelling_setpoint_fhs if x
+                                    else None
+                                    for x in heating_fhs_weekday],
+                        "weekend": [restofdwelling_setpoint_fhs if x
+                                    else None
+                                    for x in heating_fhs_weekend],
+                    }
+                }
+                if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
+                    spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
+                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_RestOfDwelling"
+                    if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
+                        project_dict['Control']['HeatingPattern_RestOfDwelling']['setpoint_min'] \
+                            = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
+            
+            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" \
+            and controltype == 3:
                 project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
                     "type": "SetpointTimeControl",
                     "start_day" : 0,
