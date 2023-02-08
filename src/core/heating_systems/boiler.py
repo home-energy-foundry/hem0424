@@ -613,43 +613,56 @@ class Boiler:
     def effvsreturntemp(self, return_temp, offset):
         """ Return boiler efficiency at different return temperatures """
         mains_gas_dewpoint = 52.2
+        lpg_dewpoint = 48.3
         #TODO: add remaining fuels 
         if self.__fuel_code == Fuel_code.MAINS_GAS:
             if return_temp < mains_gas_dewpoint:
                 theoretical_eff = -0.00007 * (return_temp)**2 + 0.0017 * return_temp + 0.979 
             else:
                 theoretical_eff = -0.0006 * return_temp + 0.9129
-            
-            blr_theoretical_eff = theoretical_eff - offset
+        elif (self.__fuel_code == Fuel_code.LPG_BULK) or \
+             (self.__fuel_code == Fuel_code.LPG_BOTTLED) or \
+             (self.__fuel_code == Fuel_code.LPG_CONDITION_11F):
+            if return_temp < lpg_dewpoint:
+                theoretical_eff = -0.00006 * (return_temp)**2 + 0.0013 * return_temp + 0.9859
+            else:
+                theoretical_eff = -0.0006 * return_temp + 0.933
         else:
             exit('Fuel code does not exist')
+        blr_theoretical_eff = theoretical_eff - offset
 
         return blr_theoretical_eff
 
     def high_value_correction_part_load(self, net_efficiency_part_load):
         """ Return a Boiler efficiency corrected for high values """
         if self.__fuel_code == Fuel_code.MAINS_GAS:
-            corrected_net_efficiency_part_load = min(net_efficiency_part_load \
-                                                     - 0.213 \
-                                                     * (net_efficiency_part_load - 0.966), \
-                                                     1.08)
+            maximum_part_load_eff = 1.08
+        elif (self.__fuel_code == Fuel_code.LPG_BULK) or \
+             (self.__fuel_code == Fuel_code.LPG_BOTTLED) or \
+             (self.__fuel_code == Fuel_code.LPG_CONDITION_11F):
+            maximum_part_load_eff = 1.06
         else:
             exit('Unknown fuel code '+str(self.__fuel_code))
+        corrected_net_efficiency_part_load = min(net_efficiency_part_load \
+                                                 - 0.213 \
+                                                 * (net_efficiency_part_load - 0.966), \
+                                                 maximum_part_load_eff)
         return corrected_net_efficiency_part_load
 
     def high_value_correction_full_load(self, net_efficiency_full_load):
-        if self.__fuel_code == Fuel_code.MAINS_GAS:
-            corrected_net_efficiency_full_load = min(net_efficiency_full_load \
-                                                     - 0.673 * (net_efficiency_full_load - 0.955), \
-                                                     0.98)
-        else:
-            exit('Unknown fuel code '+str(self.__fuel_code))
+        corrected_net_efficiency_full_load = min(net_efficiency_full_load \
+                                                 - 0.673 * (net_efficiency_full_load - 0.955), \
+                                                 0.98)
         return corrected_net_efficiency_full_load
 
     def net_to_gross(self):
         """ Returns net to gross factor """
         if self.__fuel_code == Fuel_code.MAINS_GAS:
             net_to_gross = 0.901
+        elif (self.__fuel_code == Fuel_code.LPG_BULK) or \
+             (self.__fuel_code == Fuel_code.LPG_BOTTLED) or \
+             (self.__fuel_code == Fuel_code.LPG_CONDITION_11F):
+            net_to_gross = 0.921
         else:
             exit('Unknown fuel code '+str(self.__fuel_code))
         return net_to_gross
