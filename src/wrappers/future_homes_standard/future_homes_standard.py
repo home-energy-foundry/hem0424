@@ -157,7 +157,9 @@ def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy
                     for x in results_totals[Energysupply]
                 ]
 
-    with open(file_path + '_postproc.csv', 'w') as postproc_file:
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(file_path + '_postproc.csv', 'w', newline='') as postproc_file:
         writer = csv.writer(postproc_file)
         #write header row
         writer.writerow(results.keys())
