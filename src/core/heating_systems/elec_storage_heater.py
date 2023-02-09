@@ -9,6 +9,7 @@ This module provides object(s) to model the behaviour of electric storage heater
 from scipy.integrate import solve_ivp
 from pickle import FALSE
 
+
 class ElecStorageHeater:
     """ Class to represent electric storage heaters """
 
