@@ -872,7 +872,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     #vol_daily_average = (25 * N_occupants) + 36
     
     #new relation based on Boiler Manufacturer data and EST surveys
-    vol_daily_average = 74.4 *math.log(N_occupants) + 42.2
+    vol_daily_average = 74.4 * math.log(N_occupants) + 42.2
 
     # Add daily average hot water use to hot water only heat pump (HWOHP) object, if present
     # TODO This is probably only valid if HWOHP is the only heat source for the
@@ -890,38 +890,40 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     this will determine what proportion of events in the list to eliminate, if less than 1
     '''
     ratio = targetQHW / refQHW
-
     if ratio < 1.0:
         '''
-        apprixmate the (1-ratio) with a fraction and eliminate 
+        approximate the (1-ratio) with a fraction and eliminate 
         that fraction of events, so that the sum energy demand of events 
         is (approximately) equal to targetQHW
         '''
         fractionalk = Fraction((1.0 - ratio))
         bjorklund_n_events = fractionalk.limit_denominator(len(annual_HW_events)).numerator
         bjorklund_k_steps = fractionalk.limit_denominator(len(annual_HW_events)).denominator
-        print(bjorklund_n_events)
-        print(bjorklund_k_steps)
+
         elim_pattern = bjorklund(bjorklund_k_steps, bjorklund_n_events)
+        
+        k=round(1.0/(1-ratio),0)
         
         counters={event_type:0 for event_type in HW_events_energy.keys()}
         
         for i,event in enumerate(annual_HW_events):
-            if elim_pattern[counters[event] % len(elim_pattern)] == 1:
+            NEC = int((math.floor(counters[event]/k) + math.floor(k/2)) % k)
+            '''
+            NEC shifts around the elimination pattern to further break up any potential regularities
+            '''
+            if elim_pattern[(counters[event] + NEC) % len(elim_pattern)] == 1:
                 annual_HW_events_energy[i] =  0.0
                 annual_HW_events[i] = 'None'
             counters[event] += 1
-            
-        '''
-        correction factor - TODO remove this?
-        no longer needed, should always be very close to 1.
-        '''
-        QHWEN_eliminations = sum(annual_HW_events_energy)
-        FHW = (targetQHW / QHWEN_eliminations)
-        HW_events_energy = {key : FHW * HW_events_energy[key] for key in HW_events_energy.keys()}
+
+    '''
+    correction factor - TODO remove this?
+    no longer needed, should always be very close to 1.
+    '''
+    QHWEN_eliminations = sum(annual_HW_events_energy)
+    FHW = (targetQHW / QHWEN_eliminations)
+    HW_events_energy = {key : FHW * HW_events_energy[key] for key in HW_events_energy.keys()}
         
-    else:
-        FHW = 1.0
         
     '''
     if part G has been complied with, apply 5% reduction to duration of all events except showers
