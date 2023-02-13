@@ -7,7 +7,12 @@ This module provides object(s) to model the behaviour of electric storage heater
 
 # Third-party imports
 from scipy.integrate import solve_ivp
-from pickle import FALSE
+import numpy as np
+from scipy.integrate._ivp.ivp import OdeResult
+import types
+
+# Local imports
+import core.units as units
 
 
 class ElecStorageHeater:
@@ -41,9 +46,114 @@ class ElecStorageHeater:
         self.__simtime            = simulation_time
         self.__control            = control
         
-        #Initialising other variables
-        self.__temp_core_target   = 600#
-        self.__temp_core_prev  = 20.0
+        # Initialising other variables
+        # Parameters
+        self.time_unit = 3600
+        self.mass = 180.0  # kg of core
+        self.c_p = 1.0054  # J/kg/K air specific heat
+        self.c_pcore = 920.0  # J/kg/K core material specific heat
+        self.Uins = 0.6  # (0.3 to 0.7 typical values) W/m^2/K U value of the insulation material between the core and the wall
+        # The value of R (resistance of air gap) depends on several factors such as the thickness of the air gap, the temperature difference across the gap, and the air flow characteristics.
+        # Here are some typical values for R per inch of air gap thickness:
+        # Still air: 0.17 m²·K/W
+        # Air movement (average): 0.07 m²·K/W
+        # Air movement (high): 0.04 m²·K/W
+        # Note: These values are for a temperature difference of 24°F (14°C) and a pressure difference of 1 inch of water column. The values will change with changes in temperature and pressure differences.
+        self.Rair_off = 0.17  # 0.17  # Thermal resistance of the air layer between the insulation and the wall of the device. Assuming no change of resistance with temp diff. (Rough aprox)
+        self.Rair_on = 0.07  # Same as above when the damper is on
+
+        self.A = 4.0  # m^2 transfer area between core and case or wall
+        self.temp_air = 20  # °C Room temperature
+        # case/wall c and n parameters as emitter.
+        self.c = 8  # 0.08 # c and n are characteristic of the case/wall of the device acting as emitters (e.g. derived from BS EN 442 tests)
+        self.n = 0.9  # 1.9  # c and n are characteristic of the case/wall of the device acting as emitters (e.g. derived from BS EN 442 tests)
+        self.thermal_mass_wall = 140 / 6  # assuming thermal mass of the case electric storage heater 6 time lower than a typical radiator
+        self.mass_flow_air_nominal = 5  # kg/s this is the nominal or max rate of air mass passing through the heater with damper open and ideal fan assisted mode
+        # type = "standard"  # type of electric storage heater
+        # type = "fan_assisted" # type of electric storage heater
+        self.damper_fraction = 1.0  # This parameter specicify the opening ratio for the damper of the storage heater. It's set to 1.0 by default but there might be control strategies using this to configure diferent levels of release
+        # labs_test for electric storage heater reaching 300 degC
+        # This represents the temperature difference between the core and the room on the first column and the fraction of air flow relating to the nominal as defined above on the second column
+        self.labs_tests_400 = [
+            [324.91, 1.77],
+            [286.52, 1.58],
+            [254.93, 1.4],
+            [228.63, 1.25],
+            [206.41, 1.13],
+            [187.41, 1.02],
+            [171.03, 0.92],
+            [156.79, 0.83],
+            [144.29, 0.75],
+            [133.25, 0.68],
+            [123.42, 0.62],
+            [114.57, 0.6],
+            [106.36, 0.6],
+            [98.73, 0.6],
+            [91.65, 0.6],
+            [85.07, 0.6]
+        ]
+
+        self.labs_tests_400_fan = [
+            [270.15, 5.03],
+            [202.2, 5.03],
+            [151.33, 5.03],
+            [113.24, 5.03],
+            [84.73, 5.03],
+            [63.39, 5.03],
+            [47.1491642, 5.03],
+            [35.47, 5.03],
+            [26.53, 5.03],
+            [19.84, 5.03],
+            [14.84, 5.03],
+            [11.1, 5.03],
+            [8.31, 5.03],
+            [6.22, 5.03],
+            [4.66, 5.02],
+            [3.49, 5.03],
+            [2.62, 5.02]
+        ]
+        self.labs_tests_400_mod = [
+            [670.15, 6.03],
+            [570.15, 6.03],
+            [470.15, 6.03],
+            [270.15, 6.03],
+            [202.2, 4.03],
+            [151.33, 4.03],
+            [113.24, 4.03],
+            [84.73, 4.03],
+            [63.39, 4.03],
+            [47.42, 4.03],
+            [35.47, 4.03],
+            [26.53, 4.03],
+            [19.84, 4.03],
+            [14.84, 4.03],
+            [11.1, 4.03],
+            [8.31, 4.03],
+            [6.22, 4.03],
+            [4.66, 4.02],
+            [3.49, 4.03],
+            [2.62, 4.02]
+        ]
+
+        # This represents the temperature difference between the core and the room on the first column
+        # and the fraction of air flow relating to the nominal as defined above on the second column
+        self.labs_tests = self.labs_tests_400_fan
+
+        # Initial conditions
+        self.t_core0 = 114.0  # °C
+        self.t_core_target = 600  # Target temperature for the core of the heater in charging mode. Max allowed temperature of the core.
+        self.t_core_in_red = 0.9 * self.t_core_target  # Temperature at which the heater regulate charging down (to avoid instability in diff eq resolution)
+        self.pwr_in = 5700  # Charging power rate
+
+        # Initial conditions
+        self.t_core = self.t_core0
+        self.t_wall = self.temp_air
+
+        self.damper_fraction = 1.0
+
+        # Initialising other variables
+        self.__temp_core_target = 600
+        self.__temp_core_prev = 20.0
         self.__c = 0.08
         self.__n = 1.2
 
@@ -51,165 +161,159 @@ class ElecStorageHeater:
         return self.__control.setpnt()
 
     def frac_convective(self):
-        return self.__frac_convective   
-    
-    def __func_temp_core_change_rate(self, power_input):
-        """ Differential eqn for change rate of emitter temperature, to be solved iteratively
+        return self.__frac_convective
 
-        Derivation:
-
-        Heat balance equation for radiators:
-            (T_E(t) - T_E(t-1)) * K_E / timestep = power_input - power_output
-        where:
-            T_E is mean emitter temperature
-            K_E is thermal mass of emitters
-
-        Power output from emitter (eqn from 2020 ASHRAE Handbook p644):
-            power_output = c * (T_E(t) - T_rm) ^ n
-        where:
-            T_rm is air temperature in the room/zone
-            c and n are characteristic of the emitters (e.g. derived from BS EN 442 tests)
-
-        Substituting power output eqn into heat balance eqn gives:
-            (T_E(t) - T_E(t-1)) * K_E / timestep = power_input - c * (T_E(t) - T_rm) ^ n
-
-        Rearranging gives:
-            (T_E(t) - T_E(t-1)) / timestep = (power_input - c * (T_E(t) - T_rm) ^ n) / K_E
-        which gives the differential equation as timestep goes to zero:
-            d(T_E)/dt = (power_input - c * (T_E - T_rm) ^ n) / K_E
-
-        If T_rm is assumed to be constant over the time period, then the rate of
-        change of T_E is the same as the rate of change of deltaT, where:
-            deltaT = T_E - T_rm
-
-        Therefore, the differential eqn can be expressed in terms of deltaT:
-            d(deltaT)/dt = (power_input - c * deltaT(t) ^ n) / K_E
-
-        This can be solved for deltaT over a specified time period using the
-        solve_ivp function from scipy.
-        """
-        # Apply min value of zero to temp_diff because the power law does not
-        # work for negative temperature difference
-        return lambda t, temp_diff: (
-            (power_input - self.__c * max(0, temp_diff[0]) ** self.__n) / self.__thermal_mass,
-        )
-
-    def temp_core(self, time_start, time_end, temp_core_start, temp_rm, power_input):
-        """ Calculate emitter temperature after specified time with specified power input """
-        # Calculate emitter temp at start of timestep
-        temp_diff_start = temp_core_start - temp_rm
-
-        # Get function representing change rate equation and solve iteratively
-        func_temp_core_change_rate \
-            = self.__func_temp_core_change_rate(power_input)
-        temp_diff_core_rm_results \
-            = solve_ivp(func_temp_core_change_rate, (time_start, time_end), (temp_diff_start,))
-
-        # Calculate core temp at end of timestep
-        temp_diff_core_rm_final = temp_diff_core_rm_results.y[0][-1]
-        return temp_rm + temp_diff_core_rm_final
-    
-    def __energy_to_target_temp(self, temp_core_prev):
-        # Calculate the amount energy needed to bring the core to the target temperature
-        return(self.__thermal_mass * (self.__temp_core_target - temp_core_prev))
-
-    def __energy_provided_by_charging(self, timestep, temp_core_prev):
-        
-        flag_charging = False
-        current_hour = self.__simtime.current_hour()
-        if current_hour < 7:
-            flag_charging = True
-        
-        if flag_charging:    
-            if temp_core_prev >= self.__temp_core_target:
-                energy_charging = 0.0
+    def __electric_charge(self, time: float, t_core: float) -> float:
+        if time <= 5 * self.time_unit and t_core <= self.t_core_target:
+            pwr_required: float = (self.t_core_target - t_core) * self.mass * self.c_pcore
+            if pwr_required > self.pwr_in:
+                return self.pwr_in
             else:
-                energy_charging \
-                = min(self.__energy_to_target_temp(temp_core_prev), 
-                      self.__pwr * self.__simtime.timestep()
-                     )
+                return pwr_required
         else:
-            energy_charging = 0.0
-            
-        return energy_charging
+            return 0.0
 
-    def demand_energy(self, energy_demand):
-        """ Demand energy (in kWh) from the heater """
+    def __lab_test_hA(self, t_core_rm_diff: float) -> float:
+        # labs_test for electric storage heater
+        x: list = [row[0] for row in self.labs_tests]
+        y: list = [row[1] for row in self.labs_tests]
+        return np.interp(t_core_rm_diff, x, y)
 
-        """ PREVIOUS CODE FROM INSTANT ELEC HEATER
-        # Account for time control where present. If no control present, assume
-        # system is always active (except for basic thermostatic control, which
-        # is implicit in demand calculation).
-        # TODO Account for manual (or smart) control where heater may be left
-        #      on for longer than it would be under a simple thermostatic
-        #      control?
-        if self.__control is None or self.__control.is_on():
-            # Energy that heater is able to supply is limited by power rating
-            # STORAGE HEATERS: 0.7 used as an initial value for passive heating through leakage.
-            energy_supplied = min(energy_demand + 0.7, self.__pwr * self.__simulation_time.timestep())
-            
-            print("%.2f" % energy_supplied, end=" ") 
-            print("\t", end=" ")
+    def __energy_discharge(self, time: float, t_core: float, temp_air: float) -> float:
+        # Equation for heat transfer Q_dis between the core and the air when damper is on
+        q_dis: float
+        if 12 * self.time_unit <= time <= 24 * self.time_unit:
+            q_dis = self.__lab_test_hA(t_core - temp_air) * (t_core - temp_air)
         else:
-            energy_supplied = 0.0
+            q_dis = 0.0
 
-        self.__energy_supply_conn.demand_energy(energy_supplied)
-        return energy_supplied """
-    
-        timestep = self.__simtime.timestep()
-        temp_rm_prev = self.__zone.temp_internal_air()
-        
-        # Calculating energy input from charging process
-        energy_provided_by_charging \
-                = self.__energy_provided_by_charging(timestep, self.__temp_core_prev)
+        return q_dis
+        # heat balance
 
-        # Calculate core temperature and output achieved at end of timestep.
-        # Do not allow core temp to fall below room temp
-        power_provided_by_charging = energy_provided_by_charging / timestep
-        
-        current_hour = self.__simtime.current_hour()
+    def __return_q_released(self, new_temp_core_and_wall: list, q_released: float, timestep: int) -> float:
+        # Convert to numpy array
+        new_temp_core_and_wall = np.array(new_temp_core_and_wall)
 
-        if current_hour > 8 and current_hour < 20:
-            # Energy that heater is able to supply is limited by power rating
-            # STORAGE HEATERS: 0.7 used as an initial value for passive heating through leakage.
-            temp_core = self.temp_core(
-                0.0,
-                timestep,
-                self.__temp_core_prev,
-                temp_rm_prev,
-                power_provided_by_charging,
-                )
-            temp_core = max(temp_core, temp_rm_prev)
-            energy_released_from_core \
-                = energy_provided_by_charging \
-                + self.__thermal_mass * (self.__temp_core_prev - temp_core)
-            
-            energy_supplied = min(energy_demand, energy_released_from_core)
-                        
+        # Setting core and wall temperatures to new values, for next iteration
+        self.t_core = new_temp_core_and_wall[0]
+        self.t_wall = new_temp_core_and_wall[1]
+
+        # Convert q_released to correct unit (e.g. Wh to kWh)
+        return q_released / units.W_per_kW * timestep
+
+    def __heat_balance(self, temp_core_and_wall: list, time: float, temp_air: float, q_dis_modo=0) -> tuple:
+        t_core: float = temp_core_and_wall[0]
+        t_wall: float = temp_core_and_wall[1]
+        # Equation for electric charging
+        q_in: float = self.__electric_charge(time, t_core)
+        q_dis: float
+
+        # Equation for heat transfer Q_dis between the core and the air when damper is on
+        if q_dis_modo == "damper_on":
+            q_dis = self.__energy_discharge(time, t_core, temp_air)
+        elif q_dis_modo == "max":
+            q_dis = self.__lab_test_hA(t_core - temp_air) * (t_core - temp_air)
         else:
-            # Energy that heater is able to supply is limited by power rating
-            # STORAGE HEATERS: 0.7 used as an initial value for passive heating through leakage.
-            temp_core = self.temp_core(
-                0.0,
-                timestep,
-                self.__temp_core_prev,
-                self.__temp_core_prev-10,
-                power_provided_by_charging,
-                )
-            temp_core = max(temp_core, temp_rm_prev)
-            energy_released_from_core \
-                = self.__thermal_mass * (self.__temp_core_prev - temp_core)
-            
-            energy_supplied = energy_released_from_core
-        
-        # Save emitter temperature for next timestep
-        self.__temp_core_prev = temp_core
+            q_dis = q_dis_modo
+            # Equation for heat transfer to room from wall/case of heater
 
-        print("%.2f" % energy_released_from_core, end=" ") 
-        print("\t", end=" ")
+        q_out_wall: float = self.c * (t_wall - temp_air) ** self.n
 
-        print("%.2f" % temp_core, end=" ") 
-        print("\t", end=" ")
+        # Calculation of the U value between core and wall/case as
+        # U value for the insulation and resistance of the air layer between the insulation and the wall/case
+        insulation: float = 1 / (1 / self.Uins + self.Rair_off)
 
-        return energy_released_from_core
+        # Equation for the heat transfer between the core and the wall/case of the heater
+        q_out_ins: float = insulation * self.A * (t_core - t_wall)
 
+        # Variation of Core temperature as per heat balance inside the heater
+        dT_core: float = (1 / (self.mass * self.c_pcore)) * (q_in - q_out_ins - q_dis)
+
+        # Variation of Wall/case temperature as per heat balance in surface of the heater
+        dT_wall: float = (1 / self.thermal_mass_wall) * (q_out_ins - q_out_wall)
+
+        q_released: float = q_dis + q_out_wall
+        return [dT_core, dT_wall], q_released
+
+    def __func_core_temperature_change_rate(self, temp_air: float, q_dis_modo) -> types.FunctionType:
+        return lambda time, t_core_and_wall: self.__heat_balance(temp_core_and_wall=t_core_and_wall,
+                                                                 time=time,
+                                                                 temp_air=temp_air,
+                                                                 q_dis_modo=q_dis_modo)[0]
+
+    def __calulate_sol_and_q_released(self, time_range, temp_core_and_wall, temp_air, q_dis_modo) -> tuple:
+        # first calculate how much the system is leaking without active discharging
+        sol: OdeResult = solve_ivp(fun=self.__func_core_temperature_change_rate(temp_air=temp_air,
+                                                                                q_dis_modo=q_dis_modo),
+                                   t_span=time_range,
+                                   y0=temp_core_and_wall,
+                                   method='BDF')
+        q_released: float = self.__heat_balance(temp_core_and_wall=sol.y[:, -1],
+                                                time=time_range[1],
+                                                temp_air=temp_air,
+                                                q_dis_modo=q_dis_modo)[1]
+
+        return sol, q_released
+
+    def demand_energy(self, energy_demand: float) -> float:
+
+        # Initialising Variables
+        energy_demand: float = energy_demand * units.W_per_kW  # Converting energy_demand from kWh to Wh
+        timestep: int = self.__simtime.timestep()
+        current_hour: int = self.__simtime.current_hour()
+        time_range: list = [current_hour*self.time_unit, (current_hour + 1)*self.time_unit]
+        temp_core_and_wall: list = [self.t_core, self.t_wall]
+
+        # First line of code should be uncommented, but solve_ivp fails once temperature goes > 20 degrees
+        # temp_air: float = self.__zone.temp_internal_air()
+        temp_air: float = 20.0
+
+        #################################################
+        # Part 1                                        #
+        #################################################
+        # first calculate how much the system is leaking without active discharging
+        sol: OdeResult
+        q_released: float
+        sol, q_released = self.__calulate_sol_and_q_released(time_range=time_range,
+                                                             temp_core_and_wall=temp_core_and_wall,
+                                                             temp_air=temp_air,
+                                                             q_dis_modo=0)
+        q_min: float = q_released
+        new_temp_core_and_wall: float
+
+        # if Q_released is more than what the zone wants, that's it
+        if q_released >= energy_demand:
+            # More energy than needed released. End of calculations.
+            return self.__return_q_released(new_temp_core_and_wall=sol.y[:, -1],
+                                            q_released=q_released,
+                                            timestep=timestep)
+
+        #################################################
+        # Part 2                                        #
+        #################################################
+        # Zone needs more than leaked, let's calculate with max discharging capability
+        sol, q_released = self.__calulate_sol_and_q_released(time_range=time_range,
+                                                             temp_core_and_wall=temp_core_and_wall,
+                                                             temp_air=temp_air,
+                                                             q_dis_modo="max")
+        # If Q_released is not sufficient for zone demand, that's it
+        if q_released < energy_demand:
+            # The system can only discharged the maximum amount, zone doesn't get everything it needs
+            return self.__return_q_released(new_temp_core_and_wall=sol.y[:, -1],
+                                            q_released=q_released,
+                                            timestep=timestep)
+
+        #################################################
+        # Part 3                                        #
+        #################################################
+        # Zone actually needs an amount of energy that can be released by the system:
+        # Let's call the heat balance forcing that amount
+        q_dis: float = energy_demand - q_min
+        sol, q_released = self.__calulate_sol_and_q_released(time_range=time_range,
+                                                             temp_core_and_wall=temp_core_and_wall,
+                                                             temp_air=temp_air,
+                                                             q_dis_modo=q_dis)
+
+        return self.__return_q_released(new_temp_core_and_wall=sol.y[:, -1],
+                                        q_released=q_released,
+                                        timestep=timestep)
