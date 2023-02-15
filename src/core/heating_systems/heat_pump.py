@@ -34,6 +34,7 @@ class SourceType(Enum):
     EXHAUST_AIR_MIXED = auto()
     WATER_GROUND = auto()
     WATER_SURFACE = auto()
+    HEAT_NETWORK = auto()
 
     @classmethod
     def from_string(cls, strval):
@@ -51,6 +52,8 @@ class SourceType(Enum):
             return cls.WATER_GROUND
         elif strval == 'WaterSurface':
             return cls.WATER_SURFACE
+        elif strval == 'HeatNetwork':
+            return cls.HEAT_NETWORK
         else:
             sys.exit('SourceType (' + str(strval) + ') not valid.')
             # TODO Exit just the current case instead of whole program entirely?
@@ -63,7 +66,13 @@ class SourceType(Enum):
 
         if source_type in (cls.EXHAUST_AIR_MEV, cls.EXHAUST_AIR_MVHR, cls.EXHAUST_AIR_MIXED):
             return True
-        elif source_type in (cls.GROUND, cls.OUTSIDE_AIR, cls.WATER_GROUND, cls.WATER_SURFACE):
+        elif source_type in (
+            cls.GROUND,
+            cls.OUTSIDE_AIR,
+            cls.WATER_GROUND,
+            cls.WATER_SURFACE,
+            cls.HEAT_NETWORK,
+            ):
             return False
         else:
             sys.exit('SourceType (' + str(source_type) + ') not defined as exhaust air or not.')
@@ -77,7 +86,7 @@ class SourceType(Enum):
         if source_type \
         in (cls.OUTSIDE_AIR, cls.EXHAUST_AIR_MEV, cls.EXHAUST_AIR_MVHR, cls.EXHAUST_AIR_MIXED):
             return True
-        elif source_type in (cls.GROUND, cls.WATER_GROUND, cls.WATER_SURFACE):
+        elif source_type in (cls.GROUND, cls.WATER_GROUND, cls.WATER_SURFACE, cls.HEAT_NETWORK):
             return False
         else:
             sys.exit( 'SourceType (' + str(source_type) \
@@ -89,7 +98,7 @@ class SourceType(Enum):
         if isinstance(source_type, str):
             source_type = cls.from_string(source_type)
 
-        if source_type in (cls.GROUND, cls.WATER_GROUND, cls.WATER_SURFACE):
+        if source_type in (cls.GROUND, cls.WATER_GROUND, cls.WATER_SURFACE, cls.HEAT_NETWORK):
             return True
         elif source_type \
         in (cls.OUTSIDE_AIR, cls.EXHAUST_AIR_MEV, cls.EXHAUST_AIR_MVHR, cls.EXHAUST_AIR_MIXED):
@@ -1040,6 +1049,7 @@ class HeatPump:
             simulation_time,
             external_conditions,
             throughput_exhaust_air=None,
+            heat_network=None,
             ):
         """ Construct a HeatPump object
 
@@ -1054,6 +1064,7 @@ class HeatPump:
                 - "ExhaustAirMixed"
                 - "WaterGround"
                 - "WaterSurface"
+                - "HeatNetwork"
             - SinkType -- string specifying heat distribution type, one of:
                 - "Air"
                 - "Water"
@@ -1090,12 +1101,17 @@ class HeatPump:
             - power_crankcase_heater -- power (kW) consumption in crankcase heater mode
             - power_off -- power (kW) consumption in off mode
             - power_max_backup -- max. power (kW) of backup heater
+            - temp_distribution_heat_network
+                  -- distribution temperature of the heat network (for HPs that use heat
+                     network as heat source)
         energy_supply -- reference to EnergySupply object
         energy_supply_conn_name_auxiliary
             -- name to be used for EnergySupplyConnection object for auxiliary energy
         simulation_time -- reference to SimulationTime object
         external_conditions -- reference to ExternalConditions object
         throughput_exhaust_air -- throughput (litres / second) of exhaust air
+        heat_network -- reference to EnergySupply object representing heat network
+                        (for HPs that use heat network as heat source)
 
         Other variables:
         energy_supply_connections
@@ -1137,6 +1153,15 @@ class HeatPump:
         self.__power_off_mode = hp_dict['power_off']
         self.__power_max_backup = hp_dict['power_max_backup']
 
+        # HPs that use heat network as heat source require different/additional
+        # initialisation, which is implemented here
+        if self.__source_type == SourceType.HEAT_NETWORK:
+            if heat_network is None:
+                sys.exit('If HP uses heat network as source, then heat network must be specified')
+            self.__temp_distribution_heat_network = hp_dict['temp_distribution_heat_network']
+            self.__energy_supply_HN = heat_network
+            self.__energy_supply_HN_connections = {}
+
         # Exhaust air HP requires different/additional initialisation, which is implemented here
         if SourceType.is_exhaust_air(self.__source_type):
             lowest_air_flow_rate_in_test_data, hp_dict['test_data'] \
@@ -1175,6 +1200,11 @@ class HeatPump:
         # Set up EnergySupplyConnection for this service
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
+
+        # If HP uses heat network as source, then set up connection
+        if self.__source_type == SourceType.HEAT_NETWORK:
+            self.__energy_supply_HN_connections[service_name] \
+                = self.__energy_supply_HN.connection(service_name)
 
     def create_service_hot_water(
             self,
@@ -1249,6 +1279,8 @@ class HeatPump:
         #     # TODO
         # elif self.__source_type == SourceType.WATER_SURFACE:
         #     # TODO
+        elif self.__source_type == SourceType.HEAT_NETWORK:
+            temp_source = self.__temp_distribution_heat_network
         else:
             # If we reach here, then earlier input validation has failed, or a
             # SourceType option is missing above.
@@ -1579,6 +1611,8 @@ class HeatPump:
             'use_backup_heater_only': use_backup_heater_only,
             'hp_operating_in_onoff_mode': hp_operating_in_onoff_mode,
             'energy_input_HP_divisor': energy_input_HP_divisor,
+            'energy_input_HP': energy_input_HP,
+            'energy_delivered_HP': energy_delivered_HP,
             }
 
     def __demand_energy(
@@ -1716,6 +1750,7 @@ class HeatPump:
                 energy_input_HP = 0.0
 
             self.__energy_supply_connections[service_name].demand_energy(energy_input_HP)
+            self.__service_results[service_no]['energy_input_HP'] += energy_input_HP
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
         """ Calculate auxiliary energy according to CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.7 """
@@ -1758,6 +1793,15 @@ class HeatPump:
 
         self.__energy_supply_connection_aux.demand_energy(energy_aux)
 
+    def __extract_energy_from_source(self):
+        """ If HP uses heat network as source, calculate energy extracted from heat network """
+        for service_data in self.__service_results:
+            service_name = service_data['service_name']
+            energy_delivered_HP = service_data['energy_delivered_HP']
+            energy_input_HP = service_data['energy_input_HP']
+            energy_extracted_HP = energy_delivered_HP - energy_input_HP
+            self.__energy_supply_HN_connections[service_name].demand_energy(energy_extracted_HP)
+
     def timestep_end(self):
         """ Calculations to be done at the end of each timestep """
         timestep = self.__simulation_time.timestep()
@@ -1765,6 +1809,9 @@ class HeatPump:
 
         self.__calc_ancillary_energy(timestep, time_remaining_current_timestep)
         self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
+
+        if self.__source_type == SourceType.HEAT_NETWORK:
+            self.__extract_energy_from_source()
 
         # Variables below need to be reset at the end of each timestep.
         self.__total_time_running_current_timestep = 0.0

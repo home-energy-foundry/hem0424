@@ -766,6 +766,7 @@ class TestSourceType(unittest.TestCase):
             ['ExhaustAirMixed', SourceType.EXHAUST_AIR_MIXED],
             ['WaterGround', SourceType.WATER_GROUND],
             ['WaterSurface', SourceType.WATER_SURFACE],
+            ['HeatNetwork', SourceType.HEAT_NETWORK],
             ]:
             self.assertEqual(
                 SourceType.from_string(strval),
@@ -783,6 +784,7 @@ class TestSourceType(unittest.TestCase):
             [SourceType.EXHAUST_AIR_MIXED, True],
             [SourceType.WATER_GROUND, False],
             [SourceType.WATER_SURFACE, False],
+            [SourceType.HEAT_NETWORK, False],
             ]:
             self.assertEqual(
                 SourceType.is_exhaust_air(source_type),
@@ -800,6 +802,7 @@ class TestSourceType(unittest.TestCase):
             [SourceType.EXHAUST_AIR_MIXED, True],
             [SourceType.WATER_GROUND, False],
             [SourceType.WATER_SURFACE, False],
+            [SourceType.HEAT_NETWORK, False],
             ]:
             self.assertEqual(
                 SourceType.source_fluid_is_air(source_type),
@@ -817,6 +820,7 @@ class TestSourceType(unittest.TestCase):
             [SourceType.EXHAUST_AIR_MIXED, False],
             [SourceType.WATER_GROUND, True],
             [SourceType.WATER_SURFACE, True],
+            [SourceType.HEAT_NETWORK, True]
             ]:
             self.assertEqual(
                 SourceType.source_fluid_is_water(source_type),
