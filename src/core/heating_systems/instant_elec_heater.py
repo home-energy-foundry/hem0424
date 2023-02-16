@@ -54,4 +54,10 @@ class InstantElecHeater:
             energy_supplied = 0.0
 
         self.__energy_supply_conn.demand_energy(energy_supplied)
+        
+        # COMPARISON WITH STORAGE HEATERS: print statements for testing    
+        print("%.2f" % (energy_demand * 1000), end=" ") 
+        print("%.2f" % (energy_supplied * 1000), end=" ") 
+        
+        
         return energy_supplied

@@ -1347,8 +1347,10 @@ class Project:
                 
                 # STORAGE HEATERS: print statements for testing    
                 print("%.2f" % zone.temp_operative(), end=" ") 
-                print("\t", end=" ")
+#                print("\t", end=" ")
                 print("%.2f" % zone.temp_internal_air()) 
+#                print("\t", end=" ")
+#                print(" ")
 
 
                 if h_name is None:

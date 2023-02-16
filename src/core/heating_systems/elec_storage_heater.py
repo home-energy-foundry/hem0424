@@ -140,20 +140,21 @@ class ElecStorageHeater:
         self.labs_tests = self.labs_tests_400_fan
 
         # Initial conditions
-        self.t_core0 = 114.0  # °C
-        self.t_core_target = 600  # Target temperature for the core of the heater in charging mode. Max allowed temperature of the core.
-        self.t_core_in_red = 0.9 * self.t_core_target  # Temperature at which the heater regulate charging down (to avoid instability in diff eq resolution)
-        self.pwr_in = 5700  # Charging power rate
+#        self.t_core0 = 114.0  # °C
+        self.t_core_target = 1600  # Target temperature for the core of the heater in charging mode. Max allowed temperature of the core.
+#        self.t_core_in_red = 0.9 * self.t_core_target  # Temperature at which the heater regulate charging down (to avoid instability in diff eq resolution)
+        self.pwr_in = 15700  # Charging power rate
 
         # Initial conditions
-        self.t_core = self.t_core0
-        self.t_wall = self.temp_air
+        #self.t_core = self.t_core0
+        self.t_core = self.__zone.temp_internal_air()
+        self.t_wall = self.__zone.temp_internal_air()
 
         self.damper_fraction = 1.0
 
         # Initialising other variables
         self.__temp_core_target = 600
-        self.__temp_core_prev = 20.0
+#        self.__temp_core_prev = 20.0
         self.__c = 0.08
         self.__n = 1.2
 
@@ -167,8 +168,10 @@ class ElecStorageHeater:
         if time <= 5 * self.time_unit and t_core <= self.t_core_target:
             pwr_required: float = (self.t_core_target - t_core) * self.mass * self.c_pcore
             if pwr_required > self.pwr_in:
+                self.__energy_supply_conn.demand_energy(self.pwr_in)
                 return self.pwr_in
             else:
+                self.__energy_supply_conn.demand_energy(pwr_required)
                 return pwr_required
         else:
             return 0.0
@@ -197,6 +200,14 @@ class ElecStorageHeater:
         # Setting core and wall temperatures to new values, for next iteration
         self.t_core = new_temp_core_and_wall[0]
         self.t_wall = new_temp_core_and_wall[1]
+
+        # STORAGE HEATERS: print statements for testing    
+        print("%.2f" % q_released, end=" ") 
+        print("%.2f" % self.t_core, end=" ") 
+        print("%.2f" % self.t_wall, end=" ") 
+
+
+
 
         # Convert q_released to correct unit (e.g. Wh to kWh)
         return q_released / units.W_per_kW * timestep
@@ -241,7 +252,7 @@ class ElecStorageHeater:
                                                                  temp_air=temp_air,
                                                                  q_dis_modo=q_dis_modo)[0]
 
-    def __calulate_sol_and_q_released(self, time_range, temp_core_and_wall, temp_air, q_dis_modo) -> tuple:
+    def __calculate_sol_and_q_released(self, time_range, temp_core_and_wall, temp_air, q_dis_modo) -> tuple:
         # first calculate how much the system is leaking without active discharging
         sol: OdeResult = solve_ivp(fun=self.__func_core_temperature_change_rate(temp_air=temp_air,
                                                                                 q_dis_modo=q_dis_modo),
@@ -265,8 +276,10 @@ class ElecStorageHeater:
         temp_core_and_wall: list = [self.t_core, self.t_wall]
 
         # First line of code should be uncommented, but solve_ivp fails once temperature goes > 20 degrees
-        # temp_air: float = self.__zone.temp_internal_air()
-        temp_air: float = 20.0
+        temp_air: float = self.__zone.temp_internal_air()
+        # temp_air: float = 20.0
+        #print(temp_air)
+        print("%.2f" % energy_demand, end=" ") 
 
         #################################################
         # Part 1                                        #
@@ -274,7 +287,7 @@ class ElecStorageHeater:
         # first calculate how much the system is leaking without active discharging
         sol: OdeResult
         q_released: float
-        sol, q_released = self.__calulate_sol_and_q_released(time_range=time_range,
+        sol, q_released = self.__calculate_sol_and_q_released(time_range=time_range,
                                                              temp_core_and_wall=temp_core_and_wall,
                                                              temp_air=temp_air,
                                                              q_dis_modo=0)
@@ -292,7 +305,7 @@ class ElecStorageHeater:
         # Part 2                                        #
         #################################################
         # Zone needs more than leaked, let's calculate with max discharging capability
-        sol, q_released = self.__calulate_sol_and_q_released(time_range=time_range,
+        sol, q_released = self.__calculate_sol_and_q_released(time_range=time_range,
                                                              temp_core_and_wall=temp_core_and_wall,
                                                              temp_air=temp_air,
                                                              q_dis_modo="max")
@@ -309,7 +322,7 @@ class ElecStorageHeater:
         # Zone actually needs an amount of energy that can be released by the system:
         # Let's call the heat balance forcing that amount
         q_dis: float = energy_demand - q_min
-        sol, q_released = self.__calulate_sol_and_q_released(time_range=time_range,
+        sol, q_released = self.__calculate_sol_and_q_released(time_range=time_range,
                                                              temp_core_and_wall=temp_core_and_wall,
                                                              temp_air=temp_air,
                                                              q_dis_modo=q_dis)
