@@ -602,6 +602,13 @@ class Project:
                 else:
                     throughput_exhaust_air = None
 
+                if SourceType.from_string(data['source_type']) == SourceType.HEAT_NETWORK:
+                    energy_supply_HN = self.__energy_supplies[data['EnergySupply_heat_network']]
+                    # TODO Check that EnergySupply object representing heat source
+                    #      has an appropriate fuel type
+                else:
+                    energy_supply_HN = None
+
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 energy_supply_conn_name_auxiliary = 'HeatPump_auxiliary: ' + name
                 heat_source = HeatPump(
@@ -611,6 +618,7 @@ class Project:
                     self.__simtime,
                     self.__external_conditions,
                     throughput_exhaust_air,
+                    energy_supply_HN,
                     )
                 self.__timestep_end_calcs.append(heat_source)
             elif heat_source_type == 'Boiler':
