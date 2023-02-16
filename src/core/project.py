@@ -766,8 +766,18 @@ class Project:
 #    STORAGE HEATERS: Update the method below with storage heater inputs once these are known.
                 space_heater = ElecStorageHeater(
                     data['rated_power'],
+                    data['flue_type'],
+                    data['temp_dis_safe'],
                     data['thermal_mass'],
                     data['frac_convective'],
+                    data['U_ins'],
+                    data['mass_core'],
+                    data['c_pcore'],
+                    data['temp_core_target'],
+                    data['A_core'],
+                    data['c_wall'],
+                    data['n_wall'],
+                    data['thermal_mass_wall'],
                     data['n_units'],
                     self.__zones[data['Zone']],
                     energy_supply_conn,

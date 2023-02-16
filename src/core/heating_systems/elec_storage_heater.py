@@ -21,8 +21,18 @@ class ElecStorageHeater:
     def __init__(
             self,
             rated_power,
+            flue_type,
+            temp_dis_safe,
             thermal_mass,
             frac_convective,
+            U_ins,
+            mass_core,
+            c_pcore,
+            temp_core_target,
+            A_core,
+            c_wall,
+            n_wall,
+            thermal_mass_wall,
             n_units,
             zone,
             energy_supply_conn,
@@ -39,22 +49,30 @@ class ElecStorageHeater:
         simulation_time    -- reference to SimulationTime object
         control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
-        self.pwr_in               = ( rated_power * units.W_per_kW )
+        self.__pwr_in             = ( rated_power * units.W_per_kW )
+        self.__flue_type          = flue_type
+        self.__t_dis_safe         = temp_dis_safe
         self.__thermal_mass       = thermal_mass
         self.__frac_convective    = frac_convective
+        self.__Uins               = U_ins #0.3  # (0.3 to 0.7 typical values) W/m^2/K U value of the insulation material between the core and the wall
         self.__n_units            = n_units
         self.__zone               = zone
         self.__energy_supply_conn = energy_supply_conn
         self.__simtime            = simulation_time
         self.__control            = control
+        self.__mass               = mass_core #180.0  # kg of core
+        self.__c_pcore            = c_pcore   #920.0  # J/kg/K core material specific heat
+        self.__t_core_target      = temp_core_target #500  # Target temperature for the core of the heater in charging mode. Max allowed temperature of the core.
+        self.__A                  = A_core #4.0  # m^2 transfer area between core and case or wall
+        self.__c                  = c_wall # 8  # 0.08 # c and n are characteristic of the case/wall of the device acting as emitters (e.g. derived from BS EN 442 tests)
+        self.__n                  = n_wall # 0.9  # 1.9  # c and n are characteristic of the case/wall of the device acting as emitters (e.g. derived from BS EN 442 tests)
+        self.__thermal_mass_wall  = thermal_mass_wall # 140 / 6  # assuming thermal mass of the case electric storage heater 6 time lower than a typical radiator
         
         # Initialising other variables
         # Parameters
         self.time_unit = 3600
-        self.mass = 180.0  # kg of core
-        self.c_p = 1.0054  # J/kg/K air specific heat
-        self.c_pcore = 920.0  # J/kg/K core material specific heat
-        self.Uins = 0.3  # (0.3 to 0.7 typical values) W/m^2/K U value of the insulation material between the core and the wall
+        self.__c_p = 1.0054  # J/kg/K air specific heat
+#        self.Uins = 0.3  # (0.3 to 0.7 typical values) W/m^2/K U value of the insulation material between the core and the wall
         # The value of R (resistance of air gap) depends on several factors such as the thickness of the air gap, the temperature difference across the gap, and the air flow characteristics.
         # Here are some typical values for R per inch of air gap thickness:
         # Still air: 0.17 m²·K/W
@@ -64,13 +82,10 @@ class ElecStorageHeater:
         self.Rair_off = 0.17  # 0.17  # Thermal resistance of the air layer between the insulation and the wall of the device. Assuming no change of resistance with temp diff. (Rough aprox)
         self.Rair_on = 0.07  # Same as above when the damper is on
 
-        self.A = 4.0  # m^2 transfer area between core and case or wall
 #        self.temp_air = 20  # °C Room temperature
         # case/wall c and n parameters as emitter.
-        self.c = 8  # 0.08 # c and n are characteristic of the case/wall of the device acting as emitters (e.g. derived from BS EN 442 tests)
-        self.n = 0.9  # 1.9  # c and n are characteristic of the case/wall of the device acting as emitters (e.g. derived from BS EN 442 tests)
-        self.thermal_mass_wall = 140 / 6  # assuming thermal mass of the case electric storage heater 6 time lower than a typical radiator
         self.mass_flow_air_nominal = 5  # kg/s this is the nominal or max rate of air mass passing through the heater with damper open and ideal fan assisted mode
+        self.__mass_flow_air = 0.0  # kg/s this is the nominal or max rate of air mass passing through the heater with damper open and ideal fan assisted mode
         # type = "standard"  # type of electric storage heater
         # type = "fan_assisted" # type of electric storage heater
         self.damper_fraction = 1.0  # This parameter specicify the opening ratio for the damper of the storage heater. It's set to 1.0 by default but there might be control strategies using this to configure diferent levels of release
@@ -143,7 +158,6 @@ class ElecStorageHeater:
 
         # Initial conditions
 #        self.t_core0 = 114.0  # °C
-        self.t_core_target = 500  # Target temperature for the core of the heater in charging mode. Max allowed temperature of the core.
 #        self.t_core_in_red = 0.9 * self.t_core_target  # Temperature at which the heater regulate charging down (to avoid instability in diff eq resolution)
 #        self.pwr_in = 7700  # Charging power rate
 
@@ -153,12 +167,12 @@ class ElecStorageHeater:
         self.t_wall = self.__zone.temp_internal_air()
 
         self.damper_fraction = 1.0
-
+        self.__energy_in = 0.0
         # Initialising other variables
-        self.__temp_core_target = 500
+#        self.__temp_core_target = 500
 #        self.__temp_core_prev = 20.0
-        self.__c = 0.08
-        self.__n = 1.2
+#        self.__c = 0.08
+#        self.__n = 1.2
 
     def temp_setpnt(self):
         return self.__control.setpnt()
@@ -167,13 +181,13 @@ class ElecStorageHeater:
         return self.__frac_convective
 
     def __electric_charge(self, time: float, t_core: float) -> float:
-        if time <= 5 * self.time_unit and t_core <= self.t_core_target:
-            pwr_required: float = (self.t_core_target - t_core) * self.mass * self.c_pcore
-            if pwr_required > self.pwr_in:
-                self.__energy_supply_conn.demand_energy(self.pwr_in)
-                return self.pwr_in
+        if time <= 7 * self.time_unit and t_core <= self.__t_core_target:
+            pwr_required: float = (self.__t_core_target - t_core) * self.__mass * self.__c_pcore
+            if pwr_required > self.__pwr_in:
+                #self.__energy_supply_conn.demand_energy(self.__pwr_in)
+                return self.__pwr_in
             else:
-                self.__energy_supply_conn.demand_energy(pwr_required)
+                #self.__energy_supply_conn.demand_energy(pwr_required)
                 return pwr_required
         else:
             return 0.0
@@ -219,6 +233,8 @@ class ElecStorageHeater:
         t_wall: float = temp_core_and_wall[1]
         # Equation for electric charging
         q_in: float = self.__electric_charge(time, t_core)
+        self.__energy_in = q_in
+
         q_dis: float
 
         # Equation for heat transfer Q_dis between the core and the air when damper is on
@@ -230,20 +246,24 @@ class ElecStorageHeater:
             q_dis = q_dis_modo
             # Equation for heat transfer to room from wall/case of heater
 
-        q_out_wall: float = self.c * (t_wall - temp_air) ** self.n
+        # mass_flow_air = Q_dis / ( c_p * (T_out_safe - T_air) )
+        if self.__flue_type == "fan-assisted":
+            self.__mass_flow_air = q_dis / (self.__c_p * (self.__t_dis_safe - temp_air)) 
+        
+        q_out_wall: float = self.__c * (t_wall - temp_air) ** self.__n
 
         # Calculation of the U value between core and wall/case as
         # U value for the insulation and resistance of the air layer between the insulation and the wall/case
-        insulation: float = 1 / (1 / self.Uins + self.Rair_off)
+        insulation: float = 1 / (1 / self.__Uins + self.Rair_off)
 
         # Equation for the heat transfer between the core and the wall/case of the heater
-        q_out_ins: float = insulation * self.A * (t_core - t_wall)
+        q_out_ins: float = insulation * self.__A * (t_core - t_wall)
 
         # Variation of Core temperature as per heat balance inside the heater
-        dT_core: float = (1 / (self.mass * self.c_pcore)) * (q_in - q_out_ins - q_dis)
+        dT_core: float = (1 / (self.__mass * self.__c_pcore)) * (q_in - q_out_ins - q_dis)
 
         # Variation of Wall/case temperature as per heat balance in surface of the heater
-        dT_wall: float = (1 / self.thermal_mass_wall) * (q_out_ins - q_out_wall)
+        dT_wall: float = (1 / self.__thermal_mass_wall) * (q_out_ins - q_out_wall)
 
         q_released: float = q_dis + q_out_wall
         return [dT_core, dT_wall], q_released
