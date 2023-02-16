@@ -194,9 +194,10 @@
 	"SpaceHeatSystem": {
 		"main": {
 			"type": "ElecStorageHeater",
-			"rated_power": 7.0,
+			"rated_power": 5.0,
 			"thermal_mass": 0.01278,
 			"frac_convective": 0.4,
+			"n_units": 3,
 			"EnergySupply": "mains elec",
 			"Control": "main__hw timer__converted_from_OnOffTimeControl",
 			"Zone": "zone 1"

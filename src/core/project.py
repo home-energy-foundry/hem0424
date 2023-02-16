@@ -768,6 +768,7 @@ class Project:
                     data['rated_power'],
                     data['thermal_mass'],
                     data['frac_convective'],
+                    data['n_units'],
                     self.__zones[data['Zone']],
                     energy_supply_conn,
                     self.__simtime,

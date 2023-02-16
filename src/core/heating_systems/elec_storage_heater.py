@@ -23,6 +23,7 @@ class ElecStorageHeater:
             rated_power,
             thermal_mass,
             frac_convective,
+            n_units,
             zone,
             energy_supply_conn,
             simulation_time,
@@ -38,10 +39,11 @@ class ElecStorageHeater:
         simulation_time    -- reference to SimulationTime object
         control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
-        self.__pwr                = rated_power
+        self.pwr_in               = ( rated_power * units.W_per_kW )
         self.__thermal_mass       = thermal_mass
         self.__frac_convective    = frac_convective
-        self.__zone = zone
+        self.__n_units            = n_units
+        self.__zone               = zone
         self.__energy_supply_conn = energy_supply_conn
         self.__simtime            = simulation_time
         self.__control            = control
@@ -52,7 +54,7 @@ class ElecStorageHeater:
         self.mass = 180.0  # kg of core
         self.c_p = 1.0054  # J/kg/K air specific heat
         self.c_pcore = 920.0  # J/kg/K core material specific heat
-        self.Uins = 0.6  # (0.3 to 0.7 typical values) W/m^2/K U value of the insulation material between the core and the wall
+        self.Uins = 0.3  # (0.3 to 0.7 typical values) W/m^2/K U value of the insulation material between the core and the wall
         # The value of R (resistance of air gap) depends on several factors such as the thickness of the air gap, the temperature difference across the gap, and the air flow characteristics.
         # Here are some typical values for R per inch of air gap thickness:
         # Still air: 0.17 m²·K/W
@@ -63,7 +65,7 @@ class ElecStorageHeater:
         self.Rair_on = 0.07  # Same as above when the damper is on
 
         self.A = 4.0  # m^2 transfer area between core and case or wall
-        self.temp_air = 20  # °C Room temperature
+#        self.temp_air = 20  # °C Room temperature
         # case/wall c and n parameters as emitter.
         self.c = 8  # 0.08 # c and n are characteristic of the case/wall of the device acting as emitters (e.g. derived from BS EN 442 tests)
         self.n = 0.9  # 1.9  # c and n are characteristic of the case/wall of the device acting as emitters (e.g. derived from BS EN 442 tests)
@@ -141,9 +143,9 @@ class ElecStorageHeater:
 
         # Initial conditions
 #        self.t_core0 = 114.0  # °C
-        self.t_core_target = 1600  # Target temperature for the core of the heater in charging mode. Max allowed temperature of the core.
+        self.t_core_target = 500  # Target temperature for the core of the heater in charging mode. Max allowed temperature of the core.
 #        self.t_core_in_red = 0.9 * self.t_core_target  # Temperature at which the heater regulate charging down (to avoid instability in diff eq resolution)
-        self.pwr_in = 15700  # Charging power rate
+#        self.pwr_in = 7700  # Charging power rate
 
         # Initial conditions
         #self.t_core = self.t_core0
@@ -153,7 +155,7 @@ class ElecStorageHeater:
         self.damper_fraction = 1.0
 
         # Initialising other variables
-        self.__temp_core_target = 600
+        self.__temp_core_target = 500
 #        self.__temp_core_prev = 20.0
         self.__c = 0.08
         self.__n = 1.2
@@ -202,7 +204,7 @@ class ElecStorageHeater:
         self.t_wall = new_temp_core_and_wall[1]
 
         # STORAGE HEATERS: print statements for testing    
-        print("%.2f" % q_released, end=" ") 
+        print("%.2f" % ( q_released * self.__n_units ), end=" ") 
         print("%.2f" % self.t_core, end=" ") 
         print("%.2f" % self.t_wall, end=" ") 
 
@@ -210,7 +212,7 @@ class ElecStorageHeater:
 
 
         # Convert q_released to correct unit (e.g. Wh to kWh)
-        return q_released / units.W_per_kW * timestep
+        return q_released / units.W_per_kW * timestep * self.__n_units
 
     def __heat_balance(self, temp_core_and_wall: list, time: float, temp_air: float, q_dis_modo=0) -> tuple:
         t_core: float = temp_core_and_wall[0]
@@ -269,7 +271,7 @@ class ElecStorageHeater:
     def demand_energy(self, energy_demand: float) -> float:
 
         # Initialising Variables
-        energy_demand: float = energy_demand * units.W_per_kW  # Converting energy_demand from kWh to Wh
+        energy_demand: float = energy_demand * units.W_per_kW / self.__n_units # Converting energy_demand from kWh to Wh and distributing it through all units
         timestep: int = self.__simtime.timestep()
         current_hour: int = self.__simtime.current_hour()
         time_range: list = [current_hour*self.time_unit, (current_hour + 1)*self.time_unit]
@@ -279,7 +281,7 @@ class ElecStorageHeater:
         temp_air: float = self.__zone.temp_internal_air()
         # temp_air: float = 20.0
         #print(temp_air)
-        print("%.2f" % energy_demand, end=" ") 
+        print("%.2f" % ( energy_demand * self.__n_units ), end=" ") 
 
         #################################################
         # Part 1                                        #
