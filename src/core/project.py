@@ -640,12 +640,14 @@ class Project:
                                         / self.__total_floor_area]
                 total_internal_gains_HIU = internal_gains_HIU * units.days_per_year * units.hours_per_day
                 # Append internal gains object to self.__internal_gains dictionary
-                self.__internal_gains[heat_source_type] = InternalGains(
-                                                            total_internal_gains_HIU, 
-                                                            self.__simtime,
-                                                            proj_dict['SimulationTime']['start'],
-                                                            proj_dict['SimulationTime']['step']
-                                                            )
+                if name in self.__internal_gains.keys():
+                    sys.exit('Name of HIU duplicates name of an existing InternalGains object')
+                self.__internal_gains[name] = InternalGains(
+                    total_internal_gains_HIU,
+                    self.__simtime,
+                    proj_dict['SimulationTime']['start'],
+                    proj_dict['SimulationTime']['step']
+                    )
             else:
                 sys.exit(name + ': heat source type (' \
                        + heat_source_type + ') not recognised.')
