@@ -226,6 +226,7 @@ class ElecStorageHeater:
 
 
         # Convert q_released to correct unit (e.g. Wh to kWh)
+        # Multipy energy released by number of devices installed in the zone
         return q_released / units.W_per_kW * timestep * self.__n_units
 
     def __heat_balance(self, temp_core_and_wall: list, time: float, temp_air: float, q_dis_modo=0) -> tuple:
@@ -237,19 +238,6 @@ class ElecStorageHeater:
 
         q_dis: float
 
-        # Equation for heat transfer Q_dis between the core and the air when damper is on
-        if q_dis_modo == "damper_on":
-            q_dis = self.__energy_discharge(time, t_core, temp_air)
-        elif q_dis_modo == "max":
-            q_dis = self.__lab_test_hA(t_core - temp_air) * (t_core - temp_air)
-        else:
-            q_dis = q_dis_modo
-            # Equation for heat transfer to room from wall/case of heater
-
-        # mass_flow_air = Q_dis / ( c_p * (T_out_safe - T_air) )
-        if self.__flue_type == "fan-assisted":
-            self.__mass_flow_air = q_dis / (self.__c_p * (self.__t_dis_safe - temp_air)) 
-        
         q_out_wall: float = self.__c * (t_wall - temp_air) ** self.__n
 
         # Calculation of the U value between core and wall/case as
@@ -258,6 +246,25 @@ class ElecStorageHeater:
 
         # Equation for the heat transfer between the core and the wall/case of the heater
         q_out_ins: float = insulation * self.__A * (t_core - t_wall)
+
+        # Equation for heat transfer Q_dis between the core and the air when damper is on
+        if q_dis_modo == "damper_on":
+            q_dis = self.__energy_discharge(time, t_core, temp_air)
+        elif q_dis_modo == "max":
+            q_dis = self.__lab_test_hA(t_core - temp_air) * (t_core - temp_air)
+        elif q_dis_modo == 0:
+            q_dis = q_dis_modo
+        else:
+            q_dis = q_dis_modo - q_out_wall
+            # Equation for heat transfer to room from wall/case of heater
+
+        # mass_flow_air = Q_dis / ( c_p * (T_out_safe - T_air) )
+        # the purpose of this calculation is to calcualte fan energy required by the device
+        # This might be better left outside this function to avoid extra calculations as
+        # long as we can calculated at the end (maybe by saving q_dis as an internal variable?
+        if self.__flue_type == "fan-assisted":
+            self.__mass_flow_air = q_dis / (self.__c_p * (self.__t_dis_safe - temp_air)) 
+        
 
         # Variation of Core temperature as per heat balance inside the heater
         dT_core: float = (1 / (self.__mass * self.__c_pcore)) * (q_in - q_out_ins - q_dis)
@@ -343,7 +350,8 @@ class ElecStorageHeater:
         #################################################
         # Zone actually needs an amount of energy that can be released by the system:
         # Let's call the heat balance forcing that amount
-        q_dis: float = energy_demand - q_min
+#        q_dis: float = energy_demand - q_min
+        q_dis: float = energy_demand
         sol, q_released = self.__calculate_sol_and_q_released(time_range=time_range,
                                                              temp_core_and_wall=temp_core_and_wall,
                                                              temp_air=temp_air,
