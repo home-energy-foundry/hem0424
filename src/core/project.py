@@ -1358,11 +1358,9 @@ class Project:
                     )
                 
                 # STORAGE HEATERS: print statements for testing    
-                print("%.2f" % zone.temp_operative(), end=" ") 
-#                print("\t", end=" ")
-                print("%.2f" % zone.temp_internal_air()) 
-#                print("\t", end=" ")
-#                print(" ")
+                #print("%.2f" % zone.temp_operative(), end=" ") 
+                #print("%.2f" % zone.temp_internal_air()) 
+                # DELETE after confirmation of Electric Storage Heater method
 
 
                 if h_name is None:

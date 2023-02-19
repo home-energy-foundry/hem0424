@@ -48,12 +48,29 @@ class ElecStorageHeater:
         """Construct an ElecStorageHeater object
 
         Arguments:
-        rated_power        -- in kW
-        thermal_mass       -- thermal mass of emitters, in kWh / K
-        frac_convective    -- convective fraction for heating
-        energy_supply_conn -- reference to EnergySupplyConnection object
-        simulation_time    -- reference to SimulationTime object
-        control -- reference to a control object which must implement is_on() and setpnt() funcs
+        rated_power          -- in kW (Charging)
+        rated_power_instant  -- in kW (Instant backup)
+        flue_type            -- type of Electric Storage Heater:
+                             -- fan-assisted
+                             -- damper
+        temp_dis_safe        -- safe temperature to discharge hot air from device (60 degC)
+        thermal_mass         -- thermal mass of emitters, in kWh / K
+        frac_convective      -- convective fraction for heating (TODO: Check if necessary)
+        U_ins                -- U-value insulation between core and case [W/m^2/K]
+        mass_core            -- kg mass core material [kg]
+        c_pcore              -- thermal capacity of core material [J/kg/K]
+        temp_core_target     -- target temperature for the core material on charging mode
+                             -- this might include weather compensation with future more 
+                             -- advances controls
+        A_core               -- Transfer area between the core and air [m2]
+        c_wall               -- constant from characteristic equation of emitters (e.g. derived from BS EN 442 tests)
+        n_wall               -- exponent from characteristic equation of emitters (e.g. derived from BS EN 442 tests)
+        thermal_mass_wall    -- thermal mass of the case
+        n_units              -- number of units install in zone
+        zone                 -- zone where the unit(s) is/are installed
+        energy_supply_conn   -- reference to EnergySupplyConnection object
+        simulation_time      -- reference to SimulationTime object
+        control              -- reference to a control object which must implement is_on() and setpnt() funcs
         """
 
         self.__pwr_in: float = (rated_power * units.W_per_kW)
@@ -62,8 +79,6 @@ class ElecStorageHeater:
         self.__t_dis_safe: float = temp_dis_safe
         self.__thermal_mass: float = thermal_mass
         self.__frac_convective: float = frac_convective
-
-        # 0.3  # (0.3 to 0.7 typical values) W/m^2/K U value of the insulation material between the core and the wall
         self.__Uins: float = U_ins
         self.__n_units: int = n_units
         self.__zone: Zone = zone
@@ -72,20 +87,10 @@ class ElecStorageHeater:
         self.__control: SetpointTimeControl = control
         self.__mass: float = mass_core  # 180.0  # kg of core
         self.__c_pcore: float = c_pcore    # 920.0  # J/kg/K core material specific heat
-
-        # 500  # Target temperature for the core of the heater in charging mode. Max allowed temperature of the core.
         self.__t_core_target: float = temp_core_target
         self.__A: float = A_core  # 4.0  # m^2 transfer area between core and case or wall
-
-        # 8  # 0.08 # c and n are characteristic of the case/wall of the device acting as emitters
-        # (e.g. derived from BS EN 442 tests)
         self.__c: float = c_wall
-
-        # 0.9  # 1.9  # c and n are characteristic of the case/wall of the device acting as emitters
-        # (e.g. derived from BS EN 442 tests)
         self.__n: float = n_wall
-
-        # 140 / 6  # assuming thermal mass of the case electric storage heater 6 time lower than a typical radiator
         self.__thermal_mass_wall  = thermal_mass_wall
 
         # Power for driving fan
@@ -112,15 +117,11 @@ class ElecStorageHeater:
 
         # 0.17  # Thermal resistance of the air layer between the insulation and the wall of the device.
         # Assuming no change of resistance with temp diff. (Rough aprox)
-        self.Rair_off: float = 0.17
-        self.Rair_on: float = 0.07  # Same as above when the damper is on
+        self.__Rair_off: float = 0.17
+        self.__Rair_on: float = 0.07  # Same as above when the damper is on
 
         self.temp_air: float = self.__zone.temp_internal_air()  # °C Room temperature
         # case/wall c and n parameters as emitter.
-
-        # kg/s this is the nominal or max rate of air mass passing through the heater with damper open
-        # and ideal fan assisted mode
-        self.mass_flow_air_nominal: int = 5
 
         # kg/s this is the nominal or max rate of air mass passing through the heater with damper open and
         # ideal fan assisted mode
@@ -251,14 +252,7 @@ class ElecStorageHeater:
 
     def __calulate_q_dis(self, time: float, t_core: float, q_out_wall: float, q_dis_modo: str) -> float:
         q_dis: float
-        if q_dis_modo == "damper_on":
-            # Equation for heat transfer Q_dis between the core and the air when damper is on
-            if 12 * self.__time_unit <= time <= 24 * self.__time_unit:
-                q_dis = self.__lab_test_ha(t_core - self.temp_air) * (t_core - self.temp_air)
-            else:
-                q_dis = 0.0
-
-        elif q_dis_modo == "max":
+        if q_dis_modo == "max":
             q_dis = self.__lab_test_ha(t_core - self.temp_air) * (t_core - self.temp_air)
 
         elif q_dis_modo == 0:
@@ -301,10 +295,11 @@ class ElecStorageHeater:
         self.__report_energy_supply = self.__report_energy_supply + q_in_kwh + energy_for_fan_kwh + q_instant_kwh
 
         # STORAGE HEATERS: print statements for testing
-        print("%.2f" % ((q_released + q_instant) * self.__n_units), end=" ")
-        print("%.2f" % self.t_core, end=" ")
-        print("%.2f" % self.t_wall, end=" ")
-        print("%.2f" % self.__report_energy_supply, end=" ")
+        #print("%.2f" % ((q_released + q_instant) * self.__n_units), end=" ")
+        #print("%.2f" % self.t_core, end=" ")
+        #print("%.2f" % self.t_wall, end=" ")
+        #print("%.2f" % self.__report_energy_supply, end=" ")
+        # DELETE after confirmation of Electric Storage Heater method
 
         # Multipy energy released by number of devices installed in the zone
         return self.__convert_to_kwh(energy=(q_released + q_instant), timestep=timestep)
@@ -323,15 +318,19 @@ class ElecStorageHeater:
 
         q_out_wall: float = self.__c * (t_wall - self.temp_air) ** self.__n
 
+        # Equation for calculating q_dis
+        q_dis = self.__calulate_q_dis(time=time, t_core=t_core, q_out_wall=q_out_wall, q_dis_modo=q_dis_modo)
+
         # Calculation of the U value between core and wall/case as
         # U value for the insulation and resistance of the air layer between the insulation and the wall/case
-        insulation: float = 1 / (1 / self.__Uins + self.Rair_off)
+        if q_dis > 0:
+            insulation: float = 1 / (1 / self.__Uins + self.__Rair_on)
+        else:
+            insulation: float = 1 / (1 / self.__Uins + self.__Rair_off)
 
         # Equation for the heat transfer between the core and the wall/case of the heater
         q_out_ins: float = insulation * self.__A * (t_core - t_wall)
 
-        # Equation for calculating q_dis
-        q_dis = self.__calulate_q_dis(time=time, t_core=t_core, q_out_wall=q_out_wall, q_dis_modo=q_dis_modo)
 
         # Variation of Core temperature as per heat balance inside the heater
         dT_core: float = (1 / (self.__mass * self.__c_pcore)) * (q_in - q_out_ins - q_dis)
@@ -385,7 +384,9 @@ class ElecStorageHeater:
         # Converting energy_demand from kWh to Wh and distributing it through all units
         energy_demand: float = energy_demand * units.W_per_kW / self.__n_units
 
-        print("%.2f" % (energy_demand * self.__n_units), end=" ")
+        #print("%.2f" % (energy_demand * self.__n_units), end=" ")
+        # DELETE after confirmation of Electric Storage Heater method
+        
 
         #################################################
         # Step 1                                        #
@@ -418,6 +419,7 @@ class ElecStorageHeater:
                                                 q_dis_modo="max")
 
         # If Q_released is not sufficient for zone demand, that's it
+        # unless there is instnat backup that can top up the energy provided
         if q_released < energy_demand:
             if self.__pwr_instant > 0:
                 energy_supplied_instant = min(energy_demand - q_released, self.__pwr_instant * timestep)
@@ -436,7 +438,8 @@ class ElecStorageHeater:
         # Step 3                                        #
         #################################################
         # Zone actually needs an amount of energy that can be released by the system:
-        # Let's call the heat balance forcing that amount
+        # Let's call the heat balance forcing that amount (assuming perfect damper or
+        # fan assisted control of the unit)
         q_dis = energy_demand
         new_temp_core_and_wall, q_released, q_dis = \
             self.__calculate_sol_and_q_released(time_range=time_range,

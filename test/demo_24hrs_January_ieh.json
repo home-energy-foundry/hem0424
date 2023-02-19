@@ -94,8 +94,7 @@
 			"start_day": 0,
 			"time_series_step": 1,
 			"schedule": {
-				"main": [false, false, false, false, false, false, false, false, true, true, true, true, 
-				         true, true, true, true, true, true, true, true, false, false, false, false]
+				"main": [{"value": true, "repeat": 24}]
 			}
 		},
 		"main__hw timer__converted_from_OnOffTimeControl": {
@@ -103,8 +102,8 @@
 			"start_day": 0,
 			"time_series_step": 1,
 			"schedule": {
-				"main": [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 21.0, 21.0, 21.0, 21.0, 21.0, 
-                         21.0, 21.0, 21.0, 21.0,21.0, 21.0, 21.0, 21.0, 12.0, 12.0, 12.0, 12.0]
+				"main": [15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 15.0, 21.0, 21.0, 21.0, 21.0, 21.0, 
+                         21.0, 21.0, 21.0, 21.0,21.0, 21.0, 21.0, 21.0, 15.0, 15.0, 15.0, 15.0]
 			}
 		}
 	},
@@ -193,25 +192,11 @@
 	},
 	"SpaceHeatSystem": {
 		"main": {
-			"type": "ElecStorageHeater",
-			"rated_power": 5.0,
-			"rated_power_instant": 0.75,
-			"flue_type": "fan-assisted",
-			"temp_dis_safe": 60.0,
-			"thermal_mass": 0.01278,
-			"frac_convective": 0.7,
-			"U_ins": 0.3,
-			"mass_core": 130.0,
-			"c_pcore": 920.0,
-			"temp_core_target": 500.0,
-			"A_core": 4.0,
-			"c_wall": 8.0,
-			"n_wall": 0.9,
-			"thermal_mass_wall": 23.0,
-			"n_units": 2,
+			"type": "InstantElecHeater",
+			"rated_power": 6.0,
+			"frac_convective": 0.4,
 			"EnergySupply": "mains elec",
-			"Control": "main__hw timer__converted_from_OnOffTimeControl",
-			"Zone": "zone 1"
+			"Control": "main__hw timer__converted_from_OnOffTimeControl"
 		}
 	},
 	"Ventilation": {
@@ -248,7 +233,7 @@
 				"wall 0": {
 					"type": "BuildingElementOpaque",
 					"a_sol": 0.6,
-					"r_c": 1.7,
+					"r_c": 0.7,
 					"k_m": 19000,
 					"mass_distribution_class": "IE",
 					"pitch": 90,
@@ -261,7 +246,7 @@
 				"wall 1":{
 					"type": "BuildingElementOpaque",
 					"a_sol": 0.61,
-					"r_c": 1.71,
+					"r_c": 0.71,
 					"k_m": 19100,
 					"mass_distribution_class": "M",
 					"pitch": 90,
@@ -274,7 +259,7 @@
 				"wall 2": {
 					"type": "BuildingElementOpaque",
 					"a_sol": 0.62,
-					"r_c": 1.72,
+					"r_c": 0.72,
 					"k_m": 19200,
 					"mass_distribution_class": "E",
 					"pitch": 90,
@@ -287,7 +272,7 @@
 				"wall 3":{
 					"type": "BuildingElementOpaque",
 					"a_sol": 0.63,
-					"r_c": 1.73,
+					"r_c": 0.73,
 					"k_m": 19300,
 					"mass_distribution_class": "I",
 					"pitch": 90,
@@ -299,7 +284,7 @@
 				},
 				"window 0":{
 					"type": "BuildingElementTransparent",
-					"r_c": 1.4,
+					"r_c": 0.4,
 					"pitch": 90,
 					"orientation": 90,
 					"g_value": 0.75,
@@ -317,7 +302,7 @@
 					"type": "BuildingElementGround",
 					"area": 15.0,
 					"pitch": 180.0,
-					"u_value": 0.4,
+					"u_value": 1.4,
 					"r_f": 0.2,
 					"k_m": 19300,
 					"mass_distribution_class": "D",
@@ -330,7 +315,7 @@
 					"type": "BuildingElementAdjacentZTC",
 					"area": 20.0,
 					"pitch": 0.0,
-					"r_c": 1.74,
+					"r_c": 0.74,
 					"k_m": 19400,
 					"mass_distribution_class": "I"
 				}
