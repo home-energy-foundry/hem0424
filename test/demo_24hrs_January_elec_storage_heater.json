@@ -194,8 +194,9 @@
 	"SpaceHeatSystem": {
 		"main": {
 			"type": "ElecStorageHeater",
-			"rated_power": 5.0,
-			"flue_type": "fan-assisted",
+			"rated_power": 4.0,
+			"rated_power_instant": 2.0,
+			"flue_type": "damper",
 			"temp_dis_safe": 60.0,
 			"thermal_mass": 0.01278,
 			"frac_convective": 0.7,
@@ -207,7 +208,7 @@
 			"c_wall": 8.0,
 			"n_wall": 0.9,
 			"thermal_mass_wall": 23.0,
-			"n_units": 3,
+			"n_units": 2,
 			"EnergySupply": "mains elec",
 			"Control": "main__hw timer__converted_from_OnOffTimeControl",
 			"Zone": "zone 1"

@@ -22,6 +22,7 @@ class ElecStorageHeater:
     def __init__(
         self,
         rated_power,
+        rated_power_instant,
         flue_type,
         temp_dis_safe,
         thermal_mass,
@@ -52,6 +53,7 @@ class ElecStorageHeater:
         """
 
         self.__pwr_in             = (rated_power * units.W_per_kW)
+        self.__pwr_instant        = (rated_power_instant * units.W_per_kW)
         self.__flue_type          = flue_type
         self.__t_dis_safe         = temp_dis_safe
         self.__thermal_mass       = thermal_mass
@@ -90,7 +92,8 @@ class ElecStorageHeater:
         # Parameters
         self.__time_unit = 3600
         self.__c_p = 1.0054  # J/kg/K air specific heat
-
+        
+        self.__report_energy_supply = 0.0
         # (0.3 to 0.7 typical values) W/m^2/K U value of the insulation material between the core and the wall
         # self.Uins = 0.3
 
@@ -130,22 +133,22 @@ class ElecStorageHeater:
         # This represents the temperature difference between the core and the room on the first column
         # and the fraction of air flow relating to the nominal as defined above on the second column
         self.labs_tests_400 = [
-            [324.91, 1.77],
-            [286.52, 1.58],
-            [254.93, 1.4],
-            [228.63, 1.25],
-            [206.41, 1.13],
-            [187.41, 1.02],
-            [171.03, 0.92],
-            [156.79, 0.83],
-            [144.29, 0.75],
-            [133.25, 0.68],
-            [123.42, 0.62],
-            [114.57, 0.6],
-            [106.36, 0.6],
-            [98.73, 0.6],
-            [91.65, 0.6],
-            [85.07, 0.6]
+            [324.91, 3.77],
+            [286.52, 3.58],
+            [254.93, 3.4],
+            [228.63, 3.25],
+            [206.41, 3.13],
+            [187.41, 3.02],
+            [171.03, 2.92],
+            [156.79, 2.83],
+            [144.29, 2.75],
+            [133.25, 2.68],
+            [123.42, 2.62],
+            [114.57, 2.6],
+            [106.36, 1.6],
+            [98.73, 1.6],
+            [91.65, 1.6],
+            [85.07, 1.6]
         ]
 
         self.labs_tests_400_fan = [
@@ -192,8 +195,11 @@ class ElecStorageHeater:
 
         # This represents the temperature difference between the core and the room on the first column
         # and the fraction of air flow relating to the nominal as defined above on the second column
-        self.labs_tests = self.labs_tests_400_fan
-
+        if self.__flue_type == "fan-assisted":
+            self.labs_tests = self.labs_tests_400_fan
+        else:
+            self.labs_tests = self.labs_tests_400
+            
         # Initial conditions
         # self.t_core0 = 114.0  # °C
 
@@ -277,21 +283,23 @@ class ElecStorageHeater:
         self.t_wall = new_temp_core_and_wall[1]
 
         # the purpose of this calculation is to calculate fan energy required by the device
+        energy_for_fan_kwh = 0.0
         if self.__flue_type == "fan-assisted":
             self.__mass_flow_air = q_dis / (self.__c_p * (self.__t_dis_safe - self.temp_air))
             energy_for_fan: float = self.__mass_flow_air * self.__power_for_fan
             energy_for_fan_kwh = self.__convert_correct_unit(energy=energy_for_fan, timestep=timestep)
-            self.__energy_supply_conn.demand_energy(energy_for_fan_kwh)
+#            self.__energy_supply_conn.demand_energy(energy_for_fan_kwh)
 
         # might need to redo this calc, but with new t_core calc
         q_in: float = self.__electric_charge(time, self.t_core)
         q_in_kwh: float = self.__convert_correct_unit(energy=q_in, timestep=timestep)
-        self.__energy_supply_conn.demand_energy(q_in_kwh)
-
+        self.__energy_supply_conn.demand_energy( q_in_kwh + energy_for_fan_kwh )
+        self.__report_energy_supply = self.__report_energy_supply + q_in_kwh + energy_for_fan_kwh
         # STORAGE HEATERS: print statements for testing
         print("%.2f" % (q_released * self.__n_units), end=" ")
         print("%.2f" % self.t_core, end=" ")
         print("%.2f" % self.t_wall, end=" ")
+        print("%.2f" % self.__report_energy_supply, end=" ")
 
         # Multipy energy released by number of devices installed in the zone
         return self.__convert_correct_unit(energy=q_released, timestep=timestep)
@@ -370,6 +378,7 @@ class ElecStorageHeater:
     def demand_energy(self, energy_demand: float) -> float:
 
         # Initialising Variables
+        self.__report_energy_supply = 0.0
         # Converting energy_demand from kWh to Wh and distributing it through all units
         energy_demand: float = energy_demand * units.W_per_kW / self.__n_units
         timestep: int = self.__simtime.timestep()
@@ -414,13 +423,17 @@ class ElecStorageHeater:
 
         # If Q_released is not sufficient for zone demand, that's it
         if q_released < energy_demand:
-            energy_supplied: float = min(energy_demand, q_dis * timestep)
-            energy_supplied_kwh: float = self.__convert_correct_unit(energy=energy_supplied, timestep=timestep)
-            self.__energy_supply_conn.demand_energy(energy_supplied_kwh)
-
+            if self.__pwr_instant > 0:
+                energy_supplied_instant = min(energy_demand - q_released, self.__pwr_instant * timestep )
+            else:
+                energy_supplied_instant = 0.0
+#            energy_supplied: float = min(energy_demand, q_dis * timestep)
+#            energy_supplied_kwh: float = self.__convert_correct_unit(energy=energy_supplied, timestep=timestep)
+            self.__energy_supply_conn.demand_energy(energy_supplied_instant / 1000)
+            self.__report_energy_supply = self.__report_energy_supply + energy_supplied_instant / 1000
             # The system can only discharge the maximum amount, zone doesn't get everything it needs
             return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
-                                            q_released=q_released,
+                                            q_released=( q_released + energy_supplied_instant ),
                                             q_dis=q_dis,
                                             timestep=timestep,
                                             time=time_range[1])
