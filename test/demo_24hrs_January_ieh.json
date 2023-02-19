@@ -193,7 +193,7 @@
 	"SpaceHeatSystem": {
 		"main": {
 			"type": "InstantElecHeater",
-			"rated_power": 6.0,
+			"rated_power": 6.6,
 			"frac_convective": 0.4,
 			"EnergySupply": "mains elec",
 			"Control": "main__hw timer__converted_from_OnOffTimeControl"

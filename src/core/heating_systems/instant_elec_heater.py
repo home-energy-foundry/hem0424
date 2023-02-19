@@ -56,8 +56,8 @@ class InstantElecHeater:
         self.__energy_supply_conn.demand_energy(energy_supplied)
         
         # COMPARISON WITH STORAGE HEATERS: print statements for testing    
-        #print("%.2f" % (energy_demand * 1000), end=" ") 
-        #print("%.2f" % (energy_supplied * 1000), end=" ") 
+        print("%.2f" % (energy_demand * 1000), end=" ") 
+        print("%.2f" % (energy_supplied * 1000), end=" ") 
         # DELETE after confirmation of Electric Storage Heater method
         
         return energy_supplied
