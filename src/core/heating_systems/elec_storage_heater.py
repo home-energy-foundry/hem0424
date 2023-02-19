@@ -86,7 +86,7 @@ class ElecStorageHeater:
 
         # Power for driving fan
         # TODO: Parameter will be provided by business, once this happens we can add it to the input json data
-        self.__power_for_fan = 1
+        self.__power_for_fan = 0.0
 
         # Initialising other variables
         # Parameters
@@ -275,7 +275,7 @@ class ElecStorageHeater:
     def __return_q_released(self,
                             new_temp_core_and_wall: list,
                             q_released: float,
-                            q_instant: float,
+                            q_instant_kwh: float,
                             q_dis: float,
                             timestep: int,
                             time: float) -> float:
@@ -294,16 +294,16 @@ class ElecStorageHeater:
         # might need to redo this calc, but with new t_core calc
         q_in: float = self.__electric_charge(time, self.t_core) #+ q_released
         q_in_kwh: float = self.__convert_correct_unit(energy=q_in, timestep=timestep)
-        self.__energy_supply_conn.demand_energy( q_in_kwh + energy_for_fan_kwh + q_instant )
-        self.__report_energy_supply = self.__report_energy_supply + q_in_kwh + energy_for_fan_kwh + q_instant
+        self.__energy_supply_conn.demand_energy( q_in_kwh + energy_for_fan_kwh + q_instant_kwh )
+        self.__report_energy_supply = self.__report_energy_supply + q_in_kwh + energy_for_fan_kwh + q_instant_kwh * self.__n_units
         # STORAGE HEATERS: print statements for testing
-        print("%.2f" % (( q_released + q_instant )* self.__n_units), end=" ")
+        print("%.2f" % (( q_released + q_instant_kwh * 1000 ) * self.__n_units), end=" ")
         print("%.2f" % self.t_core, end=" ")
         print("%.2f" % self.t_wall, end=" ")
         print("%.2f" % self.__report_energy_supply, end=" ")
 
         # Multipy energy released by number of devices installed in the zone
-        return self.__convert_correct_unit(energy=( q_released + q_instant ), timestep=timestep)
+        return self.__convert_correct_unit(energy=( q_released + q_instant_kwh * 1000 ), timestep=timestep)
 
     def __heat_balance(self, temp_core_and_wall: list, time: float, q_dis_modo=0) -> tuple:
         """
@@ -409,7 +409,7 @@ class ElecStorageHeater:
             # More energy than needed to be released. End of calculations.
             return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
                                             q_released=q_released,
-                                            q_instant=0.0,
+                                            q_instant_kwh=0.0,
                                             q_dis=q_dis,
                                             timestep=timestep,
                                             time=time_range[1])
@@ -436,7 +436,7 @@ class ElecStorageHeater:
             # The system can only discharge the maximum amount, zone doesn't get everything it needs
             return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
                                             q_released=q_released,
-                                            q_instant=energy_supplied_instant,
+                                            q_instant_kwh=energy_supplied_instant,
                                             q_dis=q_dis,
                                             timestep=timestep,
                                             time=time_range[1])
@@ -455,7 +455,7 @@ class ElecStorageHeater:
 
         return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
                                         q_released=q_released,
-                                        q_instant=0.0,
+                                        q_instant_kwh=0.0,
                                         q_dis=q_dis,
                                         timestep=timestep,
                                         time=time_range[1])

@@ -195,7 +195,7 @@
 		"main": {
 			"type": "ElecStorageHeater",
 			"rated_power": 4.0,
-			"rated_power_instant": 0.0,
+			"rated_power_instant": 0.75,
 			"flue_type": "fan-assisted",
 			"temp_dis_safe": 60.0,
 			"thermal_mass": 0.01278,
