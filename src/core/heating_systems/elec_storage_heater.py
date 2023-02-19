@@ -275,6 +275,7 @@ class ElecStorageHeater:
     def __return_q_released(self,
                             new_temp_core_and_wall: list,
                             q_released: float,
+                            q_instant: float,
                             q_dis: float,
                             timestep: int,
                             time: float) -> float:
@@ -291,18 +292,18 @@ class ElecStorageHeater:
 #            self.__energy_supply_conn.demand_energy(energy_for_fan_kwh)
 
         # might need to redo this calc, but with new t_core calc
-        q_in: float = self.__electric_charge(time, self.t_core)
+        q_in: float = self.__electric_charge(time, self.t_core) #+ q_released
         q_in_kwh: float = self.__convert_correct_unit(energy=q_in, timestep=timestep)
-        self.__energy_supply_conn.demand_energy( q_in_kwh + energy_for_fan_kwh )
-        self.__report_energy_supply = self.__report_energy_supply + q_in_kwh + energy_for_fan_kwh
+        self.__energy_supply_conn.demand_energy( q_in_kwh + energy_for_fan_kwh + q_instant )
+        self.__report_energy_supply = self.__report_energy_supply + q_in_kwh + energy_for_fan_kwh + q_instant
         # STORAGE HEATERS: print statements for testing
-        print("%.2f" % (q_released * self.__n_units), end=" ")
+        print("%.2f" % (( q_released + q_instant )* self.__n_units), end=" ")
         print("%.2f" % self.t_core, end=" ")
         print("%.2f" % self.t_wall, end=" ")
         print("%.2f" % self.__report_energy_supply, end=" ")
 
         # Multipy energy released by number of devices installed in the zone
-        return self.__convert_correct_unit(energy=q_released, timestep=timestep)
+        return self.__convert_correct_unit(energy=( q_released + q_instant ), timestep=timestep)
 
     def __heat_balance(self, temp_core_and_wall: list, time: float, q_dis_modo=0) -> tuple:
         """
@@ -408,6 +409,7 @@ class ElecStorageHeater:
             # More energy than needed to be released. End of calculations.
             return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
                                             q_released=q_released,
+                                            q_instant=0.0,
                                             q_dis=q_dis,
                                             timestep=timestep,
                                             time=time_range[1])
@@ -424,16 +426,17 @@ class ElecStorageHeater:
         # If Q_released is not sufficient for zone demand, that's it
         if q_released < energy_demand:
             if self.__pwr_instant > 0:
-                energy_supplied_instant = min(energy_demand - q_released, self.__pwr_instant * timestep )
+                energy_supplied_instant = min(energy_demand - q_released, self.__pwr_instant * timestep ) / 1000
             else:
                 energy_supplied_instant = 0.0
 #            energy_supplied: float = min(energy_demand, q_dis * timestep)
 #            energy_supplied_kwh: float = self.__convert_correct_unit(energy=energy_supplied, timestep=timestep)
-            self.__energy_supply_conn.demand_energy(energy_supplied_instant / 1000)
-            self.__report_energy_supply = self.__report_energy_supply + energy_supplied_instant / 1000
+#            self.__energy_supply_conn.demand_energy(energy_supplied_instant / 1000)
+#            self.__report_energy_supply = self.__report_energy_supply + energy_supplied_instant / 1000
             # The system can only discharge the maximum amount, zone doesn't get everything it needs
             return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
-                                            q_released=( q_released + energy_supplied_instant ),
+                                            q_released=q_released,
+                                            q_instant=energy_supplied_instant,
                                             q_dis=q_dis,
                                             timestep=timestep,
                                             time=time_range[1])
@@ -452,6 +455,7 @@ class ElecStorageHeater:
 
         return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
                                         q_released=q_released,
+                                        q_instant=0.0,
                                         q_dis=q_dis,
                                         timestep=timestep,
                                         time=time_range[1])
