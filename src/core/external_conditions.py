@@ -1243,13 +1243,13 @@ class ExternalConditions:
             for shade_obj in window_shading:
                 if shade_obj["type"] == "overhang":
                     D_ovh = shade_obj["depth"]
-                    L_ovh = shade_obj["distance"]
+                    L_ovh = shade_obj["distance"] + 0.5 * height
                 elif shade_obj["type"] == "sidefinright":
                     D_finR = shade_obj["depth"]
-                    L_finR = shade_obj["distance"]
+                    L_finR = shade_obj["distance"] + 0.5 * width
                 elif shade_obj["type"] == "sidefinleft":
                     D_finL = shade_obj["depth"]
-                    L_finL = shade_obj["distance"]
+                    L_finL = shade_obj["distance"] + 0.5 * width
                 else:
                     sys.exit("shading object type" + shade_obj["type"] + "not recognised")
 
