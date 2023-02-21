@@ -12,7 +12,7 @@ based on BS EN ISO 52010-1:2017.
 # Standard library imports
 import sys
 from math import cos, sin, tan, pi, asin, acos, radians, degrees, exp, sqrt, floor
-
+from itertools import product
 # Local imports
 import core.units as units
 
@@ -1232,137 +1232,147 @@ class ExternalConditions:
         #      F_w_sky when alpha = 0
         beta = radians(tilt)
 
+        #create lists of diffuse shading factors to keep the largest one
+        #in case there are multiple shading objects
+        Fdiff_list = []
+
         # Unpack window shading details
-        D_ovh = 0.0
-        L_ovh = 1.0 # Cannot be zero as this leads to divide-by-zero later on
-        D_finR = 0.0
-        L_finR = 1.0 # Cannot be zero as this leads to divide-by-zero later on
-        D_finL = 0.0
-        L_finL = 1.0 # Cannot be zero as this leads to divide-by-zero later on
+        D_ovh_ls=[0.0]
+        L_ovh_ls=[1.0] # Cannot be zero as this leads to divide-by-zero later on
+        D_finR_ls=[0.0]
+        L_finR_ls=[1.0] # Cannot be zero as this leads to divide-by-zero later on
+        D_finL_ls=[0.0]
+        L_finL_ls=[1.0] # Cannot be zero as this leads to divide-by-zero later on
         if window_shading:
             for shade_obj in window_shading:
                 if shade_obj["type"] == "overhang":
-                    D_ovh = shade_obj["depth"]
-                    L_ovh = shade_obj["distance"] + 0.5 * height
+                    D_ovh_ls.append(shade_obj["depth"])
+                    L_ovh_ls.append(shade_obj["distance"] + 0.5 * height)
                 elif shade_obj["type"] == "sidefinright":
-                    D_finR = shade_obj["depth"]
-                    L_finR = shade_obj["distance"] + 0.5 * width
+                    D_finR_ls.append(shade_obj["depth"])
+                    L_finR_ls.append(shade_obj["distance"] + 0.5 * width)
                 elif shade_obj["type"] == "sidefinleft":
-                    D_finL = shade_obj["depth"]
-                    L_finL = shade_obj["distance"] + 0.5 * width
+                    D_finL_ls.append(shade_obj["depth"])
+                    L_finL_ls.append(shade_obj["distance"] + 0.5 * width)
                 else:
                     sys.exit("shading object type" + shade_obj["type"] + "not recognised")
 
-        # Calculate required geometric ratios
-        # Note: PD CEN ISO/TR 52016-2:2017 Section F.6.3 refers to ISO 52016-1:2017
-        #       Section F.5.5.1.6 for the definition of P1 and P2. However, this
-        #       section does not exist. Therefore, these definitions have been
-        #       taken from Section F.3.5.1.2 instead, also supported by Table F.6
-        #       in PD CEN ISO/TR 52016-2:2017. These sources define P1 and P2
-        #       differently for fins and for overhangs so it is assumed that
-        #       should also apply here.
-        P1_ovh = D_ovh / height
-        P2_ovh = L_ovh / height
-        P1_finL = D_finL / width
-        P2_finL = L_finL / width
-        P1_finR = D_finR / width
-        P2_finR = L_finR / width
+        #perform the diff shading calculation for each comination of overhangs and fins
+        for D_ovh,L_ovh,D_finR,L_finR,D_finL,L_finL in product(D_ovh_ls,L_ovh_ls,D_finR_ls,L_finR_ls,D_finL_ls,L_finL_ls):
+            
+            # Calculate required geometric ratios
+            # Note: PD CEN ISO/TR 52016-2:2017 Section F.6.3 refers to ISO 52016-1:2017
+            #       Section F.5.5.1.6 for the definition of P1 and P2. However, this
+            #       section does not exist. Therefore, these definitions have been
+            #       taken from Section F.3.5.1.2 instead, also supported by Table F.6
+            #       in PD CEN ISO/TR 52016-2:2017. These sources define P1 and P2
+            #       differently for fins and for overhangs so it is assumed that
+            #       should also apply here.
+            P1_ovh = D_ovh / height
+            P2_ovh = L_ovh / height
+            P1_finL = D_finL / width
+            P2_finL = L_finL / width
+            P1_finR = D_finR / width
+            P2_finR = L_finR / width
 
-        # Calculate view factors (eqns F.15 to F.18) required for eqns F.9 to F.14
-        # Note: The equations in the standard refer to P1 and P2, but as per the
-        #       comment above, there are different definitions of these for fins
-        #       and for overhangs. The decision on which ones to use for each of
-        #       the equations below has been made depending on which of the
-        #       subsequent equations the resulting variables are used in (e.g.
-        #       F_w_s is used to calculate F_sh_dif_fins so we use P1 and P2 for
-        #       fins).
-        # Note: For F_w_r, we could set P1 equal to P1 for fins and P2 equal to
-        #       P1 (not P2) for overhangs, as this appears to be consistent with
-        #       example in Table F.6
-        # F_w_r = 1 - exp(-0.8632 * (P1_fin + P1_ovh))
-        # Note: Formula in standard for view factor to fins seems to assume that
-        #       fins are the same on each side. Therefore, here we take the
-        #       average of this view factor calculated with the dimensions of
-        #       each fin.
-        F_w_s \
-            = ( 0.6514 * (1 - (P2_finL / sqrt(P1_finL * P1_finL + P2_finL * P2_finL)))
-              + 0.6514 * (1 - (P2_finR / sqrt(P1_finR * P1_finR + P2_finR * P2_finR)))
-              ) \
-            / 2
-        F_w_o = 0.3282 * (1 - (P2_ovh / sqrt(P1_ovh * P1_ovh + P2_ovh * P2_ovh)))
-        F_w_sky = (1 - sin(alpha + beta - radians(90))) / 2
+            # Calculate view factors (eqns F.15 to F.18) required for eqns F.9 to F.14
+            # Note: The equations in the standard refer to P1 and P2, but as per the
+            #       comment above, there are different definitions of these for fins
+            #       and for overhangs. The decision on which ones to use for each of
+            #       the equations below has been made depending on which of the
+            #       subsequent equations the resulting variables are used in (e.g.
+            #       F_w_s is used to calculate F_sh_dif_fins so we use P1 and P2 for
+            #       fins).
+            # Note: For F_w_r, we could set P1 equal to P1 for fins and P2 equal to
+            #       P1 (not P2) for overhangs, as this appears to be consistent with
+            #       example in Table F.6
+            # F_w_r = 1 - exp(-0.8632 * (P1_fin + P1_ovh))
+            # Note: Formula in standard for view factor to fins seems to assume that
+            #       fins are the same on each side. Therefore, here we take the
+            #       average of this view factor calculated with the dimensions of
+            #       each fin.
+            F_w_s \
+                = ( 0.6514 * (1 - (P2_finL / sqrt(P1_finL * P1_finL + P2_finL * P2_finL)))
+                  + 0.6514 * (1 - (P2_finR / sqrt(P1_finR * P1_finR + P2_finR * P2_finR)))
+                  ) \
+                / 2
+            F_w_o = 0.3282 * (1 - (P2_ovh / sqrt(P1_ovh * P1_ovh + P2_ovh * P2_ovh)))
+            F_w_sky = (1 - sin(alpha + beta - radians(90))) / 2
 
-        # Calculate denominators of eqns F.9 to F.14
-        view_factor_sky_no_obstacles = (1 + cos(beta)) / 2
-        view_factor_ground_no_obstacles = (1 - cos(beta)) / 2
+            # Calculate denominators of eqns F.9 to F.14
+            view_factor_sky_no_obstacles = (1 + cos(beta)) / 2
+            view_factor_ground_no_obstacles = (1 - cos(beta)) / 2
 
-        # Setback and remote obstacles (eqns F.9 and F.10): Top half of each eqn
-        # is view factor to sky (F.9) or ground (F.10) with setback and distant
-        # obstacles
-        # TODO Uncomment these lines when definitions of P1 and P2 in formula
-        #      for F_w_r have been confirmed.
-        # if view_factor_sky_no_obstacles == 0:
-        #     # Shading makes no difference if sky not visible (avoid divide-by-zero)
-        #     F_sh_dif_setback = 1.0
-        # else:
-        #     F_sh_dif_setback = (1 - F_w_r) * F_w_sky \
-        #                      / view_factor_sky_no_obstacles
-        # if view_factor_ground_no_obstacles == 0:
-        #     # Shading makes no difference if ground not visible (avoid divide-by-zero)
-        #     F_sh_ref_setback = 1.0
-        # else:
-        #     F_sh_ref_setback = (1 - F_w_r) * (1 - F_w_sky) \
-        #                      / view_factor_ground_no_obstacles
+            # Setback and remote obstacles (eqns F.9 and F.10): Top half of each eqn
+            # is view factor to sky (F.9) or ground (F.10) with setback and distant
+            # obstacles
+            # TODO Uncomment these lines when definitions of P1 and P2 in formula
+            #      for F_w_r have been confirmed.
+            # if view_factor_sky_no_obstacles == 0:
+            #     # Shading makes no difference if sky not visible (avoid divide-by-zero)
+            #     F_sh_dif_setback = 1.0
+            # else:
+            #     F_sh_dif_setback = (1 - F_w_r) * F_w_sky \
+            #                      / view_factor_sky_no_obstacles
+            # if view_factor_ground_no_obstacles == 0:
+            #     # Shading makes no difference if ground not visible (avoid divide-by-zero)
+            #     F_sh_ref_setback = 1.0
+            # else:
+            #     F_sh_ref_setback = (1 - F_w_r) * (1 - F_w_sky) \
+            #                      / view_factor_ground_no_obstacles
 
-        # Fins and remote obstacles (eqns F.11 and F.12): Top half of each eqn
-        # is view factor to sky (F.11) or ground (F.12) with fins and distant
-        # obstacles
-        if view_factor_sky_no_obstacles == 0:
-            # Shading makes no difference if sky not visible (avoid divide-by-zero)
-            F_sh_dif_fins = 1.0
-        else:
-            F_sh_dif_fins = (1 - F_w_s) * F_w_sky \
-                          / view_factor_sky_no_obstacles
-        if view_factor_ground_no_obstacles == 0:
-            # Shading makes no difference if ground not visible (avoid divide-by-zero)
-            F_sh_ref_fins = 1.0
-        else:
-            F_sh_ref_fins = (1 - F_w_s) * (1 - F_w_sky) \
-                          / view_factor_ground_no_obstacles
+            # Fins and remote obstacles (eqns F.11 and F.12): Top half of each eqn
+            # is view factor to sky (F.11) or ground (F.12) with fins and distant
+            # obstacles
+            if view_factor_sky_no_obstacles == 0:
+                # Shading makes no difference if sky not visible (avoid divide-by-zero)
+                F_sh_dif_fins = 1.0
+            else:
+                F_sh_dif_fins = (1 - F_w_s) * F_w_sky \
+                              / view_factor_sky_no_obstacles
+            if view_factor_ground_no_obstacles == 0:
+                # Shading makes no difference if ground not visible (avoid divide-by-zero)
+                F_sh_ref_fins = 1.0
+            else:
+                F_sh_ref_fins = (1 - F_w_s) * (1 - F_w_sky) \
+                              / view_factor_ground_no_obstacles
 
-        # Overhangs and remote obstacles (eqns F.13 and F.14)
-        # Top half of eqn F.13 is view factor to sky with overhangs
-        if view_factor_sky_no_obstacles == 0:
-            # Shading makes no difference if sky not visible (avoid divide-by-zero)
-            F_sh_dif_overhangs = 1.0
-        else:
-            F_sh_dif_overhangs = (F_w_sky - F_w_o) \
-                               / view_factor_sky_no_obstacles
-        # Top half of eqn F.14 is view factor to ground with distant obstacles,
-        # but does not account for overhangs blocking any part of the view of
-        # the ground, presumably because this will not happen in the vast
-        # majority of cases
-        if view_factor_ground_no_obstacles == 0:
-            # Shading makes no difference if ground not visible (avoid divide-by-zero)
-            F_sh_ref_overhangs = 1.0
-        else:
-            F_sh_ref_overhangs = (1 - F_w_sky) \
-                               / view_factor_ground_no_obstacles
+            # Overhangs and remote obstacles (eqns F.13 and F.14)
+            # Top half of eqn F.13 is view factor to sky with overhangs
+            if view_factor_sky_no_obstacles == 0:
+                # Shading makes no difference if sky not visible (avoid divide-by-zero)
+                F_sh_dif_overhangs = 1.0
+            else:
+                F_sh_dif_overhangs = (F_w_sky - F_w_o) \
+                                   / view_factor_sky_no_obstacles
+            # Top half of eqn F.14 is view factor to ground with distant obstacles,
+            # but does not account for overhangs blocking any part of the view of
+            # the ground, presumably because this will not happen in the vast
+            # majority of cases
+            if view_factor_ground_no_obstacles == 0:
+                # Shading makes no difference if ground not visible (avoid divide-by-zero)
+                F_sh_ref_overhangs = 1.0
+            else:
+                F_sh_ref_overhangs = (1 - F_w_sky) \
+                                   / view_factor_ground_no_obstacles
 
-        # Keep the smallest of the three shading reduction factors as the
-        # diffuse or reflected shading factor. Also enforce that these cannot be
-        # negative (which may happen with some extreme tilt values)
-        # TODO Add setback shading factors to the arguments to min function when
-        #      definitions of P1 and P2 in formula for F_w_r have been confirmed.
-        # F_sh_dif = max(0.0, min(F_sh_dif_setback, F_sh_dif_fins, F_sh_dif_overhangs))
-        # F_sh_ref = max(0.0, min(F_sh_ref_setback, F_sh_ref_fins, F_sh_ref_overhangs))
-        F_sh_dif = max(0.0, min(F_sh_dif_fins, F_sh_dif_overhangs))
-        F_sh_ref = max(0.0, min(F_sh_ref_fins, F_sh_ref_overhangs))
+            # Keep the smallest of the three shading reduction factors as the
+            # diffuse or reflected shading factor. Also enforce that these cannot be
+            # negative (which may happen with some extreme tilt values)
+            # TODO Add setback shading factors to the arguments to min function when
+            #      definitions of P1 and P2 in formula for F_w_r have been confirmed.
+            # F_sh_dif = max(0.0, min(F_sh_dif_setback, F_sh_dif_fins, F_sh_dif_overhangs))
+            # F_sh_ref = max(0.0, min(F_sh_ref_setback, F_sh_ref_fins, F_sh_ref_overhangs))
+            F_sh_dif = max(0.0, min(F_sh_dif_fins, F_sh_dif_overhangs))
+            F_sh_ref = max(0.0, min(F_sh_ref_fins, F_sh_ref_overhangs))
 
-        Fdiff = ( F_sh_dif * (diffuse_irr_sky + diffuse_irr_hor)
-                + F_sh_ref * diffuse_irr_ref
-                ) \
-              / diffuse_irr_total
+            Fdiff = ( F_sh_dif * (diffuse_irr_sky + diffuse_irr_hor)
+                    + F_sh_ref * diffuse_irr_ref
+                    ) \
+                  / diffuse_irr_total
+            Fdiff_list.append(Fdiff)
+
+        Fdiff = max(Fdiff_list)
 
         return Fdiff
 
