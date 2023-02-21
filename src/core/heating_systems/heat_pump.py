@@ -409,7 +409,7 @@ class HeatPumpTestData:
 
         def init_temp_spread_test_conditions():
             """ List temp spread at test conditions for the design flow temps in the test data """
-            dtheta_out_by_flow_temp = {35: 5.0, 55: 8.0, 65: 10.0}
+            dtheta_out_by_flow_temp = {20: 5.0, 35: 5.0, 55: 8.0, 65: 10.0}
             dtheta_out = []
             for dsgn_flow_temp in self.__dsgn_flow_temps:
                 dtheta_out.append(dtheta_out_by_flow_temp[dsgn_flow_temp])
@@ -1029,6 +1029,64 @@ class HeatPumpServiceSpace(HeatPumpService):
             )
 
 
+class HeatPumpServiceSpaceWarmAir(HeatPumpServiceSpace):
+    """ An object to represent a warm air space heating service provided by a heat pump.
+
+    This object contains the parts of the heat pump calculation that are
+    specific to providing space heating via warm air.
+    """
+    def __init__(
+            self,
+            heat_pump,
+            service_name,
+            temp_diff_emit_dsgn,
+            control,
+            temp_flow,
+            frac_convective,
+            ):
+        """ Construct a HeatPumpServiceSpaceWarmAir object
+
+        Arguments:
+        heat_pump -- reference to the HeatPump object providing the service
+        service_name -- name of the service demanding energy from the heat pump
+        temp_diff_emit_dsgn -- design temperature difference across the emitters, in deg C or K
+        control -- reference to a control object which must implement is_on() and setpnt() funcs
+        temp_flow -- flow temperature, in deg C
+        frac_convective -- convective fraction for heating
+        """
+        self.__frac_convective = frac_convective
+        self.__temp_flow = temp_flow
+        # Return temp won't be used in the relevant code paths anyway, so this is arbitrary
+        self.__temp_return = temp_flow
+
+        # Upper operating limit for temperature, in deg C
+        temp_limit_upper = temp_flow
+
+        super().__init__(
+            heat_pump,
+            service_name,
+            temp_limit_upper,
+            temp_diff_emit_dsgn,
+            control,
+            )
+
+    def demand_energy(self, energy_demand):
+        """ Demand energy (in kWh) from the heat pump
+
+        Arguments:
+        energy_demand -- space heating energy demand, in kWh
+        """
+        return HeatPumpServiceSpace.demand_energy(
+            self,
+            energy_demand,
+            self.__temp_flow,
+            self.__temp_return,
+            )
+
+    def frac_convective(self):
+        return self.__frac_convective
+
+
 class HeatPump:
     """ An object to represent an electric heat pump """
 
@@ -1144,7 +1202,8 @@ class HeatPump:
             self.__min_modulation_rate_35 = float(hp_dict['min_modulation_rate_35'])
             self.__min_modulation_rate_55 = float(hp_dict['min_modulation_rate_55'])
         self.__time_constant_onoff_operation = float(hp_dict['time_constant_onoff_operation'])
-        self.__temp_return_feed_max = Celcius2Kelvin(float(hp_dict['temp_return_feed_max']))
+        if self.__sink_type != SinkType.AIR:
+            self.__temp_return_feed_max = Celcius2Kelvin(float(hp_dict['temp_return_feed_max']))
         self.__temp_lower_op_limit = Celcius2Kelvin(float(hp_dict['temp_lower_operating_limit']))
         self.__temp_diff_flow_return_min \
             = float(hp_dict['min_temp_diff_flow_return_for_hp_to_operate'])
@@ -1260,6 +1319,42 @@ class HeatPump:
             temp_limit_upper,
             temp_diff_emit_dsgn,
             control,
+            )
+
+    def create_service_space_heating_warm_air(
+            self,
+            service_name,
+            control,
+            frac_convective,
+            ):
+        """ Return a HeatPumpServiceSpaceWarmAir object and create an EnergySupplyConnection for it
+
+        Arguments:
+        service_name -- name of the service demanding energy from the heat pump
+        control -- reference to a control object which must implement is_on() func
+        frac_convective -- convective fraction for heating
+        """
+        if self.__sink_type != SinkType.AIR:
+            sys.exit('Warm air space heating service requires heat pump with sink type Air')
+
+        # Use low temperature test data for space heating - set flow temp such
+        # that it matches the one used in the test
+        temp_flow = self.__test_data._HeatPumpTestData__dsgn_flow_temps[0]
+
+        # Design temperature difference across the emitters, in deg C or K
+        temp_diff_emit_dsgn = max(
+            temp_flow / 7.0,
+            self.__test_data.temp_spread_test_conditions(temp_flow),
+            )
+
+        self.__create_service_connection(service_name)
+        return HeatPumpServiceSpaceWarmAir(
+            self,
+            service_name,
+            temp_diff_emit_dsgn,
+            control,
+            temp_flow,
+            frac_convective,
             )
 
     def __get_temp_source(self):
@@ -1528,7 +1623,12 @@ class HeatPump:
         #      classes. May be able to skip a lot of the calculation.
         below_min_ext_temp = (temp_source <= self.__temp_lower_op_limit)
         inadequate_capacity = (energy_output_required > thermal_capacity_op_cond * timestep)
-        above_temp_return_feed_max = (temp_return_feed > self.__temp_return_feed_max)
+        if self.__sink_type == SinkType.WATER:
+            above_temp_return_feed_max = (temp_return_feed > self.__temp_return_feed_max)
+        elif self.__sink_type == SinkType.AIR:
+            above_temp_return_feed_max = False
+        else:
+            sys.exit('Return feed temp check not defined for sink type')
 
         use_backup_heater_only \
             = self.__backup_ctrl != BackupCtrlType.NONE \
