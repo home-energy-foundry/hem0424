@@ -8,7 +8,7 @@ This module provides object(s) to model the behaviour of heat batteries.
 # Third-party imports
 import sys
 from enum import Enum, auto
-#import numpy as np
+import numpy as np
 import types
 from typing import Union
 
@@ -19,7 +19,7 @@ from core.energy_supply.energy_supply import EnergySupplyConnection
 from core.simulation_time import SimulationTime
 from core.controls.time_control import SetpointTimeControl
 from core.material_properties import WATER
-from numpy import interp
+#from numpy import interp
 
 
 class ServiceType(Enum):
@@ -148,13 +148,15 @@ class HeatBattery:
 
     def __init__(self,
                 heat_battery_dict,
-                #energy_supply,
-                energy_supply_conn,
+                energy_supply,
+                energy_supply_conn_name_auxiliary,
+                #energy_supply_conn,
                 simulation_time,
-                #ext_cond 
+                ext_cond 
                 ):
         
-"""        rated_power_instant: float,
+        """        
+        rated_power_instant: float,
         flue_type: str,
         temp_dis_safe: float,
         thermal_mass: float,
@@ -178,7 +180,7 @@ class HeatBattery:
         energy_supply_conn: EnergySupplyConnection,
         simulation_time: SimulationTime,
         control: SetpointTimeControl
-"""        
+        """        
         """Construct an HeatBattery object
 
         Arguments:
@@ -212,8 +214,13 @@ class HeatBattery:
         control              -- reference to a control object which must implement is_on() and setpnt() funcs
         """
 
-        self.__energy_supply_conn: EnergySupplyConnection = energy_supply_conn
-        self.__simtime: SimulationTime = simulation_time
+        self.__energy_supply = energy_supply
+        #self.__energy_supply_conn: EnergySupplyConnection = energy_supply_conn
+        self.__energy_supply_connection_aux \
+            = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
+        self.__simulation_time: SimulationTime = simulation_time
+        self.__external_conditions = ext_cond
+        self.__energy_supply_connections = {}
         #self.__control: SetpointTimeControl = control
         self.__heat_battery_location = heat_battery_dict["heat_battery_location"]
 
@@ -221,9 +228,13 @@ class HeatBattery:
         self.__heat_storage_capacity: float = heat_battery_dict["heat_storage_capacity"]
         self.__max_rated_heat_output: float = heat_battery_dict["max_rated_heat_output"]
         self.__max_rated_losses: float = heat_battery_dict["max_rated_losses"]
+        self.__power_circ_pump = heat_battery_dict["electricity_circ_pump"]
+        self.__power_standby = heat_battery_dict["electricity_standby"]
         self.__n_units: int = heat_battery_dict["number_of_units"]
         self.__service_results = []
-
+        
+        self.__time_unit: float = 3600
+        self.__total_time_running_current_timestep = 0.0
 
         # labs_test for electric storage heater reaching 300 degC
         # This represents the temperature difference between the core and the room on the first column
@@ -278,11 +289,11 @@ class HeatBattery:
 
         
         # Set the initial charge level of the heat battery to zero.
-        #self.__charge_level: float = 0.0
+        self.__charge_level: float = 0.0
         #self.__charge_capacity_in_timestep = 
         self.__energy_available_in_timestep = self.__lab_test_rated_output(self.__charge_level) * self.__n_units
 
-"""
+    
     def __create_service_connection(self, service_name):
         #Create an EnergySupplyConnection for the service name given 
         # Check that service_name is not already registered
@@ -293,7 +304,7 @@ class HeatBattery:
         # Set up EnergySupplyConnection for this service
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
-"""
+    
 
     def create_service_hot_water_regular(
             self,
@@ -392,8 +403,8 @@ class HeatBattery:
         outside_temp = self.__external_conditions.air_temp()
         self.__report_energy_supply = 0.0
         #self.temp_air = self.__zone.temp_internal_air()
-        timestep: int = self.__simtime.timestep()
-        current_hour: int = self.__simtime.current_hour()
+        timestep: int = self.__simulation_time.timestep()
+        current_hour: int = self.__simulation_time.current_hour()
         time_range: list = [current_hour*self.__time_unit, (current_hour + 1)*self.__time_unit]
         n_iterations: int = 10
         charge_level: float = self.__charge_level
@@ -430,9 +441,45 @@ class HeatBattery:
         self.__energy_available_in_timestep -= Q_out * self.__n_units    
         self.__charge_level = charge_level
         
-        self.__energy_supply_conn.demand_energy(Q_in / units.W_per_kW * self.__n_units)
+        self.__energy_supply_connections[service_name].demand_energy(energy_output_provided)
+
+        #self.__energy_supply_conn.demand_energy(Q_in / units.W_per_kW * self.__n_units)
     
+        # Calculate running time of Boiler
+        time_running_current_service = \
+            timestep - self.__total_time_running_current_timestep
+        self.__total_time_running_current_timestep += time_running_current_service
+        
+        # Save results that are needed later (in the timestep_end function)
+        self.__service_results.append({
+            'service_name': service_name,
+            'time_running': time_running_current_service,
+            })
+
         return energy_output_provided
+
+    def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
+        """Calculation of boiler electrical consumption"""
+
+        #Energy used by circulation pump
+        energy_aux = self.__total_time_running_current_timestep \
+            * self.__power_circ_pump
+        
+        #Energy used in standby mode
+        energy_aux += self.__power_standby * time_remaining_current_timestep
+        
+        self.__energy_supply_connection_aux.demand_energy(energy_aux)
+
+    def timestep_end(self):
+        """" Calculations to be done at the end of each timestep"""
+        timestep = self.__simulation_time.timestep()
+        time_remaining_current_timestep = timestep - self.__total_time_running_current_timestep
+
+        self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
+
+        #Variabales below need to be reset at the end of each timestep
+        self.__total_time_running_current_timestep = 0.0
+        self.__service_results = []
 
     def __energy_output_max(self, temp_output):
         self.__lab_test_rated_output(self.__charge_level)

@@ -24,6 +24,7 @@ from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly, SourceType
 from core.heating_systems.storage_tank import ImmersionHeater, SolarThermalSystem, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.heating_systems.boiler import Boiler
+from core.heating_systems.heat_battery import HeatBattery
 from core.heating_systems.heat_network import HeatNetwork
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
@@ -657,7 +658,18 @@ class Project:
                     proj_dict['SimulationTime']['start'],
                     proj_dict['SimulationTime']['step']
                     )
-            # TODO MC - add dry core heat battery in here
+            elif heat_source_type == 'HeatBattery':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                energy_supply_conn_name_auxiliary = 'HeatBattery_auxiliary: ' + name # MC - Is this needed?
+                heat_source = HeatBattery(
+                    data,
+                    energy_supply,
+                    #energy_supply_conn,
+                    energy_supply_conn_name_auxiliary,
+                    self.__simtime,
+                    self.__external_conditions,
+                    )
+                self.__timestep_end_calcs.append(heat_source)
             else:
                 sys.exit(name + ': heat source type (' \
                        + heat_source_type + ') not recognised.')
@@ -750,6 +762,9 @@ class Project:
                         cold_water_source,
                         ctrl,
                         )
+                elif isinstance(heat_source_wet, HeatBattery):
+                    # TODO MC - add heat battery for serving hot water storage tank
+                    pass
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
@@ -830,7 +845,9 @@ class Project:
                     cold_water_source,
                     data['HIU_daily_loss']
                     )
-            # TODO MC - add PCM heat battery in here
+            elif hw_source_type == 'HeatBattery':
+                # TODO MC - add PCM heat battery in here
+                pass
             else:
                 sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -887,7 +904,11 @@ class Project:
                         data['HeatSource']['name'] + '_space_heating: ' + name,
                         ctrl,
                         )
-                # TODO MC - add dry-core heat battery in here
+                elif isinstance(heat_source, HeatBattery):
+                    heat_source_service = heat_source.create_service_space_heating(
+                        data['HeatSource']['name'] + '_space_heating: ' + name,
+                        ctrl,
+                        )
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
