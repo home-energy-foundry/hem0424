@@ -1237,29 +1237,37 @@ class ExternalConditions:
         Fdiff_list = []
 
         # Unpack window shading details
-        D_ovh_ls=[0.0]
-        L_ovh_ls=[1.0] # Cannot be zero as this leads to divide-by-zero later on
-        D_finR_ls=[0.0]
-        L_finR_ls=[1.0] # Cannot be zero as this leads to divide-by-zero later on
-        D_finL_ls=[0.0]
-        L_finL_ls=[1.0] # Cannot be zero as this leads to divide-by-zero later on
+        ovh_D_L_ls = [[0.0,1.0]] # [D,L] - L cannot be zero as this leads to divide-by-zero later on
+        finR_D_L_ls = [[0.0,1.0]] # [D,L] - L cannot be zero as this leads to divide-by-zero later on
+        finL_D_L_ls = [[0.0,1.0]] # [D,L] - L cannot be zero as this leads to divide-by-zero later on
+
         if window_shading:
             for shade_obj in window_shading:
                 if shade_obj["type"] == "overhang":
-                    D_ovh_ls.append(shade_obj["depth"])
-                    L_ovh_ls.append(shade_obj["distance"] + 0.5 * height)
+                    ovh_D_L_ls.append([shade_obj["depth"],shade_obj["distance"] + 0.5 * height])
                 elif shade_obj["type"] == "sidefinright":
-                    D_finR_ls.append(shade_obj["depth"])
-                    L_finR_ls.append(shade_obj["distance"] + 0.5 * width)
+                    finR_D_L_ls.append([shade_obj["depth"],shade_obj["distance"] + 0.5 * width])
                 elif shade_obj["type"] == "sidefinleft":
-                    D_finL_ls.append(shade_obj["depth"])
-                    L_finL_ls.append(shade_obj["distance"] + 0.5 * width)
+                    finL_D_L_ls.append([shade_obj["depth"],shade_obj["distance"] + 0.5 * width])
                 else:
                     sys.exit("shading object type" + shade_obj["type"] + "not recognised")
+        
+        #the default values should not be used if shading is specified
+        if len(ovh_D_L_ls) >= 2:
+            ovh_D_L_ls.pop(0)
+        if len(finR_D_L_ls) >= 2:
+            finR_D_L_ls.pop(0)
+        if len(finL_D_L_ls) >= 2:
+            finL_D_L_ls.pop(0)
 
         #perform the diff shading calculation for each comination of overhangs and fins
-        for D_ovh,L_ovh,D_finR,L_finR,D_finL,L_finL in product(D_ovh_ls,L_ovh_ls,D_finR_ls,L_finR_ls,D_finL_ls,L_finL_ls):
-            
+        for ovh_D_L,finR_D_L,finL_D_L in product(ovh_D_L_ls,finR_D_L_ls,finL_D_L_ls):
+            D_ovh = ovh_D_L[0]
+            L_ovh = ovh_D_L[1]
+            D_finL = finL_D_L[0]
+            L_finL = finL_D_L[1]
+            D_finR = finR_D_L[0]
+            L_finR = finR_D_L[1]
             # Calculate required geometric ratios
             # Note: PD CEN ISO/TR 52016-2:2017 Section F.6.3 refers to ISO 52016-1:2017
             #       Section F.5.5.1.6 for the definition of P1 and P2. However, this
