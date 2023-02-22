@@ -150,34 +150,52 @@ class HeatBattery:
         # This represents the temperature difference between the core and the room on the first column
         # and the fraction of air flow relating to the nominal as defined above on the second column
         self.labs_tests_rated_output: list = [
-            [1.0, 1.0],
-            [0.9, 1.0],
-            [0.8, 1.0],
-            [0.7, 1.0],
-            [0.6, 1.0],
-            [0.5, 1.0],
-            [0.4, 1.0],
-            [0.3, 1.0],
-            [0.2, 1.0],
-            [0.1, 0.8],
-            [0.05, 0.2],
-            [0.01, 0.05]
+            [0.0, 0],
+            [0.16, 0.13],
+            [0.17, 0.15],
+            [0.19, 0.16],
+            [0.21, 0.18],
+            [0.23, 0.21],
+            [0.25, 0.23],
+            [0.28, 0.26],
+            [0.31, 0.29],
+            [0.34, 0.32],
+            [0.38, 0.36],
+            [0.42, 0.41],
+            [0.47, 0.45],
+            [0.52, 0.51],
+            [0.58, 0.57],
+            [0.64, 0.64],
+            [0.72, 0.71],
+            [0.8, 0.8],
+            [0.89, 0.89],
+            [1.0, 1.0]
+        ]
+        
+        # Charge level x losses
+        self.labs_tests_losses: list = [
+            [0.0, 0],
+            [0.16, 0.13],
+            [0.17, 0.15],
+            [0.19, 0.17],
+            [0.21, 0.18],
+            [0.23, 0.21],
+            [0.25, 0.23],
+            [0.28, 0.26],
+            [0.31, 0.29],
+            [0.34, 0.32],
+            [0.38, 0.36],
+            [0.42, 0.41],
+            [0.47, 0.45],
+            [0.52, 0.51],
+            [0.58, 0.57],
+            [0.64, 0.64],
+            [0.72, 0.71],
+            [0.8, 0.8],
+            [0.89, 0.89],
+            [1.0, 1.0]
         ]
 
-        self.labs_tests_losses: list = [
-            [1.0, 0.01],
-            [0.9, 0.01],
-            [0.8, 0.01],
-            [0.7, 0.01],
-            [0.6, 0.01],
-            [0.5, 0.005],
-            [0.4, 0.005],
-            [0.3, 0.005],
-            [0.2, 0.005],
-            [0.1, 0.001],
-            [0.05, 0.001],
-            [0.01, 0.001]
-        ]
 
         # Initial conditions
         self.t_core: float = self.__zone.temp_internal_air()
@@ -200,24 +218,19 @@ class HeatBattery:
         """
         return energy / units.W_per_kW * timestep * self.__n_units
 
-    def __electric_charge(self, time: float, charge_level: float) -> float:
+    def __electric_charge(self, time: float) -> float:
         """
         Calculates power required for unit
         Arguments
         time -- current time period that we are looking at
-        charge_level -- current level of charge (proportion of 1.0)
 
         returns -- Power required in watts
         """
-        if time <= 7 * self.__time_unit and charge_level <= 1.0:
-            pwr_required: float =  self.__heat_storage_capacity * ( 1 - charge_level ) / self.__simulation_time.timestep()
-            if pwr_required > self.__pwr_in:
-                return self.__pwr_in
-            else:
-                return pwr_required
+        if time <= 7 * self.__time_unit:
+            return self.__pwr_in
         else:
             return 0.0
-
+        
     def __lab_test_rated_output(self, charge_level: float) -> float:
         # labs_test for electric storage heater
         x: list = [row[0] for row in self.labs_tests_rated_output]
@@ -230,100 +243,6 @@ class HeatBattery:
         y: list = [row[1] for row in self.labs_tests_losses]
         return ( np.interp(charge_level, x, y) * self.__max_rated_losses )
 
-    def __calulate_q_out(self, charge_level: float, energy_demand: float) -> float:
-        q_out: float
-        q_out = min( energy_demand, self.__lab_test_rated_output(charge_level) * self.__simulation_time.timestep() )
-
-        return q_out
-
-    def __return_q_out(self,
-                            new_charge_level: float,
-                            q_in: float,
-                            q_loss: float,
-                            q_out: float,
-                            timestep: int,
-                            time: float) -> float:
-        # Setting core and wall temperatures to new values, for next iteration
-        self.__charge_level = new_charge_level
-
-        # TODO replace fan power with pump power
-        # the purpose of this calculation is to calculate fan energy required by the device
-        #energy_for_fan_kwh: float = 0.0
-        #if self.__flue_type == "fan-assisted":
-        #    self.__mass_flow_air = q_dis / (self.__c_p * (self.__t_dis_safe - self.temp_air))
-        #    energy_for_fan: float = self.__mass_flow_air * self.__power_for_fan
-        #    energy_for_fan_kwh = self.__convert_to_kwh(energy=energy_for_fan, timestep=timestep)
-
-        # Convert values to correct kwh unit
-        q_in_kwh: float = self.__convert_to_kwh(energy=q_in, timestep=timestep)
-
-        # Save demand energy
-        self.__energy_supply_conn.demand_energy(q_in_kwh)
-
-        self.__report_energy_supply = self.__report_energy_supply + q_in_kwh
-
-        # STORAGE HEATERS: print statements for testing
-        #print("%.2f" % ((q_released + q_instant) * self.__n_units), end=" ")
-        #print("%.2f" % self.t_core, end=" ")
-        #print("%.2f" % self.t_wall, end=" ")
-        #print("%.2f" % self.__report_energy_supply, end=" ")
-        # DELETE after confirmation of Electric Storage Heater method
-
-        # Multipy energy released by number of devices installed in the zone
-        return self.__convert_to_kwh(energy=(q_out), timestep=timestep)
-
-    def __heat_balance(self, charge_level: float, time: float, energy_demand: float) -> tuple:
-        """
-        Calculates heat balance
-        """
-        # Equation for electric charging
-        q_in: float = self.__electric_charge(time, charge_level)
-        self.__energy_in = q_in
-
-        q_loss: float = self.__lab_test_losses(charge_level)
-
-        # Equation for calculating q_dis
-        q_out = self.__calulate_q_out(charge_level=charge_level, energy_demand=energy_demand)
-
-        # Variation of charge level as per heat balance inside the heater
-        delta_charge_level: float =  1 / self.__heat_storage_capacity * ( q_in - q_loss - q_out )
-        if delta_charge_level < 0:
-            if abs(delta_charge_level) > charge_level:
-                delta_charge_level = -charge_level
-
-        return delta_charge_level, q_in, q_loss, q_out
-
-    def __func_charge_level_change_rate(self, energy_demand) -> types.FunctionType:
-        """
-        Lambda function for differentiation
-        """
-        return lambda time, charge_level: self.__heat_balance(charge_level=charge_level,
-                                                                 time=time,
-                                                                 energy_demand=energy_demand)[0]
-
-    def __calculate_sol_and_q_out(self,
-                                       time_range: list,
-                                       charge_level: float,
-                                       energy_demand: float
-                                       ) -> tuple:
-
-        # first calculate how much the system is leaking without active discharging
-        sol: OdeResult = solve_ivp(fun=self.__func_charge_level_change_rate(energy_demand),
-                                   t_span=time_range,
-                                   y0=charge_level,
-                                   method='BDF')
-
-        new_charge_level: list = sol.y[:, -1]
-
-        values: tuple = self.__heat_balance(charge_level=new_charge_level,
-                                            time=time_range[1],
-                                            energy_demand=energy_demand)
-        q_in: float = values[1]
-        q_loss: float = values[2]
-        q_out: float = values[3]
-
-        return new_charge_level, q_in, q_loss, q_out
-
     def demand_energy(self, energy_demand: float) -> float:
 
         # Initialising Variables
@@ -332,6 +251,7 @@ class HeatBattery:
         timestep: int = self.__simtime.timestep()
         current_hour: int = self.__simtime.current_hour()
         time_range: list = [current_hour*self.__time_unit, (current_hour + 1)*self.__time_unit]
+        n_iterations: int = 10
         charge_level: float = self.__charge_level
 
         # Converting energy_demand from kWh to Wh and distributing it through all units
@@ -340,14 +260,33 @@ class HeatBattery:
         #print("%.2f" % (energy_demand * self.__n_units), end=" ")
         # DELETE after confirmation of Electric Storage Heater method
 
-        new_charge_level, q_in, q_loss, q_out = \
-            self.__calculate_sol_and_q_out(time_range=time_range,
-                                                charge_level=charge_level,
-                                                energy_demand=energy_demand)
+        # New code
+        it_energy_demand = energy_demand / n_iterations
+        it_power_in = self.__electric_charge(time_range[1]) / n_iterations
+        Q_out = 0.0
+        Q_loss = 0.0
+        Q_in = 0.0
+        for i in range(0, n_iterations):
+            # TODO MC - consider the line below and whether it shuold be multiplied by timestep
+            it_Q_out = min( it_energy_demand, self.__lab_test_rated_output(charge_level) / n_iterations )
+            it_Q_loss = self.__lab_test_losses(charge_level) / n_iterations
+            it_Q_in = it_power_in
+            delta_charge_level = ( it_Q_in - it_Q_out - it_Q_loss ) / self.__heat_storage_capacity
+            charge_level = charge_level + delta_charge_level
+            if charge_level > 1.0:
+                it_Q_in = it_Q_in - ( charge_level - 1.0 ) * self.__heat_storage_capacity 
+                charge_level = 1.0
+            Q_out += it_Q_out
+            Q_loss += it_Q_loss
+            Q_in += it_Q_in
+            
+        energy_output_provided = Q_out / units.W_per_kW * self.__n_units
+            
+        self.__charge_level = charge_level
+        
+        self.__energy_supply_conn.demand_energy(Q_in / units.W_per_kW * self.__n_units)
+    
+        return energy_output_provided
 
-        return self.__return_q_out(new_charge_level=new_charge_level,
-                                        q_in=q_in,
-                                        q_loss=q_loss,
-                                        q_out=q_out,
-                                        timestep=timestep,
-                                        time=time_range[1])
+        
+                

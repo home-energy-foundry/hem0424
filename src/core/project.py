@@ -194,6 +194,7 @@ class Project:
                     setpoint_max,
                     default_to_max,
                     )
+            # TODO MC - Add smart control in here.
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -656,6 +657,7 @@ class Project:
                     proj_dict['SimulationTime']['start'],
                     proj_dict['SimulationTime']['step']
                     )
+            # TODO MC - add dry core heat battery in here
             else:
                 sys.exit(name + ': heat source type (' \
                        + heat_source_type + ') not recognised.')
@@ -828,6 +830,7 @@ class Project:
                     cold_water_source,
                     data['HIU_daily_loss']
                     )
+            # TODO MC - add PCM heat battery in here
             else:
                 sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -884,6 +887,7 @@ class Project:
                         data['HeatSource']['name'] + '_space_heating: ' + name,
                         ctrl,
                         )
+                # TODO MC - add dry-core heat battery in here
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
