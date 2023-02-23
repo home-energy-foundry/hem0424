@@ -455,7 +455,7 @@ class HeatBattery:
             'service_name': service_name,
             'time_running': time_running_current_service,
             })
-        print ("output: ", energy_output_provided * 1000, "  Time: ", time_range[1], "  Q_in: ", Q_in, energy_demand)
+        print ("output: ", energy_output_provided * 1000, "  Time: ", time_range[1], "  Q_in: ", Q_in, "  energy_demand: ", energy_demand)
         return energy_output_provided
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
