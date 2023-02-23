@@ -596,7 +596,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             project_dict["ApplianceGains"].pop(item)
         
     if "mains elec" in cookingenergysupplies and "mains gas" in cookingenergysupplies:
-        EC1elec = 143
+        EC1elec = 86
         EC2elec = 49
         EC1gas = 150
         EC2gas = 86
@@ -874,7 +874,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     #vol_daily_average = (25 * N_occupants) + 36
     
     #new relation based on Boiler Manufacturer data and EST surveys
-    vol_daily_average =  60.32 * N_occupants **0.7119
+    vol_daily_average =  60.3 * N_occupants ** 0.71
 
     # Add daily average hot water use to hot water only heat pump (HWOHP) object, if present
     # TODO This is probably only valid if HWOHP is the only heat source for the
