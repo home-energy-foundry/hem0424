@@ -930,6 +930,20 @@ class Project:
                     data['design_flow_temp'],
                     self.__simtime,
                     )
+            elif space_heater_type == 'WarmAir':
+                heat_source = self.__heat_sources_wet[data['HeatSource']['name']]
+                if isinstance(heat_source, HeatPump):
+                    space_heater = heat_source.create_service_space_heating_warm_air(
+                        data['HeatSource']['name'] + '_space_heating: ' + name,
+                        ctrl,
+                        data['frac_convective']
+                        )
+                    if heat_source.source_is_exhaust_air():
+                        # Record heating system as potentially requiring overventilation
+                        self.__heat_system_names_requiring_overvent.append(name)
+                else:
+                    sys.exit(name + ': HeatSource type not recognised')
+                    # TODO Exit just the current case instead of whole program entirely?
             else:
                 sys.exit(name + ': space heating system type (' \
                        + space_heater_type + ') not recognised.')
