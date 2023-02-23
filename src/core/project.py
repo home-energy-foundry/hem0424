@@ -23,6 +23,7 @@ from core.heating_systems.emitters import Emitters
 from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly, SourceType
 from core.heating_systems.storage_tank import ImmersionHeater, SolarThermalSystem, StorageTank
 from core.heating_systems.instant_elec_heater import InstantElecHeater
+from core.heating_systems.elec_storage_heater import ElecStorageHeater
 from core.heating_systems.boiler import Boiler
 from core.heating_systems.heat_network import HeatNetwork
 from core.space_heat_demand.zone import Zone
@@ -862,6 +863,33 @@ class Project:
                     self.__simtime,
                     ctrl,
                     )
+            elif space_heater_type == 'ElecStorageHeater':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+
+                space_heater = ElecStorageHeater(
+                    data['rated_power'],
+                    data['rated_power_instant'],
+                    data['air_flow_type'],
+                    data['temp_dis_safe'],
+                    data['thermal_mass'],
+                    data['frac_convective'],
+                    data['U_ins'],
+                    data['mass_core'],
+                    data['c_pcore'],
+                    data['temp_core_target'],
+                    data['A_core'],
+                    data['c_wall'],
+                    data['n_wall'],
+                    data['thermal_mass_wall'],
+                    data['fan_pwr'],
+                    data['n_units'],
+                    self.__zones[data['Zone']],
+                    energy_supply_conn,
+                    self.__simtime,
+                    ctrl,
+                    )
             elif space_heater_type == 'WetDistribution':
                 heat_source = self.__heat_sources_wet[data['HeatSource']['name']]
                 if isinstance(heat_source, HeatPump):
@@ -1440,7 +1468,7 @@ class Project:
                     gains_heat_cool,
                     frac_convective,
                     )
-
+                
                 if h_name is None:
                     space_heat_demand_system[h_name] = 'n/a'
                 if c_name is None:
