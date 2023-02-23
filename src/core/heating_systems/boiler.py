@@ -291,7 +291,7 @@ class Boiler:
     def __init__(self, 
                 boiler_dict,
                 energy_supply,
-                energy_supply_conn_name_auxiliary,
+                energy_supply_conn_aux,
                 simulation_time,
                 ext_cond, 
                 ):
@@ -313,8 +313,7 @@ class Boiler:
         self.__simulation_time = simulation_time
         self.__external_conditions = ext_cond
         self.__energy_supply_connections = {}
-        self.__energy_supply_connection_aux \
-            = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
+        self.__energy_supply_connection_aux = energy_supply_conn_aux
         self.__service_results = []
 
         # boiler properties

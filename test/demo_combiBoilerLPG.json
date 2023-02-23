@@ -138,6 +138,7 @@
 		"boiler": {
 			"type": "Boiler",
 			"EnergySupply": "bulk LPG",
+			"EnergySupply_aux": "mains elec",
 			"rated_power": 24.0,
 			"efficiency_full_load": 0.891,
 			"efficiency_part_load": 0.991,
