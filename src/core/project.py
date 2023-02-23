@@ -623,11 +623,12 @@ class Project:
                 self.__timestep_end_calcs.append(heat_source)
             elif heat_source_type == 'Boiler':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
-                energy_supply_conn_name_auxiliary = 'Boiler_auxiliary: ' + name
+                energy_supply_aux = self.__energy_supplies[data['EnergySupply_aux']]
+                energy_supply_conn_aux = energy_supply_aux.connection('Boiler_auxiliary: ' + name)
                 heat_source = Boiler(
                     data,
                     energy_supply,
-                    energy_supply_conn_name_auxiliary,
+                    energy_supply_conn_aux,
                     self.__simtime,
                     self.__external_conditions,
                     )
