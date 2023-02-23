@@ -289,7 +289,7 @@ class HeatBattery:
 
         
         # Set the initial charge level of the heat battery to zero.
-        self.__charge_level: float = 0.0
+        self.__charge_level: float = 1.0
         #self.__charge_capacity_in_timestep = 
         self.__energy_available_in_timestep = self.__lab_test_rated_output(self.__charge_level) * self.__n_units
 
@@ -406,7 +406,6 @@ class HeatBattery:
         timestep: int = self.__simulation_time.timestep()
         current_hour: int = self.__simulation_time.current_hour()
         time_range: list = [current_hour*self.__time_unit, (current_hour + 1)*self.__time_unit]
-        n_iterations: int = 10
         charge_level: float = self.__charge_level
 
         # Converting energy_demand from kWh to Wh and distributing it through all units
@@ -416,6 +415,7 @@ class HeatBattery:
         # DELETE after confirmation of Electric Storage Heater method
 
         # New code
+        n_iterations: int = 10
         it_energy_demand = energy_demand / n_iterations
         it_power_in = self.__electric_charge(time_range[1]) / n_iterations
         Q_out = 0.0
@@ -423,22 +423,22 @@ class HeatBattery:
         Q_in = 0.0
         for i in range(0, n_iterations):
             # TODO MC - consider the line below and whether it shuold be multiplied by timestep
-            it_Q_out = min( it_energy_demand, self.__lab_test_rated_output(charge_level) / n_iterations )
+            it_Q_out = min( it_energy_demand / timestep, self.__lab_test_rated_output(charge_level) / n_iterations )
             it_Q_loss = self.__lab_test_losses(charge_level) / n_iterations
             it_Q_in = it_power_in
-            delta_charge_level = ( it_Q_in - it_Q_out - it_Q_loss ) / self.__heat_storage_capacity
+            delta_charge_level = ( it_Q_in - it_Q_out - it_Q_loss ) * timestep / self.__heat_storage_capacity
             charge_level = charge_level + delta_charge_level
             if charge_level > 1.0:
-                it_Q_in = it_Q_in - ( charge_level - 1.0 ) * self.__heat_storage_capacity 
+                it_Q_in = it_Q_in - ( charge_level - 1.0 ) * self.__heat_storage_capacity / timestep  
                 charge_level = 1.0
             Q_out += it_Q_out
-            if Q_out * self.__n_units > self.__energy_available_in_timestep:
-                Q_out = self.__energy_available_in_timestep
+#            if Q_out * self.__n_units > self.__energy_available_in_timestep:
+#                Q_out = self.__energy_available_in_timestep
             Q_loss += it_Q_loss
             Q_in += it_Q_in
             
-        energy_output_provided = Q_out / units.W_per_kW * self.__n_units
-        self.__energy_available_in_timestep -= Q_out * self.__n_units    
+        energy_output_provided = Q_out * timestep / units.W_per_kW * self.__n_units
+#        self.__energy_available_in_timestep -= Q_out * self.__n_units    
         self.__charge_level = charge_level
         
         self.__energy_supply_connections[service_name].demand_energy(energy_output_provided)
@@ -455,7 +455,7 @@ class HeatBattery:
             'service_name': service_name,
             'time_running': time_running_current_service,
             })
-
+        print ("output: ", energy_output_provided * 1000, "  Time: ", time_range[1], "  Q_in: ", Q_in, energy_demand)
         return energy_output_provided
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
