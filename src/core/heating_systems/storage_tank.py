@@ -118,6 +118,9 @@ class StorageTank:
         self.__temp_n = [self.__temp_set_on] * self.__NB_VOL
         self.__energy_demand_test = 0
         
+        # Set initial values
+        self.__input_energy_adj_prev_timestep = 0
+        
         if primary_pipework is not None:
             self.__primary_pipework = Pipework(
                     primary_pipework["internal_diameter"],
@@ -626,7 +629,7 @@ class StorageTank:
         self.__energy_demand_test = deepcopy(input_energy_adj)
 
         for heat_source in self.__heat_sources:
-            input_energy_adj = input_energy_adj - self.get_demand_energy(heat_source, input_energy_adj)
+            input_energy_adj = input_energy_adj - self.heat_source_output(heat_source, input_energy_adj)
 
         #set temperatures calculated to be initial temperatures of volumes for the next timestep
         self.__temp_n = deepcopy(temp_s8_n)
@@ -650,8 +653,8 @@ class StorageTank:
         return self.__Q_sto_h_ls_rbl * units.W_per_kW / self.__simulation_time.timestep() \
         + primary_gains_timestep
 
-            
-    def get_demand_energy(self, heat_source, input_energy_adj):
+
+    def heat_source_output(self, heat_source, input_energy_adj):
         # function that also calculates pipework loss before sending on the demand energy 
         # if immersion heater, no pipework losses
         if isinstance(heat_source, ImmersionHeater):
@@ -659,13 +662,27 @@ class StorageTank:
         elif isinstance(heat_source, SolarThermalSystem):
             return(heat_source.demand_energy(input_energy_adj))
         else:
-            demand_energy = heat_source.demand_energy(input_energy_adj)
-            # primary losses for the timestep calculated from  temperature difference
-            primary_pipework_losses = self.__primary_pipework.heat_loss(self.__temp_hot, self.__temp_amb)
-            self.__primary_gains = primary_pipework_losses
-            demand_energy+=primary_pipework_losses
+            primary_pipework_losses_kWh = 0.0
+            #TODO multiple heat source for primary pipework
+            if input_energy_adj > 0.0 and self.__input_energy_adj_prev_timestep == 0.0:
+                primary_pipework_losses_kWh += self.__primary_pipework.cool_down_loss(self.__temp_hot, self.__temp_amb)
+                input_energy_adj += primary_pipework_losses_kWh
+
+            if input_energy_adj > 0.0:
+                # primary losses for the timestep calculated from  temperature difference
+                primary_pipework_losses = self.__primary_pipework.heat_loss(self.__temp_hot, self.__temp_amb)
+                self.__primary_gains = primary_pipework_losses
+                primary_pipework_losses_kWh += primary_pipework_losses * self.__simulation_time.timestep() / units.W_per_kW
+                input_energy_adj += primary_pipework_losses_kWh
+    
+            if input_energy_adj == 0.0 and self.__input_energy_adj_prev_timestep > 0.0:
+                self.__primary_gains += self.__primary_pipework.cool_down_loss(self.__temp_hot, self.__temp_amb)
+            heat_source_output = heat_source.demand_energy(input_energy_adj) - primary_pipework_losses_kWh
+            # Save input energy for next timestep
+            self.__input_energy_adj_prev_timestep = input_energy_adj
+            
             # TODO - how are these gains reflected in the calculations? allocation by zone?
-            return(demand_energy)
+            return(heat_source_output)
 
 
 
