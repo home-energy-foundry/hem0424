@@ -6,6 +6,8 @@ This module provides object(s) to model the behaviour of electric storage heater
 """
 
 # Third-party imports
+import sys
+from enum import Enum, auto
 from scipy.integrate import solve_ivp
 import numpy as np
 from scipy.integrate._ivp.ivp import OdeResult
@@ -19,6 +21,19 @@ from core.energy_supply.energy_supply import EnergySupplyConnection
 from core.simulation_time import SimulationTime
 from core.controls.time_control import SetpointTimeControl
 
+class AirFlowType(Enum):
+    FAN_ASSISTED = auto()
+    DAMPER_ONLY = auto()
+
+    @classmethod
+    def from_string(cls, strval):
+        if strval == 'fan-assisted':
+            return cls.FAN_ASSISTED
+        elif strval == 'damper-only':
+            return cls.DAMPER_ONLY
+        else:
+            sys.exit('AirFlowType (' + str(strval) + ') not valid.')
+            # TODO Exit just the current case instead of whole program entirely?
 
 class ElecStorageHeater:
     """ Class to represent electric storage heaters """
@@ -27,7 +42,7 @@ class ElecStorageHeater:
         self,
         rated_power: float,
         rated_power_instant: float,
-        flue_type: str,
+        air_flow_type: str,
         temp_dis_safe: float,
         thermal_mass: float,
         frac_convective: float,
@@ -39,6 +54,7 @@ class ElecStorageHeater:
         c_wall: float,
         n_wall: float,
         thermal_mass_wall: float,
+        fan_pwr: float,
         n_units: int,
         zone: Zone,
         energy_supply_conn: EnergySupplyConnection,
@@ -50,9 +66,9 @@ class ElecStorageHeater:
         Arguments:
         rated_power          -- in kW (Charging)
         rated_power_instant  -- in kW (Instant backup)
-        flue_type            -- type of Electric Storage Heater:
+        air_flow_type        -- string specifying type of Electric Storage Heater:
                              -- fan-assisted
-                             -- damper
+                             -- damper-only
         temp_dis_safe        -- safe temperature to discharge hot air from device (60 degC)
         thermal_mass         -- thermal mass of emitters, in kWh / K
         frac_convective      -- convective fraction for heating (TODO: Check if necessary)
@@ -66,6 +82,7 @@ class ElecStorageHeater:
         c_wall               -- constant from characteristic equation of emitters (e.g. derived from BS EN 442 tests)
         n_wall               -- exponent from characteristic equation of emitters (e.g. derived from BS EN 442 tests)
         thermal_mass_wall    -- thermal mass of the case
+        fan_pwr              -- Fan power [W]
         n_units              -- number of units install in zone
         zone                 -- zone where the unit(s) is/are installed
         energy_supply_conn   -- reference to EnergySupplyConnection object
@@ -75,7 +92,7 @@ class ElecStorageHeater:
 
         self.__pwr_in: float = (rated_power * units.W_per_kW)
         self.__pwr_instant: float = (rated_power_instant * units.W_per_kW)
-        self.__flue_type: str = flue_type
+        self.__air_flow_type: str = AirFlowType.from_string(air_flow_type)
         self.__t_dis_safe: float = temp_dis_safe
         self.__thermal_mass: float = thermal_mass
         self.__frac_convective: float = frac_convective
@@ -92,17 +109,18 @@ class ElecStorageHeater:
         self.__c: float = c_wall
         self.__n: float = n_wall
         self.__thermal_mass_wall  = thermal_mass_wall
+        self.__fan_pwr = fan_pwr
 
         # Power for driving fan
-        # TODO: Parameter will be provided by business, once this happens we can add it to the input json data
-        self.__power_for_fan: float = 0.0
+        # TODO: Modify fan energy calculation to SFP
+        # self.__sfp: float = 0.0
 
         # Initialising other variables
         # Parameters
-        self.__time_unit: float = 3600
+        
         self.__c_p: float = 1.0054  # J/kg/K air specific heat
 
-        self.__report_energy_supply: float = 0.0
+        #self.__report_energy_supply: float = 0.0
 
         """
         The value of R (resistance of air gap) depends on several factors such as the thickness of the air gap, the
@@ -123,10 +141,6 @@ class ElecStorageHeater:
         self.temp_air: float = self.__zone.temp_internal_air()  # °C Room temperature
         # case/wall c and n parameters as emitter.
 
-        # kg/s this is the nominal or max rate of air mass passing through the heater with damper open and
-        # ideal fan assisted mode
-        self.__mass_flow_air: float = 0.0
-
         # This parameter specicify the opening ratio for the damper of the storage heater. It's set to 1.0 by
         # default but there might be control strategies using this to configure diferent levels of release
         self.damper_fraction: float = 1.0
@@ -134,73 +148,76 @@ class ElecStorageHeater:
         # This represents the temperature difference between the core and the room on the first column
         # and the fraction of air flow relating to the nominal as defined above on the second column
         self.labs_tests_400: list = [
-            [324.91, 3.77],
-            [286.52, 3.58],
-            [254.93, 3.4],
-            [228.63, 3.25],
-            [206.41, 3.13],
-            [187.41, 3.02],
-            [171.03, 2.92],
-            [156.79, 2.83],
-            [144.29, 2.75],
-            [133.25, 2.68],
-            [123.42, 2.62],
-            [114.57, 2.6],
-            [106.36, 1.6],
-            [98.73, 1.6],
+            [85.07, 1.6],
             [91.65, 1.6],
-            [85.07, 1.6]
+            [98.73, 1.6],
+            [106.36, 1.6],
+            [114.57, 2.6],
+            [123.42, 2.62],
+            [133.25, 2.68],
+            [144.29, 2.75],
+            [156.79, 2.83],
+            [171.03, 2.92],
+            [187.41, 3.02],
+            [206.41, 3.13],
+            [228.63, 3.25],
+            [254.93, 3.4],
+            [286.52, 3.58],
+            [324.91, 3.77]
         ]
 
         self.labs_tests_400_fan: list = [
-            [270.15, 5.03],
-            [202.2, 5.03],
-            [151.33, 5.03],
-            [113.24, 5.03],
-            [84.73, 5.03],
-            [63.39, 5.03],
-            [47.1491642, 5.03],
-            [35.47, 5.03],
-            [26.53, 5.03],
-            [19.84, 5.03],
-            [14.84, 5.03],
-            [11.1, 5.03],
-            [8.31, 5.03],
-            [6.22, 5.03],
-            [4.66, 5.02],
+            [2.62, 5.02],
             [3.49, 5.03],
-            [2.62, 5.02]
+            [4.66, 5.02],
+            [6.22, 5.03],
+            [8.31, 5.03],
+            [11.1, 5.03],
+            [14.84, 5.03],
+            [19.84, 5.03],
+            [26.53, 5.03],
+            [35.47, 5.03],
+            [47.15, 5.03],
+            [63.39, 5.03],
+            [84.73, 5.03],
+            [113.24, 5.03],
+            [151.33, 5.03],
+            [202.2, 5.03],
+            [270.15, 5.03]
         ]
         self.labs_tests_400_mod: list = [
-            [670.15, 6.03],
-            [570.15, 6.03],
-            [470.15, 6.03],
-            [270.15, 6.03],
-            [202.2, 4.03],
-            [151.33, 4.03],
-            [113.24, 4.03],
-            [84.73, 4.03],
-            [63.39, 4.03],
-            [47.42, 4.03],
-            [35.47, 4.03],
-            [26.53, 4.03],
-            [19.84, 4.03],
-            [14.84, 4.03],
-            [11.1, 4.03],
-            [8.31, 4.03],
-            [6.22, 4.03],
-            [4.66, 4.02],
+            [2.62, 4.02],
             [3.49, 4.03],
-            [2.62, 4.02]
+            [4.66, 4.02],
+            [6.22, 4.03],
+            [8.31, 4.03],
+            [11.1, 4.03],
+            [14.84, 4.03],
+            [19.84, 4.03],
+            [26.53, 4.03],
+            [35.47, 4.03],
+            [47.42, 4.03],
+            [63.39, 4.03],
+            [84.73, 4.03],
+            [113.24, 4.03],
+            [151.33, 4.03],
+            [202.2, 4.03],
+            [270.15, 6.03],
+            [470.15, 6.03],
+            [570.15, 6.03],
+            [670.15, 6.03]
         ]
 
         # This represents the temperature difference between the core and the room on the first column
         # and the fraction of air flow relating to the nominal as defined above on the second column
         self.labs_tests: list
-        if self.__flue_type == "fan-assisted":
+        if self.__air_flow_type == AirFlowType.FAN_ASSISTED:
             self.labs_tests = self.labs_tests_400_fan
-        else:
+        elif self.__air_flow_type == AirFlowType.DAMPER_ONLY:
             self.labs_tests = self.labs_tests_400
+        else:
+            sys.exit('AirFlowType does not have characteristic data for EHS system')
+            
 
         # Initial conditions
         self.t_core: float = self.__zone.temp_internal_air()
@@ -215,16 +232,16 @@ class ElecStorageHeater:
     def frac_convective(self):
         return self.__frac_convective
 
-    def __convert_to_kwh(self, energy: float, timestep: int) -> float:
+    def __convert_to_kwh(self, power: float, timestep: float) -> float:
         """
-        Converts energy value supplied to the correct unit
+        Converts power value supplied to the correct energy unit
         Arguments
-        energy -- Energy value in watts
+        power -- Power value in watts
         timestep -- length of the timestep
 
-        returns -- Energy in kWH
+        returns -- Energy in kWh
         """
-        return energy / units.W_per_kW * timestep * self.__n_units
+        return power / units.W_per_kW * timestep * self.__n_units
 
     def __electric_charge(self, time: float, t_core: float) -> float:
         """
@@ -236,7 +253,8 @@ class ElecStorageHeater:
         returns -- Power required in watts
         """
         if time <= 7 * self.__time_unit and t_core <= self.__t_core_target:
-            pwr_required: float = (self.__t_core_target - t_core) * self.__mass * self.__c_pcore
+            pwr_required: float = (self.__t_core_target - t_core) * self.__mass * self.__c_pcore / self.__simtime.timestep()
+            #print(pwr_required)
             if pwr_required > self.__pwr_in:
                 return self.__pwr_in
             else:
@@ -277,32 +295,35 @@ class ElecStorageHeater:
 
         # the purpose of this calculation is to calculate fan energy required by the device
         energy_for_fan_kwh: float = 0.0
-        if self.__flue_type == "fan-assisted":
-            self.__mass_flow_air = q_dis / (self.__c_p * (self.__t_dis_safe - self.temp_air))
-            energy_for_fan: float = self.__mass_flow_air * self.__power_for_fan
-            energy_for_fan_kwh = self.__convert_to_kwh(energy=energy_for_fan, timestep=timestep)
+        power_for_fan: float = 0.0
+        if self.__air_flow_type == AirFlowType.FAN_ASSISTED and q_dis > 0:
+            #TODO: Calculate fan energy using SFP
+            # Air flow rate in kg/s
+            #mass_flow_air = q_dis * self.__frac_convective / (self.__c_p * (self.__t_dis_safe - self.temp_air))
+            # TODO: Improve mass to volumen conversion for air stream at 60 degC approx
+            # Currently assumed air density of 1.04 kg/m3
+            # Air flow volumen in m3/s
+            #vol_flow_air = mass_flow_air / 1.04
+            #print("vol: ", vol_flow_air)
+            #power_for_fan: float = vol_flow_air * self.__sfp * units.W_per_kW
+            #TODO: consider fan energy as part of q_dis and modify control to reduce q_dis accordingly 
+            power_for_fan: float = self.__fan_pwr
+            energy_for_fan_kwh = self.__convert_to_kwh(power=power_for_fan, timestep=timestep)
 
         # might need to redo this calc, but with new t_core calc
         q_in: float = self.__electric_charge(time, self.t_core)
 
         # Convert values to correct kwh unit
-        q_in_kwh: float = self.__convert_to_kwh(energy=q_in, timestep=timestep)
-        q_instant_kwh: float = self.__convert_to_kwh(energy=q_instant, timestep=timestep)
+        q_in_kwh: float = self.__convert_to_kwh(power=q_in, timestep=timestep)
+        q_instant_kwh: float = self.__convert_to_kwh(power=q_instant, timestep=timestep)
 
         # Save demand energy
         self.__energy_supply_conn.demand_energy(q_in_kwh + energy_for_fan_kwh + q_instant_kwh)
 
-        self.__report_energy_supply = ( self.__report_energy_supply + q_in_kwh + energy_for_fan_kwh + q_instant_kwh ) * 1000
-
-        # STORAGE HEATERS: print statements for testing
-        print("%.2f" % ((q_released + q_instant) * self.__n_units), end=" ")
-        print("%.2f" % self.t_core, end=" ")
-        print("%.2f" % self.t_wall, end=" ")
-        print("%.2f" % self.__report_energy_supply, end=" ")
-        # DELETE after confirmation of Electric Storage Heater method
+        #self.__report_energy_supply = ( self.__report_energy_supply + q_in_kwh + energy_for_fan_kwh + q_instant_kwh ) * units.W_per_kW
 
         # Multipy energy released by number of devices installed in the zone
-        return self.__convert_to_kwh(energy=(q_released + q_instant), timestep=timestep)
+        return self.__convert_to_kwh(power=(q_released + q_instant), timestep=timestep)
 
     def __heat_balance(self, temp_core_and_wall: list, time: float, q_dis_modo=0) -> tuple:
         """
@@ -374,19 +395,16 @@ class ElecStorageHeater:
     def demand_energy(self, energy_demand: float) -> float:
 
         # Initialising Variables
-        self.__report_energy_supply = 0.0
+        #self.__report_energy_supply = 0.0
         self.temp_air = self.__zone.temp_internal_air()
-        timestep: int = self.__simtime.timestep()
+        timestep: float = self.__simtime.timestep()
+        self.__time_unit: float = 3600 * timestep
         current_hour: int = self.__simtime.current_hour()
         time_range: list = [current_hour*self.__time_unit, (current_hour + 1)*self.__time_unit]
         temp_core_and_wall: list = [self.t_core, self.t_wall]
 
         # Converting energy_demand from kWh to Wh and distributing it through all units
         energy_demand: float = energy_demand * units.W_per_kW / self.__n_units
-
-        print("%.2f" % (energy_demand * self.__n_units), end=" ")
-        # DELETE after confirmation of Electric Storage Heater method
-        
 
         #################################################
         # Step 1                                        #
@@ -401,7 +419,7 @@ class ElecStorageHeater:
                                                 q_dis_modo=0)
 
         # if Q_released is more than what the zone wants, that's it
-        if q_released >= energy_demand:
+        if q_released >= energy_demand / timestep:
             # More energy than needed to be released. End of calculations.
             return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
                                             q_released=q_released,
@@ -420,11 +438,11 @@ class ElecStorageHeater:
 
         # If Q_released is not sufficient for zone demand, that's it
         # unless there is instnat backup that can top up the energy provided
-        if q_released < energy_demand:
+        if q_released < energy_demand / timestep:
             if self.__pwr_instant > 0:
-                energy_supplied_instant = min(energy_demand - q_released, self.__pwr_instant * timestep)
+                power_supplied_instant = min(energy_demand / timestep - q_released, self.__pwr_instant)
             else:
-                energy_supplied_instant = 0.0
+                power_supplied_instant = 0.0
 
             # The system can only discharge the maximum amount, zone doesn't get everything it needs
             return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
@@ -432,7 +450,7 @@ class ElecStorageHeater:
                                             q_dis=q_dis,
                                             timestep=timestep,
                                             time=time_range[1],
-                                            q_instant=energy_supplied_instant)
+                                            q_instant=power_supplied_instant)
 
         #################################################
         # Step 3                                        #
@@ -440,7 +458,7 @@ class ElecStorageHeater:
         # Zone actually needs an amount of energy that can be released by the system:
         # Let's call the heat balance forcing that amount (assuming perfect damper or
         # fan assisted control of the unit)
-        q_dis = energy_demand
+        q_dis = energy_demand / timestep
         new_temp_core_and_wall, q_released, q_dis = \
             self.__calculate_sol_and_q_released(time_range=time_range,
                                                 temp_core_and_wall=temp_core_and_wall,

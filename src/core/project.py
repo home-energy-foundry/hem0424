@@ -763,11 +763,10 @@ class Project:
                 # TODO Need to handle error if EnergySupply name is invalid.
                 energy_supply_conn = energy_supply.connection(name)
 
-#    STORAGE HEATERS: Update the method below with storage heater inputs once these are known.
                 space_heater = ElecStorageHeater(
                     data['rated_power'],
                     data['rated_power_instant'],
-                    data['flue_type'],
+                    data['air_flow_type'],
                     data['temp_dis_safe'],
                     data['thermal_mass'],
                     data['frac_convective'],
@@ -779,6 +778,7 @@ class Project:
                     data['c_wall'],
                     data['n_wall'],
                     data['thermal_mass_wall'],
+                    data['fan_pwr'],
                     data['n_units'],
                     self.__zones[data['Zone']],
                     energy_supply_conn,
@@ -1357,12 +1357,6 @@ class Project:
                     frac_convective,
                     )
                 
-                # STORAGE HEATERS: print statements for testing    
-                print("%.2f" % zone.temp_operative(), end=" ") 
-                print("%.2f" % zone.temp_internal_air()) 
-                # DELETE after confirmation of Electric Storage Heater method
-
-
                 if h_name is None:
                     space_heat_demand_system[h_name] = 'n/a'
                 if c_name is None:
