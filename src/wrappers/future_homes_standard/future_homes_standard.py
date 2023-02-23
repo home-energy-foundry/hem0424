@@ -510,15 +510,17 @@ def create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc):
     if running_FEE_calc:
         lumens = TFA * 185
     else:
-        lumens = 11.2 * 59.73 * (TFA * N_occupants) ** 0.4714
+        #from analysis of EFUS 2017 data
+        lumens = 1417.7 * (TFA * N_occupants) ** 0.4081
 
-    kWhperyear = 1/3 * lumens/21 + 2/3 * lumens/lighting_efficacy
+    #dropped 1/3 - 2/3 split based on SAP2012 assumptions about portable lighting
+    kWhperyear = lumens/lighting_efficacy
     kWhperday = kWhperyear / 365
-    #lighting_energy_kWh=[]
+
     lighting_gains_W = []
         
     for monthly_profile in avg_monthly_halfhr_profiles:
-        #lighting_energy_kWh+=[frac * kWhperday for frac in monthly_profile]
+
         '''
         To obtain the lighting gains,
         the above should be converted to Watts by multiplying the individual half-hourly figure by (2 x 1000).
@@ -594,18 +596,18 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             project_dict["ApplianceGains"].pop(item)
         
     if "mains elec" in cookingenergysupplies and "mains gas" in cookingenergysupplies:
-        EC1elec = 138
-        EC2elec = 28
-        EC1gas = 241
-        EC2gas = 48
+        EC1elec = 143
+        EC2elec = 49
+        EC1gas = 150
+        EC2gas = 86
     elif "mains gas" in cookingenergysupplies:
         EC1elec = 0
         EC2elec = 0
-        EC1gas = 481
-        EC2gas = 96
+        EC1gas = 299
+        EC2gas = 171
     elif "mains elec" in cookingenergysupplies:
-        EC1elec = 275
-        EC2elec = 55
+        EC1elec = 171
+        EC2elec = 98
         EC1gas = 0
         EC2gas = 0
         #TODO - if there is cooking with energy supply other than
@@ -667,7 +669,7 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
     #EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
     
     #new relation based on analysis of EFUS 2017 monitoring data
-    EA_annual_kWh = 184.32 * (TFA * N_occupants) ** 0.4425
+    EA_annual_kWh = 145.04 * (TFA * N_occupants) ** 0.4856
     
     appliance_gains_W = []
     for monthly_profile in avg_monthly_hr_profiles:
@@ -872,7 +874,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     #vol_daily_average = (25 * N_occupants) + 36
     
     #new relation based on Boiler Manufacturer data and EST surveys
-    vol_daily_average = 74.4 * math.log(N_occupants) + 42.2
+    vol_daily_average =  60.32 * N_occupants **0.7119
 
     # Add daily average hot water use to hot water only heat pump (HWOHP) object, if present
     # TODO This is probably only valid if HWOHP is the only heat source for the
