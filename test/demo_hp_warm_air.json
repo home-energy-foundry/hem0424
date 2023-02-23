@@ -151,7 +151,7 @@
 			"sink_type": "Air",
 			"backup_ctrl_type": "TopUp",
 			"modulating_control": true,
-			"min_modulation_rate_35": 0.35,
+			"min_modulation_rate_20": 0.35,
 			"min_modulation_rate_55": 0.4,
 			"time_constant_onoff_operation": 140,
 			"temp_return_feed_max": 70.0,

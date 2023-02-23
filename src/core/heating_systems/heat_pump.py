@@ -1198,9 +1198,6 @@ class HeatPump:
         self.__sink_type = SinkType.from_string(hp_dict['sink_type'])
         self.__backup_ctrl = BackupCtrlType.from_string(hp_dict['backup_ctrl_type'])
         self.__modulating_ctrl = bool(hp_dict['modulating_control'])
-        if self.__modulating_ctrl:
-            self.__min_modulation_rate_35 = float(hp_dict['min_modulation_rate_35'])
-            self.__min_modulation_rate_55 = float(hp_dict['min_modulation_rate_55'])
         self.__time_constant_onoff_operation = float(hp_dict['time_constant_onoff_operation'])
         if self.__sink_type != SinkType.AIR:
             self.__temp_return_feed_max = Celcius2Kelvin(float(hp_dict['temp_return_feed_max']))
@@ -1248,6 +1245,20 @@ class HeatPump:
 
         # Parse and initialise heat pump test data
         self.__test_data = HeatPumpTestData(hp_dict['test_data'])
+
+        if self.__modulating_ctrl:
+            if self.__sink_type == SinkType.AIR:
+                self.__temp_min_modulation_rate_low = 20.0
+                self.__min_modulation_rate_low = float(hp_dict['min_modulation_rate_20'])
+            elif self.__sink_type == SinkType.WATER:
+                self.__temp_min_modulation_rate_low = 35.0
+                self.__min_modulation_rate_low = float(hp_dict['min_modulation_rate_35'])
+            else:
+                sys.exit('Sink type not recognised')
+
+            if 55.0 in self.__test_data._HeatPumpTestData__dsgn_flow_temps:
+                self.__temp_min_modulation_rate_high = 55.0
+                self.__min_modulation_rate_55 = float(hp_dict['min_modulation_rate_55'])
 
     def source_is_exhaust_air(self):
         return SourceType.is_exhaust_air(self.__source_type)
@@ -1582,16 +1593,28 @@ class HeatPump:
         # Calculate load ratio
         load_ratio = time_running_current_service / timestep
         if self.__modulating_ctrl:
-            # Note: min modulation rates are always for 35 and 55
-            # TODO What if we only have the rate at one of these temps (e.g. a low-
-            #      temperature heat pump that does not go up to 55degC output)?
-            load_ratio_continuous_min \
-                = (min(max(temp_output, 35.0), 55.0) - 35.0) \
-                / (55.0 - 35.0) \
-                * self.__min_modulation_rate_35 \
-                + (1.0 - (min(max(temp_output, 35.0), 55.0) - 35.0)) \
-                / (55.0 - 35.0) \
-                * self.__min_modulation_rate_55
+            if 55.0 in self.__test_data._HeatPumpTestData__dsgn_flow_temps:
+                load_ratio_continuous_min \
+                    = ( min(
+                            max(temp_output, self.__temp_min_modulation_rate_low),
+                            self.__temp_min_modulation_rate_high
+                            )
+                      - self.__temp_min_modulation_rate_low
+                      ) \
+                    / (self.__temp_min_modulation_rate_high - self.__temp_min_modulation_rate_low) \
+                    * self.__min_modulation_rate_low \
+                    + ( 1.0 
+                      - ( min(
+                              max(temp_output, self.__temp_min_modulation_rate_low),
+                              self.__temp_min_modulation_rate_high
+                          )
+                        - self.__temp_min_modulation_rate_low
+                        )
+                      ) \
+                    / (self.__temp_min_modulation_rate_high - self.__temp_min_modulation_rate_low) \
+                    * self.__min_modulation_rate_55
+            else:
+                load_ratio_continuous_min = self.__min_modulation_rate_low
         else:
             # On/off heat pump cannot modulate below maximum power
             load_ratio_continuous_min = 1.0
