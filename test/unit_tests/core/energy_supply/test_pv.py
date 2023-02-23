@@ -99,8 +99,8 @@ class TestPhotovoltaicSystem(unittest.TestCase):
                 decimal_places = 6
                 self.assertAlmostEqual(
                     self.energysupply.results_by_end_user()["pv generation"][t_idx],
-                    [-0.01791975, -0.04316534, -0.06798521, -0.07796070, -0.08422099,
-                     -0.07017143, -0.04893046, -0.03835023][t_idx],
+                    [-0.019039734375, -0.04586317375, -0.072234285625, -0.08283324375,
+                     -0.089484801875, -0.074557144375, -0.05198861375, -0.040747119375][t_idx],
                     decimal_places,
                     "incorrect electricity produced from pv returned"
                     )
