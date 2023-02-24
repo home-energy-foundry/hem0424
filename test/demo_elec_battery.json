@@ -100,6 +100,22 @@
 			"schedule": {
 				"main": [{"value": true, "repeat": 24}]
 			}
+		},
+		"main__hw timer__converted_from_OnOffTimeControl": {
+			"type": "SetpointTimeControl",
+			"start_day": 212,
+			"time_series_step": 1,
+			"schedule": {
+				"main": [{"value": 21.0, "repeat": 24}]
+			}
+		},
+		"cooling system 1__hw timer__converted_from_OnOffTimeControl": {
+			"type": "SetpointTimeControl",
+			"start_day": 212,
+			"time_series_step": 1,
+			"schedule": {
+				"main": [{"value": 25.0, "repeat": 24}]
+			}
 		}
 	},
 	"HotWaterSource": {
@@ -192,7 +208,7 @@
 			"rated_power": 6.0,
 			"frac_convective": 0.4,
 			"EnergySupply": "mains elec",
-			"Control": "hw timer"
+			"Control": "main__hw timer__converted_from_OnOffTimeControl"
 		}
 	},
 	"SpaceCoolSystem": {
@@ -202,7 +218,7 @@
 			"efficiency": 4.3,
 			"frac_convective": 0.95,
 			"EnergySupply": "mains elec",
-			"Control": "hw timer"
+			"Control": "cooling system 1__hw timer__converted_from_OnOffTimeControl"
 		}
 	},
 	"Ventilation": {
@@ -236,8 +252,6 @@
 			"SpaceCoolSystem": "cooling system 1",
 			"area": 80.0,
 			"volume": 250.0,
-			"temp_setpnt_heat": 21.0,
-			"temp_setpnt_cool": 25.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
