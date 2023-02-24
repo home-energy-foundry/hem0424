@@ -97,6 +97,15 @@
 				"main": [{"value": true, "repeat": 24}]
 			}
 		},
+		"esh_charge_control": {
+			"type": "ESHChargeControl",
+			"start_day": 0,
+			"time_series_step": 1,
+			"charge_level": [ 0.8 ],
+			"schedule": {
+				"main": [{"value": true, "repeat": 7}, {"value": false, "repeat": 17}]
+			}
+		},
 		"main__hw timer__converted_from_OnOffTimeControl": {
 			"type": "SetpointTimeControl",
 			"start_day": 0,
@@ -210,7 +219,7 @@
 			"fan_pwr": 11.0,
 			"n_units": 2,
 			"EnergySupply": "mains elec",
-			"Control": "main__hw timer__converted_from_OnOffTimeControl",
+			"Control": "esh_charge_control",
 			"Zone": "zone 1"
 		}
 	},
