@@ -49,6 +49,7 @@ class TestElecStorageHeater(unittest.TestCase):
                 "c_wall": 8.0,
                 "n_wall": 0.9,
                 "thermal_mass_wall": 23.0,
+                "fan_pwr": 11.0,
                 "n_units": 2}
 
         self.inselecheater = ElecStorageHeater(data['rated_power'],
@@ -65,6 +66,7 @@ class TestElecStorageHeater(unittest.TestCase):
                                                data['c_wall'],
                                                data['n_wall'],
                                                data['thermal_mass_wall'],
+                                               data['fan_pwr'],
                                                data['n_units'],
                                                zone,
                                                energysupplyconn,
@@ -77,6 +79,6 @@ class TestElecStorageHeater(unittest.TestCase):
             with self.subTest(i=t_idx):
                 self.assertEqual(
                     round(self.inselecheater.demand_energy([40.0, 100.0, 30.0, 20.0][t_idx]), 2),
-                    [2.82, 3.91, 4.83, 5.59][t_idx],
+                    [2.82, 3.92, 4.84, 5.61][t_idx],
                     "incorrect energy supplied returned",
                     )
