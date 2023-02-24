@@ -785,6 +785,7 @@ class BuildingElementTransparent(BuildingElement):
         self.__base_height = base_height
         self.__width = width
         self.__projected_height = projected_height(pitch, height)
+        self.__mid_height = base_height + height / 2.0
         self.__orientation = orientation
         self.__g_value = g_value
         self.__shading = shading
@@ -871,3 +872,12 @@ class BuildingElementTransparent(BuildingElement):
     def heat_capacity(self):
         """ Return the fabric heat capacity for the building element """
         return 0.0 # Set to zero as not included in heat loss calculations
+
+    def projected_height(self):
+        return self.__projected_height
+
+    def mid_height(self):
+        return self.__mid_height
+
+    def orientation(self):
+        return self.__orientation
