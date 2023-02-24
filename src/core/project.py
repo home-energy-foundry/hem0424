@@ -32,7 +32,7 @@ from core.space_heat_demand.building_element import \
 from core.space_heat_demand.ventilation_element import \
     VentilationElementInfiltration, WholeHouseExtractVentilation, \
     MechnicalVentilationHeatRecovery, NaturalVentilation,\
-    air_change_rate_to_flow_rate
+    air_change_rate_to_flow_rate, WindowOpeningForCooling
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -505,6 +505,12 @@ class Project:
 
         self.__heat_system_name_for_zone = {}
         self.__cool_system_name_for_zone = {}
+        opening_area_total = 0.0
+        for z_data in proj_dict['Zone'].values():
+            for building_element_data in z_data['BuildingElement'].values():
+                if building_element_data['type'] == 'BuildingElementTransparent':
+                    opening_area_total \
+                        += building_element_data['height'] * building_element_data['width']
 
         def dict_to_zone(name, data):
             # Record which heating and cooling system this zone is heated/cooled by (if applicable)
@@ -532,6 +538,30 @@ class Project:
                     dict_to_building_element(building_element_name, building_element_data)
                     )
 
+            if 'Window_Opening_For_Cooling' in proj_dict:
+                openings = list(filter(
+                    lambda be: isinstance(be, BuildingElementTransparent),
+                    building_elements,
+                    ))
+                opening_area_zone = sum(op.area for op in openings)
+                opening_area_equivalent \
+                    = proj_dict['Window_Opening_For_Cooling']['equivalent_area'] \
+                    * opening_area_zone / opening_area_total
+                control = self.__controls[proj_dict['Window_Opening_For_Cooling']['control']]
+                if isinstance(self.__ventilation, NaturalVentilation):
+                    natvent = self.__ventilation
+                else:
+                    natvent = None
+                vent_cool_extra = WindowOpeningForCooling(
+                    opening_area_equivalent,
+                    self.__external_conditions,
+                    openings,
+                    control,
+                    natvent = natvent,
+                    )
+            else:
+                vent_cool_extra = None
+
             # Read in thermal bridging data
             thermal_bridging = dict_to_thermal_bridging(data['ThermalBridging'])
 
@@ -548,7 +578,8 @@ class Project:
                 building_elements,
                 thermal_bridging,
                 vent_elements,
-                print_heat_balance,
+                vent_cool_extra = vent_cool_extra,
+                print_heat_balance = print_heat_balance,
                 )
 
         self.__zones = {}
@@ -1290,7 +1321,7 @@ class Project:
             # Keep track of how much is from each zone, so that energy provided
             # can be split between them in same proportion later
             space_heat_demand_system, space_cool_demand_system, \
-                space_heat_demand_zone, space_cool_demand_zone \
+                space_heat_demand_zone, space_cool_demand_zone, h_ve_cool_extra_zone \
                 = self.__space_heat_cool_demand_by_system_and_zone(
                     delta_t_h,
                     temp_ext_air,
@@ -1334,7 +1365,7 @@ class Project:
                         gains_internal_zone[z_name] \
                             += self.__ventilation.fans(zone.volume(), throughput_factor - 1.0)
                 space_heat_demand_system, space_cool_demand_system, \
-                    space_heat_demand_zone, space_cool_demand_zone \
+                    space_heat_demand_zone, space_cool_demand_zone, h_ve_cool_extra_zone \
                     = self.__space_heat_cool_demand_by_system_and_zone(
                         delta_t_h,
                         temp_ext_air,
@@ -1438,6 +1469,7 @@ class Project:
                     gains_solar_zone[z_name],
                     gains_heat_cool,
                     frac_convective,
+                    vent_extra_h_ve = h_ve_cool_extra_zone[z_name],
                     )
 
                 if h_name is None:
@@ -1618,6 +1650,7 @@ class Project:
 
         space_heat_demand_zone = {}
         space_cool_demand_zone = {}
+        h_ve_cool_extra_zone = {}
         for z_name, zone in self.__zones.items():
             # Look up names of relevant heating and cooling systems for this zone
             h_name = self.__heat_system_name_for_zone[z_name]
@@ -1646,7 +1679,7 @@ class Project:
                 # Set cooling setpoint to Planck temperature to ensure no cooling demand
                 temp_setpnt_cool = Kelvin2Celcius(1.4e32)
 
-            space_heat_demand_zone[z_name], space_cool_demand_zone[z_name] \
+            space_heat_demand_zone[z_name], space_cool_demand_zone[z_name], h_ve_cool_extra_zone[z_name] \
                 = zone.space_heat_cool_demand(
                     delta_t_h,
                     temp_ext_air,
@@ -1656,7 +1689,7 @@ class Project:
                     frac_convective_cool,
                     temp_setpnt_heat,
                     temp_setpnt_cool,
-                    throughput_factor,
+                    throughput_factor = throughput_factor,
                     )
 
             if h_name is not None: # If the zone is heated
@@ -1666,5 +1699,5 @@ class Project:
 
         return \
             space_heat_demand_system, space_cool_demand_system, \
-            space_heat_demand_zone, space_cool_demand_zone
+            space_heat_demand_zone, space_cool_demand_zone, h_ve_cool_extra_zone
 

@@ -8,9 +8,14 @@ This module provides objects to represent ventilation elements.
 # Standard library imports
 import sys
 from enum import IntEnum
+from math import sqrt
+
+# Third-party imports
+import numpy as np
 
 # Local imports
-from core.units import seconds_per_hour, litres_per_cubic_metre, W_per_kW
+from core.units import seconds_per_hour, litres_per_cubic_metre, W_per_kW,\
+    Celcius2Kelvin
 
 # Define constants
 p_a = 1.204 # Air density at 20 degrees C, in kg/m^3 , BS EN ISO 52016-1:2017, Section 6.3.6
@@ -467,7 +472,12 @@ class WholeHouseExtractVentilation:
 class NaturalVentilation:
     """ A class to represent natural ventilation """
 
-    def __init__(self, required_air_change_rate, infiltration_rate, ext_con):
+    def __init__(
+            self,
+            required_air_change_rate,
+            infiltration_rate,
+            ext_con,
+            ):
         """ Construct a NaturalVentilation object
 
         Arguments:
@@ -513,6 +523,7 @@ class NaturalVentilation:
 
         # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
         h_ve = p_a * c_a * q_v
+
         return h_ve
         # TODO b_ztu needs to be applied in the case if ventilation element
         #      is adjacent to a thermally unconditioned zone.
@@ -543,3 +554,210 @@ class NaturalVentilation:
         # TODO For now, this only handles ventilation elements to the outdoor
         #      environment, not e.g. elements to adjacent zones.
 
+
+class WindowOpeningForCooling:
+    """
+    Object to represent window opening for providing additional ventilation
+    in response to high internal temperature.
+
+    This is based on the simple building layouts from CIBSE Guide A section 4.6.2
+    (Method 2) and Tables 4.25 and 4.26. First, the layout that best fits the building
+    is determined, then the characteristics of the openings are aggregated into
+    the parameters needed by the equations.
+    """
+
+    def __init__(
+            self,
+            window_area_equivalent,
+            external_conditions,
+            openings,
+            control,
+            natvent = None,
+            ):
+        """ Construct a WindowOpeningForCooling object
+
+        Arguments:
+        window_area_equivalent -- maximum equivalent area of all openings in the relevant zone
+        external_conditions -- reference to ExternalConditions object
+        openings -- list of openings to be considered
+        control -- reference to control object (must implement setpnt function)
+        natvent -- reference to NaturalVentilation object, if building is naturally ventilated
+        """
+        self.__window_area_equiv = window_area_equivalent
+        self.__external_conditions = external_conditions
+        self.__control = control
+        self.__natvent = natvent
+
+        # Assign equivalent areas to each window/group in proportion to actual area
+        opening_area_total = sum(op.area for op in openings)
+        opening_area_equiv_total_ratio = window_area_equivalent / opening_area_total
+
+        # Find orientation of largest window
+        # Find height of highest and lowest windows
+        largest_op = openings[0]
+        highest_op = openings[0]
+        lowest_op = openings[0]
+        for op in openings[1:]:
+            # TODO What do we do if two openings are joint-largest? Calculate for
+            #      both (or all windows) and take whichever gives largest areas?
+            if op.area > largest_op.area:
+                largest_op = op
+            if op.mid_height() > highest_op.mid_height():
+                highest_op = op
+            if op.mid_height() < lowest_op.mid_height():
+                lowest_op = op
+        largest_op_orientation = largest_op.orientation()
+        op_height_threshold = (highest_op.mid_height() - lowest_op.mid_height()) / 2.0
+
+        openings_same_side = []
+        openings_opp_side = []
+        openings_low = []
+        openings_high = []
+        for op in openings:
+            # Determine orientation of other windows relative to largest
+            op_rel_orientation = abs(op.orientation() - largest_op_orientation)
+            if op_rel_orientation > 360:
+                op_rel_orientation -= 360
+            # Group windows into same, opposite and adjacent sides
+            if op_rel_orientation <= 45:
+                # Opening is on same side
+                openings_same_side.append(op)
+            elif op_rel_orientation >= 135:
+                # Opening is on opp side
+                openings_opp_side.append(op)
+            # Else opening is on adjacent side, so ignore
+
+            # Assign windows to high and low groups based on which they are closest to
+            if op.mid_height() < op_height_threshold:
+                openings_low.append(op)
+            else:
+                openings_high.append(op)
+
+        # Determine whether cross ventilation is possible
+        self.__cross_vent = len(openings_opp_side) > 0
+
+        if self.__cross_vent:
+            openings_same_side_high = list(set(openings_same_side).intersection(openings_high))
+            openings_same_side_low = list(set(openings_same_side).intersection(openings_low))
+            openings_opp_side_high = list(set(openings_opp_side).intersection(openings_high))
+            openings_opp_side_low = list(set(openings_opp_side).intersection(openings_low))
+
+            # Calculate high and low opening areas on same and opposite sides of building
+            A1 = opening_area_equiv_total_ratio * sum(op.area for op in openings_same_side_high)
+            A2 = opening_area_equiv_total_ratio * sum(op.area for op in openings_same_side_low)
+            A3 = opening_area_equiv_total_ratio * sum(op.area for op in openings_opp_side_high)
+            A4 = opening_area_equiv_total_ratio * sum(op.area for op in openings_opp_side_low)
+            self.__A_w = sqrt(1.0 / ( (1.0 / ((A1 + A2) ** 2)) + 1.0 / ((A3 + A4) ** 2) ))
+            if A2 + A4 == 0.0:
+                self.__A_b = 0
+                self.__opening_height_diff = 0.0
+            else:
+                self.__A_b = sqrt(1.0 / ( (1.0 / ((A1 + A3) ** 2)) + 1.0 / ((A2 + A4) ** 2) ))
+
+                # Calculate area-weighted average height of windows in high and low groups
+                opening_mid_height_ave_upper \
+                    = ( sum(op.mid_height() * op.area for op in openings_same_side_high)
+                      + sum(op.mid_height() * op.area for op in openings_opp_side_high)
+                      ) \
+                    / ( sum(op.area for op in openings_same_side_high)
+                      + sum(op.area for op in openings_opp_side_high)
+                      )
+                opening_mid_height_ave_lower \
+                    = ( sum(op.mid_height() * op.area for op in openings_same_side_low)
+                      + sum(op.mid_height() * op.area for op in openings_opp_side_low)
+                      ) \
+                    / ( sum(op.area for op in openings_same_side_low)
+                      + sum(op.area for op in openings_opp_side_low)
+                      )
+                # Calculate opening height difference
+                self.__opening_height_diff \
+                    = opening_mid_height_ave_upper - opening_mid_height_ave_lower
+        else:
+            # Determine whether stack ventilation is possible
+            if len(openings_high) > 1 and len(openings_low) > 1:
+                self.__stack_vent = True
+                opening_area_upper = sum(op.area for op in openings_high)
+                opening_area_lower = sum(op.area for op in openings_low)
+
+                # Calculate opening area ratio
+                self.__opening_area_ratio = opening_area_upper / opening_area_lower
+
+                # Calculate area-weighted average height of windows in high and low groups
+                opening_mid_height_ave_upper \
+                    = sum(op.mid_height() * op.area for op in openings_high) \
+                    / opening_area_upper
+                opening_mid_height_ave_lower \
+                    = sum(op.mid_height() * op.area for op in openings_low) \
+                    / opening_area_lower
+                # Calculate opening height difference
+                self.__opening_height_diff \
+                    = opening_mid_height_ave_upper - opening_mid_height_ave_lower
+            else:
+                self.__stack_vent = False
+                self.__openings = openings
+
+    def temp_setpnt(self):
+        return self.__control.setpnt()
+
+    def h_ve_max(self, zone_volume, temp_int):
+        g = 9.81 # m/s
+        C_d = 0.62 # Discharge coeff
+        # Difference in wind pressure coeff from CIBSE Guide A Table 4.12 for urban environment
+        # TODO Should we differentiate between urban and rural, perhaps based on
+        #      the shelter input to the infiltration calculation?
+        dC_p = 0.2 - (-0.25)
+        wind_speed = self.__external_conditions.wind_speed()
+        temp_ext = self.__external_conditions.air_temp()
+        temp_diff = abs(temp_int - temp_ext)
+        temp_average_C = (temp_int + temp_ext) / 2.0
+        temp_average_K = Celcius2Kelvin(temp_average_C)
+
+        if self.__cross_vent:
+            q_v_wind = C_d * self.__A_w * wind_speed * dC_p ** 0.5
+            q_v_stack \
+                = C_d * self.__A_b \
+                * ((2.0 * temp_diff * self.__opening_height_diff * g) / temp_average_K) ** 0.5
+            if wind_speed / sqrt(temp_diff) \
+             < 0.26 * (self.__A_b / self.__A_w) * (self.__opening_height_diff * dC_p) ** 0.5:
+                q_v = q_v_stack
+            else:
+                q_v = q_v_wind
+        else:
+            q_v_wind = 0.025 * self.__window_area_equiv * wind_speed
+            if self.__stack_vent:
+                q_v_stack = C_d * self.__window_area_equiv \
+                          * ( self.__opening_area_ratio * sqrt(2)
+                            / ( (1 + self.__opening_area_ratio)
+                              * (1 + self.__opening_area_ratio ** 2) ** 0.5
+                              )
+                            ) \
+                          * ( (temp_diff * self.__opening_height_diff * g)
+                              / temp_average_K
+                            ) \
+                            ** 0.5
+            else: # Stack effect is only between top and bottom of each opening
+                q_v_stack = 0.0
+                for op in self.__openings:
+                    q_v_stack += C_d * self.__window_area_equiv / 3.0 \
+                               * ( (temp_diff * op.projected_height() * g)
+                                   / temp_average_K
+                                 ) \
+                                 ** 0.5
+            q_v = max(q_v_wind, q_v_stack)
+
+        # Calculate h_ve according to BS EN ISO 52016-1:2017 section 6.5.10 equation 61
+        h_ve = p_a * c_a * q_v
+
+        # Calculate max h_ve achievable for window opening
+        if self.__natvent is not None:
+            h_ve_nat_vent = self.__natvent.h_ve(zone_volume)
+        else:
+            h_ve_nat_vent = 0.0
+
+        # Avoid double-counting window opening for ventilation and cooling purposes
+        return max(0.0, h_ve - h_ve_nat_vent)
+
+    def temp_supply(self):
+        """ Calculate the supply temperature of the air flow element
+        according to ISO 52016-1:2017, Section 6.5.10.2 """
+        return self.__external_conditions.air_temp()
