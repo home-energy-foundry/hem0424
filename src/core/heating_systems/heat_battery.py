@@ -224,7 +224,7 @@ class HeatBattery:
         #self.__control: SetpointTimeControl = control
         self.__heat_battery_location = heat_battery_dict["heat_battery_location"]
 
-        self.__pwr_in: float = (heat_battery_dict["rated_charge_power"] * units.W_per_kW)
+        self.__pwr_in: float = heat_battery_dict["rated_charge_power"]
         self.__heat_storage_capacity: float = heat_battery_dict["heat_storage_capacity"]
         self.__max_rated_heat_output: float = heat_battery_dict["max_rated_heat_output"]
         self.__max_rated_losses: float = heat_battery_dict["max_rated_losses"]
@@ -289,7 +289,7 @@ class HeatBattery:
 
         
         # Set the initial charge level of the heat battery to zero.
-        self.__charge_level: float = 1.0
+        self.__charge_level: float = 0.0
         #self.__charge_capacity_in_timestep = 
         self.__energy_available_in_timestep = self.__lab_test_rated_output(self.__charge_level) * self.__n_units
 
@@ -355,16 +355,16 @@ class HeatBattery:
 
 
     
-    def __convert_to_kwh(self, energy: float, timestep: int) -> float:
+    def __convert_to_energy(self, power: float, timestep: float) -> float:
         """
-        Converts energy value supplied to the correct unit
+        Converts power value supplied to the correct unit
         Arguments
-        energy -- Energy value in watts
+        power -- Energy value in watts
         timestep -- length of the timestep
 
         returns -- Energy in kWH
         """
-        return energy / units.W_per_kW * timestep * self.__n_units
+        return power * timestep * self.__n_units
 
     def __electric_charge(self, time: float) -> float:
         """
@@ -409,7 +409,7 @@ class HeatBattery:
         charge_level: float = self.__charge_level
 
         # Converting energy_demand from kWh to Wh and distributing it through all units
-        energy_demand: float = energy_output_required * units.W_per_kW / self.__n_units
+        energy_demand: float = energy_output_required / self.__n_units
 
         #print("%.2f" % (energy_demand * self.__n_units), end=" ")
         # DELETE after confirmation of Electric Storage Heater method
@@ -426,8 +426,11 @@ class HeatBattery:
             it_Q_out = min( it_energy_demand / timestep, self.__lab_test_rated_output(charge_level) / n_iterations )
             it_Q_loss = self.__lab_test_losses(charge_level) / n_iterations
             it_Q_in = it_power_in
+            #print(it_Q_in, it_Q_out, it_Q_loss, self.__heat_storage_capacity) 
+            #exit()
             delta_charge_level = ( it_Q_in - it_Q_out - it_Q_loss ) * timestep / self.__heat_storage_capacity
             charge_level = charge_level + delta_charge_level
+            #print(charge_level)
             if charge_level > 1.0:
                 it_Q_in = it_Q_in - ( charge_level - 1.0 ) * self.__heat_storage_capacity / timestep  
                 charge_level = 1.0
@@ -437,7 +440,8 @@ class HeatBattery:
             Q_loss += it_Q_loss
             Q_in += it_Q_in
             
-        energy_output_provided = Q_out * timestep / units.W_per_kW * self.__n_units
+        energy_output_provided = self.__convert_to_energy(power = Q_out, timestep = timestep)
+        energy_loss = self.__convert_to_energy(power = Q_loss, timestep = timestep)
 #        self.__energy_available_in_timestep -= Q_out * self.__n_units    
         self.__charge_level = charge_level
         
@@ -455,7 +459,7 @@ class HeatBattery:
             'service_name': service_name,
             'time_running': time_running_current_service,
             })
-        print ("output: ", energy_output_provided * 1000, "  Time: ", time_range[1], "  Q_in: ", Q_in, "  energy_demand: ", energy_demand)
+        print (time_range[1], "%.3f" % Q_in, "%.2f" % charge_level, "%.3f" % energy_demand, "%.3f" % energy_output_provided, "%.3f" % energy_loss )
         return energy_output_provided
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
@@ -482,11 +486,9 @@ class HeatBattery:
         self.__service_results = []
 
     def __energy_output_max(self, temp_output):
-        self.__lab_test_rated_output(self.__charge_level)
-        
         timestep = self.__simulation_time.timestep()
         time_available = timestep #- self.__total_time_running_current_timestep
-        return self.__boiler_power * time_available
+        return self.__lab_test_rated_output(self.__charge_level) * time_available
 
         
                 

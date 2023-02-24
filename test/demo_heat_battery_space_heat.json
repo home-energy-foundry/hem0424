@@ -110,7 +110,7 @@
 			"start_day": 0,
 			"time_series_step": 1,
 			"schedule": {
-				"main": [21.0, -273.15, -273.15, {"value": 21.0, "repeat": 21}]
+				"main": [15.0, 15.0, 15.0, {"value": 21.0, "repeat": 21}]
 			}
 		}
 	},
