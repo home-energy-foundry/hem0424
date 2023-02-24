@@ -763,8 +763,13 @@ class Project:
                         ctrl,
                         )
                 elif isinstance(heat_source_wet, HeatBattery):
-                    # TODO MC - add heat battery for serving hot water storage tank
-                    pass
+                    heat_source = heat_source_wet.create_service_hot_water_regular(
+                        data,
+                        data['name'] + '_water_heating',
+                        55, # TODO Remove hard-coding of HW temp
+                        cold_water_source,
+                        data['temp_return']
+                        )
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
