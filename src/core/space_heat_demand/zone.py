@@ -328,8 +328,10 @@ class Zone:
         #      interface as other ventilation element classes, which could make
         #      future development more difficult. Ideally, we would find a
         #      cleaner way to implement this difference.
-        sum_vent_elements_h_ve_times_temp_supply \
-            = vent_extra_h_ve * self.__vent_cool_extra.temp_supply()
+        sum_vent_elements_h_ve_times_temp_supply = 0.0
+        if vent_extra_h_ve != 0:
+            sum_vent_elements_h_ve_times_temp_supply \
+                += vent_extra_h_ve * self.__vent_cool_extra.temp_supply()
         for vei in self.__vent_elements:
             if type(vei) in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation):
                 sum_vent_elements_h_ve_times_temp_supply \
