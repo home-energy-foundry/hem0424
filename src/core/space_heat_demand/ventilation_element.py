@@ -494,7 +494,8 @@ class NaturalVentilation:
             ach = self.__air_change_rate_req - infiltration_rate \
                 + (infiltration_rate ** 2 * 0.25 / self.__air_change_rate_req)
         else:
-            ach = infiltration_rate
+            # No additional ventilation (infiltration already accounted for separately)
+            ach = 0.0
         return ach
 
     def h_ve(self, zone_volume):
