@@ -184,10 +184,10 @@
 			"heat_battery_location": "internal",
             "electricity_circ_pump": 0.0600,
             "electricity_standby" : 0.0244,
-			"rated_charge_power": 9.0,
-			"heat_storage_capacity": 40.0,
+			"rated_charge_power": 15.0,
+			"heat_storage_capacity": 80.0,
 			"max_rated_heat_output": 15.0,
-			"max_rated_losses": 0.12,
+			"max_rated_losses": 0.22,
 			"number_of_units": 1
 		}
 	},
