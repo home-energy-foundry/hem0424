@@ -219,8 +219,8 @@
 			"fan_pwr": 11.0,
 			"n_units": 2,
 			"EnergySupply": "mains elec",
-			"Control1": "esh_charge_control",
-			"Control2": "main__hw timer__converted_from_OnOffTimeControl",
+			"Control": "main__hw timer__converted_from_OnOffTimeControl",
+			"ControlCharger": "esh_charge_control",
 			"Zone": "zone 1"
 		}
 	},
