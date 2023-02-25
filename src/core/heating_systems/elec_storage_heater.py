@@ -19,7 +19,7 @@ import core.units as units
 from core.space_heat_demand.zone import Zone
 from core.energy_supply.energy_supply import EnergySupplyConnection
 from core.simulation_time import SimulationTime
-from core.controls.time_control import SetpointTimeControl
+from core.controls.time_control import ESHChargeControl, SetpointTimeControl
 
 class AirFlowType(Enum):
     FAN_ASSISTED = auto()
@@ -59,7 +59,8 @@ class ElecStorageHeater:
         zone: Zone,
         energy_supply_conn: EnergySupplyConnection,
         simulation_time: SimulationTime,
-        control: SetpointTimeControl
+        control1: ESHChargeControl,
+        control2: SetpointTimeControl
     ):
         """Construct an ElecStorageHeater object
 
@@ -101,14 +102,15 @@ class ElecStorageHeater:
         self.__zone: Zone = zone
         self.__energy_supply_conn: EnergySupplyConnection = energy_supply_conn
         self.__simtime: SimulationTime = simulation_time
-        self.__control: SetpointTimeControl = control
+        self.__control1: ESHChargeControl = control1
+        self.__control2: SetpointTimeControl = control2
         self.__mass: float = mass_core  # 180.0  # kg of core
         self.__c_pcore: float = c_pcore    # 920.0  # J/kg/K core material specific heat
         self.__t_core_target: float = temp_core_target
         self.__A: float = A_core  # 4.0  # m^2 transfer area between core and case or wall
         self.__c: float = c_wall
         self.__n: float = n_wall
-        self.__thermal_mass_wall  = thermal_mass_wall
+        self.__thermal_mass_wall = thermal_mass_wall
         self.__fan_pwr = fan_pwr
 
         # Power for driving fan
@@ -227,7 +229,7 @@ class ElecStorageHeater:
         self.__energy_in: float = 0.0
 
     def temp_setpnt(self):
-        return self.__control.setpnt()
+        return self.__control2.setpnt()
 
     def frac_convective(self):
         return self.__frac_convective
@@ -252,9 +254,10 @@ class ElecStorageHeater:
 
         returns -- Power required in watts
         """
-        if time <= 7 * self.__time_unit and t_core <= self.__t_core_target:
-            pwr_required: float = (self.__t_core_target - t_core) * self.__mass * self.__c_pcore / self.__simtime.timestep()
-            #print(pwr_required)
+        target_charge: float = self.__control1.target_charge()
+        if self.__control1.is_on() and t_core <= self.__t_core_target * target_charge:
+            pwr_required: float = (self.__t_core_target * target_charge - t_core) \
+                                  * self.__mass * self.__c_pcore / self.__simtime.timestep()
             if pwr_required > self.__pwr_in:
                 return self.__pwr_in
             else:

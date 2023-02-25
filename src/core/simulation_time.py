@@ -111,6 +111,13 @@ class SimulationTime:
         # (relative to start of year) of time-series data
         return math.floor((self.current() - start_day * units.hours_per_day) / time_series_step)
 
+    def time_series_idx_days(self, start_day, time_series_step):
+        """ Calculate array lookup index """
+        # Index in array of time-series data is current day (relative to start
+        # of year) adjusted for the time-series step (in days) and for the start day
+        # (relative to start of year) of time-series data
+        return math.floor((self.current_day() - start_day) / time_series_step)
+
     def total_steps(self):
         """ Return the total number of timesteps in simulation """
         return self.__total

@@ -14,7 +14,7 @@ import core.units as units
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
 from core.schedule import expand_schedule, expand_events
-from core.controls.time_control import OnOffTimeControl, SetpointTimeControl
+from core.controls.time_control import OnOffTimeControl, SetpointTimeControl, ESHChargeControl
 from core.cooling_systems.air_conditioning import AirConditioning
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
@@ -155,11 +155,16 @@ class Project:
                                              )
 
         def dict_to_ctrl(name, data):
-            """ Parse dictionary of control data and return approprate control object """
+            """ Parse dictionary of control data and return appropriate control object """
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
                 sched = expand_schedule(bool, data['schedule'], "main", False)
-                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'], data['time_series_step'])
+                ctrl = OnOffTimeControl(
+                    schedule=sched,
+                    simulation_time=self.__simtime,
+                    start_day=data['start_day'],
+                    time_series_step=data['time_series_step']
+                )
             elif ctrl_type == 'SetpointTimeControl':
                 sched = expand_schedule(float, data['schedule'], "main", True)
 
@@ -174,14 +179,23 @@ class Project:
                     default_to_max = data['default_to_max']
 
                 ctrl = SetpointTimeControl(
-                    sched,
-                    self.__simtime,
-                    data['start_day'],
-                    data['time_series_step'],
-                    setpoint_min,
-                    setpoint_max,
-                    default_to_max,
-                    )
+                    schedule=sched,
+                    simulation_time=self.__simtime,
+                    start_day=data['start_day'],
+                    time_series_step=data['time_series_step'],
+                    setpoint_min=setpoint_min,
+                    setpoint_max=setpoint_max,
+                    default_to_max=default_to_max,
+                )
+            elif ctrl_type == 'ESHChargeControl':
+                sched = expand_schedule(bool, data['schedule'], "main", False)
+                ctrl = ESHChargeControl(
+                    schedule=sched,
+                    simulation_time=self.__simtime,
+                    start_day=data['start_day'],
+                    time_series_step=data['time_series_step'],
+                    charge_level=data['charge_level']
+                )
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -739,13 +753,17 @@ class Project:
             self.__hot_water_sources[name] = dict_to_hot_water_source(name, data)
 
         def dict_to_space_heat_system(name, data):
-            if 'Control' in data.keys():
+            space_heater_type = data['type']
+            # ElecStorageHeater needs multiple controllers
+            if space_heater_type == 'ElecStorageHeater' and 'Control1' in data.keys() and 'Control2' in data.keys():
+                ctrl1 = self.__controls[data['Control1']]
+                ctrl2 = self.__controls[data['Control2']]
+            elif 'Control' in data.keys():
                 ctrl = self.__controls[data['Control']]
                 # TODO Need to handle error if Control name is invalid.
             else:
                 ctrl = None
 
-            space_heater_type = data['type']
             if space_heater_type == 'InstantElecHeater':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
@@ -783,7 +801,8 @@ class Project:
                     self.__zones[data['Zone']],
                     energy_supply_conn,
                     self.__simtime,
-                    ctrl,
+                    ctrl1,
+                    ctrl2,
                     )
             elif space_heater_type == 'WetDistribution':
                 heat_source = self.__heat_sources_wet[data['HeatSource']['name']]
@@ -1414,6 +1433,7 @@ class Project:
 
         # Loop over each timestep
         for t_idx, t_current, delta_t_h in self.__simtime:
+            print(t_idx, t_current, delta_t_h)
             timestep_array.append(t_current)
             hw_demand, hw_duration, no_events, pw_losses, hw_energy_demand = hot_water_demand(t_idx)
 

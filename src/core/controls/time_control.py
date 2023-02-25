@@ -30,7 +30,6 @@ class OnOffTimeControl:
         return self.__schedule[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
 
 
-
 class ESHChargeControl:
     """ An object to model a time-only control with on/off (not modulating) operation """
 
@@ -56,8 +55,7 @@ class ESHChargeControl:
 
     def target_charge(self):
         """ Return  """
-        #TODO: Add day dependency
-        return self.__charge_level
+        return self.__charge_level[self.__simulation_time.time_series_idx_days(self.__start_day, self.__time_series_step)]
 
 
 class SetpointTimeControl:
