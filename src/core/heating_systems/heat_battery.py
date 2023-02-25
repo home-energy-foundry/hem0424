@@ -17,6 +17,7 @@ import core.units as units
 from core.space_heat_demand.zone import Zone
 from core.energy_supply.energy_supply import EnergySupplyConnection
 from core.simulation_time import SimulationTime
+from core.controls.time_control import ToUChargeControl, SetpointTimeControl
 from core.controls.time_control import SetpointTimeControl
 from core.material_properties import WATER
 from pickle import TRUE
@@ -149,6 +150,7 @@ class HeatBattery:
 
     def __init__(self,
                 heat_battery_dict,
+                charge_control,
                 energy_supply,
                 energy_supply_conn_name_auxiliary,
                 #energy_supply_conn,
@@ -232,6 +234,7 @@ class HeatBattery:
         self.__power_circ_pump = heat_battery_dict["electricity_circ_pump"]
         self.__power_standby = heat_battery_dict["electricity_standby"]
         self.__n_units: int = heat_battery_dict["number_of_units"]
+        self.__charge_control: ToUChargeControl = charge_control
         self.__service_results = []
         
         self.__time_unit: float = 3600
@@ -376,6 +379,7 @@ class HeatBattery:
 
         returns -- Power required in watts
         """
+        target_charge: float = self.__charge_control.target_charge()
         if time <= 7 * self.__time_unit or time == 12 * self.__time_unit:
             return self.__pwr_in
         else:

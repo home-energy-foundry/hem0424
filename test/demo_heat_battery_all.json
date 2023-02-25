@@ -105,6 +105,16 @@
 				"main": [true, false, false, {"value": true, "repeat": 21}]
 			}
 		},
+		"hb_charge_control": {
+			"type": "ToUChargeControl",
+			"start_day": 0,
+			"time_series_step": 1,
+			"logic_type": "Manual",
+			"charge_level": [ 1.0 ],
+			"schedule": {
+				"main": [{"value": true, "repeat": 7}, {"value": false, "repeat": 5}, {"value": false, "repeat": 5}, {"value": false, "repeat": 7}]
+			}
+		},
 		"zone 1 radiators__space heat timer__converted_from_OnOffTimeControl": {
 			"type": "SetpointTimeControl",
 			"start_day": 0,
@@ -200,7 +210,8 @@
 			"heat_storage_capacity": 80.0,
 			"max_rated_heat_output": 15.0,
 			"max_rated_losses": 0.22,
-			"number_of_units": 1
+			"number_of_units": 1,
+			"ControlCharger": "hb_charge_control"
 		}
 	},
 	"SpaceHeatSystem": {

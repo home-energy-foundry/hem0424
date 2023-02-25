@@ -14,7 +14,7 @@ import core.units as units
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
 from core.schedule import expand_schedule, expand_events
-from core.controls.time_control import OnOffTimeControl, SetpointTimeControl
+from core.controls.time_control import OnOffTimeControl, SetpointTimeControl, ToUChargeControl
 from core.cooling_systems.air_conditioning import AirConditioning
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.elec_battery import ElectricBattery
@@ -187,15 +187,24 @@ class Project:
                     default_to_max = data['default_to_max']
 
                 ctrl = SetpointTimeControl(
-                    sched,
-                    self.__simtime,
-                    data['start_day'],
-                    data['time_series_step'],
-                    setpoint_min,
-                    setpoint_max,
-                    default_to_max,
-                    )
-            # TODO MC - Add smart control in here.
+                    schedule=sched,
+                    simulation_time=self.__simtime,
+                    start_day=data['start_day'],
+                    time_series_step=data['time_series_step'],
+                    setpoint_min=setpoint_min,
+                    setpoint_max=setpoint_max,
+                    default_to_max=default_to_max,
+                )
+            elif ctrl_type == 'ToUChargeControl':
+                sched = expand_schedule(bool, data['schedule'], "main", False)
+                ctrl = ToUChargeControl(
+                    schedule=sched,
+                    simulation_time=self.__simtime,
+                    start_day=data['start_day'],
+                    time_series_step=data['time_series_step'],
+                    logic_type=data['logic_type'],
+                    charge_level=data['charge_level']
+                )
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -660,9 +669,11 @@ class Project:
                     )
             elif heat_source_type == 'HeatBattery':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
+                charge_control: ToUChargeControl = self.__controls[data['ControlCharger']]
                 energy_supply_conn_name_auxiliary = 'HeatBattery_auxiliary: ' + name # MC - Is this needed?
                 heat_source = HeatBattery(
                     data,
+                    charge_control,
                     energy_supply,
                     #energy_supply_conn,
                     energy_supply_conn_name_auxiliary,
