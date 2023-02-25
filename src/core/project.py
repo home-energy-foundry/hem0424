@@ -1433,7 +1433,6 @@ class Project:
 
         # Loop over each timestep
         for t_idx, t_current, delta_t_h in self.__simtime:
-            print(t_idx, t_current, delta_t_h)
             timestep_array.append(t_current)
             hw_demand, hw_duration, no_events, pw_losses, hw_energy_demand = hot_water_demand(t_idx)
 
