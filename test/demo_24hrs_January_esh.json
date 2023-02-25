@@ -101,9 +101,9 @@
 			"type": "ESHChargeControl",
 			"start_day": 0,
 			"time_series_step": 1,
-			"charge_level": [ 0.8 ],
+			"charge_level": [ 1.0 ],
 			"schedule": {
-				"main": [{"value": true, "repeat": 7}, {"value": false, "repeat": 17}]
+				"main": [{"value": true, "repeat": 7}, {"value": false, "repeat": 5}, {"value": false, "repeat": 5}, {"value": false, "repeat": 7}]
 			}
 		},
 		"main__hw timer__converted_from_OnOffTimeControl": {
@@ -205,7 +205,7 @@
 			"rated_power": 7.7,
 			"rated_power_instant": 1.5,
 			"air_flow_type": "fan-assisted",
-			"temp_dis_safe": 200.0,
+			"temp_dis_safe": 160.0,
 			"thermal_mass": 0.01278,
 			"frac_convective": 0.7,
 			"U_ins": 0.2,

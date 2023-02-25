@@ -124,8 +124,6 @@ class ElecStorageHeater:
 
         self.__c_p: float = 1.0054  # J/kg/K air specific heat
 
-        # self.__report_energy_supply: float = 0.0
-
         """
         The value of R (resistance of air gap) depends on several factors such as the thickness of the air gap, the
         temperature difference across the gap, and the air flow characteristics.
@@ -171,23 +169,17 @@ class ElecStorageHeater:
         ]
 
         self.labs_tests_400_fan: list = [
-            [2.62, 5.02],
-            [3.49, 5.03],
-            [4.66, 5.02],
-            [6.22, 5.03],
-            [8.31, 5.03],
-            [11.1, 5.03],
-            [14.84, 5.03],
-            [19.84, 5.03],
-            [26.53, 5.03],
-            [35.47, 5.03],
-            [47.15, 5.03],
-            [63.39, 5.03],
-            [84.73, 5.03],
-            [113.24, 5.03],
-            [151.33, 5.03],
-            [202.2, 5.03],
-            [270.15, 5.03]
+            [0.0, 0.0],
+            [8.31, 0.1],
+            [21.1, 0.2],
+            [34.84, 0.3],
+            [49.84, 0.8],
+            [106.53, 1.03],
+            [235.47, 2.03],
+            [347.15, 3.03],
+            [463.39, 4.03],
+            [584.73, 5.03],
+            [713.24, 5.03]
         ]
         self.labs_tests_400_mod: list = [
             [2.62, 4.02],
@@ -290,6 +282,7 @@ class ElecStorageHeater:
                             new_temp_core_and_wall: list,
                             q_released: float,
                             q_dis: float,
+                            q_in: float,
                             timestep: int,
                             time: float,
                             q_instant: float = 0.0) -> float:
@@ -314,9 +307,6 @@ class ElecStorageHeater:
             power_for_fan: float = self.__fan_pwr
             energy_for_fan_kwh = self.__convert_to_kwh(power=power_for_fan, timestep=timestep)
 
-        # might need to redo this calc, but with new t_core calc
-        q_in: float = self.__electric_charge(time, self.t_core)
-
         # Convert values to correct kwh unit
         q_in_kwh: float = self.__convert_to_kwh(power=q_in, timestep=timestep)
         q_instant_kwh: float = self.__convert_to_kwh(power=q_instant, timestep=timestep)
@@ -324,8 +314,6 @@ class ElecStorageHeater:
         # Save demand energy
         self.__energy_supply_conn.demand_energy(q_in_kwh + energy_for_fan_kwh + q_instant_kwh)
 
-        # self.__report_energy_supply = (self.__report_energy_supply + q_in_kwh + energy_for_fan_kwh +
-        #                               q_instant_kwh) * units.W_per_kW
 
         # Multipy energy released by number of devices installed in the zone
         return self.__convert_to_kwh(power=(q_released + q_instant), timestep=timestep)
@@ -365,7 +353,7 @@ class ElecStorageHeater:
 
         q_released: float = q_dis + q_out_wall
 
-        return [dT_core, dT_wall], q_released, q_dis
+        return [dT_core, dT_wall], q_released, q_dis, q_in
 
     def __func_core_temperature_change_rate(self, q_dis_modo: Union[str, float]) -> types.FunctionType:
         """
@@ -393,13 +381,13 @@ class ElecStorageHeater:
                                             q_dis_modo=q_dis_modo)
         q_released: float = values[1]
         q_dis: float = values[2]
+        q_in: float = values[3]
 
-        return new_temp_core_and_wall, q_released, q_dis
+        return new_temp_core_and_wall, q_released, q_dis, q_in
 
     def demand_energy(self, energy_demand: float) -> float:
 
         # Initialising Variables
-        # self.__report_energy_supply = 0.0
         self.temp_air = self.__zone.temp_internal_air()
         timestep: float = self.__simtime.timestep()
         self.__time_unit: float = 3600 * timestep
@@ -417,7 +405,8 @@ class ElecStorageHeater:
         new_temp_core_and_wall: list
         q_released: float
         q_dis: float
-        new_temp_core_and_wall, q_released, q_dis = \
+        q_in: float
+        new_temp_core_and_wall, q_released, q_dis, q_in = \
             self.__calculate_sol_and_q_released(time_range=time_range,
                                                 temp_core_and_wall=temp_core_and_wall,
                                                 q_dis_modo=0)
@@ -428,6 +417,7 @@ class ElecStorageHeater:
             return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
                                             q_released=q_released,
                                             q_dis=q_dis,
+                                            q_in=q_in,
                                             timestep=timestep,
                                             time=time_range[1])
 
@@ -435,7 +425,7 @@ class ElecStorageHeater:
         # Step 2                                        #
         #################################################
         # Zone needs more than leaked, let's calculate with max discharging capability
-        new_temp_core_and_wall, q_released, q_dis = \
+        new_temp_core_and_wall, q_released, q_dis, q_in = \
             self.__calculate_sol_and_q_released(time_range=time_range,
                                                 temp_core_and_wall=temp_core_and_wall,
                                                 q_dis_modo="max")
@@ -452,6 +442,7 @@ class ElecStorageHeater:
             return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
                                             q_released=q_released,
                                             q_dis=q_dis,
+                                            q_in=q_in,
                                             timestep=timestep,
                                             time=time_range[1],
                                             q_instant=power_supplied_instant)
@@ -463,7 +454,7 @@ class ElecStorageHeater:
         # Let's call the heat balance forcing that amount (assuming perfect damper or
         # fan assisted control of the unit)
         q_dis = energy_demand / timestep
-        new_temp_core_and_wall, q_released, q_dis = \
+        new_temp_core_and_wall, q_released, q_dis, q_in = \
             self.__calculate_sol_and_q_released(time_range=time_range,
                                                 temp_core_and_wall=temp_core_and_wall,
                                                 q_dis_modo=q_dis)
@@ -471,5 +462,6 @@ class ElecStorageHeater:
         return self.__return_q_released(new_temp_core_and_wall=new_temp_core_and_wall,
                                         q_released=q_released,
                                         q_dis=q_dis,
+                                        q_in=q_in,
                                         timestep=timestep,
                                         time=time_range[1])
