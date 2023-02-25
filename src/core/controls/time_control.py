@@ -8,6 +8,7 @@ This module provides objects to model time controls.
 # Standard library imports
 import sys
 
+
 class OnOffTimeControl:
     """ An object to model a time-only control with on/off (not modulating) operation """
 
@@ -55,7 +56,9 @@ class ESHChargeControl:
 
     def target_charge(self):
         """ Return  """
-        return self.__charge_level[self.__simulation_time.time_series_idx_days(self.__start_day, self.__time_series_step)]
+        return self.__charge_level[
+            self.__simulation_time.time_series_idx_days(self.__start_day, self.__time_series_step)
+        ]
 
 
 class SetpointTimeControl:
@@ -81,7 +84,7 @@ class SetpointTimeControl:
         setpoint_min -- min setpoint allowed
         setpoint_max -- max setpoint allowed
         default_to_max -- if both min and max limits are set but setpoint isn't,
-                          whether to default to min (False) or max (True) 
+                          whether to default to min (False) or max (True)
         """
         self.__schedule        = schedule
         self.__simulation_time = simulation_time
@@ -115,12 +118,12 @@ class SetpointTimeControl:
         if setpnt is None:
             # If no setpoint value is in the schedule, use the min/max if set
             if self.__setpoint_max is None and self.__setpoint_min is None:
-                pass # Use setpnt None
+                pass  # Use setpnt None
             elif self.__setpoint_max is not None and self.__setpoint_min is None:
                 setpnt = self.__setpoint_max
             elif self.__setpoint_min is not None and self.__setpoint_max is None:
                 setpnt = self.__setpoint_min
-            else: # min and max both set
+            else:  # min and max both set
                 if self.__default_to_max is None:
                     sys.exit('ERROR: Setpoint not set but min and max both set, '
                              'and which to use by default not specified')
