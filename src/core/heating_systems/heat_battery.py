@@ -293,7 +293,7 @@ class HeatBattery:
 
         
         # Set the initial charge level of the heat battery to zero.
-        self.__charge_level: float = 0.5
+        self.__charge_level: float = 0.0
         #self.__charge_capacity_in_timestep = 
         self.__flag_first_call = TRUE
         #self.__Q_out_available = self.__lab_test_rated_output(self.__charge_level) * self.__n_units
@@ -379,8 +379,7 @@ class HeatBattery:
 
         returns -- Power required in watts
         """
-        target_charge: float = self.__charge_control.target_charge()
-        if time <= 7 * self.__time_unit or time == 12 * self.__time_unit:
+        if self.__charge_control.is_on(): # and t_core <= self.__t_core_target * target_charge:
             return self.__pwr_in
         else:
             return 0.0
@@ -416,12 +415,18 @@ class HeatBattery:
         charge_level: float = self.__charge_level
         charge_level_qin: float = charge_level
 
+        # Picking target charge level from control
+        target_charge: float = self.__charge_control.target_charge()
         if self.__flag_first_call:
             self.__Q_in_ts = self.__electric_charge(time_range)
-            delta_charge_level = ( self.__Q_in_ts ) * timestep / self.__heat_storage_capacity
-            charge_level_qin += delta_charge_level
-            if charge_level_qin > 1.0:
-                charge_level_qin = 1.0
+            # Calculate max charge level possible in next timestep
+            if charge_level_qin < target_charge:
+                delta_charge_level = ( self.__Q_in_ts ) * timestep / self.__heat_storage_capacity
+                charge_level_qin += delta_charge_level
+                if charge_level_qin > target_charge:
+                    charge_level_qin = target_charge
+ #           else:
+ #               self.__Q_in_ts = 0.0
             # Estimating output rate at average of capacity in timestep
             max_output = self.__lab_test_rated_output(charge_level_qin)
             delta_charge_level = ( max_output ) * timestep / self.__heat_storage_capacity
@@ -453,9 +458,16 @@ class HeatBattery:
         delta_charge_level = ( it_Q_in - it_Q_out ) * timestep / self.__heat_storage_capacity
         charge_level += delta_charge_level
         #print(charge_level)
-        if charge_level > 1.0:
-            it_Q_in = it_Q_in - ( charge_level - 1.0 ) * self.__heat_storage_capacity / timestep  
-            charge_level = 1.0
+        if charge_level > target_charge:
+            it_Q_in -= ( charge_level - target_charge ) * self.__heat_storage_capacity / timestep
+            if it_Q_in < 0.0:
+                # Set charge to 0.0 and recalculate charge level as there is no need to charge
+                it_Q_in = 0.0
+                charge_level -= delta_charge_level 
+                delta_charge_level = ( - it_Q_out ) * timestep / self.__heat_storage_capacity
+                charge_level += delta_charge_level
+            else:
+                charge_level = target_charge
         Q_out += it_Q_out
 #            if Q_out * self.__n_units > self.__energy_available_in_timestep:
 #                Q_out = self.__energy_available_in_timestep
@@ -511,12 +523,18 @@ class HeatBattery:
 
         # Preparing Heat baterry for next time step
         #Variabales below need to be reset at the end of each timestep
+        # Picking target charge level from control
+        target_charge: float = self.__charge_control.target_charge()
         charge_level_qin = self.__charge_level
         self.__Q_in_ts = self.__electric_charge(time_range)
-        delta_charge_level = ( self.__Q_in_ts ) * timestep / self.__heat_storage_capacity
-        charge_level_qin += delta_charge_level
-        if charge_level_qin > 1.0:
-            charge_level_qin = 1.0
+        # Calculate max charge level possible in next timestep
+        if charge_level_qin < target_charge:
+            delta_charge_level = ( self.__Q_in_ts ) * timestep / self.__heat_storage_capacity
+            charge_level_qin += delta_charge_level
+            if charge_level_qin > target_charge:
+                charge_level_qin = target_charge
+#        else:
+#            self.__Q_in_ts = 0.0
         # Estimating output rate at average of capacity in timestep
         max_output = self.__lab_test_rated_output(charge_level_qin)
         delta_charge_level = ( max_output ) * timestep / self.__heat_storage_capacity

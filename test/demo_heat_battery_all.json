@@ -110,9 +110,9 @@
 			"start_day": 0,
 			"time_series_step": 1,
 			"logic_type": "Manual",
-			"charge_level": [ 1.0 ],
+			"charge_level": [ 0.7, 0.5 ],
 			"schedule": {
-				"main": [{"value": true, "repeat": 7}, {"value": false, "repeat": 5}, {"value": false, "repeat": 5}, {"value": false, "repeat": 7}]
+				"main": [{"value": true, "repeat": 7}, {"value": false, "repeat": 7}, {"value": false, "repeat": 3}, {"value": true, "repeat": 7}]
 			}
 		},
 		"zone 1 radiators__space heat timer__converted_from_OnOffTimeControl": {
@@ -206,7 +206,7 @@
 			"heat_battery_location": "internal",
             "electricity_circ_pump": 0.0600,
             "electricity_standby" : 0.0244,
-			"rated_charge_power": 15.0,
+			"rated_charge_power": 20.0,
 			"heat_storage_capacity": 80.0,
 			"max_rated_heat_output": 15.0,
 			"max_rated_losses": 0.22,
