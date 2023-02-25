@@ -751,11 +751,11 @@ class Project:
 
         def dict_to_space_heat_system(name, data):
             space_heater_type = data['type']
-            # ElecStorageHeater needs multiple controllers
-            if space_heater_type == 'ElecStorageHeater' and 'Control1' in data.keys() and 'Control2' in data.keys():
-                ctrl1 = self.__controls[data['Control1']]
-                ctrl2 = self.__controls[data['Control2']]
-            elif 'Control' in data.keys():
+            # ElecStorageHeater needs extra controllers
+            if space_heater_type == 'ElecStorageHeater' and 'ControlCharger' in data.keys():
+                charge_control = self.__controls[data['ControlCharger']]
+
+            if 'Control' in data.keys():
                 ctrl = self.__controls[data['Control']]
                 # TODO Need to handle error if Control name is invalid.
             else:
@@ -798,8 +798,8 @@ class Project:
                     self.__zones[data['Zone']],
                     energy_supply_conn,
                     self.__simtime,
-                    ctrl1,
-                    ctrl2,
+                    ctrl,
+                    charge_control,
                 )
             elif space_heater_type == 'WetDistribution':
                 heat_source = self.__heat_sources_wet[data['HeatSource']['name']]

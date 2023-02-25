@@ -61,8 +61,8 @@ class ElecStorageHeater:
         zone: Zone,
         energy_supply_conn: EnergySupplyConnection,
         simulation_time: SimulationTime,
-        control1: ESHChargeControl,
-        control2: SetpointTimeControl
+        control: SetpointTimeControl,
+        charge_control: ESHChargeControl
     ):
         """Construct an ElecStorageHeater object
 
@@ -104,8 +104,8 @@ class ElecStorageHeater:
         self.__zone: Zone = zone
         self.__energy_supply_conn: EnergySupplyConnection = energy_supply_conn
         self.__simtime: SimulationTime = simulation_time
-        self.__control1: ESHChargeControl = control1
-        self.__control2: SetpointTimeControl = control2
+        self.__control: SetpointTimeControl = control
+        self.__charge_control: ESHChargeControl = charge_control
         self.__mass: float = mass_core  # 180.0  # kg of core
         self.__c_pcore: float = c_pcore  # 920.0  # J/kg/K core material specific heat
         self.__t_core_target: float = temp_core_target
@@ -230,7 +230,7 @@ class ElecStorageHeater:
         self.__energy_in: float = 0.0
 
     def temp_setpnt(self):
-        return self.__control2.setpnt()
+        return self.__control.setpnt()
 
     def frac_convective(self):
         return self.__frac_convective
@@ -255,8 +255,8 @@ class ElecStorageHeater:
 
         returns -- Power required in watts
         """
-        target_charge: float = self.__control1.target_charge()
-        if self.__control1.is_on() and t_core <= self.__t_core_target * target_charge:
+        target_charge: float = self.__charge_control.target_charge()
+        if self.__charge_control.is_on() and t_core <= self.__t_core_target * target_charge:
             pwr_required: float = (self.__t_core_target * target_charge - t_core) \
                                   * self.__mass * self.__c_pcore / self.__simtime.timestep()
             if pwr_required > self.__pwr_in:
