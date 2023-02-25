@@ -98,9 +98,10 @@
 			}
 		},
 		"esh_charge_control": {
-			"type": "ESHChargeControl",
+			"type": "ToUChargeControl",
 			"start_day": 0,
 			"time_series_step": 1,
+			"logic_type": "Manual",
 			"charge_level": [ 1.0 ],
 			"schedule": {
 				"main": [{"value": true, "repeat": 7}, {"value": false, "repeat": 5}, {"value": false, "repeat": 5}, {"value": false, "repeat": 7}]
@@ -217,7 +218,7 @@
 			"n_wall": 0.9,
 			"thermal_mass_wall": 23.0,
 			"fan_pwr": 11.0,
-			"n_units": 2,
+			"n_units": 1,
 			"EnergySupply": "mains elec",
 			"Control": "main__hw timer__converted_from_OnOffTimeControl",
 			"ControlCharger": "esh_charge_control",

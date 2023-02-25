@@ -14,7 +14,7 @@ import core.units as units
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
 from core.schedule import expand_schedule, expand_events
-from core.controls.time_control import OnOffTimeControl, SetpointTimeControl, ESHChargeControl
+from core.controls.time_control import OnOffTimeControl, SetpointTimeControl, ToUChargeControl
 from core.cooling_systems.air_conditioning import AirConditioning
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.pv import PhotovoltaicSystem
@@ -187,13 +187,14 @@ class Project:
                     setpoint_max=setpoint_max,
                     default_to_max=default_to_max,
                 )
-            elif ctrl_type == 'ESHChargeControl':
+            elif ctrl_type == 'ToUChargeControl':
                 sched = expand_schedule(bool, data['schedule'], "main", False)
-                ctrl = ESHChargeControl(
+                ctrl = ToUChargeControl(
                     schedule=sched,
                     simulation_time=self.__simtime,
                     start_day=data['start_day'],
                     time_series_step=data['time_series_step'],
+                    logic_type=data['logic_type'],
                     charge_level=data['charge_level']
                 )
             else:

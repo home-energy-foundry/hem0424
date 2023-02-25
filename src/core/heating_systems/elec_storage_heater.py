@@ -19,7 +19,7 @@ import core.units as units
 from core.space_heat_demand.zone import Zone
 from core.energy_supply.energy_supply import EnergySupplyConnection
 from core.simulation_time import SimulationTime
-from core.controls.time_control import ESHChargeControl, SetpointTimeControl
+from core.controls.time_control import ToUChargeControl, SetpointTimeControl
 
 
 class AirFlowType(Enum):
@@ -62,7 +62,7 @@ class ElecStorageHeater:
         energy_supply_conn: EnergySupplyConnection,
         simulation_time: SimulationTime,
         control: SetpointTimeControl,
-        charge_control: ESHChargeControl
+        charge_control: ToUChargeControl
     ):
         """Construct an ElecStorageHeater object
 
@@ -105,7 +105,7 @@ class ElecStorageHeater:
         self.__energy_supply_conn: EnergySupplyConnection = energy_supply_conn
         self.__simtime: SimulationTime = simulation_time
         self.__control: SetpointTimeControl = control
-        self.__charge_control: ESHChargeControl = charge_control
+        self.__charge_control: ToUChargeControl = charge_control
         self.__mass: float = mass_core  # 180.0  # kg of core
         self.__c_pcore: float = c_pcore  # 920.0  # J/kg/K core material specific heat
         self.__t_core_target: float = temp_core_target

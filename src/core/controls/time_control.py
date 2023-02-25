@@ -31,10 +31,10 @@ class OnOffTimeControl:
         return self.__schedule[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
 
 
-class ESHChargeControl:
+class ToUChargeControl:
     """ An object to model a time-only control with on/off (not modulating) operation """
 
-    def __init__(self, schedule, simulation_time, start_day, time_series_step, charge_level):
+    def __init__(self, schedule, simulation_time, start_day, time_series_step, logic_type, charge_level):
         """ Construct an OnOffTimeControl object
 
         Arguments:
@@ -48,6 +48,7 @@ class ESHChargeControl:
         self.__simulation_time = simulation_time
         self.__start_day = start_day
         self.__time_series_step = time_series_step
+        self.__logic_type = logic_type
         self.__charge_level = charge_level
 
     def is_on(self):
