@@ -469,9 +469,7 @@ class StorageTank:
         """excess energy is calculated as the difference from the energy stored, Qsto,step7, and
            energy stored once the set temperature is obtained, Qsto,step8, with addition of the
            thermal losses."""
-        #TODO depends on the position of the thermostat
-        #TODO - assumption currently that the thermostat is in the bottom layer of the tank
-        if temp_s7_n[0] > self.__temp_set_on:
+        if temp_s7_n[self.__thermostat_layer] > self.__temp_set_on:
             energy_surplus = Q_h_sto_s7 - Q_ls \
                              - ( self.__rho * self.__Cp * self.__V_total * self.__temp_set_on)
         else:
