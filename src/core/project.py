@@ -1376,11 +1376,6 @@ class Project:
                     gains_heat_cool,
                     frac_convective,
                     )
-                
-                # STORAGE DEBUGGING PRINT OUTS - DELETE BEFORE PULL REQUEST
-                print("%.2f" % zone.temp_operative(), end=" ") 
-                print("%.2f" % zone.temp_internal_air()) 
-                # DELETE after confirmation of Electric Storage Heater method
 
 
                 if h_name is None:
