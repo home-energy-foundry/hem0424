@@ -1375,7 +1375,13 @@ class Project:
                     gains_solar_zone[z_name],
                     gains_heat_cool,
                     frac_convective,
-                )
+                    )
+                
+                # STORAGE HEATERS: print statements for testing    
+                print("%.2f" % zone.temp_operative(), end=" ") 
+                print("%.2f" % zone.temp_internal_air()) 
+                # DELETE after confirmation of Electric Storage Heater method
+
 
                 if h_name is None:
                     space_heat_demand_system[h_name] = 'n/a'

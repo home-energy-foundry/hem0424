@@ -116,7 +116,13 @@ class SimulationTime:
         # Index in array of time-series data is current day (relative to start
         # of year) adjusted for the time-series step (in days) and for the start day
         # (relative to start of year) of time-series data
-        return math.floor((self.current_day() - start_day) / time_series_step)
+        
+        # TODO: (Potential) Decide from which hour of the day the system should be targeting next day charge level
+        # Currently 9pm
+        if self.current_hour() >= 21:
+            return math.floor((self.current_day() + 1 - start_day) / time_series_step)
+        else:
+            return math.floor((self.current_day() - start_day) / time_series_step)
 
     def total_steps(self):
         """ Return the total number of timesteps in simulation """
