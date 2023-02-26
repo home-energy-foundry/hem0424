@@ -98,6 +98,16 @@
 				         true, true, true, true, true, true, true, true, false, false, false, false]
 			}
 		},
+		"esh_charge_control": {
+			"type": "ToUChargeControl",
+			"start_day": 0,
+			"time_series_step": 1,
+			"logic_type": "Manual",
+			"charge_level": [ 1.0, 0.8 ],
+			"schedule": {
+				"main": [{"value": true, "repeat": 7}, {"value": false, "repeat": 5}, {"value": false, "repeat": 5}, {"value": true, "repeat": 7}]
+			}
+		},
 		"main__hw timer__converted_from_OnOffTimeControl": {
 			"type": "SetpointTimeControl",
 			"start_day": 0,
@@ -212,6 +222,7 @@
 			"n_units": 2,
 			"EnergySupply": "mains elec",
 			"Control": "main__hw timer__converted_from_OnOffTimeControl",
+			"ControlCharger": "esh_charge_control",
 			"Zone": "zone 1"
 		}
 	},
