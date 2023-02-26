@@ -669,14 +669,14 @@ class Project:
                     )
             elif heat_source_type == 'HeatBattery':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
                 charge_control: ToUChargeControl = self.__controls[data['ControlCharger']]
-                energy_supply_conn_name_auxiliary = 'HeatBattery_auxiliary: ' + name # MC - Is this needed?
                 heat_source = HeatBattery(
                     data,
                     charge_control,
                     energy_supply,
-                    #energy_supply_conn,
-                    energy_supply_conn_name_auxiliary,
+                    energy_supply_conn,
                     self.__simtime,
                     self.__external_conditions,
                     )

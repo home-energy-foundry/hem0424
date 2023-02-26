@@ -152,8 +152,7 @@ class HeatBattery:
                 heat_battery_dict,
                 charge_control,
                 energy_supply,
-                energy_supply_conn_name_auxiliary,
-                #energy_supply_conn,
+                energy_supply_conn,
                 simulation_time,
                 ext_cond 
                 ):
@@ -212,15 +211,13 @@ class HeatBattery:
         heat_storage_capacity-- in kWh
         max_rated_heat_output-- in kW (Output to hot water)
 
-        energy_supply_conn   -- reference to EnergySupplyConnection object
+        energy_supply        -- reference to EnergySupplyConnection object
         simulation_time      -- reference to SimulationTime object
         control              -- reference to a control object which must implement is_on() and setpnt() funcs
         """
 
         self.__energy_supply = energy_supply
-        #self.__energy_supply_conn: EnergySupplyConnection = energy_supply_conn
-        self.__energy_supply_connection_aux \
-            = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
+        self.__energy_supply_conn = energy_supply_conn
         self.__simulation_time: SimulationTime = simulation_time
         self.__external_conditions = ext_cond
         self.__energy_supply_connections = {}
@@ -231,8 +228,11 @@ class HeatBattery:
         self.__heat_storage_capacity: float = heat_battery_dict["heat_storage_capacity"]
         self.__max_rated_heat_output: float = heat_battery_dict["max_rated_heat_output"]
         self.__max_rated_losses: float = heat_battery_dict["max_rated_losses"]
+
         self.__power_circ_pump = heat_battery_dict["electricity_circ_pump"]
         self.__power_standby = heat_battery_dict["electricity_standby"]
+        self.__total_time_running_current_timestep = 0.0
+
         self.__n_units: int = heat_battery_dict["number_of_units"]
         self.__charge_control: ToUChargeControl = charge_control
         self.__service_results = []
@@ -302,8 +302,8 @@ class HeatBattery:
     def __create_service_connection(self, service_name):
         #Create an EnergySupplyConnection for the service name given 
         # Check that service_name is not already registered
-        if service_name in self.__energy_supply_connections.keys():
-            sys.exit("Error: Service name already used: "+service_name)
+        #if service_name in self.__energy_supply_connections.keys():
+        #    sys.exit("Error: Service name already used: "+service_name)
             # TODO Exit just the current case instead of whole program entirely?
 
         # Set up EnergySupplyConnection for this service
@@ -319,7 +319,7 @@ class HeatBattery:
             cold_feed,
             temp_return
             ):
-            """ Return a BoilerServiceWaterRegular object and create an EnergySupplyConnection for it
+            """ Return a HeatBatteryServiceWaterRegular object and create an EnergySupplyConnection for it
 
             Arguments:
             service_name -- name of the service demanding energy from the boiler
@@ -345,7 +345,7 @@ class HeatBattery:
             service_name,
             control,
             ):
-        """ Return a BoilerServiceSpace object and create an EnergySupplyConnection for it
+        """ Return a HeatBatteryServiceSpace object and create an EnergySupplyConnection for it
 
         Arguments:
         service_name -- name of the service demanding energy from the boiler
@@ -379,7 +379,7 @@ class HeatBattery:
 
         returns -- Power required in watts
         """
-        if self.__charge_control.is_on(): # and t_core <= self.__t_core_target * target_charge:
+        if self.__charge_control.is_on(): 
             return self.__pwr_in
         else:
             return 0.0
@@ -432,6 +432,7 @@ class HeatBattery:
             delta_charge_level = ( max_output ) * timestep / self.__heat_storage_capacity
             self.__Q_out_ts = self.__lab_test_rated_output(charge_level_qin - delta_charge_level / 2)
             self.__Q_loss_ts = self.__lab_test_losses(charge_level_qin - delta_charge_level / 2)
+            self.__max_output = max_output
             #print("first call")
             #print(time_range)
 
@@ -480,18 +481,26 @@ class HeatBattery:
         energy_output_provided = self.__convert_to_energy(power = Q_out, timestep = timestep)
         energy_loss = self.__convert_to_energy(power = self.__Q_loss_ts, timestep = timestep)
 
+        if self.__max_output > 0:
+            time_running_current_service = Q_out / self.__max_output
+        else:
+            time_running_current_service = 0.0
+            
         self.__Q_out_ts -=  Q_out 
         self.__Q_in_ts -=  Q_in 
         self.__charge_level = charge_level
         
         self.__energy_supply_connections[service_name].demand_energy(energy_output_provided)
 
-        #self.__energy_supply_conn.demand_energy(Q_in / units.W_per_kW * self.__n_units)
+        self.__energy_supply_conn.demand_energy(Q_in * self.__n_units)
+
+        self.__total_time_running_current_timestep += time_running_current_service
     
         # Save results that are needed later (in the timestep_end function)
         self.__service_results.append({
             'service_name': service_name,
-            'time_running': 0.0 #time_running_current_service,
+            'time_running': time_running_current_service,
+            'current_hb_power': self.__Q_out_ts
             })
         print (time_range, "%.6f" % Q_in, "%.6f" % charge_level, "%.6f" % energy_demand, "%.6f" % energy_output_provided, "%.6f" % energy_loss )
         return energy_output_provided
@@ -504,15 +513,20 @@ class HeatBattery:
             * self.__power_circ_pump
         
         #Energy used in standby mode
-        #energy_aux += self.__power_standby * time_remaining_current_timestep
+        energy_aux += self.__power_standby * time_remaining_current_timestep
         
-        self.__energy_supply_connection_aux.demand_energy(energy_aux)
+        self.__energy_supply_conn.demand_energy(energy_aux)
 
     def timestep_end(self):
         """" Calculations to be done at the end of each timestep"""
         timestep: float = self.__simulation_time.timestep()
+        time_remaining_current_timestep = timestep - self.__total_time_running_current_timestep
+        
         current_hour: int = self.__simulation_time.current_hour()
         time_range = (current_hour + 1)*self.__time_unit
+
+        
+        self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
 
         # Calculating heat battery losses in timestep
         charge_level = self.__charge_level
@@ -540,14 +554,33 @@ class HeatBattery:
         delta_charge_level = ( max_output ) * timestep / self.__heat_storage_capacity
         self.__Q_out_ts = self.__lab_test_rated_output(charge_level_qin - delta_charge_level / 2)
         self.__Q_loss_ts = self.__lab_test_losses(charge_level_qin - delta_charge_level / 2)
+        
+        self.__max_output = max_output
 
+        self.__total_time_running_current_timestep = 0.0
         self.__service_results = []
 #        print("Q_out next: ", self.__Q_out_ts)
 
     def __energy_output_max(self, temp_output):
         timestep = self.__simulation_time.timestep()
-        time_available = timestep #- self.__total_time_running_current_timestep
-        return self.__lab_test_rated_output(self.__charge_level) * time_available
+        current_hour: int = self.__simulation_time.current_hour()
+        time_range = (current_hour + 1)*self.__time_unit
+        charge_level_qin: float = self.__charge_level
+
+        # Picking target charge level from control
+        target_charge: float = self.__charge_control.target_charge()
+        self.__Q_in_ts = self.__electric_charge(time_range)
+        # Calculate max charge level possible in next timestep
+        if charge_level_qin < target_charge:
+            delta_charge_level = ( self.__Q_in_ts ) * timestep / self.__heat_storage_capacity
+            charge_level_qin += delta_charge_level
+            if charge_level_qin > target_charge:
+                charge_level_qin = target_charge
+#            else:
+#                self.__Q_in_ts = 0.0
+        # Estimating output rate at average of capacity in timestep
+        max_output = self.__lab_test_rated_output(charge_level_qin)
+        return max_output
 
         
                 

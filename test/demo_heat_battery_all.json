@@ -131,9 +131,9 @@
             "daily_losses": 1.68,
             "ColdWaterSource": "mains water",
 			"HeatSource": {
-				"regularBoiler": {
+				"heatBattery0": {
 					"type": "HeatSourceWet",
-					"name": "heatBattery",
+					"name": "heatBattery1",
 					"temp_flow_limit_upper": 65,
 					"ColdWaterSource": "mains water",
 					"EnergySupply": "mains elec",
@@ -200,7 +200,7 @@
 		}
 	},
 	"HeatSourceWet": {
-		"heatBattery": {
+		"heatBattery1": {
 			"type": "HeatBattery",
 			"EnergySupply": "mains elec",
 			"heat_battery_location": "internal",
@@ -223,7 +223,7 @@
 			"temp_diff_emit_dsgn": 10.0,
 			"frac_convective": 0.4,
 			"HeatSource": {
-				"name": "heatBattery",
+				"name": "heatBattery1",
 				"temp_flow_limit_upper": 65.0
 			},
 			"Control": "zone 1 radiators__space heat timer__converted_from_OnOffTimeControl",
@@ -239,7 +239,7 @@
 			"temp_diff_emit_dsgn": 10.0,
 			"frac_convective": 0.4,
 			"HeatSource": {
-				"name": "heatBattery",
+				"name": "heatBattery1",
 				"temp_flow_limit_upper": 65.0
 			},
 			"Control": "zone 1 radiators__space heat timer__converted_from_OnOffTimeControl",
