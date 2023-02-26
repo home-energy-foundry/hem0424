@@ -124,6 +124,7 @@ class ElecStorageHeater:
 
         self.__c_p: float = 1.0054  # J/kg/K air specific heat
 
+        # STORAGE DEBUGGING PRINT OUTS - DELETE BEFORE PULL REQUEST
         self.__report_energy_supply: float = 0.0
 
         """
@@ -316,9 +317,9 @@ class ElecStorageHeater:
         # Save demand energy
         self.__energy_supply_conn.demand_energy(q_in_kwh + energy_for_fan_kwh + q_instant_kwh)
 
-        self.__report_energy_supply = ( q_in_kwh + energy_for_fan_kwh + q_instant_kwh ) * 1000
 
-        # STORAGE HEATERS: print statements for testing
+        # STORAGE DEBUGGING PRINT OUTS - DELETE BEFORE PULL REQUEST
+        self.__report_energy_supply = ( q_in_kwh + energy_for_fan_kwh + q_instant_kwh ) * 1000
         print("%.2f" % ((q_released + q_instant) * self.__n_units), end=" ")
         print("%.2f" % self.t_core, end=" ")
         print("%.2f" % self.t_wall, end=" ")
@@ -409,6 +410,7 @@ class ElecStorageHeater:
         # Converting energy_demand from kWh to Wh and distributing it through all units
         energy_demand: float = energy_demand * units.W_per_kW / self.__n_units
 
+        # STORAGE DEBUGGING PRINT OUTS - DELETE BEFORE PULL REQUEST
         print("%.2f" % (energy_demand * self.__n_units), end=" ")
         # DELETE after confirmation of Electric Storage Heater method
         
