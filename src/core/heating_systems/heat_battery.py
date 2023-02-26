@@ -468,10 +468,6 @@ class HeatBattery:
             'current_hb_power': self.__Q_out_ts
             })
         
-        #print interim steps to output file for investigation
-        #energy_loss = self.__convert_to_energy(power = self.__Q_loss_ts, timestep = timestep)
-        #print (time_range, "%.6f" % Q_in, "%.6f" % charge_level, "%.6f" % energy_demand, "%.6f" % energy_output_provided, "%.6f" % energy_loss )
-        
         return energy_output_provided
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
