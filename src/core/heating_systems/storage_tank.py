@@ -102,10 +102,6 @@ class StorageTank:
         self.__V_total = volume
         #list of volume of layers in litres
         self.__Vol_n = [self.__V_total / self.__NB_VOL] * self.__NB_VOL
-        #thermostat position is typically fitted 1/3rd from the bottom of the tank
-        self.__thermostat_pos = 1.0 / 3.0
-        # layer number of thermostat
-        self.__thermostat_layer = int(self.__thermostat_pos * self.__NB_VOL)
         #water specific heat in kWh/kg.K
         self.__Cp = contents.specific_heat_capacity_kWh()
         #volumic mass in kg/litre
