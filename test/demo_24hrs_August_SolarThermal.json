@@ -119,8 +119,6 @@
 			"type": "StorageTank",
 			"volume": 80.0,
 			"daily_losses": 1.68,
-			"heater_position": 0.10,
-			"thermostat_position": 0.33,
 			"ColdWaterSource": "mains water",
 			"HeatSource": {
 				"SolarThermalSystem": {
@@ -138,7 +136,9 @@
 					"EnergySupply": "mains elec",
 					"tilt": 30,
   					"orientation": 0,
-  					"solar_loop_piping_hlc": 0.5
+  					"solar_loop_piping_hlc": 0.5,
+					"heater_position": 0.1,
+					"thermostat_position": 0.33
 				}
 			}
 		}
