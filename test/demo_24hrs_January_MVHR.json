@@ -110,6 +110,8 @@
 			"type": "StorageTank",
 			"volume": 80.0,
 			"daily_losses": 1.68,
+			"heater_position": 0.10,
+			"thermostat_position": 0.33,
 			"ColdWaterSource": "mains water",
 			"HeatSource": {
 				"immersion": {

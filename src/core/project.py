@@ -831,7 +831,7 @@ class Project:
                     
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
                     heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
-                    hw_source.add_heat_source(heat_source, 1.0)
+                    hw_source.add_heat_source(heat_source, data['heater_position'], data['thermostat_position'])
             elif hw_source_type == 'CombiBoiler':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
                 hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_combi(
