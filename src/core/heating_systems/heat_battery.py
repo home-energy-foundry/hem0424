@@ -453,9 +453,6 @@ class HeatBattery:
             'time_running': time_running_current_service,
             'current_hb_power': self.__Q_out_ts
             })
-        
-        #print interim steps to output file for investigation
-        print (current_hour, "%.6f" % E_in, "%.6f" % charge_level, "%.6f" % energy_demand, "%.6f" % E_out, "%.6f" % E_loss )
     
         return energy_output_provided
 
@@ -506,9 +503,6 @@ class HeatBattery:
         self.__charge_level = charge_level
 
         current_hour: int = self.__simulation_time.current_hour()
-
-        #print interim steps to output file for investigation
-        print (current_hour, "%.6f" % E_in, "%.6f" % charge_level, "%.6f" % 0.0, "%.6f" % 0.0, "%.6f" % E_loss )
         
         # Preparing Heat battery for next time step
         # Variables below need to be reset at the end of each timestep
