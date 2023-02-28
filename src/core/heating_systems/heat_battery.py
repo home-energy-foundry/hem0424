@@ -206,7 +206,6 @@ class HeatBattery:
 
         self.__power_circ_pump = heat_battery_dict["electricity_circ_pump"]
         self.__power_standby = heat_battery_dict["electricity_standby"]
-        self.__total_time_running_current_timestep = 0.0
 
         self.__n_units: int = heat_battery_dict["number_of_units"]
         self.__charge_control: ToUChargeControl = charge_control
@@ -410,45 +409,41 @@ class HeatBattery:
             delta_charge_level = ( max_output ) * timestep / self.__heat_storage_capacity
             self.__Q_out_ts = self.__lab_test_rated_output(charge_level_qin - delta_charge_level / 2)
             self.__Q_loss_ts = self.__lab_test_losses(charge_level_qin - delta_charge_level / 2)
-            self.__max_output = max_output
+#            self.__max_output = max_output
             self.__flag_first_call = False
 
         # Distributing energy demand through all units
         energy_demand: float = energy_output_required / self.__n_units
 
         # Create power variables and assign the values just calculated at average of timestep
-        Q_out = min( energy_demand / timestep, self.__Q_out_ts ) #kW
-        Q_in = self.__Q_in_ts #kW 
+        E_out = min( energy_demand, self.__Q_out_ts * (timestep - self.__total_time_running_current_timestep) ) #kWh
+        if self.__Q_out_ts > 0:
+            time_running_current_service = E_out / self.__Q_out_ts
+        else:
+            time_running_current_service = 0.0
+            
+        E_loss = self.__Q_loss_ts * time_running_current_service #kWh 
+        E_in = self.__Q_in_ts * time_running_current_service #kWh 
 
-        delta_charge_level = ( Q_in - Q_out ) * timestep / self.__heat_storage_capacity
+        delta_charge_level = ( E_in - E_out - E_loss) / self.__heat_storage_capacity
         # Calculate new charge level after accounting for energy in and out and cap at target_charge
         charge_level += delta_charge_level
         if charge_level > target_charge:
-            Q_in -= ( charge_level - target_charge ) * self.__heat_storage_capacity / timestep
-            if Q_in < 0.0:
-                Q_in = 0.0
+            E_in -= ( charge_level - target_charge ) * self.__heat_storage_capacity
+            if E_in < 0.0:
+                E_in = 0.0
                 charge_level -= delta_charge_level 
-                delta_charge_level = ( - Q_out ) * timestep / self.__heat_storage_capacity
+                delta_charge_level = -( E_out + E_loss ) / self.__heat_storage_capacity
                 charge_level += delta_charge_level
             else:
                 charge_level = target_charge
         
-        energy_output_provided = self.__convert_to_energy(power = Q_out, timestep = timestep) #kWh
+        energy_output_provided = E_out #kWh
         
-        # calculate the proportion of the maximum theoretical output provided to the service
-        if self.__max_output > 0:
-            time_running_current_service = Q_out / self.__max_output
-        else:
-            time_running_current_service = 0.0
-    
-        # subtract the power provided in that service from the total
-        # TODO - this doesn't work as power. Need to change to energy.
-        self.__Q_out_ts -=  Q_out 
-        self.__Q_in_ts -=  Q_in
         # self.__charge_level is set to updated charge level 
         self.__charge_level = charge_level
 
-        self.__energy_supply_conn.demand_energy(Q_in * self.__n_units)
+        self.__energy_supply_conn.demand_energy(E_in * self.__n_units)
 
         self.__total_time_running_current_timestep += time_running_current_service
     
@@ -460,8 +455,7 @@ class HeatBattery:
             })
         
         #print interim steps to output file for investigation
-        energy_loss = self.__convert_to_energy(power = self.__Q_loss_ts, timestep = timestep)
-        print (time_range, "%.6f" % Q_in, "%.6f" % charge_level, "%.6f" % energy_demand, "%.6f" % energy_output_provided, "%.6f" % energy_loss )
+        print (current_hour, "%.6f" % E_in, "%.6f" % charge_level, "%.6f" % energy_demand, "%.6f" % E_out, "%.6f" % E_loss )
     
         return energy_output_provided
 
@@ -481,26 +475,46 @@ class HeatBattery:
         """" Calculations to be done at the end of each timestep"""
         timestep: float = self.__simulation_time.timestep()
         time_remaining_current_timestep = timestep - self.__total_time_running_current_timestep
-        
-        current_hour: int = self.__simulation_time.current_hour()
-        time_range = (current_hour + 1)*self.__time_unit
 
+        # Calculatin auxiliary energy to provide services during timestep
         self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
 
+        # Completing any charging left in the timestep and removing all losses from the charge level        
         # Calculating heat battery losses in timestep to correct charge level
         # Currently assumed all losses are to the exterior independently of the 
         # heat battery location
         # TODO: Assign thermal losses to relevant zone if heat battery is not outdoors.
-        charge_level = self.__charge_level
-        delta_charge_level = ( - self.__Q_loss_ts ) * timestep / self.__heat_storage_capacity
-        charge_level += delta_charge_level
-        self.__charge_level = charge_level
-        # MC - remove line below?
-        #energy_loss = self.__convert_to_energy(power = self.__Q_loss_ts, timestep = timestep)
+        E_loss = self.__Q_loss_ts * time_remaining_current_timestep #kWh 
+        E_in = self.__Q_in_ts * time_remaining_current_timestep #kWh 
 
+        charge_level: float = self.__charge_level
+        target_charge: float = self.__charge_control.target_charge()
+        delta_charge_level = ( E_in - E_loss ) / self.__heat_storage_capacity
+        # Calculate new charge level after accounting for energy in and out and cap at target_charge
+        charge_level += delta_charge_level
+        if charge_level > target_charge:
+            E_in -= ( charge_level - target_charge ) * self.__heat_storage_capacity
+            if E_in < 0.0:
+                E_in = 0.0
+                charge_level -= delta_charge_level 
+                delta_charge_level = -E_loss / self.__heat_storage_capacity
+                charge_level += delta_charge_level
+            else:
+                charge_level = target_charge
+        
+        # self.__charge_level is set to updated charge level 
+        self.__charge_level = charge_level
+
+        current_hour: int = self.__simulation_time.current_hour()
+
+        #print interim steps to output file for investigation
+        print (current_hour, "%.6f" % E_in, "%.6f" % charge_level, "%.6f" % 0.0, "%.6f" % 0.0, "%.6f" % E_loss )
+        
         # Preparing Heat battery for next time step
         # Variables below need to be reset at the end of each timestep
         # Picking target charge level from control
+        time_range = (current_hour + 1)*self.__time_unit
+
         target_charge: float = self.__charge_control.target_charge()
         charge_level_qin = self.__charge_level
         self.__Q_in_ts = self.__electric_charge(time_range)
@@ -517,7 +531,7 @@ class HeatBattery:
         self.__Q_out_ts = self.__lab_test_rated_output(charge_level_qin - delta_charge_level / 2)
         self.__Q_loss_ts = self.__lab_test_losses(charge_level_qin - delta_charge_level / 2)
         
-        self.__max_output = max_output
+#        self.__max_output = max_output
 
         self.__total_time_running_current_timestep = 0.0
         self.__service_results = []
@@ -526,10 +540,10 @@ class HeatBattery:
         timestep = self.__simulation_time.timestep()
         current_hour: int = self.__simulation_time.current_hour()
         time_range = (current_hour)*self.__time_unit
-        charge_level_qin: float = self.__charge_level
 
         # Picking target charge level from control
         target_charge: float = self.__charge_control.target_charge()
+        charge_level_qin = self.__charge_level
         self.__Q_in_ts = self.__electric_charge(time_range)
         # Calculate max charge level possible in next timestep
         if charge_level_qin < target_charge:
@@ -540,5 +554,12 @@ class HeatBattery:
 
         # Estimating output rate at average of capacity in timestep
         max_output = self.__lab_test_rated_output(charge_level_qin)
+        delta_charge_level = ( max_output ) * timestep / self.__heat_storage_capacity
+        max_output = self.__lab_test_rated_output(charge_level_qin - delta_charge_level / 2) * timestep
+        
         return max_output
+    
+    
+    
+    
     
