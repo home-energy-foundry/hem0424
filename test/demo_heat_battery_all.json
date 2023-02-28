@@ -211,7 +211,7 @@
 			"max_rated_heat_output": 15.0,
 			"max_rated_losses": 0.22,
 			"number_of_units": 1,
-			"ControlCharger": "hb_charge_control"
+			"ControlCharge": "hb_charge_control"
 		}
 	},
 	"SpaceHeatSystem": {

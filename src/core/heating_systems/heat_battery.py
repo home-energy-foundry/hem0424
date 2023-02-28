@@ -18,7 +18,7 @@ import numpy as np
 #from core.space_heat_demand.zone import Zone
 #from core.energy_supply.energy_supply import EnergySupplyConnection
 from core.simulation_time import SimulationTime
-#from core.controls.time_control import ToUChargeControl, SetpointTimeControl
+from core.controls.time_control import ToUChargeControl
 #from core.controls.time_control import SetpointTimeControl
 #from core.material_properties import WATER
 from pickle import TRUE
@@ -36,9 +36,6 @@ class HeatBatteryService:
     consuming the energy does not have to specify this on every call, and
     helping to enforce that each service has a unique name.
 
-    Derived objects provide a place to handle parts of the calculation (e.g.
-    distribution flow temperature) that may differ for different services.
-
     Separate subclasses need to be implemented for different types of service
     (e.g. HW and space heating). These should implement the following functions:
     - demand_energy(self, energy_demand)
@@ -48,7 +45,7 @@ class HeatBatteryService:
         """ Construct a HeatBatteryService object
 
         Arguments:
-        heat_battery       -- reference to the Heat Battery object providing the service
+        heat_battery -- reference to the Heat Battery object providing the service
         service_name -- name of the service demanding energy from the heat battery
         """
         self._heat_battery = heat_battery
@@ -82,11 +79,11 @@ class HeatBatteryServiceWaterRegular(HeatBatteryService):
 
         Arguments:
         heat_battery       -- reference to the Heat Battery object providing the service
-        heat_battery_data       -- regular heat battery heating properties
-        service_name -- name of the service demanding energy from the heat_battery_data
-        temp_hot_water -- temperature of the hot water to be provided, in deg C
-        cold_feed -- reference to ColdWaterSource object
-        simulation_time -- reference to SimulationTime object
+        heat_battery_data  -- regular heat battery heating properties
+        service_name       -- name of the service demanding energy from the heat_battery_data
+        temp_hot_water     -- temperature of the hot water to be provided, in deg C
+        cold_feed          -- reference to ColdWaterSource object
+        simulation_time    -- reference to SimulationTime object
         """
         super().__init__(heat_battery, service_name)
         
@@ -112,18 +109,19 @@ class HeatBatteryServiceWaterRegular(HeatBatteryService):
         return self._heat_battery._HeatBattery__energy_output_max(self.__temp_hot_water)
 
 class HeatBatteryServiceSpace(HeatBatteryService):
-    """ An object to represent a space heating service provided by a heat_battery to e.g. a cylinder.
+    """ An object to represent a space heating service provided by a heat_battery to e.g. radiators.
 
     This object contains the parts of the heat battery calculation that are
-    specific to providing space heating-.
+    specific to providing space heating.
     """
+    
     def __init__(self, heat_battery, service_name, control):
         """ Construct a HeatBatteryServiceSpace object
 
         Arguments:
-        heat_battery       -- reference to the Heat Battery object providing the service
+        heat_battery -- reference to the Heat Battery object providing the service
         service_name -- name of the service demanding energy from the heat battery
-        control -- reference to a control object which must implement is_on() and setpnt() funcs
+        control      -- reference to a control object which must implement is_on() and setpnt() funcs
         """
         super().__init__(heat_battery, service_name)
         self.__service_name = service_name
@@ -147,20 +145,22 @@ class HeatBatteryServiceSpace(HeatBatteryService):
         return self._heat_battery._HeatBattery__energy_output_max(temp_output)
 
 class HeatBattery:
-    """ Class to represent Heat Batteries electrically charged """
+    """ Class to represent hydronic Heat Batteries that are electrically charged """
+    
     """ This in an initial implicit ('EDI' - experimental data interpolation) modelling approach 
         that is more heavily dependent on manufacturer's test data for each device. 
         It is PCM (phase changed material) ready for which we are developing theoretical 
         characteristic curves in addition to the existing standard curves already included in this
         file. 
+        
         The explicit ('DEI' - differential equation integration) modelling approach used in the 
         electric storage heater model would be available as a replacement for the 'EDI' model
         implemented here depending on feedback from industry stakeholders we are seeking.  
         
         This class has been introduced as a replacement for heat sources like boilers. 
-        TODO: A different type of heat batteries, primarily PCM not charged by electricity but by 
-        different heat sources (heat pumps, solar thermal, etc) will be implemented in a second
-        phase once additional information is provided by industry stakeholders.  
+        TODO: A different type of heat battery, primarily PCM that can be charged by different
+        heat sources (heat pumps, solar thermal, etc.) in addition to electricity, will be implemented
+        in a second phase once additional information is provided by industry stakeholders.  
     """
 
     def __init__(self,
@@ -175,11 +175,11 @@ class HeatBattery:
         """Construct a HeatBattery object
 
         Arguments:
-        n_units               -- number of units install in zone
+        n_units               -- number of units installed in zone
 
         rated_charge_power    -- in kW (Charging)
         heat_storage_capacity -- in kWh
-        max_rated_heat_output -- in kW (Output to hot water)
+        max_rated_heat_output -- in kW (Output to hot water and space heat services)
         max_rated_losses      -- in kW (Losses to internal or external)
 
         energy_supply         -- reference to EnergySupplyConnection object
@@ -188,8 +188,8 @@ class HeatBattery:
         
         Other variables:
         energy_supply_connections
-            -- dictionary with service name strings as keys and corresponding
-               EnergySupplyConnection objects as values
+                              -- dictionary with service name strings as keys and corresponding
+                                 EnergySupplyConnection objects as values
         """
 
         self.__energy_supply = energy_supply
@@ -197,7 +197,6 @@ class HeatBattery:
         self.__simulation_time: SimulationTime = simulation_time
         self.__external_conditions = ext_cond
         self.__energy_supply_connections = {}
-        #self.__control: SetpointTimeControl = control
         self.__heat_battery_location = heat_battery_dict["heat_battery_location"]
 
         self.__pwr_in: float = heat_battery_dict["rated_charge_power"]
@@ -215,12 +214,18 @@ class HeatBattery:
         
         self.__time_unit: float = 3600
         self.__total_time_running_current_timestep = 0.0
+        self.__flag_first_call = TRUE
+        # Set the initial charge level of the heat battery to zero.
+        self.__charge_level: float = 0.0
 
-        # labs_test for heat battery reaching 650 degC
+        # lab_test for heat battery reaching 650 degC
         # Assuming it struggles to deliver heat power at 80 degC (return temperature) 
         # from 23% of the charge level
-        # TODO: Possibly need for more curvers at different return temperatures that might affect
+        # TODO: Possibly need for more curves at different return temperatures that might affect
         # the lower data points in the curve.
+
+        # Charge level x losses
+        # each as a proportion of the maximum as specified in inputs
         self.labs_tests_rated_output: list = [
             [0.0, 0],
             [0.08, 0.00],
@@ -246,6 +251,7 @@ class HeatBattery:
         ]
         
         # Charge level x losses
+        # each as a proportion of the maximum as specified in inputs
         self.labs_tests_losses: list = [
             [0.0, 0],
             [0.16, 0.13],
@@ -268,15 +274,6 @@ class HeatBattery:
             [0.89, 0.89],
             [1.0, 1.0]
         ]
-
-
-        
-        # Set the initial charge level of the heat battery to zero.
-        self.__charge_level: float = 0.0
-        #self.__charge_capacity_in_timestep = 
-        self.__flag_first_call = TRUE
-        #self.__Q_out_available = self.__lab_test_rated_output(self.__charge_level) * self.__n_units
-
     
     def __create_service_connection(self, service_name):
         #Create an EnergySupplyConnection for the service name given 
@@ -289,7 +286,6 @@ class HeatBattery:
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
     
-
     def create_service_hot_water_regular(
             self,
             heat_battery_data,
@@ -301,11 +297,11 @@ class HeatBattery:
             """ Return a HeatBatteryServiceWaterRegular object and create an EnergySupplyConnection for it
 
             Arguments:
-            service_name -- name of the service demanding energy from the heat battery
-            temp_hot_water -- temperature of the hot water to be provided, in deg C
+            service_name     -- name of the service demanding energy from the heat battery
+            temp_hot_water   -- temperature of the hot water to be provided, in deg C
             temp_limit_upper -- upper operating limit for temperature, in deg C
-            cold_feed -- reference to ColdWaterSource object
-            control -- reference to a control object which must implement is_on() func
+            cold_feed        -- reference to ColdWaterSource object
+            control          -- reference to a control object which must implement is_on() func
             """
             
             self.__create_service_connection(service_name)
@@ -337,24 +333,22 @@ class HeatBattery:
             control,
             )
 
-
-    
     def __convert_to_energy(self, power: float, timestep: float) -> float:
-        """
-        Converts power value supplied to the correct unit
-        Arguments
-        power -- Energy value in watts
+        """ Converts power value supplied to the correct units
+        
+        Arguments:
+        power    -- Power in watts
         timestep -- length of the timestep
 
-        returns -- Energy in kWH
+        returns  -- Energy in kWH
         """
         return power * timestep * self.__n_units
 
     def __electric_charge(self, time: float) -> float:
-        """
-        Calculates power required for unit
+        """ Calculates power required for unit
+        
         Arguments
-        time -- current time period that we are looking at
+        time    -- current time period that we are looking at
 
         returns -- Power required in watts
         """
@@ -364,13 +358,13 @@ class HeatBattery:
             return 0.0
         
     def __lab_test_rated_output(self, charge_level: float) -> float:
-        # labs_test for electric storage heater
+        # labs_test for heat battery
         x: list = [row[0] for row in self.labs_tests_rated_output]
         y: list = [row[1] for row in self.labs_tests_rated_output]
         return ( np.interp(charge_level, x, y) * self.__max_rated_heat_output )
 
     def __lab_test_losses(self, charge_level: float) -> float:
-        # labs_test for electric storage heater
+        # labs_test for heat battery
         x: list = [row[0] for row in self.labs_tests_losses]
         y: list = [row[1] for row in self.labs_tests_losses]
         return ( np.interp(charge_level, x, y) * self.__max_rated_losses )
@@ -385,17 +379,20 @@ class HeatBattery:
 
         # Initialising Variables
         #outside_temp = self.__external_conditions.air_temp()
-        self.__report_energy_supply = 0.0
-            
         #self.temp_air = self.__zone.temp_internal_air()
         timestep: float = self.__simulation_time.timestep()
         current_hour: int = self.__simulation_time.current_hour()
+        # TODO verify use of day and hour in multi-day runs
         time_range = (current_hour)*self.__time_unit
         charge_level: float = self.__charge_level
         charge_level_qin: float = charge_level
 
         # Picking target charge level from control
         target_charge: float = self.__charge_control.target_charge()
+        # __demand_energy is called for each service in each timestep
+        # Some calculations are only required once per timestep
+        # For example the amount of charge added to the system
+        # Perform these calculations here
         if self.__flag_first_call:
             # TODO: The following code is very similar in three different sections of the
             # Heat Battery implementation. Consider creating function with relevant arguments
@@ -414,48 +411,42 @@ class HeatBattery:
             self.__Q_out_ts = self.__lab_test_rated_output(charge_level_qin - delta_charge_level / 2)
             self.__Q_loss_ts = self.__lab_test_losses(charge_level_qin - delta_charge_level / 2)
             self.__max_output = max_output
+            self.__flag_first_call = False
 
-        # Converting energy_demand from kWh to Wh and distributing it through all units
+        # Distributing energy demand through all units
         energy_demand: float = energy_output_required / self.__n_units
 
-        # New code
-        it_energy_demand = energy_demand
-        it_power_in = self.__Q_in_ts
-        Q_out = 0.0
-        Q_in = 0.0
-        
-        it_Q_out = min( it_energy_demand / timestep, self.__Q_out_ts )
-        it_Q_in = it_power_in
+        # Create power variables and assign the values just calculated at average of timestep
+        Q_out = min( energy_demand / timestep, self.__Q_out_ts ) #kW
+        Q_in = self.__Q_in_ts #kW 
 
-        delta_charge_level = ( it_Q_in - it_Q_out ) * timestep / self.__heat_storage_capacity
+        delta_charge_level = ( Q_in - Q_out ) * timestep / self.__heat_storage_capacity
+        # Calculate new charge level after accounting for energy in and out and cap at target_charge
         charge_level += delta_charge_level
-        #print(charge_level)
         if charge_level > target_charge:
-            it_Q_in -= ( charge_level - target_charge ) * self.__heat_storage_capacity / timestep
-            if it_Q_in < 0.0:
-                it_Q_in = 0.0
+            Q_in -= ( charge_level - target_charge ) * self.__heat_storage_capacity / timestep
+            if Q_in < 0.0:
+                Q_in = 0.0
                 charge_level -= delta_charge_level 
-                delta_charge_level = ( - it_Q_out ) * timestep / self.__heat_storage_capacity
+                delta_charge_level = ( - Q_out ) * timestep / self.__heat_storage_capacity
                 charge_level += delta_charge_level
             else:
                 charge_level = target_charge
-        Q_out += it_Q_out
-        Q_in += it_Q_in
-            
-        if self.__flag_first_call:
-            self.__flag_first_call = False
-            
-        energy_output_provided = self.__convert_to_energy(power = Q_out, timestep = timestep)
         
+        energy_output_provided = self.__convert_to_energy(power = Q_out, timestep = timestep) #kWh
+        
+        # calculate the proportion of the maximum theoretical output provided to the service
         if self.__max_output > 0:
             time_running_current_service = Q_out / self.__max_output
         else:
             time_running_current_service = 0.0
-            
+    
+        # subtract the power provided in that service from the total
+        # TODO - this doesn't work as power. Need to change to energy.
         self.__Q_out_ts -=  Q_out 
-        self.__Q_in_ts -=  Q_in 
+        self.__Q_in_ts -=  Q_in
+        # self.__charge_level is set to updated charge level 
         self.__charge_level = charge_level
-        
 
         self.__energy_supply_conn.demand_energy(Q_in * self.__n_units)
 
@@ -468,6 +459,10 @@ class HeatBattery:
             'current_hb_power': self.__Q_out_ts
             })
         
+        #print interim steps to output file for investigation
+        energy_loss = self.__convert_to_energy(power = self.__Q_loss_ts, timestep = timestep)
+        print (time_range, "%.6f" % Q_in, "%.6f" % charge_level, "%.6f" % energy_demand, "%.6f" % energy_output_provided, "%.6f" % energy_loss )
+    
         return energy_output_provided
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
@@ -490,7 +485,6 @@ class HeatBattery:
         current_hour: int = self.__simulation_time.current_hour()
         time_range = (current_hour + 1)*self.__time_unit
 
-        
         self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
 
         # Calculating heat battery losses in timestep to correct charge level
@@ -501,11 +495,11 @@ class HeatBattery:
         delta_charge_level = ( - self.__Q_loss_ts ) * timestep / self.__heat_storage_capacity
         charge_level += delta_charge_level
         self.__charge_level = charge_level
+        # MC - remove line below?
         #energy_loss = self.__convert_to_energy(power = self.__Q_loss_ts, timestep = timestep)
 
-
-        # Preparing Heat baterry for next time step
-        # Variabales below need to be reset at the end of each timestep
+        # Preparing Heat battery for next time step
+        # Variables below need to be reset at the end of each timestep
         # Picking target charge level from control
         target_charge: float = self.__charge_control.target_charge()
         charge_level_qin = self.__charge_level

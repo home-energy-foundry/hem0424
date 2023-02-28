@@ -671,7 +671,7 @@ class Project:
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
                 energy_supply_conn = energy_supply.connection(name)
-                charge_control: ToUChargeControl = self.__controls[data['ControlCharger']]
+                charge_control: ToUChargeControl = self.__controls[data['ControlCharge']]
                 heat_source = HeatBattery(
                     data,
                     charge_control,
