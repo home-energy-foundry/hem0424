@@ -444,6 +444,7 @@ class HeatBattery:
         self.__charge_level = charge_level
 
         self.__energy_supply_conn.demand_energy(E_in * self.__n_units)
+        self.__energy_supply_connections[service_name].demand_energy(E_out * self.__n_units)
 
         self.__total_time_running_current_timestep += time_running_current_service
     
