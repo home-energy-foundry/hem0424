@@ -124,6 +124,8 @@ class ElecStorageHeater:
 
         self.__c_p: float = 1.0054  # J/kg/K air specific heat
 
+        # STORAGE DEBUGGING PRINT OUTS - DELETE BEFORE PULL REQUEST
+        self.__report_energy_supply: float = 0.0
 
         """
         The value of R (resistance of air gap) depends on several factors such as the thickness of the air gap, the
@@ -216,8 +218,8 @@ class ElecStorageHeater:
             sys.exit('AirFlowType does not have characteristic data for EHS system')
 
         # Initial conditions
-        self.t_core: float = self.__zone.temp_internal_air()
-        self.t_wall: float = self.__zone.temp_internal_air()
+        self.t_core: float = 200.0 # self.__zone.temp_internal_air()
+        self.t_wall: float = 50.0 #self.__zone.temp_internal_air()
 
         self.damper_fraction: float = 1.0
         self.__energy_in: float = 0.0
@@ -316,6 +318,15 @@ class ElecStorageHeater:
         self.__energy_supply_conn.demand_energy(q_in_kwh + energy_for_fan_kwh + q_instant_kwh)
 
 
+        # STORAGE DEBUGGING PRINT OUTS - DELETE BEFORE PULL REQUEST
+        self.__report_energy_supply = ( q_in_kwh + energy_for_fan_kwh + q_instant_kwh ) * 1000
+        print("%.2f" % ((q_released + q_instant) * self.__n_units), end=" ")
+        print("%.2f" % self.t_core, end=" ")
+        print("%.2f" % self.t_wall, end=" ")
+        print("%.2f" % self.__report_energy_supply, end=" ")
+        print("%.2f" % self.__report_energy_supply, end=" ")
+        # DELETE after confirmation of Electric Storage Heater method
+
         # Multipy energy released by number of devices installed in the zone
         return self.__convert_to_kwh(power=(q_released + q_instant), timestep=timestep)
 
@@ -398,6 +409,10 @@ class ElecStorageHeater:
 
         # Converting energy_demand from kWh to Wh and distributing it through all units
         energy_demand: float = energy_demand * units.W_per_kW / self.__n_units
+
+        # STORAGE DEBUGGING PRINT OUTS - DELETE BEFORE PULL REQUEST
+        print("%.2f" % (energy_demand * self.__n_units), end=" ")
+        # DELETE after confirmation of Electric Storage Heater method
         
 
         #################################################
