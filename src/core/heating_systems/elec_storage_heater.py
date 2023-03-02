@@ -49,6 +49,7 @@ class ElecStorageHeater:
         thermal_mass: float,
         frac_convective: float,
         U_ins: float,
+        temp_charge_cut: float,
         mass_core: float,
         c_pcore: float,
         temp_core_target: float,
@@ -76,6 +77,7 @@ class ElecStorageHeater:
         thermal_mass         -- thermal mass of emitters, in kWh / K
         frac_convective      -- convective fraction for heating (TODO: Check if necessary)
         U_ins                -- U-value insulation between core and case [W/m^2/K]
+        temp_charge_cut      -- Room temperature at which, if sensed during a charging hour, the heater won't charge
         mass_core            -- kg mass core material [kg]
         c_pcore              -- thermal capacity of core material [J/kg/K]
         temp_core_target     -- target temperature for the core material on charging mode
@@ -100,6 +102,7 @@ class ElecStorageHeater:
         self.__thermal_mass: float = thermal_mass
         self.__frac_convective: float = frac_convective
         self.__Uins: float = U_ins
+        self.__temp_charge_cut: float = temp_charge_cut
         self.__n_units: int = n_units
         self.__zone: Zone = zone
         self.__energy_supply_conn: EnergySupplyConnection = energy_supply_conn
@@ -123,9 +126,6 @@ class ElecStorageHeater:
         # Parameters
 
         self.__c_p: float = 1.0054  # J/kg/K air specific heat
-
-        # STORAGE DEBUGGING PRINT OUTS - DELETE BEFORE PULL REQUEST
-        self.__report_energy_supply: float = 0.0
 
         """
         The value of R (resistance of air gap) depends on several factors such as the thickness of the air gap, the
@@ -250,6 +250,9 @@ class ElecStorageHeater:
 
         returns -- Power required in watts
         """
+        if self.temp_air >= self.__temp_charge_cut:
+            return 0.0
+        
         target_charge: float = self.__charge_control.target_charge()
         if self.__charge_control.is_on() and t_core <= self.__t_core_target * target_charge:
             pwr_required: float = (self.__t_core_target * target_charge - t_core) \
@@ -317,15 +320,6 @@ class ElecStorageHeater:
         # Save demand energy
         self.__energy_supply_conn.demand_energy(q_in_kwh + energy_for_fan_kwh + q_instant_kwh)
 
-
-        # STORAGE DEBUGGING PRINT OUTS - DELETE BEFORE PULL REQUEST
-        self.__report_energy_supply = ( q_in_kwh + energy_for_fan_kwh + q_instant_kwh ) * 1000
-        print("%.2f" % ((q_released + q_instant) * self.__n_units), end=" ")
-        print("%.2f" % self.t_core, end=" ")
-        print("%.2f" % self.t_wall, end=" ")
-        print("%.2f" % self.__report_energy_supply, end=" ")
-        print("%.2f" % self.__report_energy_supply, end=" ")
-        # DELETE after confirmation of Electric Storage Heater method
 
         # Multipy energy released by number of devices installed in the zone
         return self.__convert_to_kwh(power=(q_released + q_instant), timestep=timestep)
@@ -409,10 +403,6 @@ class ElecStorageHeater:
 
         # Converting energy_demand from kWh to Wh and distributing it through all units
         energy_demand: float = energy_demand * units.W_per_kW / self.__n_units
-
-        # STORAGE DEBUGGING PRINT OUTS - DELETE BEFORE PULL REQUEST
-        print("%.2f" % (energy_demand * self.__n_units), end=" ")
-        # DELETE after confirmation of Electric Storage Heater method
         
 
         #################################################

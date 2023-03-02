@@ -1,7 +1,7 @@
 {
 	"SimulationTime": {
-		"start": 2400,
-		"end": 2568,
+		"start": 0,
+		"end": 168,
 		"step": 1
 	},
 	"ExternalConditions": {
@@ -23,7 +23,7 @@
 	},
 	"InternalGains": {
 		"metabolic gains": {
-			"start_day": 100,
+			"start_day": 0,
 			"time_series_step": 1,
 			"schedule": {
 				"main": [{"value":"day", "repeat": 7}],
@@ -31,7 +31,7 @@
 			}
 		},
 		"other": {
-			"start_day": 100,
+			"start_day": 0,
 			"time_series_step": 1,
 			"schedule": {
 				"main": [{"value":"day", "repeat": 7}],
@@ -41,7 +41,7 @@
 	},
 	"ApplianceGains": {
 		"lighting": {
-			"start_day": 100,
+			"start_day": 0,
 			"time_series_step": 1,
 			"gains_fraction": 0.5,
 			"EnergySupply": "mains elec",
@@ -52,7 +52,7 @@
 			}
 		},
 		"cooking": {
-			"start_day": 100,
+			"start_day": 0,
 			"time_series_step": 1,
 			"gains_fraction": 1,
 			"EnergySupply": "mains elec",
@@ -65,7 +65,7 @@
 	},
 	"ColdWaterSource": {
 		"mains water": {
-			"start_day": 100,
+			"start_day": 0,
 			"temperatures": [
 				8.46875,
 				8.21875,
@@ -247,7 +247,7 @@
 	"Control": {
 		"hw timer": {
 			"type": "OnOffTimeControl",
-			"start_day": 100,
+			"start_day": 0,
 			"time_series_step": 1,
 			"schedule": {
 				"main": [{"value":"day", "repeat": 7}],
@@ -256,7 +256,7 @@
 		},
 		"esh_charge_control": {
 			"type": "ToUChargeControl",
-			"start_day": 100,
+			"start_day": 0,
 			"time_series_step": 1,
 			"logic_type": "Manual",
 			"charge_level": [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ],
@@ -267,7 +267,7 @@
 		},
 		"main__hw timer__converted_from_OnOffTimeControl": {
 			"type": "SetpointTimeControl",
-			"start_day": 100,
+			"start_day": 0,
 			"time_series_step": 1,
 			"schedule": {
 				"main": [{"value":"day", "repeat": 7}],
@@ -367,7 +367,8 @@
 			"temp_dis_safe": 160.0,
 			"thermal_mass": 0.01278,
 			"frac_convective": 0.7,
-			"U_ins": 0.6,
+			"U_ins": 0.2,
+			"temp_charge_cut": 13.0,
 			"mass_core": 140.0,
 			"c_pcore": 920.0,
 			"temp_core_target": 650.0,

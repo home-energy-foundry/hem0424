@@ -787,6 +787,7 @@ class Project:
                     data['thermal_mass'],
                     data['frac_convective'],
                     data['U_ins'],
+                    data['temp_charge_cut'],
                     data['mass_core'],
                     data['c_pcore'],
                     data['temp_core_target'],
@@ -1376,11 +1377,6 @@ class Project:
                     gains_heat_cool,
                     frac_convective,
                     )
-                
-                # STORAGE DEBUGGING PRINT OUTS - DELETE BEFORE PULL REQUEST
-                print("%.2f" % zone.temp_operative(), end=" ") 
-                print("%.2f" % zone.temp_internal_air()) 
-                # DELETE after confirmation of Electric Storage Heater method
 
 
                 if h_name is None:
