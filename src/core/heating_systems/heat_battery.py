@@ -444,7 +444,7 @@ class HeatBattery:
         self.__charge_level = charge_level
 
         self.__energy_supply_conn.demand_energy(E_in * self.__n_units)
-        self.__energy_supply_connections[service_name].demand_energy(E_out * self.__n_units)
+        self.__energy_supply_connections[service_name].energy_out(E_out * self.__n_units)
 
         self.__total_time_running_current_timestep += time_running_current_service
     
@@ -466,7 +466,7 @@ class HeatBattery:
         
         #Energy used in standby mode
         energy_aux += self.__power_standby * time_remaining_current_timestep
-        
+
         self.__energy_supply_conn.demand_energy(energy_aux)
 
     def timestep_end(self):
