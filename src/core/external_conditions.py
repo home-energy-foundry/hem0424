@@ -13,6 +13,8 @@ based on BS EN ISO 52010-1:2017.
 import sys
 from math import cos, sin, tan, pi, asin, acos, radians, degrees, exp, sqrt, floor
 from itertools import product
+from copy import deepcopy
+
 # Local imports
 import core.units as units
 
@@ -70,7 +72,6 @@ class ExternalConditions:
         self.__air_temps        = air_temps
         self.__wind_speeds      = wind_speeds
         self.__diffuse_horizontal_radiation = diffuse_horizontal_radiation
-        self.__direct_beam_radiation = direct_beam_radiation
         self.__solar_reflectivity_of_ground = solar_reflectivity_of_ground
         self.__latitude = latitude # practical  range -90 to +90
         self.__longitude = longitude # practical range -180 to +180
@@ -148,6 +149,16 @@ class ExternalConditions:
         self.__air_mass = [
             self.__init_air_mass(self.__solar_altitude[current_hour])
             for current_hour in range(0, hours_in_year)
+            ]
+
+        # Calculate direct beam radiation for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        self.__direct_beam_radiation = [
+            self.__init_direct_beam_radiation(
+                direct_beam_radiation[simtime.time_series_idx(self.__start_day, self.__time_series_step)],
+                self.__solar_altitude[simtime.current_hour()]
+                )
+            for _, _, _ in simtime
             ]
 
     def testoutput_setup(self,tilt,orientation):
@@ -268,7 +279,9 @@ class ExternalConditions:
 
     def direct_beam_radiation(self):
         """ Return the direct_beam_radiation for the current timestep """
-        raw_value = self.__direct_beam_radiation[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
+        return self.__direct_beam_radiation[self.__simulation_time.index()]
+    
+    def __init_direct_beam_radiation(self, raw_value, solar_altitude):
         # if the climate data to only provide direct horizontal (rather than normal:
         # If only direct (beam) solar irradiance at horizontal plane is available in the climatic data set,
         # it shall be converted to normal incidence by dividing the value by the sine of the solar altitude.
@@ -285,8 +298,7 @@ class ExternalConditions:
         normal beam irradiance is very sensative for tiny errors in the calculation of the 
         solar altitude."""
         if self.__direct_beam_conversion_needed:
-            current_hour = self.__simulation_time.current_hour()
-            sin_asol = sin(radians(self.__solar_altitude[current_hour]))
+            sin_asol = sin(radians(solar_altitude))
             #prevent division by zero error. if sin_asol = 0 then the sun is lower than the
             #horizon and there will be no direct radiation to convert
             if sin_asol > 0:
