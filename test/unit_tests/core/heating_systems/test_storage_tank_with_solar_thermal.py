@@ -30,7 +30,6 @@ class Test_StorageTankWithSolarThermal(unittest.TestCase):
                              17.4, 17.5, 17.6, 17.7, 17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7]
         self.simtime     = SimulationTime(5088, 5112, 1)        
         coldfeed         = ColdWaterSource(coldwatertemps, self.simtime, 212, 1)
-        self.storagetank = StorageTank(150.0, 1.68, 55.0, coldfeed, self.simtime, None, None, WATER)
         control          = OnOffTimeControl(
                                [True, False, False, False, True, True, True, True],
                                self.simtime,
@@ -38,10 +37,8 @@ class Test_StorageTankWithSolarThermal(unittest.TestCase):
                                1
                                )
         self.energysupply = EnergySupply("electricity", self.simtime)
-        #energysupplyconn = self.energysupply.connection("immersion")
         energysupplyconnst = self.energysupply.connection("solarthermal")
-        #imheater         = ImmersionHeater(50.0, energysupplyconn, self.simtime, control)
-        #heatsource       = self.storagetank.add_heat_source(imheater, 0.9)
+
         #Adding solarthermal to the test
         proj_dict = {
             "ExternalConditions": {
@@ -104,11 +101,8 @@ class Test_StorageTankWithSolarThermal(unittest.TestCase):
                                               energysupplyconnst, 30, 0, 0.5, 
                                               self.__external_conditions, self.simtime
                                               )
-        heatsource       = self.storagetank.add_heat_source(self.solthermal, 0.1, 0.33)
-        #imheater         = ImmersionHeater(50.0, energysupplyconn, self.simtime, control)
-        #heatsource       = self.storagetank.add_heat_source(imheater, 0.9)
-
-
+        heat_source_dict = {self.solthermal: (0.1, 0.33)}
+        self.storagetank = StorageTank(150.0, 1.68, 55.0, coldfeed, self.simtime, heat_source_dict)
 
     def test_demand_hot_water(self):
         for t_idx, _, _ in self.simtime:
