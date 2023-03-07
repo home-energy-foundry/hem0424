@@ -97,7 +97,7 @@ class HW_events_generator:
         
         self.target_DHW_vol = daily_DHW_vol
         self.cwft = cold_water_feed_temps
-        self.mean_feed_temp = np.mean(cold_water_feed_temps)
+        self.mean_feed_temp = sum(cold_water_feed_temps) / len(cold_water_feed_temps)
         self.event_temperature = event_temperature #assumed hot water temp
         
         #utility for applying the sap10.2 monly factors (below)
@@ -185,7 +185,8 @@ class HW_events_generator:
         out = []
         count = self.rng.poisson(expected_event_count)
         feedtemp_adjustment = (self.event_temperature - self.cwft[math.floor(time % 24)])\
-                                /(37)
+                                / 37 #(self.event_temperature - self.mean_feed_temp)
+        feedtemp_adjustment = 1.0
         for i in range(count):
             out.append({
                 'time': time + random.random(), #random offset to time within the hour
