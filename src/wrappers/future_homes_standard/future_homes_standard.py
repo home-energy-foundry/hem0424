@@ -786,12 +786,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     '''
     hrlyevents = [[] for x in range(8760)]
     for i, event in enumerate(ref_eventlist):
-        #list of events in each hour to check durations dont overlap
-        
         if event["type"] != "None":
             if event["type"].find("shower")!=-1:
                 eventstart = event["time"]
-                
                 #now get monthly behavioural factor and apply it, along with FHW
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
                 eventtype, name, durationfunc = HW_event_aa.get_shower()

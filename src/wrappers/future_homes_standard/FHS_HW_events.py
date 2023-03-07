@@ -7,7 +7,8 @@ import numpy as np
 
 class HW_event_adjust_allocate:
     '''
-    class to hold HW events to be added based on showers, baths, other facilities present in dwelling
+    class to determine HW events to be added to project dict
+    based on showers, baths, other facilities present in dwelling
     '''
     def __init__(self, 
                  project_dict,
@@ -85,7 +86,7 @@ class HW_event_adjust_allocate:
     
 class HW_events_generator:
     
-    def __init__(self, daily_DHW_vol, cold_water_feed_temps, HWseed = 10):
+    def __init__(self, daily_DHW_vol, cold_water_feed_temps, event_temperature = 41.0, HWseed = 10):
         
         
         self.HWseed = HWseed
@@ -97,8 +98,7 @@ class HW_events_generator:
         self.target_DHW_vol = daily_DHW_vol
         self.cwft = cold_water_feed_temps
         self.mean_feed_temp = np.mean(cold_water_feed_temps)
-        #print(self.mean_feed_temp)
-        self.event_temperature = 41.0 #assumed hot water temp
+        self.event_temperature = event_temperature #assumed hot water temp
         
         #utility for applying the sap10.2 monly factors (below)
         self.month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
@@ -188,13 +188,13 @@ class HW_events_generator:
                                 /(37)
         for i in range(count):
             out.append({
-                #adjust time if event overlaps
-                'time': time + random.random(), #add random offset to time within the hour
+                'time': time + random.random(), #random offset to time within the hour
                 'type': type,
                 'vol': event_dict["mean_event_volume"]  * feedtemp_adjustment, #these could be distributed rather than always the mean
                 'dur': event_dict["mean_dur"] * feedtemp_adjustment
             })
         return out
+    
     def overlap_check(self,hrlyevents, matchingtypes, eventstart, duration):
         for existing_event in hrlyevents[math.floor(eventstart)]:
             if (existing_event["type"] in matchingtypes)\
@@ -202,23 +202,20 @@ class HW_events_generator:
                    and eventstart < existing_event["eventend"])\
                    or (eventstart + duration / 60 >= existing_event["eventstart"]\
                    and eventstart + duration / 60 < existing_event["eventend"])):
-                #print("rerolling overlap" + str(hrlyevents[math.floor(eventstart)]) + " " + str(eventstart) + " " + str(duration))
                 #events are overlapping and we need to reroll the time until they arent.
                 eventstart = self.reroll_event_time(eventstart)
                 self.overlap_check(hrlyevents,matchingtypes, eventstart, duration)
+    
     def reroll_event_time(self, time):
         #sometimes events will overlap and we need to change the time so they dont
         #do this by adding random value betwen 0-30 mins to current time until its not overlapping with anything
-        #not flooring time so that event can be pushed further forward if necessary when multiple recursions happen
-        #return math.floor(time) + random.random()
         return (time + random.random() / 2) % 8760
-
+    
     def build_annual_HW_events(self, startday = 0):
         list_days = list(zip(*list(self.week.items())))[1]
         annual_HW_events = []
         for day in range(365):
             for hour in range(24):
-                #modulo function below could be adjusted to make use of diff start day
                 for event_type in list_days[(day + startday) % 7]:
                     annual_HW_events.extend(self.events_in_hour(hour + (day * 24), event_type, list_days[day % 7][event_type]))
         return annual_HW_events
