@@ -84,12 +84,15 @@ class StorageTank:
         temp_hot             -- temperature of the hot water, in deg C
         cold_feed            -- reference to ColdWaterSource object
         simulation_time      -- reference to SimulationTime object
+        heat_source_dict     -- dict where keys are heat source objects and
+                                values are tuples of heater and thermostat
+                                position
         energy_supply_conn_unmet_demand 
             -- reference to EnergySupplyConnection object to be used to record unmet energy demand
         contents             -- reference to MaterialProperties object
 
         Other variables:
-        heat_sources         -- list (initialised to empty) of heat sources
+        heat_source_data     -- list of heat sources, sorted by heater position
         """
         self.__Q_std_ls_ref = losses
         self.__temp_hot     = temp_hot
@@ -97,7 +100,6 @@ class StorageTank:
         self.__contents     = contents
         self.__energy_supply_conn_unmet_demand = energy_supply_conn_unmet_demand
         self.__simulation_time = simulation_time
-        self.__heat_sources = []
 
         #total volume in litres
         self.__V_total = volume
@@ -544,22 +546,30 @@ class StorageTank:
     def run_heat_sources(self, temp_s3_n, heat_source, heater_layer, thermostat_layer):
         #6.4.3.8 STEP 6 Energy input into the storage
         #input energy delivered to the storage in kWh - timestep dependent
-        # Note: Function call modified for Solar Thermal as methodology requires to know the storage
-        # tank temperatures (required in the calculation)
         Q_x_in_n = self.potential_energy_input(temp_s3_n, heat_source, heater_layer, thermostat_layer)
-        Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n) #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
-        Q_h_sto_s7, temp_s7_n = self.rearrange_temperatures(temp_s6_n) #STEP 8 Thermal losses and final temperature
-        Q_in_H_W, Q_ls, temp_s8_n = self.thermal_losses(temp_s7_n, Q_x_in_n, Q_h_sto_s7, thermostat_layer) #TODO 6.4.3.11 Heat exchanger
-        
+        Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
+
+        #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
+        Q_h_sto_s7, temp_s7_n = self.rearrange_temperatures(temp_s6_n)
+
+        #STEP 8 Thermal losses and final temperature
+        Q_in_H_W, Q_ls, temp_s8_n = self.thermal_losses(temp_s7_n, Q_x_in_n, Q_h_sto_s7, thermostat_layer)
+
+        #TODO 6.4.3.11 Heat exchanger
+
         #Additional calculations
         #6.4.6 Calculation of the auxiliary energy
         #accounted for elsewhere so not included here
-        W_sto_aux = 0 #6.4.7 Recoverable, recovered thermal losses
-        
+        W_sto_aux = 0
+
+        #6.4.7 Recoverable, recovered thermal losses
         #recovered auxiliary energy to the heating medium - kWh
-        Q_sto_h_aux_rvd = W_sto_aux * self.__f_rvd_aux #recoverable auxiliary energy transmitted to the heated space - kWh
-        Q_sto_h_rbl_aux = W_sto_aux * self.__f_sto_m * (1 - self.__f_rvd_aux) #recoverable heat losses (storage) - kWh
-        Q_sto_h_rbl_env = Q_ls * self.__f_sto_m #total recoverable heat losses  for heating - kWh
+        Q_sto_h_aux_rvd = W_sto_aux * self.__f_rvd_aux
+        #recoverable auxiliary energy transmitted to the heated space - kWh
+        Q_sto_h_rbl_aux = W_sto_aux * self.__f_sto_m * (1 - self.__f_rvd_aux)
+        #recoverable heat losses (storage) - kWh
+        Q_sto_h_rbl_env = Q_ls * self.__f_sto_m
+        #total recoverable heat losses  for heating - kWh
         self.__Q_sto_h_ls_rbl = Q_sto_h_rbl_env + Q_sto_h_rbl_aux
         
         #demand adjusted energy from heat source (before was just using potential without taking it)
