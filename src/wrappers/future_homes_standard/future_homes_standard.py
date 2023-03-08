@@ -850,9 +850,20 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
         for name in project_dict["Events"][eventtype]:
             for i, event in enumerate(project_dict["Events"][eventtype][name]):
                 check_events.append([project_dict["Events"][eventtype][name][i]["start"], \
+                                     project_dict["Events"][eventtype][name][i]["duration"],
+                                     project_dict["Events"][eventtype][name][i]["duration"] * project_dict[eventtype][name]["flowrate"],
                                      project_dict["Events"][eventtype][name][i]["duration"] * project_dict[eventtype][name]["flowrate"]\
                                      * 4.18 / 3600.0 * ( event_temperature - cold_water_feed_temps[math.floor(project_dict["Events"][eventtype][name][i]["start"])])])
     print(sum(list(zip(*check_events))[1]))
+    print(sum(list(zip(*check_events))[2]))
+    print(sum(list(zip(*check_events))[3]))
+    events_check_hrly = [[0,0,0] for x in range(8760)]
+    for event in check_events:
+        events_check_hrly[math.floor(event[0])] = [events_check_hrly[math.floor(event[0])][i] + event[i + 1] for i in range(len(event) -1)]
+    
+    with open("eventscompare_test.csv", "w") as testcsv:
+        testwriter = csv.writer(testcsv)
+        testwriter.writerows(events_check_hrly)
 
 
 def create_cooling(project_dict):
