@@ -146,26 +146,20 @@
 	"Shower": {
 		"mixer": {
 			"type": "MixerShower",
-			"flowrate": 8.0,
+			"flowrate": 5.9,
 			"ColdWaterSource": "mains water"
-		},
-		"IES": {
-			"type": "InstantElecShower",
-			"rated_power": 9.0,
-			"ColdWaterSource": "mains water",
-			"EnergySupply": "mains elec"
 		}
 	},
 	"Bath": {
 		"medium": {
 			"size": 100,
 			"ColdWaterSource": "mains water",
-			"flowrate": 8.0
+			"flowrate": 5.9
 		}
 	},
 	"Other": {
 		"other": {
-			"flowrate": 8.0,
+			"flowrate": 5.9,
 			"ColdWaterSource": "mains water"
 		}
 	},
@@ -254,7 +248,7 @@
 			"SpaceHeatSystem": "main 1",
 			"SpaceCoolSystem": "cooling system 1",
 			"SpaceHeatControl":"livingroom",
-			"area": 80.0,
+			"area": 8.0,
 			"volume": 250.0,
 			"Lighting": {
 				"efficacy": 56.0
@@ -371,7 +365,7 @@
 			"SpaceHeatSystem": "main 2",
 			"SpaceCoolSystem": "cooling system 2",
 			"SpaceHeatControl":"restofdwelling",
-			"area": 80.0,
+			"area": 400.0,
 			"volume": 250.0,
 			"Lighting": {
 				"efficacy": 56.0
