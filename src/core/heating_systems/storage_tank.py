@@ -70,6 +70,7 @@ class StorageTank:
             temp_hot,
             cold_feed,
             simulation_time,
+            heat_source_dict,
             primary_pipework=None,
             energy_supply_conn_unmet_demand=None,
             contents=WATER,
@@ -83,12 +84,15 @@ class StorageTank:
         temp_hot             -- temperature of the hot water, in deg C
         cold_feed            -- reference to ColdWaterSource object
         simulation_time      -- reference to SimulationTime object
+        heat_source_dict     -- dict where keys are heat source objects and
+                                values are tuples of heater and thermostat
+                                position
         energy_supply_conn_unmet_demand 
             -- reference to EnergySupplyConnection object to be used to record unmet energy demand
         contents             -- reference to MaterialProperties object
 
         Other variables:
-        heat_sources         -- list (initialised to empty) of heat sources
+        heat_source_data     -- list of heat sources, sorted by heater position
         """
         self.__Q_std_ls_ref = losses
         self.__temp_hot     = temp_hot
@@ -96,7 +100,6 @@ class StorageTank:
         self.__contents     = contents
         self.__energy_supply_conn_unmet_demand = energy_supply_conn_unmet_demand
         self.__simulation_time = simulation_time
-        self.__heat_sources = []
 
         #total volume in litres
         self.__V_total = volume
@@ -127,18 +130,8 @@ class StorageTank:
                     primary_pipework["surface_reflectivity"],
                     primary_pipework["pipe_contents"])
 
-    def add_heat_source(self, heat_source, heater_position, thermostat_position):
-        """ Add a reference to heat source object and specify position in tank.
-
-        Heat source object must implement the demand_energy(energy_demand) function.
-        """
-        # TODO Add proportion to list. Account for thermostat position for each
-        #      heat source individually?
-        self.__heat_sources.append(heat_source)
-        # layer number of thermostat 
-        self.__thermostat_layer = int(thermostat_position*self.__NB_VOL)
-        # layer number of heater
-        self.__heater_layer = int(heater_position *self.__NB_VOL)
+        # sort heat source data in order from the bottom of the tank based on heater position
+        self.__heat_source_data = sorted(heat_source_dict.items(), key=lambda x:x[1])
 
     def stand_by_losses_coefficient(self):
         """Appendix B B.2.8 Stand-by losses are usually determined in terms of energy losses during
@@ -312,30 +305,26 @@ class StorageTank:
         return temp_s3_n
 
     # Heat source. Addition of temp_s3_n as an argument
-    def potential_energy_input(self, temp_s3_n):
+    def potential_energy_input(self, temp_s3_n, heat_source, heater_layer, thermostat_layer):
         """Energy input for the storage from the generation system
         (expressed per energy carrier X)
         Heat Source = energy carrier"""
         #initialise list of potential energy input for each layer
         Q_x_in_n = [0] * self.__NB_VOL
 
-        #TODO - this should be calculated in accordance to EN 15316-1. check this is used.
-        for heat_source in self.__heat_sources:
-            #original code
-            #energy_potential = heat_source.energy_output_max()
-            if isinstance(heat_source, SolarThermalSystem):
-                # We are passing the storage tank object to the SolarThermal as this needs to call
-                # back the storage tank....
-                energy_potential = heat_source.energy_output_max(self, temp_s3_n)
+        if isinstance(heat_source, SolarThermalSystem):
+            # We are passing the storage tank object to the SolarThermal as this needs to call
+            # back the storage tank....
+            energy_potential = heat_source.energy_output_max(self, temp_s3_n)
+        else:
+            #No demand from heat source if the temperature of the tank at the 
+            #thermostat position is below the set point
+            if temp_s3_n[thermostat_layer] >= self.__temp_out_W_min:
+                energy_potential = 0.0
             else:
-                #No demand from heat source if the temperature of the tank at the 
-                #thermostat position is below the set point
-                if temp_s3_n[self.__thermostat_layer] >= self.__temp_out_W_min:
-                    energy_potential = 0.0
-                else:
-                    energy_potential = heat_source.energy_output_max()
+                energy_potential = heat_source.energy_output_max()
 
-            Q_x_in_n[0] += energy_potential
+        Q_x_in_n[heater_layer] += energy_potential
 
         return Q_x_in_n
 
@@ -422,7 +411,7 @@ class StorageTank:
 
         return Q_h_sto_end, temp_s7_n
 
-    def thermal_losses(self, temp_s7_n, Q_x_in_n, Q_h_sto_s7):
+    def thermal_losses(self, temp_s7_n, Q_x_in_n, Q_h_sto_s7, thermostat_layer):
         """Thermal losses are calculated with respect to the impact of the temperature set point"""
         #standby losses coefficient - kW/K
         H_sto_ls = self.stand_by_losses_coefficient()
@@ -468,7 +457,7 @@ class StorageTank:
         """excess energy is calculated as the difference from the energy stored, Qsto,step7, and
            energy stored once the set temperature is obtained, Qsto,step8, with addition of the
            thermal losses."""
-        if temp_s7_n[self.__thermostat_layer] > self.__temp_set_on:
+        if temp_s7_n[thermostat_layer] > self.__temp_set_on:
             energy_surplus = Q_h_sto_s7 - Q_ls \
                              - ( self.__rho * self.__Cp * self.__V_total * self.__temp_set_on)
         else:
@@ -554,6 +543,46 @@ class StorageTank:
             o.write(str(temp_s8_n))
             o.write(",")
 
+    def run_heat_sources(self, temp_s3_n, heat_source, heater_layer, thermostat_layer):
+        #6.4.3.8 STEP 6 Energy input into the storage
+        #input energy delivered to the storage in kWh - timestep dependent
+        Q_x_in_n = self.potential_energy_input(temp_s3_n, heat_source, heater_layer, thermostat_layer)
+        Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
+
+        #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
+        Q_h_sto_s7, temp_s7_n = self.rearrange_temperatures(temp_s6_n)
+
+        #STEP 8 Thermal losses and final temperature
+        Q_in_H_W, Q_ls, temp_s8_n = self.thermal_losses(temp_s7_n, Q_x_in_n, Q_h_sto_s7, thermostat_layer)
+
+        #TODO 6.4.3.11 Heat exchanger
+
+        #Additional calculations
+        #6.4.6 Calculation of the auxiliary energy
+        #accounted for elsewhere so not included here
+        W_sto_aux = 0
+
+        #6.4.7 Recoverable, recovered thermal losses
+        #recovered auxiliary energy to the heating medium - kWh
+        Q_sto_h_aux_rvd = W_sto_aux * self.__f_rvd_aux
+        #recoverable auxiliary energy transmitted to the heated space - kWh
+        Q_sto_h_rbl_aux = W_sto_aux * self.__f_sto_m * (1 - self.__f_rvd_aux)
+        #recoverable heat losses (storage) - kWh
+        Q_sto_h_rbl_env = Q_ls * self.__f_sto_m
+        #total recoverable heat losses  for heating - kWh
+        self.__Q_sto_h_ls_rbl = Q_sto_h_rbl_env + Q_sto_h_rbl_aux
+        
+        #demand adjusted energy from heat source (before was just using potential without taking it)
+        input_energy_adj = deepcopy(Q_in_H_W)
+
+        #energy demand saved for unittest
+        self.__energy_demand_test = deepcopy(input_energy_adj)
+
+        heat_source_output = self.heat_source_output(heat_source, input_energy_adj)
+        input_energy_adj = input_energy_adj - heat_source_output
+
+        return temp_s8_n, Q_x_in_n, Q_s6, temp_s6_n, temp_s7_n, Q_in_H_W, Q_ls
+
     def demand_hot_water(self, volume_demanded):
         """ Draw off hot water from the tank
         Energy calculation as per BS EN 15316-5:2017 Method A sections 6.4.3, 6.4.6, 6.4.7
@@ -586,47 +615,17 @@ class StorageTank:
 
         #TODO 6.4.3.6 STEP 4 Volume to be withdrawn from the storage (for Heating)
         #TODO - 6.4.3.7 STEP 5 Temperature of the storage after volume withdrawn (for Heating)
-
-        #6.4.3.8 STEP 6 Energy input into the storage
-        #input energy delivered to the storage in kWh - timestep dependent
-        # Note: Function call modified for Solar Thermal as methodology requires to know the storage
-        # tank temperatures (required in the calculation) 
-        Q_x_in_n = self.potential_energy_input(temp_s3_n)
-
-        Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
-
-        #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
-        Q_h_sto_s7, temp_s7_n = self.rearrange_temperatures(temp_s6_n)
-
-        #STEP 8 Thermal losses and final temperature
-        Q_in_H_W, Q_ls, temp_s8_n \
-            = self.thermal_losses(temp_s7_n, Q_x_in_n, Q_h_sto_s7)
-
-        #TODO 6.4.3.11 Heat exchanger
-
-        #Additional calculations
-        #6.4.6 Calculation of the auxiliary energy
-        #accounted for elsewhere so not included here
-        W_sto_aux = 0
-
-        #6.4.7 Recoverable, recovered thermal losses
-        #recovered auxiliary energy to the heating medium - kWh
-        Q_sto_h_aux_rvd = W_sto_aux * self.__f_rvd_aux
-        #recoverable auxiliary energy transmitted to the heated space - kWh
-        Q_sto_h_rbl_aux = W_sto_aux * self.__f_sto_m * (1 - self.__f_rvd_aux)
-        #recoverable heat losses (storage) - kWh
-        Q_sto_h_rbl_env = Q_ls * self.__f_sto_m
-        #total recoverable heat losses  for heating - kWh
-        self.__Q_sto_h_ls_rbl = Q_sto_h_rbl_env + Q_sto_h_rbl_aux
-
-        #demand adjusted energy from heat source (before was just using potential without taking it)
-        input_energy_adj = deepcopy(Q_in_H_W)
-
-        #energy demand saved for unittest
-        self.__energy_demand_test = deepcopy(input_energy_adj)
-
-        for heat_source in self.__heat_sources:
-            input_energy_adj = input_energy_adj - self.heat_source_output(heat_source, input_energy_adj)
+        
+        # Run over multiple heat sources
+        for heat_source,  heat_source_data in self.__heat_source_data:
+            heater_layer = int(heat_source_data[0] *self.__NB_VOL)
+            thermostat_layer = int(heat_source_data[1] *self.__NB_VOL)
+            temp_s8_n, Q_x_in_n, Q_s6, temp_s6_n, temp_s7_n, Q_in_H_W, Q_ls = self.run_heat_sources(
+                temp_s3_n,
+                heat_source,
+                heater_layer,
+                thermostat_layer
+                )
 
         #set temperatures calculated to be initial temperatures of volumes for the next timestep
         self.__temp_n = deepcopy(temp_s8_n)

@@ -818,20 +818,24 @@ class Project:
                     primary_pipework = data['primary_pipework']
                 else:
                     primary_pipework = None
-                    
+
+                heat_source_dict= {}
+                for heat_source_name, heat_source_data in data['HeatSource'].items():
+                    heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
+                    heat_source_dict[heat_source] = heat_source_data['heater_position'], \
+                                                    heat_source_data['thermostat_position']
+
                 hw_source = StorageTank(
                     data['volume'],
                     data['daily_losses'],
                     55.0, # TODO Remove hard-coding of hot water temp
                     cold_water_source,
                     self.__simtime,
+                    heat_source_dict,
                     primary_pipework,
                     energy_supply_unmet_demand.connection(name)
                     )
-                    
-                for heat_source_name, heat_source_data in data['HeatSource'].items():
-                    heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
-                    hw_source.add_heat_source(heat_source, heat_source_data['heater_position'], heat_source_data['thermostat_position'])
+
             elif hw_source_type == 'CombiBoiler':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
                 hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_combi(
