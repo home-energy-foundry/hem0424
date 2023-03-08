@@ -128,10 +128,8 @@ class EnergySupply:
             sys.exit("Error: End user name ("+end_user_name+
                      ") not already registered by calling connection function.")
             # TODO Exit just the current case instead of whole program entirely?
-        t_idx = self.__simulation_time.index()
 
-        # print(f'{end_user_name} ', self.__demand_by_end_user[end_user_name][t_idx], amount_demanded)
-        # print('Total: ', self.__demand_total[t_idx], amount_demanded)
+        t_idx = self.__simulation_time.index()
         self.__energy_out_by_end_user[end_user_name][t_idx] \
             = self.__energy_out_by_end_user[end_user_name][t_idx] \
             + amount_demanded
@@ -179,7 +177,7 @@ class EnergySupply:
         all_results_by_end_user = {}
         for demand, energy_out in zip(self.__demand_by_end_user.items(), self.__energy_out_by_end_user.items()):
             if demand[0] == energy_out[0]:
-                user_name = demand[0]  # Can user either demand[0] or energy_out[0] to retrieve end user name
+                user_name = demand[0]  # Can use either demand[0] or energy_out[0] to retrieve end user name
                 all_results_by_end_user[user_name] = np.array(demand[1]) + np.array(energy_out[1])
 
         return all_results_by_end_user
