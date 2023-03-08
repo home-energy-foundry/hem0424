@@ -686,8 +686,8 @@ class Project:
                 self.__internal_gains[name] = InternalGains(
                     total_internal_gains_HIU,
                     self.__simtime,
-                    proj_dict['SimulationTime']['start'],
-                    proj_dict['SimulationTime']['step']
+                    0, # Start day of internal gains time series
+                    1.0, # Timestep of internal gains time series
                     )
             else:
                 sys.exit(name + ': heat source type (' \
