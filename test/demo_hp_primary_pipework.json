@@ -82,7 +82,9 @@
 					"temp_flow_limit_upper": 65,
 					"ColdWaterSource": "mains water",
 					"EnergySupply": "mains elec",
-					"Control": "hw timer"
+					"Control": "hw timer",
+					"heater_position": 0.1,
+					"thermostat_position": 0.33
 				}
 			},
 			"primary_pipework": {

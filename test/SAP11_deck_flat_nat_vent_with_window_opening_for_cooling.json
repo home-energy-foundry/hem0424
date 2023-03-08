@@ -8861,7 +8861,9 @@
 					"type": "ImmersionHeater",
 					"power": 3.0,
 					"EnergySupply": "mains elec",
-					"Control": "hw timer"
+					"Control": "hw timer",
+					"heater_position": 0.1,
+					"thermostat_position": 0.33,
 				}
 			}
 		}

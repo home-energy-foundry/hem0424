@@ -94,6 +94,8 @@
 					"ColdWaterSource": "mains water",
 					"EnergySupply": "mains elec",
 					"Control": "hw timer",
+					"heater_position": 0.1,
+					"thermostat_position": 0.33,
 					"temp_return": 60
 				}
 			},

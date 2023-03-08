@@ -102,10 +102,6 @@ class StorageTank:
         self.__V_total = volume
         #list of volume of layers in litres
         self.__Vol_n = [self.__V_total / self.__NB_VOL] * self.__NB_VOL
-        #thermostat position is typically fitted 1/3rd from the bottom of the tank
-        self.__thermostat_pos = 1.0 / 3.0
-        # layer number of thermostat
-        self.__thermostat_layer = int(self.__thermostat_pos * self.__NB_VOL)
         #water specific heat in kWh/kg.K
         self.__Cp = contents.specific_heat_capacity_kWh()
         #volumic mass in kg/litre
@@ -131,7 +127,7 @@ class StorageTank:
                     primary_pipework["surface_reflectivity"],
                     primary_pipework["pipe_contents"])
 
-    def add_heat_source(self, heat_source, proportion_of_tank_heated):
+    def add_heat_source(self, heat_source, heater_position, thermostat_position):
         """ Add a reference to heat source object and specify position in tank.
 
         Heat source object must implement the demand_energy(energy_demand) function.
@@ -139,6 +135,10 @@ class StorageTank:
         # TODO Add proportion to list. Account for thermostat position for each
         #      heat source individually?
         self.__heat_sources.append(heat_source)
+        # layer number of thermostat 
+        self.__thermostat_layer = int(thermostat_position*self.__NB_VOL)
+        # layer number of heater
+        self.__heater_layer = int(heater_position *self.__NB_VOL)
 
     def stand_by_losses_coefficient(self):
         """Appendix B B.2.8 Stand-by losses are usually determined in terms of energy losses during
@@ -319,7 +319,6 @@ class StorageTank:
         #initialise list of potential energy input for each layer
         Q_x_in_n = [0] * self.__NB_VOL
 
-        #TODO - allow position of heat source to be defined in any layer (assume bottom tank atm)
         #TODO - this should be calculated in accordance to EN 15316-1. check this is used.
         for heat_source in self.__heat_sources:
             #original code

@@ -104,7 +104,7 @@ class Test_StorageTankWithSolarThermal(unittest.TestCase):
                                               energysupplyconnst, 30, 0, 0.5, 
                                               self.__external_conditions, self.simtime
                                               )
-        heatsource       = self.storagetank.add_heat_source(self.solthermal, 0.5)
+        heatsource       = self.storagetank.add_heat_source(self.solthermal, 0.1, 0.33)
         #imheater         = ImmersionHeater(50.0, energysupplyconn, self.simtime, control)
         #heatsource       = self.storagetank.add_heat_source(imheater, 0.9)
 

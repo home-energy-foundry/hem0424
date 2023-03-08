@@ -136,7 +136,9 @@
 					"EnergySupply": "mains elec",
 					"tilt": 30,
   					"orientation": 0,
-  					"solar_loop_piping_hlc": 0.5
+  					"solar_loop_piping_hlc": 0.5,
+					"heater_position": 0.1,
+					"thermostat_position": 0.33
 				}
 			}
 		}
