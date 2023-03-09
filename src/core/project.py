@@ -14,7 +14,7 @@ import core.units as units
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
 from core.schedule import expand_schedule, expand_events
-from core.controls.time_control import OnOffTimeControl, SetpointTimeControl
+from core.controls.time_control import OnOffTimeControl, SetpointTimeControl, ToUChargeControl
 from core.cooling_systems.air_conditioning import AirConditioning
 from core.energy_supply.energy_supply import EnergySupply
 from core.energy_supply.elec_battery import ElectricBattery
@@ -25,6 +25,7 @@ from core.heating_systems.storage_tank import ImmersionHeater, SolarThermalSyste
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.heating_systems.elec_storage_heater import ElecStorageHeater
 from core.heating_systems.boiler import Boiler
+from core.heating_systems.heat_battery import HeatBattery
 from core.heating_systems.heat_network import HeatNetwork
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
@@ -187,14 +188,24 @@ class Project:
                     default_to_max = data['default_to_max']
 
                 ctrl = SetpointTimeControl(
-                    sched,
-                    self.__simtime,
-                    data['start_day'],
-                    data['time_series_step'],
-                    setpoint_min,
-                    setpoint_max,
-                    default_to_max,
-                    )
+                    schedule=sched,
+                    simulation_time=self.__simtime,
+                    start_day=data['start_day'],
+                    time_series_step=data['time_series_step'],
+                    setpoint_min=setpoint_min,
+                    setpoint_max=setpoint_max,
+                    default_to_max=default_to_max,
+                )
+            elif ctrl_type == 'ToUChargeControl':
+                sched = expand_schedule(bool, data['schedule'], "main", False)
+                ctrl = ToUChargeControl(
+                    schedule=sched,
+                    simulation_time=self.__simtime,
+                    start_day=data['start_day'],
+                    time_series_step=data['time_series_step'],
+                    logic_type=data['logic_type'],
+                    charge_level=data['charge_level']
+                )
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -689,6 +700,20 @@ class Project:
                     0, # Start day of internal gains time series
                     1.0, # Timestep of internal gains time series
                     )
+            elif heat_source_type == 'HeatBattery':
+                energy_supply = self.__energy_supplies[data['EnergySupply']]
+                # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn = energy_supply.connection(name)
+                charge_control: ToUChargeControl = self.__controls[data['ControlCharge']]
+                heat_source = HeatBattery(
+                    data,
+                    charge_control,
+                    energy_supply,
+                    energy_supply_conn,
+                    self.__simtime,
+                    self.__external_conditions,
+                    )
+                self.__timestep_end_calcs.append(heat_source)
             else:
                 sys.exit(name + ': heat source type (' \
                        + heat_source_type + ') not recognised.')
@@ -781,6 +806,14 @@ class Project:
                         cold_water_source,
                         ctrl,
                         )
+                elif isinstance(heat_source_wet, HeatBattery):
+                    heat_source = heat_source_wet.create_service_hot_water_regular(
+                        data,
+                        data['name'] + '_water_heating',
+                        55, # TODO Remove hard-coding of HW temp
+                        cold_water_source,
+                        data['temp_return']
+                        )
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
@@ -865,6 +898,9 @@ class Project:
                     cold_water_source,
                     data['HIU_daily_loss']
                     )
+            elif hw_source_type == 'HeatBattery':
+                # TODO MC - add PCM heat battery in here
+                pass
             else:
                 sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -944,6 +980,11 @@ class Project:
                         ctrl,
                         )
                 elif isinstance(heat_source, HeatNetwork):
+                    heat_source_service = heat_source.create_service_space_heating(
+                        data['HeatSource']['name'] + '_space_heating: ' + name,
+                        ctrl,
+                        )
+                elif isinstance(heat_source, HeatBattery):
                     heat_source_service = heat_source.create_service_space_heating(
                         data['HeatSource']['name'] + '_space_heating: ' + name,
                         ctrl,
