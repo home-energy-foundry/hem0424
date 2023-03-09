@@ -53,7 +53,7 @@ class TestElecStorageHeater(unittest.TestCase):
                 "thermal_mass": 0.01278,
                 "frac_convective": 0.7,
                 "U_ins": 0.3,
-                "temp_charge_cut": 16.0,
+                "temp_charge_cut": 15.5,
                 "mass_core": 130.0,
                 "c_pcore": 920.0,
                 "temp_core_target": 450.0,

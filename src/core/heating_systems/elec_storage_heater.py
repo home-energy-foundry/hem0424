@@ -240,6 +240,19 @@ class ElecStorageHeater:
         returns -- Energy in kWh
         """
         return power / units.W_per_kW * timestep * self.__n_units
+    
+    def __temp_charge_cut_corr(self) -> float:
+        """
+        Correct nominal/json temp_charge_cut with monthly table 
+        Arguments
+
+        returns -- temp_charge_cut (corrected)
+        """
+        temp_charge_cut_delta = [ -1.2, -0.6, 0.0, 0.6, 1.2, 1.2, 1.2, 1.2, 0.6, 0.0, -0.6, -1.2 ]
+        current_month = self.__simtime.current_month()
+        temp_charge_cut = self.__temp_charge_cut + temp_charge_cut_delta[current_month]
+
+        return temp_charge_cut
 
     def __electric_charge(self, time: float, t_core: float) -> float:
         """
@@ -250,7 +263,8 @@ class ElecStorageHeater:
 
         returns -- Power required in watts
         """
-        if self.temp_air >= self.__temp_charge_cut:
+
+        if self.temp_air >= self.__temp_charge_cut_corr():
             return 0.0
         
         target_charge: float = self.__charge_control.target_charge()
