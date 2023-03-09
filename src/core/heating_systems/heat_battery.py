@@ -252,7 +252,7 @@ class HeatBattery:
 
         self.labs_tests_rated_output_enhanced: list = [
             [0.0, 0.0],
-            [0.101, 0.145],
+            [0.101, 0.0],
             [0.12, 0.18],
             [0.144, 0.235],
             [0.175, 0.313],
