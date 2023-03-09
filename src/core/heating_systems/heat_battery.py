@@ -248,6 +248,26 @@ class HeatBattery:
             [0.89, 0.89],
             [1.0, 1.0]
         ]
+
+
+        self.labs_tests_rated_output_enhanced: list = [
+            [0.0, 0.0],
+            [0.101, 0.145],
+            [0.12, 0.18],
+            [0.144, 0.235],
+            [0.175, 0.313],
+            [0.215, 0.391],
+            [0.266, 0.486],
+            [0.328, 0.607],
+            [0.406, 0.728],
+            [0.494, 0.795],
+            [0.587, 0.825],
+            [0.683, 0.875],
+            [0.781, 0.906],
+            [0.891, 0.953],
+            [0.981, 0.992],
+            [1.0, 1.0]
+        ]
         
         # Charge level x losses
         # each as a proportion of the maximum as specified in inputs
@@ -358,8 +378,8 @@ class HeatBattery:
         
     def __lab_test_rated_output(self, charge_level: float) -> float:
         # labs_test for heat battery
-        x: list = [row[0] for row in self.labs_tests_rated_output]
-        y: list = [row[1] for row in self.labs_tests_rated_output]
+        x: list = [row[0] for row in self.labs_tests_rated_output_enhanced]
+        y: list = [row[1] for row in self.labs_tests_rated_output_enhanced]
         return ( np.interp(charge_level, x, y) * self.__max_rated_heat_output )
 
     def __lab_test_losses(self, charge_level: float) -> float:
@@ -454,7 +474,7 @@ class HeatBattery:
             'time_running': time_running_current_service,
             'current_hb_power': self.__Q_out_ts
             })
-    
+        
         return energy_output_provided
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
@@ -484,6 +504,8 @@ class HeatBattery:
         # TODO: Assign thermal losses to relevant zone if heat battery is not outdoors.
         E_loss = self.__Q_loss_ts * time_remaining_current_timestep #kWh 
         E_in = self.__Q_in_ts * time_remaining_current_timestep #kWh 
+
+        self.__energy_supply_conn.demand_energy(E_in * self.__n_units)
 
         charge_level: float = self.__charge_level
         target_charge: float = self.__charge_control.target_charge()
