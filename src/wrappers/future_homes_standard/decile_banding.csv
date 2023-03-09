@@ -1,4 +1,4 @@
-no_hholds,decile,median_daily_dhw_vol,min_daily_dhw_vol,max_daily_dhw_vol,comparison_daily_dhw_vol,comparison_DHW_variance
+no_hholds,decile,median_daily_dhw_vol,min_daily_dhw_vol,max_daily_dhw_vol,calibration_daily_dhw_vol,calibration_DHW_variance
 505,1,44.63666692,23.18999994,56.36833286,57.8842740865285,3.74731311189499
 360,2,65.86333287,56.36833286,74.3624993,81.2942934979176,5.71168810199557
 330,3,82.06666675,74.3624993,90.38333333,98.5659310149134,7.16439646115579

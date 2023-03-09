@@ -751,13 +751,12 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     ref_vol = 0
     for event in ref_eventlist:  
         '''
-        NB while calibration is done by event volumes we use the event durations from the HW csv data
-        so the actual hw use predicted by sap depends on flowrates in dwelling
+        NB while calibration is done by event volumes we use the event durations from the HW csv data for showers
+        so the actual hw use predicted by sap depends on shower flowrates in dwelling
         flowrates implied by the data are ~5.9 for all events
         '''
         ref_vol += float(event["vol"])
     ref_QHW = 4.18 * (mean_delta_T / 3600) * ref_vol
-    print(4.18 * (mean_delta_T / 3600) * ref_vol)
 
     # Add daily average hot water use to hot water only heat pump (HWOHP) object, if present
     # TODO This is probably only valid if HWOHP is the only heat source for the
@@ -769,9 +768,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                     heat_source_obj['vol_hw_daily_average'] = vol_daily_average
 
     targetQHW = 365 * 4.18 * (mean_delta_T / 3600) * vol_daily_average
-    print(targetQHW)
     FHW = targetQHW / ref_QHW
-    print(FHW)
 
     '''
     if part G has been complied with, apply 5% reduction to duration of all events except showers
@@ -826,7 +823,6 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 #now get monthly behavioural factor and apply it, along with FHW and partGbonus
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
                 eventtype, name, durationfunc = HW_event_aa.get_bath()
-                #duration = event["dur"] * durationfunc(monthidx)
                 duration = ( event["vol"] / project_dict[eventtype][name]["flowrate"] ) * durationfunc(monthidx)
                 
                 HWeventgen.overlap_check(hrlyevents, ["Shower", "Bath"], eventstart, duration)
@@ -844,7 +840,6 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 #now get monthly behavioural factor and apply it, along with FHW
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
                 eventtype, name, durationfunc = HW_event_aa.get_other()
-                #duration = event["dur"] * durationfunc(monthidx)
                 duration = ( event["vol"] / project_dict[eventtype][name]["flowrate"] ) * durationfunc(monthidx)
                 
                 HWeventgen.overlap_check(hrlyevents, ["Other"], eventstart, duration)
@@ -857,26 +852,6 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                      "duration": duration,
                      "temperature": 41.0}
                 )
-    check_events = []
-    for eventtype in project_dict["Events"]:
-        for name in project_dict["Events"][eventtype]:
-            for i, event in enumerate(project_dict["Events"][eventtype][name]):
-                check_events.append([project_dict["Events"][eventtype][name][i]["start"], \
-                                     project_dict["Events"][eventtype][name][i]["duration"],
-                                     project_dict["Events"][eventtype][name][i]["duration"] * project_dict[eventtype][name]["flowrate"],
-                                     project_dict["Events"][eventtype][name][i]["duration"] * project_dict[eventtype][name]["flowrate"]\
-                                     * 4.18 / 3600.0 * ( event_temperature - cold_water_feed_temps[math.floor(project_dict["Events"][eventtype][name][i]["start"])])])
-    print(sum(list(zip(*check_events))[1]))
-    print(sum(list(zip(*check_events))[2]))
-    print(sum(list(zip(*check_events))[3]))
-    events_check_hrly = [[0,0,0] for x in range(8760)]
-    for event in check_events:
-        events_check_hrly[math.floor(event[0])] = [events_check_hrly[math.floor(event[0])][i] + event[i + 1] for i in range(len(event) -1)]
-    
-    with open("eventscompare_test.csv", "w") as testcsv:
-        testwriter = csv.writer(testcsv)
-        testwriter.writerows(events_check_hrly)
-
 
 def create_cooling(project_dict):
     cooling_setpoint = 24.0

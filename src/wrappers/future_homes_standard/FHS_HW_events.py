@@ -119,15 +119,15 @@ class HW_events_generator:
                     and daily_DHW_vol < float(row["max_daily_dhw_vol"]):
                     #print(daily_DHW_vol)
                     self.decile = int(row["decile"]) - 1
-                    self.banding_correction = daily_DHW_vol / float(row["comparison_daily_dhw_vol"])
+                    self.banding_correction = daily_DHW_vol / float(row["calibration_daily_dhw_vol"])
                     #print(float(row["median_daily_dhw_vol"]))
             if self.decile == -1:
                 if daily_DHW_vol < bandsfilereader[0]["min_daily_dhw_vol"]:
                     self.decile = 0
-                    self.banding_correction = daily_DHW_vol / float(row["comparison_daily_dhw_vol"])
+                    self.banding_correction = daily_DHW_vol / float(row["calibration_daily_dhw_vol"])
                 elif daily_DHW_vol > bandsfilereader[9]["min_daily_dhw_vol"]:
                     self.decile = 9
-                    self.banding_correction = daily_DHW_vol / float(row["comparison_daily_dhw_vol"])
+                    self.banding_correction = daily_DHW_vol / float(row["calibration_daily_dhw_vol"])
             if self.decile == -1:
                 print("HW decile error, exiting")
                 sys.exit()
@@ -184,15 +184,12 @@ class HW_events_generator:
         expected_event_count = event_dict['hourly_event_distribution'][math.floor(time % 24)] * self.banding_correction
         out = []
         count = self.rng.poisson(expected_event_count)
-        feedtemp_adjustment = (self.event_temperature - self.cwft[math.floor(time % 24)])\
-                                / 37 #(self.event_temperature - self.mean_feed_temp)
-        feedtemp_adjustment = 1.0
         for i in range(count):
             out.append({
                 'time': time + random.random(), #random offset to time within the hour
                 'type': type,
-                'vol': event_dict["mean_event_volume"]  * feedtemp_adjustment, #these could be distributed rather than always the mean
-                'dur': event_dict["mean_dur"] * feedtemp_adjustment
+                'vol': event_dict["mean_event_volume"], #these could be distributed rather than always the mean
+                'dur': event_dict["mean_dur"]
             })
         return out
     
