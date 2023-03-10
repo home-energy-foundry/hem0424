@@ -21,7 +21,8 @@ from core.energy_supply.elec_battery import ElectricBattery
 from core.energy_supply.pv import PhotovoltaicSystem
 from core.heating_systems.emitters import Emitters
 from core.heating_systems.heat_pump import HeatPump, HeatPump_HWOnly, SourceType
-from core.heating_systems.storage_tank import ImmersionHeater, SolarThermalSystem, StorageTank
+from core.heating_systems.storage_tank import \
+    ImmersionHeater, SolarThermalSystem, StorageTank, PVDiverter
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.heating_systems.elec_storage_heater import ElecStorageHeater
 from core.heating_systems.boiler import Boiler
@@ -140,6 +141,7 @@ class Project:
         self.__energy_supplies = {}
         energy_supply_unmet_demand = EnergySupply('unmet_demand', self.__simtime)
         self.__energy_supplies['_unmet_demand'] = energy_supply_unmet_demand
+        diverters = {}
         for name, data in proj_dict['EnergySupply'].items():
             if 'ElectricBattery' in data:
                 self.__energy_supplies[name] = EnergySupply(
@@ -153,6 +155,9 @@ class Project:
             else:
                 self.__energy_supplies[name] = EnergySupply(data['fuel'], self.__simtime)
             # TODO Consider replacing fuel type string with fuel type object
+
+            if 'diverter' in data:
+                diverters[name] = data['diverter']
 
         self.__internal_gains = {}
         for name, data in proj_dict['InternalGains'].items():
@@ -834,6 +839,9 @@ class Project:
                 # TODO Exit just the current case instead of whole program entirely?
             return heat_source
 
+        # List of diverter objects (for end-of-timestep calculations
+        self.__diverters = []
+
         def dict_to_hot_water_source(name, data):
             """ Parse dictionary of HW source data and return approprate HW source object """
             hw_source_type = data['type']
@@ -868,6 +876,15 @@ class Project:
                     primary_pipework,
                     energy_supply_unmet_demand.connection(name)
                     )
+                for heat_source_name, heat_source_data in data['HeatSource'].items():
+                    energy_supply_name = heat_source_data['EnergySupply']
+                    if energy_supply_name in diverters \
+                    and diverters[energy_supply_name]['StorageTank'] == name \
+                    and diverters[energy_supply_name]['HeatSource'] == heat_source_name:
+                        energy_supply = self.__energy_supplies[heat_source_data['EnergySupply']]
+                        pv_diverter = PVDiverter(hw_source, heat_source)
+                        energy_supply.connect_diverter(pv_diverter)
+                        self.__diverters.append(pv_diverter)
 
             elif hw_source_type == 'CombiBoiler':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
@@ -1685,6 +1702,9 @@ class Project:
 
             for _, supply in self.__energy_supplies.items():
                 supply.calc_energy_import_export_betafactor()
+
+            for diverter in self.__diverters:
+                diverter.timestep_end()
 
         zone_dict = {
             'Internal gains': gains_internal_dict,
