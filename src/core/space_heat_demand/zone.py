@@ -440,8 +440,6 @@ class Zone:
                 temp_setpnt_cool_vent = units.Kelvin2Celcius(1.4e32)
             if temp_setpnt_cool_vent < temp_setpnt_heat:
                 sys.exit('ERROR: Setpoint for additional ventilation is below heating setpoint.')
-            if temp_setpnt_cool < temp_setpnt_cool_vent:
-                sys.exit('ERROR: Cooling setpoint is below setpoint for additional ventilation.')
 
         # Calculate timestep in seconds
         delta_t = delta_t_h * units.seconds_per_hour
@@ -495,40 +493,47 @@ class Zone:
             temp_operative_vent_max = self.__temp_operative(temp_vector_vent_max)
             temp_int_air_vent_max = temp_vector_vent_max[self.__zone_idx]
 
-            # Calculate ventilation required to reach cooling setpoint for ventilation
-            h_ve_cool_req \
-                = h_ve_cool_max * (temp_setpnt_cool_vent - temp_operative_free) \
-                / (temp_operative_vent_max - temp_operative_free) \
-                * ( (temp_int_air_vent_max - self.__vent_cool_extra.temp_supply())
-                  / (temp_int_air_free - self.__vent_cool_extra.temp_supply())
-                  )
+            vent_cool_extra_temp_supply = self.__vent_cool_extra.temp_supply()
 
-            # Calculate additional ventilation rate achieved
-            h_ve_cool_extra = min(h_ve_cool_req, h_ve_cool_max)
+            # If there is cooling potential from additional ventilation
+            if temp_operative_vent_max < temp_operative_free \
+            and temp_int_air_free > vent_cool_extra_temp_supply:
+                # Calculate ventilation required to reach cooling setpoint for ventilation
+                h_ve_cool_req \
+                    = h_ve_cool_max * (temp_setpnt_cool_vent - temp_operative_free) \
+                    / (temp_operative_vent_max - temp_operative_free) \
+                    * ( (temp_int_air_vent_max - vent_cool_extra_temp_supply)
+                      / (temp_int_air_free - vent_cool_extra_temp_supply)
+                      )
 
-            # Calculate node and internal air temperatures with heating/cooling gains of zero
-            temp_vector_no_heat_cool_vent_extra, _ = self.__calc_temperatures(
-                delta_t,
-                self.__temp_prev,
-                temp_ext_air,
-                gains_internal,
-                gains_solar,
-                gains_heat_cool,
-                1.0, # Value does not matter as gains_heat_cool = 0.0
-                vent_extra_h_ve = h_ve_cool_extra,
-                throughput_factor = throughput_factor,
-                )
+                # Calculate additional ventilation rate achieved
+                h_ve_cool_extra = min(h_ve_cool_req, h_ve_cool_max)
 
-            # Calculate internal operative temperature at free-floating conditions
-            # i.e. with no heating/cooling
-            temp_operative_free_vent_extra = self.__temp_operative(temp_vector_no_heat_cool_vent_extra)
+                # Calculate node and internal air temperatures with heating/cooling gains of zero
+                temp_vector_no_heat_cool_vent_extra, _ = self.__calc_temperatures(
+                    delta_t,
+                    self.__temp_prev,
+                    temp_ext_air,
+                    gains_internal,
+                    gains_solar,
+                    gains_heat_cool,
+                    1.0, # Value does not matter as gains_heat_cool = 0.0
+                    vent_extra_h_ve = h_ve_cool_extra,
+                    throughput_factor = throughput_factor,
+                    )
 
-            # If temperature achieved by additional ventilation is above setpoint
-            # for active cooling, assume cooling system will be used instead of
-            # additional ventilation
-            if temp_operative_free_vent_extra > temp_setpnt_cool:
-                h_ve_cool_extra = 0.0
-            temp_operative_free = temp_operative_free_vent_extra
+                # Calculate internal operative temperature at free-floating conditions
+                # i.e. with no heating/cooling
+                temp_operative_free_vent_extra = self.__temp_operative(temp_vector_no_heat_cool_vent_extra)
+
+                # If temperature achieved by additional ventilation is above setpoint
+                # for active cooling, assume cooling system will be used instead of
+                # additional ventilation. Otherwise, use resultant operative temperature
+                # in calculation of space heating/cooling demand.
+                if temp_operative_free_vent_extra > temp_setpnt_cool:
+                    h_ve_cool_extra = 0.0
+                else:
+                    temp_operative_free = temp_operative_free_vent_extra
 
         # Determine relevant setpoint (if neither, then return space heating/cooling demand of zero)
         # Determine maximum heating/cooling
