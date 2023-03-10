@@ -92,6 +92,7 @@ class EnergySupply:
         self.__fuel_type          = Fuel_code.from_string(fuel_type)
         self.__simulation_time    = simulation_time
         self.__elec_battery       = elec_battery
+        self.__diverter = None
 
         self.__demand_total       = self.__init_demand_list()
         self.__demand_by_end_user = {}
@@ -114,6 +115,11 @@ class EnergySupply:
 
         self.__demand_by_end_user[end_user_name] = self.__init_demand_list()
         return EnergySupplyConnection(self, end_user_name)
+
+    def connect_diverter(self, diverter):
+        if self.__diverter is not None:
+            sys.exit('Diverter already connected.')
+        self.__diverter = diverter
 
     def __demand_energy(self, end_user_name, amount_demanded):
         """ Record energy demand (in kWh) for the end user specified.
@@ -201,6 +207,10 @@ class EnergySupply:
             supply_surplus -= energy_out_of_battery
             energy_out_of_battery = self.__elec_battery.charge_discharge_battery(demand_not_met)
             demand_not_met -= energy_out_of_battery
+
+        if self.__diverter is not None:
+            # Divert as much surplus energy as possible, and calculate remaining surplus
+            supply_surplus += self.__diverter.divert_surplus(supply_surplus)
 
         self.__supply_surplus[t_idx] += supply_surplus
         self.__demand_not_met[t_idx] += demand_not_met
