@@ -1143,7 +1143,7 @@ class Project:
                             hw_demand += hw_demand_i
                             hw_energy_demand += misc.water_demand_to_kWh(
                                 hw_demand_i,
-                                shower_temp,
+                                shower.get_temp_hot(),
                                 cold_water_temperature
                                 )
                             hw_duration += event['duration'] # shower minutes duration
@@ -1173,7 +1173,7 @@ class Project:
                         hw_demand += other.hot_water_demand(other_temp, other_duration)
                         hw_energy_demand += misc.water_demand_to_kWh(
                             other.hot_water_demand(other_temp, other_duration),
-                            other_temp,
+                            other.get_temp_hot(),
                             cold_water_temperature
                             )
                         hw_duration += event['duration'] # other minutes duration
@@ -1207,7 +1207,7 @@ class Project:
                         bath_duration = bath.get_size() / peak_flowrate
                         hw_energy_demand += misc.water_demand_to_kWh(
                             bath.hot_water_demand(bath_temp),
-                            bath_temp,
+                            bath.get_temp_hot(),
                             cold_water_temperature
                             )
                         hw_duration += bath_duration

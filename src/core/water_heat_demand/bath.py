@@ -26,6 +26,7 @@ class Bath:
         self.__bathsize          = size # TODO entire capacity or typical usage?
         self.__cold_water_source = cold_water_source
         self.__flowrate = flowrate
+        self.__temp_hot = 52.0  # TODO Get hot temp from somewhere rather than hard-coding
 
     def get_size(self):
         return self.__bathsize
@@ -35,6 +36,9 @@ class Bath:
 
     def get_flowrate(self):
         return self.__flowrate
+    
+    def get_temp_hot(self):
+        return(self.__temp_hot)
 
     def hot_water_demand(self, temp_target):
         """ Calculate volume of hot water required
@@ -45,12 +49,11 @@ class Bath:
         temp_target           -- temperature of warm water delivered at tap, in Celcius
         """
         temp_cold = self.__cold_water_source.temperature()
-        temp_hot  = 52.0 # TODO Get hot temp from somewhere rather than hard-coding
 
         vol_warm_water = self.__bathsize # in litres. we may wish to modify the volume of water
         # compared to the size of the bath
 
-        vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, temp_cold)
+        vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, self.__temp_hot, temp_cold)
 
         return vol_hot_water # litres
 
