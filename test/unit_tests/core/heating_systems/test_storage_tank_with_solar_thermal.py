@@ -102,7 +102,7 @@ class Test_StorageTankWithSolarThermal(unittest.TestCase):
                                               self.__external_conditions, self.simtime
                                               )
         heat_source_dict = {self.solthermal: (0.1, 0.33)}
-        self.storagetank = StorageTank(150.0, 1.68, 55.0, coldfeed, self.simtime, heat_source_dict)
+        self.storagetank = StorageTank(150.0, 1.68, 52.0, 55.0, 55.0, coldfeed, self.simtime, heat_source_dict)
 
     def test_demand_hot_water(self):
         for t_idx, _, _ in self.simtime:

@@ -42,24 +42,10 @@ class StorageTank:
     __f_sto_m = 0.75
     #standby losses adaptation
     __f_sto_bac_acc = 1
-    #Design Data
-    #***Operative conditions Table B.4
-    #TODO - determine difference and purpose between temperature required for DHW and set point
-    #temperature required for DHW - degress
-    #__temp_out_W_min = 55 default in table B.4
-    #hot water was found to be leaving the cylinder at 52oC
-    #in the 2008 EST field trial that SAP10 and earlier are based on.
-    #Assume this is refering to the same thing until investigated further.
-    #TODO possibly link and vary per demand event in future
-    __temp_out_W_min = 52
     #ambient temperature - degress
     #TODO - link to zone temp at timestep possibly and location of tank (in or out of heated space)
     __temp_amb = 16
-    #thermostat set temperature - degrees
-    #TODO - possible move to init  as input, maybe per layer and/or timestep
-    #__temp_set_on = 65  default in table B.4
-    #use 55oC as more consistent with average delivery temperature of 52
-    __temp_set_on = 55
+
     # Primary pipework gains for the timestep
     __primary_gains = 0
 
@@ -67,6 +53,8 @@ class StorageTank:
             self,
             volume,
             losses,
+            min_temp,
+            setpoint_temp,
             temp_hot,
             cold_feed,
             simulation_time,
@@ -81,6 +69,8 @@ class StorageTank:
         volume               -- total volume of the tank, in litres
         losses               -- measured standby losses due to cylinder insulation
                                 at standardised conditions, in kWh/24h
+        min_temp             -- minimum temperature required for DHW
+        setpoint_temp        -- set point temperature
         temp_hot             -- temperature of the hot water, in deg C
         cold_feed            -- reference to ColdWaterSource object
         simulation_time      -- reference to SimulationTime object
@@ -94,10 +84,12 @@ class StorageTank:
         Other variables:
         heat_source_data     -- list of heat sources, sorted by heater position
         """
-        self.__Q_std_ls_ref = losses
-        self.__temp_hot     = temp_hot
-        self.__cold_feed    = cold_feed
-        self.__contents     = contents
+        self.__Q_std_ls_ref   = losses
+        self.__temp_out_W_min = min_temp
+        self.__temp_set_on    = setpoint_temp
+        self.__temp_hot       = temp_hot
+        self.__cold_feed      = cold_feed
+        self.__contents       = contents
         self.__energy_supply_conn_unmet_demand = energy_supply_conn_unmet_demand
         self.__simulation_time = simulation_time
 
