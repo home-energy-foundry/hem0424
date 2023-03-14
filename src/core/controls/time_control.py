@@ -30,6 +30,40 @@ class OnOffTimeControl:
         return self.__schedule[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
 
 
+class ToUChargeControl:
+    """ An object to model a control that governs electrical charging of a heat storage device 
+        that can respond to signals from the grid, for example when carbon intensity is low """
+
+    def __init__(self, schedule, simulation_time, start_day, time_series_step, logic_type, charge_level):
+        """ Construct a ToUChargeControl object
+
+        Arguments:
+        schedule         -- list of boolean values where true means "on" (one entry per hour)
+        simulation_time  -- reference to SimulationTime object
+        start_day        -- first day of the time series, day of the year, 0 to 365 (single value)
+        time_series_step -- timestep of the time series data, in hours
+        logic_type       -- charge method; manual, automatic, etc...
+        TODO: requires creation of an enum list once options are established.
+        charge_level     -- Proportion of the charge targeted for each day
+        """
+        self.__schedule        = schedule
+        self.__simulation_time = simulation_time
+        self.__start_day = start_day
+        self.__time_series_step = time_series_step
+        self.__logic_type = logic_type
+        self.__charge_level = charge_level
+
+    def is_on(self):
+        """ Return true if control will allow system to run """
+        return self.__schedule[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
+
+    def target_charge(self):
+        """ Return the charge level value from the list given in inputs; one value per day """
+        return self.__charge_level[
+            self.__simulation_time.time_series_idx_days(self.__start_day, self.__time_series_step)
+        ]
+
+
 class SetpointTimeControl:
     """ An object to model a control with a setpoint which varies per timestep """
 

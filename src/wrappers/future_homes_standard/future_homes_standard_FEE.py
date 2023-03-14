@@ -164,17 +164,15 @@ def apply_fhs_FEE_preprocessing(project_dict):
             "EnergySupply": "mains elec",
         }
 
+    # Use control type 2 (seperate temperature control but no separate time control)
+    project_dict["HeatingControlType"] = "SeparateTempControl"
+
     # Apply standard FHS preprocessing assumptions. Note these should be applied
     # after the other adjustments are made, because decisions may be based on
     # e.g. the heating system type.
     # Note: In SAP 10.2, different gains assumptions were used for the cooling
     # calculation compared to the heating calculation. However, only one set of
     # standardised gains have so far been defined here.
-    # TODO Use control type 2 (seperate temperature control but no separate time
-    #      control). Control schedules in standard FHS preprocessing assumptions
-    #      are currently equivalent to control type 3 (separate temperature and
-    #      time control). Need to define schedules for control type 2 before it
-    #      can be selected.
     project_dict = apply_fhs_preprocessing(project_dict, True)
 
     return project_dict

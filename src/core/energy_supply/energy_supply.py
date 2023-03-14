@@ -8,6 +8,7 @@ mains electricity or other fuels (e.g. LPG, wood pellets).
 
 # Standard library inputs
 import sys
+import numpy as np
 from enum import Enum,auto
 
 class Fuel_code(Enum):
@@ -58,6 +59,10 @@ class EnergySupplyConnection:
         self.__energy_supply = energy_supply
         self.__end_user_name = end_user_name
 
+    def energy_out(self, amount_demanded):
+        """ Forwards the amount of energy out (in kWh) to the relevant EnergySupply object """
+        self.__energy_supply._EnergySupply__energy_out(self.__end_user_name, amount_demanded)
+
     def demand_energy(self, amount_demanded):
         """ Forwards the amount of energy demanded (in kWh) to the relevant EnergySupply object """
         self.__energy_supply._EnergySupply__demand_energy(self.__end_user_name, amount_demanded)
@@ -92,9 +97,11 @@ class EnergySupply:
         self.__fuel_type          = Fuel_code.from_string(fuel_type)
         self.__simulation_time    = simulation_time
         self.__elec_battery       = elec_battery
+        self.__diverter = None
 
         self.__demand_total       = self.__init_demand_list()
         self.__demand_by_end_user = {}
+        self.__energy_out_by_end_user = {}
         self.__beta_factor = self.__init_demand_list() #this would be multiple columns if multiple beta factors
         self.__supply_surplus = self.__init_demand_list()
         self.__demand_not_met = self.__init_demand_list()
@@ -113,7 +120,25 @@ class EnergySupply:
             # TODO Exit just the current case instead of whole program entirely?
 
         self.__demand_by_end_user[end_user_name] = self.__init_demand_list()
+        self.__energy_out_by_end_user[end_user_name] = self.__init_demand_list()
         return EnergySupplyConnection(self, end_user_name)
+
+    def __energy_out(self, end_user_name, amount_demanded):
+        # Check that end_user_name is already connected/registered
+        if end_user_name not in self.__demand_by_end_user.keys():
+            sys.exit("Error: End user name ("+end_user_name+
+                     ") not already registered by calling connection function.")
+            # TODO Exit just the current case instead of whole program entirely?
+
+        t_idx = self.__simulation_time.index()
+        self.__energy_out_by_end_user[end_user_name][t_idx] \
+            = self.__energy_out_by_end_user[end_user_name][t_idx] \
+            + amount_demanded
+
+    def connect_diverter(self, diverter):
+        if self.__diverter is not None:
+            sys.exit('Diverter already connected.')
+        self.__diverter = diverter
 
     def __demand_energy(self, end_user_name, amount_demanded):
         """ Record energy demand (in kWh) for the end user specified.
@@ -151,7 +176,17 @@ class EnergySupply:
 
         Returns dictionary of lists, where dictionary keys are names of end users.
         """
-        return self.__demand_by_end_user
+        # If the keys do match then we will just return the demand by end users
+        if self.__demand_by_end_user.keys() != self.__energy_out_by_end_user.keys():
+            return self.__demand_by_end_user
+
+        all_results_by_end_user = {}
+        for demand, energy_out in zip(self.__demand_by_end_user.items(), self.__energy_out_by_end_user.items()):
+            if demand[0] == energy_out[0]:
+                user_name = demand[0]  # Can use either demand[0] or energy_out[0] to retrieve end user name
+                all_results_by_end_user[user_name] = np.array(demand[1]) + np.array(energy_out[1])
+
+        return all_results_by_end_user
 
     def get_energy_import(self):
         return self.__demand_not_met
@@ -201,6 +236,10 @@ class EnergySupply:
             supply_surplus -= energy_out_of_battery
             energy_out_of_battery = self.__elec_battery.charge_discharge_battery(demand_not_met)
             demand_not_met -= energy_out_of_battery
+
+        if self.__diverter is not None:
+            # Divert as much surplus energy as possible, and calculate remaining surplus
+            supply_surplus += self.__diverter.divert_surplus(supply_surplus)
 
         self.__supply_surplus[t_idx] += supply_surplus
         self.__demand_not_met[t_idx] += demand_not_met
