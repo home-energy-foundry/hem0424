@@ -85,6 +85,8 @@
 			"type": "StorageTank",
 			"volume": 80.0,
 			"daily_losses": 1.68,
+			"min_temp": 52.0,
+			"setpoint_temp": 55.0,
 			"ColdWaterSource": "mains water",
 			"HeatSource": {
 				"regularBoiler": {
