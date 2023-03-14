@@ -354,7 +354,9 @@ class Zone:
         vector_x = np.linalg.solve(matrix_a, vector_b)
 
         if print_heat_balance:
-            #collect heat balance outputs in W
+            heat_balance_dict = {}
+
+            # Collect outputs, in W, for heat balance at air node
             temp_internal = vector_x[self.__zone_idx]
             hb_gains_solar = f_sol_c * gains_solar
             hb_gains_internal = f_int_c * gains_internal
@@ -364,7 +366,7 @@ class Zone:
             hb_loss_ventilation = sum([vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply()) for vei in self.__vent_elements])
             hb_loss_fabric = (hb_gains_solar+hb_gains_internal+hb_gains_heat_cool+hb_energy_to_change_temp)\
                             -(hb_loss_thermal_bridges+hb_loss_ventilation)
-            heat_balance_dict = {
+            heat_balance_dict['air_node'] = {
                 'solar gains' : hb_gains_solar,
                 'internal gains' : hb_gains_internal,
                 'heating or cooling system gains' : hb_gains_heat_cool,
@@ -373,6 +375,29 @@ class Zone:
                 'heat loss through ventilation' : hb_loss_ventilation,
                 'fabric heat loss' : hb_loss_fabric
                                 }
+
+            # Collect outputs, in W, for heat balance at external boundary
+            hb_fabric_ext_boundary = 0.0
+            for eli in self.__building_elements:
+                # Get position in vector for the first (external) node of the building element
+                idx = self.__element_positions[eli][0]
+                temp_ext_surface = vector_x[idx]
+                i_sol_dir, i_sol_dif = eli.i_sol_dir_dif()
+                f_sh_dir, f_sh_dif = eli.shading_factors_direct_diffuse()
+                hb_fabric_ext_boundary \
+                    += eli.area \
+                     * ( (eli.h_ce() + eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
+                       + eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
+                       - eli.therm_rad_to_sky \
+                       )
+            heat_balance_dict['external_boundary'] = {
+                'solar gains': gains_solar,
+                'internal gains': gains_internal,
+                'heating or cooling system gains': gains_heat_cool,
+                'thermal_bridges': - hb_loss_thermal_bridges,
+                'ventilation': - hb_loss_ventilation,
+                'fabric': hb_fabric_ext_boundary,
+                }
         else:
             heat_balance_dict = None
         return vector_x, heat_balance_dict
