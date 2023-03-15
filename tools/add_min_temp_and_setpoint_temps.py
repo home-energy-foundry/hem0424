@@ -14,8 +14,9 @@ for f in sys.argv[1:]:
 		inp_dict = json.load(json_file)
 
 	for wh_data in inp_dict['HotWaterSource'].values():
-		wh_data['min_temp'] = 52.0
-		wh_data['setpoint_temp'] = 55.0
+		if wh_data['type'] == "StorageTank":
+			wh_data['min_temp'] = 52.0
+			wh_data['setpoint_temp'] = 55.0
 
 	with open(f + '_converted.json', 'w') as json_file:
 		json.dump(inp_dict, json_file, indent=4)
