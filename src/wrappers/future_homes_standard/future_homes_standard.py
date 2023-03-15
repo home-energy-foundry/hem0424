@@ -774,9 +774,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                     heat_source_obj['vol_hw_daily_average'] = vol_daily_average
 
     targetQHW = 365 * 4.18 * (mean_delta_T / 3600) * vol_daily_average
-    print(targetQHW)
     FHW = targetQHW / ref_QHW
-    #print(FHW)
 
     '''
     if part G has been complied with, apply 5% reduction to duration of all events except showers
