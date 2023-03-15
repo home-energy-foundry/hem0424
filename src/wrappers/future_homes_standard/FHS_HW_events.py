@@ -86,7 +86,7 @@ class HW_event_adjust_allocate:
     
 class HW_events_generator:
     
-    def __init__(self, daily_DHW_vol, cold_water_feed_temps, event_temperature = 41.0, HWseed = 10):
+    def __init__(self, daily_DHW_vol, HWseed = 37, correct_banding = True):
         
         
         self.HWseed = HWseed
@@ -96,9 +96,6 @@ class HW_events_generator:
         self.banding_correction = 1.0
         
         self.target_DHW_vol = daily_DHW_vol
-        self.cwft = cold_water_feed_temps
-        self.mean_feed_temp = sum(cold_water_feed_temps) / len(cold_water_feed_temps)
-        self.event_temperature = event_temperature #assumed hot water temp
         
         #utility for applying the sap10.2 monly factors (below)
         self.month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
@@ -132,7 +129,8 @@ class HW_events_generator:
                 print("HW decile error, exiting")
                 sys.exit()
         #print(self.banding_correction)
-        #self.banding_correction = 1.0
+        if not correct_banding:
+            self.banding_correction = 1.0
 
         self.week = {
             'Monday':{},
@@ -172,18 +170,30 @@ class HW_events_generator:
             for event_type in self.week[day]:
                 hrlyeventcnts = self.week[day][event_type]['hourly_event_counts']
                 sumeventcnt = sum(hrlyeventcnts)
+                '''
+                sucessive calls to a poisson distribution with fixed seed 
+                will yield the same answer - have to ask rng to generate an 
+                array of poisson samples and draw from it.
+                generate array of size 53 as each hour is unique per week of the year
+                
+                '''
                 self.week[day][event_type].update\
                 (
                     {'hourly_event_distribution':\
-                     [x * float(self.week[day][event_type]['event_count']) / sumeventcnt\
+                     [{"poisson_arr":self.rng.poisson(self.banding_correction *\
+                     x * float(self.week[day][event_type]['event_count'])/ sumeventcnt,53).tolist(),\
+                     '__poisson_arr_idx':0}
                     for x in hrlyeventcnts]}
                 )
         
 
     def events_in_hour(self, time, type, event_dict):
-        expected_event_count = event_dict['hourly_event_distribution'][math.floor(time % 24)] * self.banding_correction
+        #expected_event_count = event_dict['hourly_event_distribution'][math.floor(time % 24)] * self.banding_correction
         out = []
-        count = self.rng.poisson(expected_event_count)
+        #count = self.rng.poisson(expected_event_count)
+        count = event_dict['hourly_event_distribution'][math.floor(time % 24)]["poisson_arr"]\
+                [event_dict['hourly_event_distribution'][math.floor(time % 24)]['__poisson_arr_idx']]
+        event_dict['hourly_event_distribution'][math.floor(time % 24)]['__poisson_arr_idx'] += 1
         for i in range(count):
             out.append({
                 'time': time + random.random(), #random offset to time within the hour

@@ -44,6 +44,12 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc)
     create_cooking_gains(project_dict,TFA, N_occupants)
     create_appliance_gains(project_dict, TFA, N_occupants)
+    
+    for hwsource in project_dict["HotWaterSource"]:
+        if hwsource == "hw cylinder":
+            project_dict["HotWaterSource"][hwsource]["min_temp"] = 52.0
+            project_dict["HotWaterSource"][hwsource]["setpoint_temp"] = 55.0
+        
     cold_water_feed_temps = create_cold_water_feed_temps(project_dict)
     create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed_temps)
     create_cooling(project_dict)
@@ -746,7 +752,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     
     vol_daily_average =  60.3 * N_occupants ** 0.71
     
-    HWeventgen = HW_events_generator(vol_daily_average,cold_water_feed_temps)
+    HWeventgen = HW_events_generator(vol_daily_average)
     ref_eventlist = HWeventgen.build_annual_HW_events(startmod)
     ref_vol = 0
     for event in ref_eventlist:  
@@ -768,7 +774,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                     heat_source_obj['vol_hw_daily_average'] = vol_daily_average
 
     targetQHW = 365 * 4.18 * (mean_delta_T / 3600) * vol_daily_average
+    print(targetQHW)
     FHW = targetQHW / ref_QHW
+    #print(FHW)
 
     '''
     if part G has been complied with, apply 5% reduction to duration of all events except showers
@@ -852,6 +860,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                      "duration": duration,
                      "temperature": 41.0}
                 )
+
 
 def create_cooling(project_dict):
     cooling_setpoint = 24.0
