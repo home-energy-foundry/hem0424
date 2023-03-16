@@ -1609,7 +1609,7 @@ class Project:
         hot_water_no_events_dict = {}
         hot_water_pipework_dict = {}
         ductwork_gains_dict = {}
-        heat_balance_all_dict = {}
+        heat_balance_all_dict = {'air_node': {}, 'external_boundary': {}}
 
         for z_name in self.__zones.keys():
             gains_internal_dict[z_name] = []
@@ -1619,7 +1619,8 @@ class Project:
             space_heat_demand_dict[z_name] = []
             space_cool_demand_dict[z_name] = []
             zone_list.append(z_name)
-            heat_balance_all_dict[z_name] = {}
+            for hb_name in heat_balance_all_dict.keys():
+                heat_balance_all_dict[hb_name][z_name] = {}
 
         for z_name, h_name in self.__heat_system_name_for_zone.items():
             space_heat_demand_system_dict[h_name] = []
@@ -1682,13 +1683,14 @@ class Project:
             for c_name, demand in space_cool_demand_system.items():
                 space_cool_demand_system_dict[c_name].append(demand)
 
-            for z_name, gains_losses_dict in heat_balance_dict.items():
-                if gains_losses_dict is not None:
-                    for heat_gains_losses_name, heat_gains_losses_value in gains_losses_dict.items():
-                        if heat_gains_losses_name in heat_balance_all_dict[z_name].keys():
-                            heat_balance_all_dict[z_name][heat_gains_losses_name].append(heat_gains_losses_value)
-                        else:
-                            heat_balance_all_dict[z_name][heat_gains_losses_name] =[heat_gains_losses_value]
+            for z_name, hb_dict in heat_balance_dict.items():
+                if hb_dict is not None:
+                    for hb_name, gains_losses_dict in hb_dict.items():
+                        for heat_gains_losses_name, heat_gains_losses_value in gains_losses_dict.items():
+                            if heat_gains_losses_name in heat_balance_all_dict[hb_name][z_name].keys():
+                                heat_balance_all_dict[hb_name][z_name][heat_gains_losses_name].append(heat_gains_losses_value)
+                            else:
+                                heat_balance_all_dict[hb_name][z_name][heat_gains_losses_name] =[heat_gains_losses_value]
 
             hot_water_demand_dict['demand'].append(hw_demand)
             hot_water_energy_demand_dict['energy_demand'].append(hw_energy_demand)
