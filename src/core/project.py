@@ -49,6 +49,7 @@ from core.ductwork import Ductwork
 import core.heating_systems.wwhrs as wwhrs
 from core.heating_systems.point_of_use import PointOfUse
 from core.units import Kelvin2Celcius
+from math import ceil
 
 
 class Project:
@@ -203,13 +204,26 @@ class Project:
                 )
             elif ctrl_type == 'ToUChargeControl':
                 sched = expand_schedule(bool, data['schedule'], "main", False)
+
+                # Simulating manual charge control
+                # Set charge_level to 1.0 (max) for each day of simulation (plus 1)
+                charge_level = [1.0] * ceil((self.__simtime.total_steps() * self.__simtime.timestep())/24 + 1)
+                # If charge_level is present in the input file overwrite initial vector
+                # User can specify a vector with all days (plus 1), or as a single float value to be used for each day
+                if 'charge_level' in data:
+                    # If the input is a vector, use the vector
+                    if isinstance(data['charge_level'], (list, tuple)):
+                        charge_level=data['charge_level']
+                    # Else, if input is a single value, use that value for each day of simulation
+                    else:
+                        charge_level = [data['charge_level']] * ceil((self.__simtime.total_steps() * self.__simtime.timestep())/24 + 1)
+
                 ctrl = ToUChargeControl(
                     schedule=sched,
                     simulation_time=self.__simtime,
                     start_day=data['start_day'],
                     time_series_step=data['time_series_step'],
-                    logic_type=data['logic_type'],
-                    charge_level=data['charge_level']
+                    charge_level=charge_level
                 )
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')

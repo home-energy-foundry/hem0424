@@ -109,8 +109,7 @@
 			"type": "ToUChargeControl",
 			"start_day": 0,
 			"time_series_step": 1,
-			"logic_type": "Manual",
-			"charge_level": [ 0.7, 0.5 ],
+			"charge_level": 0.2,
 			"schedule": {
 				"main": [{"value": true, "repeat": 7}, {"value": false, "repeat": 7}, {"value": false, "repeat": 3}, {"value": true, "repeat": 7}]
 			}
@@ -129,6 +128,8 @@
             "type": "StorageTank",
             "volume": 80.0,
             "daily_losses": 1.68,
+            "min_temp": 52.0,
+            "setpoint_temp": 55.0,
             "ColdWaterSource": "mains water",
 			"HeatSource": {
 				"heatBattery0": {
@@ -138,7 +139,9 @@
 					"ColdWaterSource": "mains water",
 					"EnergySupply": "mains elec",
 					"Control": "hw timer",
-					"temp_return": 60
+					"temp_return": 60,
+                    "heater_position": 0.1,
+                    "thermostat_position": 0.33
 				}
 			},
 			"primary_pipework": {
