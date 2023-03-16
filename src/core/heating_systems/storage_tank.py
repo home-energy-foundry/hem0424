@@ -903,7 +903,8 @@ class SolarThermalSystem:
         self.__heat_output_collector_loop = 0
         self.__energy_supplied = 0 
         
-        #water specific heat in kWh/kg.K
+        # Water specific heat in J/kg.K
+        # (defined under eqn 51 on page 40 of BS EN ISO 15316-4-3:2017)
         self.__Cp = contents.specific_heat_capacity()
 
     def energy_output_max(self, storage_tank, temp_storage_tank_s3_n):
