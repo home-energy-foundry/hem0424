@@ -223,7 +223,7 @@ def create_metabolic_gains(project_dict,
                            TFA, 
                            schedule_occupancy_weekday, 
                            schedule_occupancy_weekend):
-    #Watts/occupant
+    #Watts/m^2 body surface area, average adult has 1.8m^2 surface area
     metabolic_gains_fhs = [
         41.0, 41.0, 41.0, 41.0, 41.0, 41.0, 
         41.0, 89.0, 89.0, 89.0, 89.0, 89.0,
@@ -232,11 +232,11 @@ def create_metabolic_gains(project_dict,
     ]
     #note divide by TFA. units are Wm^-2
     schedule_metabolic_gains_weekday = [
-        occupancy * gains / TFA for occupancy, gains
+        occupancy * 1.8 * gains / TFA for occupancy, gains
         in zip(schedule_occupancy_weekday, metabolic_gains_fhs)
     ]
     schedule_metabolic_gains_weekend = [
-        occupancy * gains / TFA for occupancy, gains
+        occupancy * 1.8 * gains / TFA for occupancy, gains
         in zip(schedule_occupancy_weekend, metabolic_gains_fhs)
     ]
     
