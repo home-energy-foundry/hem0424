@@ -994,7 +994,7 @@ class HeatPumpServiceSpace(HeatPumpService):
             Celcius2Kelvin(temp_flow),
             Celcius2Kelvin(temp_return),
             self.__temp_limit_upper,
-            self.__TIME_CONSTANT_SPACE,
+            self.__TIME_CONSTANT_SPACE[self._HeatPumpService__hp._HeatPump__sink_type],
             service_on,
             temp_spread_correction = self.temp_spread_correction,
             )
