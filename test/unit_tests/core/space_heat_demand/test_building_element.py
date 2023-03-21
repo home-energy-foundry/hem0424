@@ -28,8 +28,8 @@ class TestBuildingElementOpaque(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 [0.0, 5.0, 10.0, 15.0],
                                 None,
-                                None,
-                                None,
+                                [0.0] * 4, # Diffuse horizontal radiation
+                                [0.0] * 4, # Direct beam radiation
                                 None,
                                 55.0, # Latitude
                                 0.0, # Longitude
@@ -216,8 +216,8 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 [0.0, 5.0, 10.0, 15.0],
                                 None,
-                                None,
-                                None,
+                                [0.0] * 4, # Diffuse horizontal radiation
+                                [0.0] * 4, # Direct beam radiation
                                 None,
                                 55.0, # Latitude
                                 0.0, # Longitude
@@ -419,8 +419,8 @@ class TestBuildingElementGround(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 airtemp,
                                 None,
-                                None,
-                                None,
+                                [0.0] * 8760, # Diffuse horizontal radiation
+                                [0.0] * 8760, # Direct beam radiation
                                 None,
                                 55.0, # Latitude
                                 0.0, # Longitude
@@ -606,8 +606,8 @@ class TestBuildingElementTransparent(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 [0.0, 5.0, 10.0, 15.0],
                                 None,
-                                None,
-                                None,
+                                [0.0] * 4, # Diffuse horizontal radiation
+                                [0.0] * 4, # Direct beam radiation
                                 None,
                                 55.0, # Latitude
                                 0.0, # Longitude

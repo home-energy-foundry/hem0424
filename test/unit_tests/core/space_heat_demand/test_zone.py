@@ -90,8 +90,8 @@ class TestZone(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 self.airtemp,
                                 self.windspeed,
-                                None,
-                                None,
+                                [0.0] * 4, # Diffuse horizontal radiation
+                                [0.0] * 4, # Direct beam radiation
                                 None,
                                 55.0, # Latitude
                                 0.0, # Longitude
