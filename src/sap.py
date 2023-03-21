@@ -71,7 +71,7 @@ def run_project(
 
     # Run main simulation
     timestep_array, results_totals, results_end_user, \
-        energy_import, energy_export, betafactor, \
+        energy_import, energy_export, energy_generated_consumed, betafactor, \
         zone_dict, zone_list, hc_system_dict, hot_water_dict,\
         ductwork_gains, heat_balance_dict \
         = project.run()
@@ -83,6 +83,7 @@ def run_project(
         results_end_user,
         energy_import,
         energy_export,
+        energy_generated_consumed,
         betafactor,
         zone_dict,
         zone_list,
@@ -114,7 +115,14 @@ def run_project(
 
     # Apply required postprocessing steps, if any
     if fhs_assumptions:
-        apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path[0])
+        apply_fhs_postprocessing(
+            project_dict,
+            results_totals,
+            energy_import,
+            energy_export,
+            timestep_array,
+            file_path[0],
+            )
     elif fhs_FEE_assumptions:
         postprocfile = file_path[0] + '_postproc.csv'
         total_floor_area = project.total_floor_area()
@@ -189,6 +197,7 @@ def write_core_output_file(
         results_end_user,
         energy_import,
         energy_export,
+        energy_generated_consumed,
         betafactor,
         zone_dict,
         zone_list,
@@ -213,6 +222,8 @@ def write_core_output_file(
             headings.append(str(totals_key) + ' import')
             units_row.append('[kWh]')
             headings.append(str(totals_key) + ' export')
+            units_row.append('[kWh]')
+            headings.append(str(totals_key) + ' generated and consumed')
             units_row.append('[kWh]')
             headings.append(str(totals_key) + ' beta factor')
             units_row.append('[ratio]')
@@ -284,6 +295,7 @@ def write_core_output_file(
                     energy_use_row.append(results_end_user[totals_key][end_user_key][t_idx])
                 energy_use_row.append(energy_import[totals_key][t_idx])
                 energy_use_row.append(energy_export[totals_key][t_idx])
+                energy_use_row.append(energy_generated_consumed[totals_key][t_idx])
                 energy_use_row.append(betafactor[totals_key][t_idx])
                 # Loop over results separated by zone
             for zone in zone_list:

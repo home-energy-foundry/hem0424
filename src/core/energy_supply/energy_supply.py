@@ -105,6 +105,7 @@ class EnergySupply:
         self.__beta_factor = self.__init_demand_list() #this would be multiple columns if multiple beta factors
         self.__supply_surplus = self.__init_demand_list()
         self.__demand_not_met = self.__init_demand_list()
+        self.__energy_generated_consumed = self.__init_demand_list()
 
     def __init_demand_list(self):
         """ Initialise zeroed list of demand figures (one list entry for each timestep) """
@@ -194,6 +195,10 @@ class EnergySupply:
     def get_energy_export(self):
         return self.__supply_surplus
 
+    def get_energy_generated_consumed(self):
+        """ Return the amount of generated energy consumed in the building for all timesteps """
+        return self.__energy_generated_consumed
+
     def get_beta_factor(self):
         return self.__beta_factor
 
@@ -243,6 +248,8 @@ class EnergySupply:
 
         self.__supply_surplus[t_idx] += supply_surplus
         self.__demand_not_met[t_idx] += demand_not_met
+        # Report energy generated and consumed as positive number, so subtract negative number
+        self.__energy_generated_consumed[t_idx] -= supply_consumed
 
     def beta_factor_function(self,supply,demand,beta_factor_function):
         """

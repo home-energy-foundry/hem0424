@@ -1740,16 +1740,18 @@ class Project:
         results_end_user = {}
         energy_import = {}
         energy_export = {}
+        energy_generated_consumed = {}
         betafactor = {}
         for name, supply in self.__energy_supplies.items():
             results_totals[name] = supply.results_total()
             results_end_user[name] = supply.results_by_end_user()
             energy_import[name] = supply.get_energy_import()
             energy_export[name] = supply.get_energy_export()
+            energy_generated_consumed[name] = supply.get_energy_generated_consumed()
             betafactor[name] = supply.get_beta_factor()
         return \
             timestep_array, results_totals, results_end_user, \
-            energy_import, energy_export, betafactor, \
+            energy_import, energy_export, energy_generated_consumed, betafactor, \
             zone_dict, zone_list, hc_system_dict, hot_water_dict, \
             ductwork_gains_dict, heat_balance_all_dict
 

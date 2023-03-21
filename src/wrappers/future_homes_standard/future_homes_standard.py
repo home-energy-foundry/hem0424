@@ -51,7 +51,14 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     
     return project_dict
 
-def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path):
+def apply_fhs_postprocessing(
+        project_dict,
+        results_totals,
+        energy_import,
+        energy_export,
+        timestep_array,
+        file_path,
+        ):
     """ Post-process core simulation outputs as required for Future Homes Standard """
     
     emissionfactors = {}
@@ -117,32 +124,38 @@ def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy
                 factor_header_part = str(factor)
                 for replacement in header_replacements:
                     factor_header_part = factor_header_part.replace(*replacement)
-                    
-                this_header = (str(Energysupply) + 
-                               ' total ' +
-                               factor_header_part
-                )
-                results[this_header] = [
-                    x * float(emissionfactors[this_fuel_code][factor])
-                    for x in results_totals[Energysupply]
-                ]
-                
-                this_fuel_code_export = this_fuel_code + "_export"
-                this_header = (str(Energysupply) + 
+
+                # Apply relevant factors to energy imported
+                import_header = (str(Energysupply) + 
                                ' import ' +
                                factor_header_part
                 )
-                results[this_header] = [
-                    x * float(emissionfactors[this_fuel_code_export][factor])
+                results[import_header] = [
+                    x * float(emissionfactors[this_fuel_code][factor])
                     for x in energy_import[Energysupply]
                 ]
-                this_header = (str(Energysupply) + 
+
+                # Apply relevant factors to energy exported
+                this_fuel_code_export = this_fuel_code + "_export"
+                export_header = (str(Energysupply) + 
                                ' export ' +
                                factor_header_part
                 )
-                results[this_header] = [
-                    x * float(emissionfactors[this_fuel_code_export][factor])
+                net_export_factor = float(emissionfactors[this_fuel_code][factor]) \
+                                  - float(emissionfactors[this_fuel_code_export][factor])
+                results[export_header] = [
+                    x * net_export_factor
                     for x in energy_export[Energysupply]
+                ]
+
+                # Calculate net CO2/PE from import and export figures
+                total_header = (str(Energysupply) + 
+                               ' total ' +
+                               factor_header_part
+                )
+                results[total_header] = [
+                    results[import_header][i] + results[export_header][i]
+                    for i, x in enumerate(results_totals[Energysupply])
                 ]
         else:
             for factor in emissionfactors[this_fuel_code]:
