@@ -31,8 +31,8 @@ class TestVentilationElementInfiltration(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 air_temps,
                                 wind_speeds,
-                                None,
-                                None,
+                                [0.0] * 8, # Diffuse horizontal radiation
+                                [0.0] * 8, # Direct beam radiation
                                 None,
                                 55.0, # Latitude
                                 0.0, # Longitude
@@ -135,8 +135,8 @@ class TestMechnicalVentilationHeatRecovery(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 air_temps,
                                 wind_speeds,
-                                None,
-                                None,
+                                [0.0] * 8, # Diffuse horizontal radiation
+                                [0.0] * 8, # Direct beam radiation
                                 None,
                                 55.0, # Latitude
                                 0.0, # Longitude
@@ -209,8 +209,8 @@ class TestWholeHouseExtractVentilation(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 air_temps,
                                 wind_speeds,
-                                None,
-                                None,
+                                [0.0] * 8, # Diffuse horizontal radiation
+                                [0.0] * 8, # Direct beam radiation
                                 None,
                                 55.0, # Latitude
                                 0.0, # Longitude
