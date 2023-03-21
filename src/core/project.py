@@ -76,7 +76,7 @@ class Project:
             proj_dict['SimulationTime']['start'],
             proj_dict['SimulationTime']['end'],
             proj_dict['SimulationTime']['step'],
-        )
+            )
 
         # TODO Some inputs are not currently used, so set to None here rather
         #      than requiring them in input file.
@@ -96,16 +96,16 @@ class Project:
             proj_dict['ExternalConditions']['solar_reflectivity_of_ground'],
             proj_dict['ExternalConditions']['latitude'],
             proj_dict['ExternalConditions']['longitude'],
-            0,  # proj_dict['ExternalConditions']['timezone'],
-            0,  # proj_dict['ExternalConditions']['start_day'],
-            365,  # proj_dict['ExternalConditions']['end_day'],
-            1,  # proj_dict['ExternalConditions']['time_series_step'],
-            None,  # proj_dict['ExternalConditions']['january_first'],
-            None,  # proj_dict['ExternalConditions']['daylight_savings'],
-            None,  # proj_dict['ExternalConditions']['leap_day_included'],
+            0, #proj_dict['ExternalConditions']['timezone'],
+            0, #proj_dict['ExternalConditions']['start_day'],
+            365, #proj_dict['ExternalConditions']['end_day'],
+            1, #proj_dict['ExternalConditions']['time_series_step'],
+            None, #proj_dict['ExternalConditions']['january_first'],
+            None, #proj_dict['ExternalConditions']['daylight_savings'],
+            None, #proj_dict['ExternalConditions']['leap_day_included'],
             dir_beam_conversion,
             proj_dict['ExternalConditions']['shading_segments'],
-        )
+            )
 
         self.__infiltration = VentilationElementInfiltration(
             proj_dict['Infiltration']['storey'],
@@ -126,7 +126,7 @@ class Project:
             proj_dict['Infiltration']['passive_vents'],
             proj_dict['Infiltration']['gas_fires'],
             self.__external_conditions,
-        )
+            )
 
         self.__cold_water_sources = {}
         for name, data in proj_dict['ColdWaterSource'].items():
@@ -143,16 +143,16 @@ class Project:
         self.__internal_gains = {}
         for name, data in proj_dict['InternalGains'].items():
             self.__internal_gains[name] = InternalGains(
-                expand_schedule(
-                    float,
-                    data['schedule'],
-                    "main",
-                    False,
-                ),
-                self.__simtime,
-                data['start_day'],
-                data['time_series_step']
-            )
+                                             expand_schedule(
+                                                 float,
+                                                 data['schedule'],
+                                                 "main",
+                                                 False,
+                                                 ),
+                                             self.__simtime,
+                                             data['start_day'],
+                                             data['time_series_step']
+                                             )
 
         def dict_to_ctrl(name, data):
             """ Parse dictionary of control data and return appropriate control object """
@@ -218,34 +218,34 @@ class Project:
                     data['efficiencies'],
                     cold_water_source,
                     data['utilisation_factor']
-                )
+                    )
             else:
                 if wwhrs_source_type == 'WWHRS_InstantaneousSystemC':
                     cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
                     # TODO Need to handle error if ColdWaterSource name is invalid.
-
+    
                     the_wwhrs = wwhrs.WWHRS_InstantaneousSystemC(
                         data['flow_rates'],
                         data['efficiencies'],
                         cold_water_source,
                         data['utilisation_factor']
-                    )
+                        )
                 else:
                     if wwhrs_source_type == 'WWHRS_InstantaneousSystemA':
                         cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
                         # TODO Need to handle error if ColdWaterSource name is invalid.
-
+        
                         the_wwhrs = wwhrs.WWHRS_InstantaneousSystemA(
                             data['flow_rates'],
                             data['efficiencies'],
                             cold_water_source,
                             data['utilisation_factor']
-                        )
+                            )
                     else:
                         sys.exit(name + ': WWHRS (' + wwhrs_source_type + ') not recognised.')
                         # TODO Exit just the current case instead of whole program entirely?
             return the_wwhrs
-
+            
         if 'WWHRS' in proj_dict:
             self.__wwhrs = {}
             for name, data in proj_dict['WWHRS'].items():
@@ -262,8 +262,8 @@ class Project:
             if shower_type == 'MixerShower':
                 wwhrs_instance = None
                 if 'WWHRS' in data:
-                    wwhrs_instance = self.__wwhrs[data['WWHRS']]  # find the instance of WWHRS linked to by the shower
-
+                    wwhrs_instance = self.__wwhrs[data['WWHRS']] # find the instance of WWHRS linked to by the shower
+                
                 shower = MixerShower(data['flowrate'], cold_water_source, wwhrs_instance)
             elif shower_type == 'InstantElecShower':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
@@ -274,7 +274,7 @@ class Project:
                     data['rated_power'],
                     cold_water_source,
                     energy_supply_conn,
-                )
+                    )
             else:
                 sys.exit(name + ': shower type (' + shower_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -287,6 +287,7 @@ class Project:
             # Count number of showers that draw from HW system
             if data['type'] != 'InstantElecShower':
                 no_of_showers += 1
+
 
         def dict_to_baths(name, data):
             """ Parse dictionary of bath data and return approprate bath object """
@@ -331,13 +332,13 @@ class Project:
                 data["insulation_thickness"],
                 data["surface_reflectivity"],
                 data["pipe_contents"])
-
-            return (pipework)
+                
+            return(pipework)
 
         self.__water_heating_pipework = {}
         for name, data in proj_dict['Distribution'].items():
             self.__water_heating_pipework[name] = dict_to_water_distribution_system(name, data)
-
+           
         def dict_to_event_schedules(data):
             """ Process list of events (for hot water draw-offs, appliance use etc.) """
             sim_timestep = self.__simtime.timestep()
@@ -350,7 +351,7 @@ class Project:
                 self.__event_schedules[sched_type] = {}
             for name, data in schedules.items():
                 self.__event_schedules[sched_type][name] = dict_to_event_schedules(data)
-
+ 
         def dict_to_building_element(name, data):
             building_element_type = data['type']
             if building_element_type == 'BuildingElementOpaque':
@@ -366,7 +367,7 @@ class Project:
                     data['height'],
                     data['width'],
                     self.__external_conditions,
-                )
+                    )
             elif building_element_type == 'BuildingElementTransparent':
                 building_element = BuildingElementTransparent(
                     data['pitch'],
@@ -379,7 +380,7 @@ class Project:
                     data['width'],
                     data['shading'],
                     self.__external_conditions,
-                )
+                    )
             elif building_element_type == 'BuildingElementGround':
                 building_element = BuildingElementGround(
                     data['area'],
@@ -394,7 +395,7 @@ class Project:
                     data['psi_wall_floor_junc'],
                     self.__external_conditions,
                     self.__simtime,
-                )
+                    )
             elif building_element_type == 'BuildingElementAdjacentZTC':
                 building_element = BuildingElementAdjacentZTC(
                     data['area'],
@@ -403,7 +404,7 @@ class Project:
                     data['k_m'],
                     data['mass_distribution_class'],
                     self.__external_conditions,
-                )
+                    )
             elif building_element_type == 'BuildingElementAdjacentZTU_Simple':
                 building_element = BuildingElementAdjacentZTU_Simple(
                     data['area'],
@@ -413,17 +414,17 @@ class Project:
                     data['k_m'],
                     data['mass_distribution_class'],
                     self.__external_conditions,
-                )
+                    )
             else:
-                sys.exit(name + ': building element type ('
-                         + building_element_type + ') not recognised.')
+                sys.exit( name + ': building element type ('
+                        + building_element_type + ') not recognised.' )
                 # TODO Exit just the current case instead of whole program entirely?
             return building_element
 
         def dict_to_ventilation_element(name, data):
             ventilation_element_type = data['type']
             ductwork = None
-            if ventilation_element_type == 'WHEV':  # Whole house extract ventilation
+            if ventilation_element_type == 'WHEV': # Whole house extract ventilation
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
                 energy_supply_conn = energy_supply.connection(name)
@@ -435,7 +436,7 @@ class Project:
                     energy_supply_conn,
                     self.__external_conditions,
                     self.__simtime,
-                )
+                    )
             elif ventilation_element_type == 'MVHR':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
@@ -448,8 +449,8 @@ class Project:
                     energy_supply_conn,
                     self.__external_conditions,
                     self.__simtime,
-                )
-
+                    )
+                    
                 ductwork = Ductwork(
                     data['ductwork']['internal_diameter'],
                     data['ductwork']['external_diameter'],
@@ -459,18 +460,19 @@ class Project:
                     data['ductwork']['insulation_thickness'],
                     data['ductwork']['reflective'],
                     data['ductwork']['MVHR_location']
-                )
+                    )
             elif ventilation_element_type == 'NatVent':
                 ventilation_element = NaturalVentilation(
                     data['req_ach'],
                     self.__infiltration.infiltration(),
                     self.__external_conditions,
-                )
+                    )
             else:
-                sys.exit(name + ': ventilation element type ('
-                         + ventilation_element_type + ') not recognised.')
+                sys.exit( name + ': ventilation element type ('
+                      + ventilation_element_type + ') not recognised.' )
                 # TODO Exit just the current case instead of whole program entirely?
             return ventilation_element, ductwork
+
 
         if 'Ventilation' in proj_dict:
             self.__ventilation, self.__space_heating_ductwork = \
@@ -488,14 +490,14 @@ class Project:
                     tb_type = tb_data['type']
                     if tb_type == 'ThermalBridgeLinear':
                         tb = ThermalBridgeLinear(
-                            tb_data['linear_thermal_transmittance'],
-                            tb_data['length']
-                        )
+                                tb_data['linear_thermal_transmittance'],
+                                tb_data['length']
+                                )
                     elif tb_type == 'ThermalBridgePoint':
                         tb = ThermalBridgePoint(tb_data['heat_transfer_coeff'])
                     else:
-                        sys.exit(tb_name + ': thermal bridge type ('
-                                 + tb_type + ') not recognised.')
+                        sys.exit( tb_name + ': thermal bridge type ('
+                                + tb_type + ') not recognised.' )
                         # TODO Exit just the current case instead of whole program entirely?
                     thermal_bridging.append(tb)
             else:
@@ -510,16 +512,16 @@ class Project:
             if 'SpaceHeatSystem' in data:
                 # Check that no heating system has been assigned to more than one zone
                 if data['SpaceHeatSystem'] in self.__heat_system_name_for_zone.values():
-                    sys.exit('Invalid input: SpaceHeatSystem (' + data['SpaceHeatSystem']
-                             + ') has been assigned to more than one Zone')
+                    sys.exit('Invalid input: SpaceHeatSystem (' + data['SpaceHeatSystem'] 
+                           + ') has been assigned to more than one Zone')
                 self.__heat_system_name_for_zone[name] = data['SpaceHeatSystem']
             else:
                 self.__heat_system_name_for_zone[name] = None
             if 'SpaceCoolSystem' in data:
                 # Check that no cooling system has been assigned to more than one zone
                 if data['SpaceCoolSystem'] in self.__cool_system_name_for_zone.values():
-                    sys.exit('Invalid input: SpaceCoolSystem (' + data['SpaceCoolSystem']
-                             + ') has been assigned to more than one Zone')
+                    sys.exit('Invalid input: SpaceCoolSystem (' + data['SpaceCoolSystem'] 
+                           + ') has been assigned to more than one Zone')
                 self.__cool_system_name_for_zone[name] = data['SpaceCoolSystem']
             else:
                 self.__cool_system_name_for_zone[name] = None
@@ -529,7 +531,7 @@ class Project:
             for building_element_name, building_element_data in data['BuildingElement'].items():
                 building_elements.append(
                     dict_to_building_element(building_element_name, building_element_data)
-                )
+                    )
 
             # Read in thermal bridging data
             thermal_bridging = dict_to_thermal_bridging(data['ThermalBridging'])
@@ -548,7 +550,7 @@ class Project:
                 thermal_bridging,
                 vent_elements,
                 print_heat_balance,
-            )
+                )
 
         self.__zones = {}
         self.__energy_supply_conn_unmet_demand_zone = {}
@@ -565,20 +567,20 @@ class Project:
             energy_supply = self.__energy_supplies[data['EnergySupply']]
             # TODO Need to handle error if EnergySupply name is invalid.
             energy_supply_conn = energy_supply.connection(name)
-
+            
             # Convert energy supplied to appliances from W to W / m2
             total_energy_supply = []
             for energy_data in expand_schedule(float, data['schedule'], "main", False):
                 total_energy_supply.append(energy_data / self.__total_floor_area)
 
             self.__internal_gains[name] = ApplianceGains(
-                total_energy_supply,
-                energy_supply_conn,
-                data['gains_fraction'],
-                self.__simtime,
-                data['start_day'],
-                data['time_series_step']
-            )
+                                             total_energy_supply,
+                                             energy_supply_conn,
+                                             data['gains_fraction'],
+                                             self.__simtime,
+                                             data['start_day'],
+                                             data['time_series_step']
+                                             )
 
         # Where wet distribution heat source provide more than one service, some
         # calculations can only be performed after all services have been
@@ -597,7 +599,7 @@ class Project:
                     energy_supply_conn_name_auxiliary,
                     self.__simtime,
                     self.__external_conditions,
-                )
+                    )
                 self.__timestep_end_calcs.append(heat_source)
             elif heat_source_type == 'Boiler':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
@@ -608,11 +610,11 @@ class Project:
                     energy_supply_conn_name_auxiliary,
                     self.__simtime,
                     self.__external_conditions,
-                )
+                    )
                 self.__timestep_end_calcs.append(heat_source)
             else:
-                sys.exit(name + ': heat source type ('
-                         + heat_source_type + ') not recognised.')
+                sys.exit(name + ': heat source type (' \
+                       + heat_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
             return heat_source
 
@@ -642,7 +644,7 @@ class Project:
                     energy_supply_conn,
                     self.__simtime,
                     ctrl,
-                )
+                    )
             elif heat_source_type == 'HeatSourceWet':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
@@ -654,21 +656,21 @@ class Project:
                 if isinstance(heat_source_wet, HeatPump):
                     heat_source = heat_source_wet.create_service_hot_water(
                         data['name'] + '_water_heating',
-                        55,  # TODO Remove hard-coding of HW temp
-                        50,  # TODO Remove hard-coding of return temp
+                        55, # TODO Remove hard-coding of HW temp
+                        50, # TODO Remove hard-coding of return temp
                         data['temp_flow_limit_upper'],
                         cold_water_source,
                         ctrl,
-                    )
+                        )
                 elif isinstance(heat_source_wet, Boiler):
                     heat_source = heat_source_wet.create_service_hot_water_regular(
                         data,
                         data['name'] + '_water_heating',
-                        55,  # TODO Remove hard-coding of HW temp
+                        55, # TODO Remove hard-coding of HW temp
                         cold_water_source,
                         data['temp_return']
-                    )
-
+                        )
+                    
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
@@ -683,7 +685,7 @@ class Project:
                     data['vol_hw_daily_average'],
                     energy_supply_conn,
                     self.__simtime,
-                )
+                    )
             else:
                 sys.exit(name + ': heat source type (' + heat_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
@@ -699,24 +701,24 @@ class Project:
                 if self.__wwhrs is not None:
                     for wwhrs_name in self.__wwhrs:
                         if isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemC) \
-                                or isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemA):
+                        or isinstance(self.__wwhrs[wwhrs_name], wwhrs.WWHRS_InstantaneousSystemA):
                             cold_water_source = self.__wwhrs[wwhrs_name]
 
                 if 'primary_pipework' in data:
                     primary_pipework = data['primary_pipework']
                 else:
                     primary_pipework = None
-
+                    
                 hw_source = StorageTank(
                     data['volume'],
                     data['daily_losses'],
-                    55.0,  # TODO Remove hard-coding of hot water temp
+                    55.0, # TODO Remove hard-coding of hot water temp
                     cold_water_source,
                     self.__simtime,
                     primary_pipework,
                     energy_supply_unmet_demand.connection(name)
-                )
-
+                    )
+                    
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
                     heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
                     hw_source.add_heat_source(heat_source, 1.0)
@@ -725,9 +727,9 @@ class Project:
                 hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_combi(
                     data,
                     data['HeatSourceWet'] + '_water_heating',
-                    55,  # TODO Remove hard-coding of HW temp
+                    55, # TODO Remove hard-coding of HW temp
                     cold_water_source
-                )
+                    )
             elif hw_source_type == 'PointOfUse':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
@@ -773,7 +775,7 @@ class Project:
                     energy_supply_conn,
                     self.__simtime,
                     ctrl,
-                )
+                    )
             elif space_heater_type == 'ElecStorageHeater':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
@@ -811,12 +813,12 @@ class Project:
                         data['HeatSource']['temp_flow_limit_upper'],
                         data['temp_diff_emit_dsgn'],
                         ctrl,
-                    )
+                        )
                 elif isinstance(heat_source, Boiler):
                     heat_source_service = heat_source.create_service_space_heating(
                         data['HeatSource']['name'] + '_space_heating: ' + name,
                         ctrl,
-                    )
+                        )
                 else:
                     sys.exit(name + ': HeatSource type not recognised')
                     # TODO Exit just the current case instead of whole program entirely?
@@ -833,10 +835,10 @@ class Project:
                     data['ecodesign_control_class'],
                     data['design_flow_temp'],
                     self.__simtime,
-                )
+                    )
             else:
-                sys.exit(name + ': space heating system type ('
-                         + space_heater_type + ') not recognised.')
+                sys.exit(name + ': space heating system type (' \
+                       + space_heater_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
             return space_heater
 
@@ -862,13 +864,13 @@ class Project:
                 energy_supply_conn = energy_supply.connection(name)
 
                 cooling_system = AirConditioning(
-                    data['cooling_capacity'],
-                    data['efficiency'],
-                    data['frac_convective'],
-                    energy_supply_conn,
-                    self.__simtime,
-                    ctrl,
-                )
+                   data['cooling_capacity'],
+                   data['efficiency'],
+                   data['frac_convective'],
+                   energy_supply_conn,
+                   self.__simtime,
+                   ctrl,
+                   )
             else:
                 sys.exit(name + ': CoolSystem type not recognised')
             return cooling_system
@@ -898,7 +900,7 @@ class Project:
                     self.__external_conditions,
                     energy_supply_conn,
                     self.__simtime,
-                )
+                    )
             else:
                 sys.exit(name + ': on site generation type ('
                          + on_site_generation_type + ') not recognised.')
@@ -919,7 +921,7 @@ class Project:
         according to the SAP10.2 specification """
         # Initialise variables
         total_fabric_heat_loss = 0
-        total_thermal_bridges = 0
+        total_thermal_bridges= 0
         total_vent_heat_loss = 0
 
         # Calculate the total fabric heat loss, total heat capacity, total ventilation heat
@@ -970,14 +972,14 @@ class Project:
             all_events = 0.0
             pw_losses = 0.0
             point_of_use = False
-
+            
             # TODO - this assumes there is only one hot water source
             # if any hotwatersource is point of use, they all are.
             # should we assign hotwatersource to each hot water event?
             for name, i in self.__hot_water_sources.items():
                 if isinstance(i, PointOfUse):
                     point_of_use = True
-
+            
             for name, shower in self.__showers.items():
                 # Get all shower use events for the current timestep
                 usage_events = self.__event_schedules['Shower'][name][t_idx]
@@ -986,7 +988,7 @@ class Project:
 
                 # If shower is used in the current timestep, get details of use
                 # and calculate HW demand from shower
-
+                
                 # TODO revisit structure and eliminate the branch on the type
                 if usage_events is not None:
                     for event in usage_events:
@@ -1000,25 +1002,25 @@ class Project:
                                 hw_demand_i,
                                 shower_temp,
                                 cold_water_temperature
-                            )
-                            hw_duration += event['duration']  # shower minutes duration
-                            all_events += 1
-                            if (point_of_use is False):
-                                pw_losses += calc_pipework_losses(
+                                )
+                            hw_duration += event['duration'] # shower minutes duration
+                            all_events +=1
+                            if(point_of_use == False):
+                                pw_losses+=calc_pipework_losses(
                                     hw_demand_i,
                                     t_idx,
                                     delta_t_h,
                                     cold_water_temperature,
                                     event['duration'],
                                     self.__water_heating_pipework,
-                                )
+                                    )
 
             for name, other in self.__other_water_events.items():
                 # Get all other use events for the current timestep
                 usage_events = self.__event_schedules['Other'][name][t_idx]
                 the_cold_water_temp = other.get_cold_water_source()
                 cold_water_temperature = the_cold_water_temp.temperature()
-
+                
                 # If other is used in the current timestep, get details of use
                 # and calculate HW demand from other
                 if usage_events is not None:
@@ -1030,10 +1032,10 @@ class Project:
                             other.hot_water_demand(other_temp, other_duration),
                             other_temp,
                             cold_water_temperature
-                        )
-                        hw_duration += event['duration']  # other minutes duration
+                            )
+                        hw_duration += event['duration'] # other minutes duration
                         all_events += 1
-                        if (point_of_use is False):
+                        if(point_of_use == False):
                             pw_losses += calc_pipework_losses(
                                 other.hot_water_demand(other_temp, other_duration),
                                 t_idx,
@@ -1041,7 +1043,7 @@ class Project:
                                 cold_water_temperature,
                                 event['duration'],
                                 self.__water_heating_pipework,
-                            )
+                                )
 
             for name, bath in self.__baths.items():
                 # Get all bath use events for the current timestep
@@ -1064,11 +1066,11 @@ class Project:
                             bath.hot_water_demand(bath_temp),
                             bath_temp,
                             cold_water_temperature
-                        )
+                            )
                         hw_duration += bath_duration
                         # litres bath  / litres per minute flowrate = minutes
                         all_events += 1
-                        if (point_of_use is False):
+                        if(point_of_use == False):
                             pw_losses += calc_pipework_losses(
                                 bath.hot_water_demand(bath_temp),
                                 t_idx,
@@ -1076,15 +1078,14 @@ class Project:
                                 cold_water_temperature,
                                 bath_duration,
                                 self.__water_heating_pipework,
-                            )
+                                )
 
             vol_hot_water_left_in_pipework \
                 = self.__water_heating_pipework['internal'].volume_litres() \
-                  + self.__water_heating_pipework['external'].volume_litres()
+                + self.__water_heating_pipework['external'].volume_litres()
             hw_demand += all_events * vol_hot_water_left_in_pipework
 
-            # litres hot water per timestep, minutes demand per timestep, number of events in timestep
-            return hw_demand, hw_duration, all_events, pw_losses, hw_energy_demand
+            return hw_demand, hw_duration, all_events, pw_losses, hw_energy_demand  # litres hot water per timestep, minutes demand per timestep, number of events in timestep
 
         def calc_pipework_losses(hw_demand, t_idx, delta_t_h, cold_water_temperature, hw_duration, hw_pipework):
             # sum up all hw_demand and allocate pipework losses also.
@@ -1092,44 +1093,43 @@ class Project:
 
             # TODO demand water temperature is 52 as elsewhere, need to set it somewhere
             demand_water_temperature = 52
-
+            
             # Initialise internal air temperature and total area of all zones
             internal_air_temperature = 0
             overall_volume = 0
-
+            
             # TODO here we are treating overall indoor temperature as average of all zones
             for z_name, zone in self.__zones.items():
                 internal_air_temperature += zone.temp_internal_air() * zone.volume()
                 overall_volume += zone.volume()
-            internal_air_temperature /= overall_volume  # average internal temperature
-
+            internal_air_temperature /= overall_volume # average internal temperature
+            
             hot_water_time_fraction = hw_duration / (delta_t_h * units.minutes_per_hour)
-
-            if hot_water_time_fraction > 1:
+            
+            if hot_water_time_fraction>1:
                 hot_water_time_fraction = 1
-
+            
             pipework_watts_heat_loss \
                 = hw_pipework["internal"].heat_loss(demand_water_temperature, internal_air_temperature) \
-                  + hw_pipework["external"].heat_loss(demand_water_temperature, self.__external_conditions.air_temp())
+                + hw_pipework["external"].heat_loss(demand_water_temperature, self.__external_conditions.air_temp())
 
-            # only calculate loss for times when there is hot water in the pipes - multiply
-            # by time fraction to get to kWh
+            # only calculate loss for times when there is hot water in the pipes - multiply by time fraction to get to kWh
             pipework_heat_loss \
                 = pipework_watts_heat_loss \
-                  * hot_water_time_fraction \
-                  * delta_t_h \
-                  / units.W_per_kW  # convert to kWh
+                * hot_water_time_fraction \
+                * delta_t_h \
+                / units.W_per_kW # convert to kWh
 
             pipework_heat_loss += hw_pipework["internal"].cool_down_loss(
                 demand_water_temperature,
                 internal_air_temperature
-            )
+                )
             pipework_heat_loss += hw_pipework["external"].cool_down_loss(
                 demand_water_temperature,
                 self.__external_conditions.air_temp()
-            )
-
-            return pipework_heat_loss  # heat loss in kWh for the timestep
+                )
+            
+            return pipework_heat_loss # heat loss in kWh for the timestep
 
         def calc_ductwork_losses(t_idx, delta_t_h, efficiency):
             """ Calculate the losses/gains in the MVHR ductwork
@@ -1139,51 +1139,51 @@ class Project:
             delta_t_h -- calculation timestep, in hours
             efficiency - MVHR heat recovery efficiency
             """
-            # assume 100% efficiency
-            # i.e. temp inside the supply and extract ducts is room temp and temp inside exhaust
-            # and intake is external temp assume MVHR unit is running 100% of the time
-
+            # assume 100% efficiency 
+            # i.e. temp inside the supply and extract ducts is room temp and temp inside exhaust and intake is external temp
+            # assume MVHR unit is running 100% of the time
+    
             # Initialise internal air temperature and total area of all zones
             internal_air_temperature = 0
             overall_volume = 0
-
+    
             # Calculate internal air temperature
             # TODO here we are treating overall indoor temperature as average of all zones
             for z_name, zone in self.__zones.items():
                 internal_air_temperature += zone.temp_internal_air() * zone.volume()
                 overall_volume += zone.volume()
-            internal_air_temperature /= overall_volume  # average internal temperature
+            internal_air_temperature /= overall_volume # average internal temperature
 
             # Calculate heat loss from ducts when unit is inside
             # Air temp inside ducts increases, heat lost from dwelling
             ductwork = self.__space_heating_ductwork
-            if ductwork is None:
+            if ductwork == None:
                 return 0
 
             ductwork_watts_heat_loss = 0.0
 
             # MVHR duct temperatures:
-            # extract_duct_temp - indoor air temperature
+            # extract_duct_temp - indoor air temperature 
             # intake_duct_temp - outside air temperature
-
+            
             temp_diff = internal_air_temperature - self.__external_conditions.air_temp()
-
+            
             # Supply duct contains what the MVHR could recover
             supply_duct_temp = self.__external_conditions.air_temp() + (efficiency * temp_diff)
-
+            
             # Exhaust duct contans the heat that couldn't be recovered
-            exhaust_duct_temp = self.__external_conditions.air_temp() + ((1 - efficiency) * temp_diff)
-
+            exhaust_duct_temp = self.__external_conditions.air_temp() + ((1- efficiency) * temp_diff)
+            
             ductwork_watts_heat_loss = \
                 ductwork.total_duct_heat_loss(
-                    internal_air_temperature,
-                    supply_duct_temp,
-                    internal_air_temperature,
-                    self.__external_conditions.air_temp(),
-                    exhaust_duct_temp,
-                    efficiency)
-
-            return ductwork_watts_heat_loss, overall_volume  # heat loss in Watts for the timestep
+                internal_air_temperature,
+                supply_duct_temp,
+                internal_air_temperature,
+                self.__external_conditions.air_temp(),
+                exhaust_duct_temp,
+                efficiency)
+    
+            return ductwork_watts_heat_loss, overall_volume # heat loss in Watts for the timestep
 
         def calc_space_heating(delta_t_h, gains_internal_dhw):
             """ Calculate space heating demand, heating system output and temperatures
@@ -1199,8 +1199,7 @@ class Project:
             ductwork_losses, overall_zone_volume, ductwork_losses_per_m3 = 0.0, 0.0, 0.0
             # ductwork gains/losses only for MVHR
             if isinstance(self.__ventilation, MechnicalVentilationHeatRecovery):
-                ductwork_losses, overall_zone_volume = calc_ductwork_losses(0, delta_t_h,
-                                                                            self.__ventilation.efficiency())
+                ductwork_losses, overall_zone_volume = calc_ductwork_losses(0, delta_t_h, self.__ventilation.efficiency())
                 ductwork_losses_per_m3 = ductwork_losses / overall_zone_volume
 
             # Calculate internal and solar gains for each zone
@@ -1210,14 +1209,14 @@ class Project:
                 # Initialise to dhw internal gains split proportionally to zone floor area
                 gains_internal_zone_inner = gains_internal_dhw * zone.area() / self.__total_floor_area
                 for internal_gains_name, internal_gains_object in self.__internal_gains.items():
-                    gains_internal_zone_inner \
+                    gains_internal_zone_inner\
                         += internal_gains_object.total_internal_gain(zone.area())
                 gains_internal_zone[z_name] = gains_internal_zone_inner
                 # Add gains from ventilation fans (make sure this is only called
                 # once per timestep per zone)
                 # TODO Remove the branch on the type of ventilation (find a better way)
                 if self.__ventilation is not None \
-                        and not isinstance(self.__ventilation, NaturalVentilation):
+                and not isinstance(self.__ventilation, NaturalVentilation):
                     gains_internal_zone[z_name] += self.__ventilation.fans(zone.volume())
                     gains_internal_zone[z_name] += ductwork_losses_per_m3 * zone.volume()
 
@@ -1227,11 +1226,11 @@ class Project:
             # Keep track of how much is from each zone, so that energy provided
             # can be split between them in same proportion later
 
-            space_heat_demand_system = {}  # in kWh
+            space_heat_demand_system = {} # in kWh
             for heat_system_name in self.__space_heat_systems.keys():
                 space_heat_demand_system[heat_system_name] = 0.0
 
-            space_cool_demand_system = {}  # in kWh
+            space_cool_demand_system = {} # in kWh
             for cool_system_name in self.__space_cool_systems.keys():
                 space_cool_demand_system[cool_system_name] = 0.0
 
@@ -1274,11 +1273,11 @@ class Project:
                         frac_convective_cool,
                         temp_setpnt_heat,
                         temp_setpnt_cool,
-                    )
+                        )
 
-                if h_name is not None:  # If the zone is heated
+                if h_name is not None: # If the zone is heated
                     space_heat_demand_system[h_name] += space_heat_demand_zone[z_name]
-                if c_name is not None:  # If the zone is cooled
+                if c_name is not None: # If the zone is cooled
                     space_cool_demand_system[c_name] += space_cool_demand_zone[z_name]
 
             # Calculate how much heating the systems can provide
@@ -1317,7 +1316,7 @@ class Project:
                 #      systems such as boiler feeding radiators, this means one
                 #      emitter system for each zone, but they can all be served
                 #      by the same boiler).
-                if h_name is None:  # or space_heat_demand_system[h_name] == 0.0:
+                if h_name is None: # or space_heat_demand_system[h_name] == 0.0:
                     gains_heat = 0.0
                 else:
                     # frac_heat_zone = space_heat_demand_zone[z_name] \
@@ -1334,7 +1333,7 @@ class Project:
                 #      the demand is zero but the system is delivering cooling
                 #      anyway. Therefore, for now assume that each system only
                 #      serves a single zone.
-                if c_name is None:  # or space_cool_demand_system[c_name] == 0.0:
+                if c_name is None: # or space_cool_demand_system[c_name] == 0.0:
                     gains_cool = 0.0
                 else:
                     # frac_cool_zone = space_cool_demand_zone[z_name] \
@@ -1377,8 +1376,7 @@ class Project:
                     gains_heat_cool,
                     frac_convective,
                     )
-
-
+                
                 if h_name is None:
                     space_heat_demand_system[h_name] = 'n/a'
                 if c_name is None:
@@ -1388,10 +1386,10 @@ class Project:
                 operative_temp[z_name] = zone.temp_operative()
 
             return gains_internal_zone, gains_solar_zone, \
-                operative_temp, internal_air_temp, \
-                space_heat_demand_zone, space_cool_demand_zone, \
-                space_heat_demand_system, space_cool_demand_system, \
-                ductwork_losses, heat_balance_dict
+                   operative_temp, internal_air_temp, \
+                   space_heat_demand_zone, space_cool_demand_zone, \
+                   space_heat_demand_system, space_cool_demand_system, \
+                   ductwork_losses, heat_balance_dict
 
         timestep_array = []
         gains_internal_dict = {}
@@ -1488,7 +1486,7 @@ class Project:
                         if heat_gains_losses_name in heat_balance_all_dict[z_name].keys():
                             heat_balance_all_dict[z_name][heat_gains_losses_name].append(heat_gains_losses_value)
                         else:
-                            heat_balance_all_dict[z_name][heat_gains_losses_name] = [heat_gains_losses_value]
+                            heat_balance_all_dict[z_name][heat_gains_losses_name] =[heat_gains_losses_value]
 
             hot_water_demand_dict['demand'].append(hw_demand)
             hot_water_energy_demand_dict['energy_demand'].append(hw_energy_demand)
@@ -1497,7 +1495,7 @@ class Project:
             hot_water_pipework_dict['pw_losses'].append(pw_losses)
             ductwork_gains_dict['ductwork_gains'].append(ductwork_gains)
 
-            # loop through on-site energy generation
+            #loop through on-site energy generation
             for g_name, gen in self.__on_site_generation.items():
                 # Get energy produced for the current timestep
                 self.__on_site_generation[g_name].produce_energy()
@@ -1512,13 +1510,9 @@ class Project:
             'Internal air temp': internal_air_temp_dict,
             'Space heat demand': space_heat_demand_dict,
             'Space cool demand': space_cool_demand_dict,
-        }
-        hc_system_dict = {'Heating system': space_heat_demand_system_dict,
-                          'Cooling system': space_cool_demand_system_dict}
-        hot_water_dict = {'Hot water demand': hot_water_demand_dict,
-                          'Hot water energy demand': hot_water_energy_demand_dict,
-                          'Hot water duration': hot_water_duration_dict, 'Hot Water Events': hot_water_no_events_dict,
-                          'Pipework losses': hot_water_pipework_dict}
+            }
+        hc_system_dict = {'Heating system': space_heat_demand_system_dict, 'Cooling system': space_cool_demand_system_dict}
+        hot_water_dict = {'Hot water demand': hot_water_demand_dict, 'Hot water energy demand': hot_water_energy_demand_dict, 'Hot water duration': hot_water_duration_dict, 'Hot Water Events': hot_water_no_events_dict, 'Pipework losses': hot_water_pipework_dict}
 
         # Return results from all energy supplies
         results_totals = {}
@@ -1534,6 +1528,6 @@ class Project:
             betafactor[name] = supply.get_beta_factor()
         return \
             timestep_array, results_totals, results_end_user, \
-                energy_import, energy_export, betafactor, \
-                zone_dict, zone_list, hc_system_dict, hot_water_dict, \
-                ductwork_gains_dict, heat_balance_all_dict
+            energy_import, energy_export, betafactor, \
+            zone_dict, zone_list, hc_system_dict, hot_water_dict, \
+            ductwork_gains_dict, heat_balance_all_dict
