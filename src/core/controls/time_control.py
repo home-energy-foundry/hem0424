@@ -7,6 +7,12 @@ This module provides objects to model time controls.
 
 # Standard library imports
 import sys
+from heapq import nsmallest
+from math import ceil
+
+# Local imports
+import core.units as units
+
 
 class OnOffTimeControl:
     """ An object to model a time-only control with on/off (not modulating) operation """
@@ -60,6 +66,68 @@ class ToUChargeControl:
         return self.__charge_level[
             self.__simulation_time.time_series_idx_days(self.__start_day, self.__time_series_step)
         ]
+
+
+class OnOffCostMinimisingTimeControl:
+
+    def __init__(
+            self,
+            schedule,
+            simulation_time,
+            start_day,
+            time_series_step,
+            time_on_daily,
+            ):
+        """ Construct an OnOffCostMinimisingControl object
+
+        Arguments:
+        schedule         -- list of cost values (one entry per hour)
+        simulation_time  -- reference to SimulationTime object
+        start_day        -- first day of the time series, day of the year, 0 to 365 (single value)
+        time_series_step -- timestep of the time series data, in hours
+        time_on_daily    -- number of "on" hours to be set per day
+        """
+        self.__simulation_time = simulation_time
+        self.__start_day = start_day
+        self.__time_series_step = time_series_step
+        self.__time_on_daily = time_on_daily
+
+        timesteps_per_day = int(units.hours_per_day / time_series_step)
+        timesteps_on_daily = int(time_on_daily / time_series_step)
+        time_series_len_days = ceil(len(schedule) * time_series_step / units.hours_per_day)
+
+        # For each day of schedule, find the specified number of hours with the lowest cost
+        self.__schedule = []
+        for day in range(0, time_series_len_days):
+            # Get part of the schedule for current day
+            schedule_day_start = day * timesteps_per_day
+            schedule_day_end = schedule_day_start + timesteps_per_day
+            schedule_day = schedule[schedule_day_start : schedule_day_end]
+
+            # Find required number of timesteps with lowest costs
+            schedule_day_cost_lowest = sorted(set(nsmallest(timesteps_on_daily, schedule_day)))
+
+            # Initialise boolean schedule for day
+            schedule_onoff_day = [False] * timesteps_per_day
+
+            # Set lowest cost times to True, then next lowest etc. until required
+            # number of timesteps have been set to True
+            assert len(schedule_onoff_day) == len(schedule_day)
+            timesteps_to_be_allocated = timesteps_on_daily
+            for cost in schedule_day_cost_lowest:
+                for idx, entry in enumerate(schedule_day):
+                    if timesteps_to_be_allocated < 1:
+                        break
+                    if entry == cost:
+                        schedule_onoff_day[idx] = True
+                        timesteps_to_be_allocated -= 1
+
+            # Add day of schedule to overall
+            self.__schedule.extend(schedule_onoff_day)
+
+    def is_on(self):
+        """ Return true if control will allow system to run """
+        return self.__schedule[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
 
 
 class SetpointTimeControl:

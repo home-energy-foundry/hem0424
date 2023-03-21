@@ -14,7 +14,8 @@ test_setup()
 
 # Local imports
 from core.simulation_time import SimulationTime
-from core.controls.time_control import OnOffTimeControl, SetpointTimeControl
+from core.controls.time_control import \
+    OnOffTimeControl, SetpointTimeControl, OnOffCostMinimisingTimeControl
 
 class Test_OnOffTimeControl(unittest.TestCase):
     """ Unit tests for OnOffTimeControl class """
@@ -32,6 +33,31 @@ class Test_OnOffTimeControl(unittest.TestCase):
                 self.assertEqual(
                     self.timecontrol.is_on(),
                     self.schedule[t_idx],
+                    "incorrect schedule returned",
+                    )
+
+
+class Test_OnOffCostMinimisingTimeControl(unittest.TestCase):
+
+    def setUp(self):
+        self.simtime = SimulationTime(0, 48, 1)
+        cost_schedule = 2 * ([5.0] * 7 + [10.0] * 2 + [7.5] * 8 + [15.0] * 6 + [5.0])
+        self.cost_minimising_ctrl = OnOffCostMinimisingTimeControl(
+            cost_schedule,
+            self.simtime,
+            0.0, # Start day
+            1.0, # Schedule data is hourly
+            12.0, # Need 12 "on" hours
+            )
+
+    def test_is_on(self):
+        resulting_schedule \
+            = 2 * ([True] * 7 + [False] * 2 + [True] * 4 + [False] * 4 + [False] * 6 + [True])
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertEqual(
+                    self.cost_minimising_ctrl.is_on(),
+                    resulting_schedule[t_idx],
                     "incorrect schedule returned",
                     )
 
