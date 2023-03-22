@@ -1591,6 +1591,7 @@ class Project:
                     gains_heat_cool,
                     frac_convective,
                     vent_extra_h_ve = h_ve_cool_extra_zone[z_name],
+                    throughput_factor = throughput_factor,
                     )
                 
                 if h_name is None:
