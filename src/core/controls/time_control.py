@@ -81,7 +81,7 @@ class OnOffCostMinimisingTimeControl:
         """ Construct an OnOffCostMinimisingControl object
 
         Arguments:
-        schedule         -- list of cost values (one entry per hour)
+        schedule         -- list of cost values (one entry per time_series_step)
         simulation_time  -- reference to SimulationTime object
         start_day        -- first day of the time series, day of the year, 0 to 365 (single value)
         time_series_step -- timestep of the time series data, in hours
