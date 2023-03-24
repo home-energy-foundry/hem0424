@@ -28,7 +28,7 @@ from core.heating_systems.storage_tank import \
     ImmersionHeater, SolarThermalSystem, StorageTank, PVDiverter
 from core.heating_systems.instant_elec_heater import InstantElecHeater
 from core.heating_systems.elec_storage_heater import ElecStorageHeater
-from core.heating_systems.boiler import Boiler
+from core.heating_systems.boiler import Boiler, BoilerServiceWaterCombi
 from core.heating_systems.heat_battery import HeatBattery
 from core.heating_systems.heat_network import HeatNetwork
 from core.space_heat_demand.zone import Zone
@@ -1728,7 +1728,8 @@ class Project:
             gains_internal_dhw \
                 = (pw_losses_internal + gains_internal_dhw_use) \
                 * units.W_per_kW / self.__simtime.timestep()
-            if isinstance(self.__hot_water_sources['hw cylinder'], StorageTank):
+            if isinstance(self.__hot_water_sources['hw cylinder'], StorageTank) \
+            or isinstance(self.__hot_water_sources['hw cylinder'], BoilerServiceWaterCombi):
                 gains_internal_dhw += self.__hot_water_sources['hw cylinder'].internal_gains()
 
             gains_internal_zone, gains_solar_zone, \
