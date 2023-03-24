@@ -636,7 +636,7 @@ class Project:
                 = self.__energy_supplies['_unmet_demand'].connection(name)
 
         self.__total_floor_area = sum(zone.area() for zone in self.__zones.values())
-        total_volume = sum(zone.volume() for zone in self.__zones.values())
+        self.__total_volume = sum(zone.volume() for zone in self.__zones.values())
 
         # Add internal gains from applicances to the internal gains dictionary and
         # create an energy supply connection for appliances
@@ -674,7 +674,7 @@ class Project:
                     not in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation):
                         sys.exit('Exhaust air heat pump requires ventilation to be MVHR or WHEV.')
                     throughput_exhaust_air \
-                        = air_change_rate_to_flow_rate(air_change_rate_req, total_volume) \
+                        = air_change_rate_to_flow_rate(air_change_rate_req, self.__total_volume) \
                         * units.litres_per_cubic_metre
                 else:
                     throughput_exhaust_air = None
@@ -1195,6 +1195,17 @@ class Project:
 
         return TMP
 
+    def temp_internal_air(self):
+        # Initialise internal air temperature and total area of all zones
+        internal_air_temperature = 0
+
+        # TODO here we are treating overall indoor temperature as average of all zones
+        for z_name, zone in self.__zones.items():
+            internal_air_temperature += zone.temp_internal_air() * zone.volume()
+
+        internal_air_temperature /= self.__total_volume # average internal temperature
+        return internal_air_temperature
+
     def run(self):
         """ Run the simulation """
 
@@ -1354,17 +1365,8 @@ class Project:
 
             # TODO demand water temperature is 52 as elsewhere, need to set it somewhere
             demand_water_temperature = 52
-            
-            # Initialise internal air temperature and total area of all zones
-            internal_air_temperature = 0
-            overall_volume = 0
-            
-            # TODO here we are treating overall indoor temperature as average of all zones
-            for z_name, zone in self.__zones.items():
-                internal_air_temperature += zone.temp_internal_air() * zone.volume()
-                overall_volume += zone.volume()
-            internal_air_temperature /= overall_volume # average internal temperature
-            
+            internal_air_temperature = self.temp_internal_air()
+
             hot_water_time_fraction = hw_duration / (delta_t_h * units.minutes_per_hour)
             
             if hot_water_time_fraction>1:
@@ -1414,17 +1416,8 @@ class Project:
             # assume 100% efficiency 
             # i.e. temp inside the supply and extract ducts is room temp and temp inside exhaust and intake is external temp
             # assume MVHR unit is running 100% of the time
-    
-            # Initialise internal air temperature and total area of all zones
-            internal_air_temperature = 0
-            overall_volume = 0
-    
-            # Calculate internal air temperature
-            # TODO here we are treating overall indoor temperature as average of all zones
-            for z_name, zone in self.__zones.items():
-                internal_air_temperature += zone.temp_internal_air() * zone.volume()
-                overall_volume += zone.volume()
-            internal_air_temperature /= overall_volume # average internal temperature
+
+            internal_air_temperature = self.temp_internal_air()
 
             # Calculate heat loss from ducts when unit is inside
             # Air temp inside ducts increases, heat lost from dwelling
@@ -1454,8 +1447,8 @@ class Project:
                 self.__external_conditions.air_temp(),
                 exhaust_duct_temp,
                 efficiency)
-    
-            return ductwork_watts_heat_loss, overall_volume # heat loss in Watts for the timestep
+
+            return ductwork_watts_heat_loss # heat loss in Watts for the timestep
 
         def calc_space_heating(delta_t_h, gains_internal_dhw):
             """ Calculate space heating demand, heating system output and temperatures
@@ -1468,11 +1461,11 @@ class Project:
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
 
-            ductwork_losses, overall_zone_volume, ductwork_losses_per_m3 = 0.0, 0.0, 0.0
+            ductwork_losses, ductwork_losses_per_m3 = 0.0, 0.0
             # ductwork gains/losses only for MVHR
             if isinstance(self.__ventilation, MechnicalVentilationHeatRecovery):
-                ductwork_losses, overall_zone_volume = calc_ductwork_losses(0, delta_t_h, self.__ventilation.efficiency())
-                ductwork_losses_per_m3 = ductwork_losses / overall_zone_volume
+                ductwork_losses = calc_ductwork_losses(0, delta_t_h, self.__ventilation.efficiency())
+                ductwork_losses_per_m3 = ductwork_losses / self.__total_volume
 
             # Calculate internal and solar gains for each zone
             gains_internal_zone = {}
