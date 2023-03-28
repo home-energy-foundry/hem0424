@@ -783,13 +783,6 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
 
 def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed_temps):
     
-    #utility for applying the sap10.2 monly factors (below)
-    month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
-    #from sap10.2 J5
-    behavioural_hw_factorm = [1.035, 1.021, 1.007, 0.993, 0.979, 0.965, 0.965, 0.979, 0.993, 1.007, 1.021, 1.035]
-    #from sap10.2 j2
-    other_hw_factorm = [1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00]
-    
     #temperature of mixed hot water for event
     event_temperature = 41.0
     HW_temperature = 52.0
@@ -804,8 +797,6 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     #vol_daily_average = (25 * N_occupants) + 36
     
     #new relation based on Boiler Manufacturer data and EST surveys
-
-    
     vol_HW_daily_average =  60.3 * N_occupants ** 0.71
     
     HWeventgen = HW_events_generator(vol_HW_daily_average)
@@ -847,8 +838,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     
     HW_event_aa = HW_event_adjust_allocate(project_dict,
                      FHW,
-                     behavioural_hw_factorm,
-                     other_hw_factorm,
+                     event_temperature, 
+                     HW_temperature, 
+                     cold_water_feed_temps,
                      partGbonus
                      )
     
@@ -861,64 +853,26 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     for i, event in enumerate(ref_eventlist):
         if event["type"] != "None":
             if event["type"].find("shower")!=-1:
-                eventstart = event["time"]
-                #now get monthly behavioural factor and apply it, along with FHW
-                monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
                 eventtype, name, durationfunc = HW_event_aa.get_shower()
-                duration = event["dur"] * durationfunc(monthidx)
-                
-                if not (name in project_dict["Shower"] and project_dict["Shower"][name]["type"] == "InstantElecShower"):
-                    #IES can overlap with anything so ignore them entirely
-                    HWeventgen.overlap_check(hrlyevents, ["Shower", "Bath"], eventstart, duration)
-                    hrlyevents[math.floor(eventstart)].append({"type":"Shower",
-                                                               "eventstart": eventstart,
-                                                               "eventend": eventstart + duration / 60.0})
-                    
-                project_dict["Events"][eventtype][name].append(
-                    {"start": eventstart,
-                    "duration": duration, 
-                    "temperature": event_temperature}
-                )
             elif event["type"].find("bath")!=-1:
-                eventstart = event["time"]
-                #now get monthly behavioural factor and apply it, along with FHW and partGbonus
-                monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
-                #TODO durationfunc does all the duration calc including retyurning simply the size of the bath if its a bath
                 eventtype, name, durationfunc = HW_event_aa.get_bath()
-                
-                frac_HW = frac_hot_water(event_temperature, HW_temperature, cold_water_feed_temps[math.floor(event["time"])])
-                duration = ( event["vol"] / frac_HW / project_dict[eventtype][name]["flowrate"] ) * durationfunc(monthidx)
-                
-                
-                
-                HWeventgen.overlap_check(hrlyevents, ["Shower", "Bath"], eventstart, duration)
-                hrlyevents[math.floor(eventstart)].append({"type":"Bath",
-                                                           "eventstart": eventstart,
-                                                           "eventend": eventstart + duration / 60.0})
-                
-                project_dict["Events"][eventtype][name].append(
-                    {"start": eventstart,
-                     "duration": duration,
-                     "temperature": event_temperature}
-                )
             else:
-                eventstart = event["time"]
-                #now get monthly behavioural factor and apply it, along with FHW
-                monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
                 eventtype, name, durationfunc = HW_event_aa.get_other()
+            
+            eventstart = event["time"]
+            duration = durationfunc(event)
                 
-                frac_HW = frac_hot_water(event_temperature, HW_temperature, cold_water_feed_temps[math.floor(event["time"])])
-                duration = ( event["vol"]  / frac_HW / project_dict[eventtype][name]["flowrate"] ) * durationfunc(monthidx)
-                
-                HWeventgen.overlap_check(hrlyevents, ["Other"], eventstart, duration)
-                hrlyevents[math.floor(eventstart)].append({"type": "Other",
+            if not (name in project_dict["Shower"] and project_dict["Shower"][name]["type"] == "InstantElecShower"):
+                #IES can overlap with anything so ignore them entirely
+                HWeventgen.overlap_check(hrlyevents, ["Shower", "Bath"], eventstart, duration)
+                hrlyevents[math.floor(eventstart)].append({"type":"Shower",
                                                            "eventstart": eventstart,
                                                            "eventend": eventstart + duration / 60.0})
                 
-                project_dict["Events"][eventtype][name].append(
-                    {"start": eventstart,
-                     "duration": duration,
-                     "temperature": event_temperature}
+            project_dict["Events"][eventtype][name].append(
+                {"start": eventstart,
+                "duration": duration, 
+                "temperature": event_temperature}
                 )
 
 

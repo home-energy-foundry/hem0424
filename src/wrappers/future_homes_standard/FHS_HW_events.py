@@ -4,6 +4,8 @@ import os
 import math
 import random
 import numpy as np
+from functools import partial
+from core.water_heat_demand.misc import frac_hot_water
 
 class HW_event_adjust_allocate:
     '''
@@ -13,8 +15,9 @@ class HW_event_adjust_allocate:
     def __init__(self, 
                  project_dict,
                  FHW,
-                 behavioural_hw_factorm,
-                 other_hw_factorm,
+                 event_temperature, 
+                 HW_temperature, 
+                 cold_water_feed_temps,
                  partGbonus):
         self.showers = []
         self.baths = []
@@ -22,14 +25,30 @@ class HW_event_adjust_allocate:
         self.which_shower = -1
         self.which_bath = -1
         self.which_other = -1
+        self.event_temperature = event_temperature
+        self.HW_temperature = HW_temperature
+        self.cold_water_feed_temps = cold_water_feed_temps
+        
+        #utility for applying the sap10.2 monly factors (below)
+        self.month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
+        #from sap10.2 J5
+        self.behavioural_hw_factorm = [1.035, 1.021, 1.007, 0.993, 0.979, 0.965, 0.965, 0.979, 0.993, 1.007, 1.021, 1.035]
+        #from sap10.2 j2
+        self.other_hw_factorm = [1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00]
+        
         #event and monthidx are only things that should change between events, rest are globals so dont need to be captured
         #we need unused "event" in shower and bath syntax so that its the same for all 3
-        self.showerdurationfunc = lambda monthidx: \
-            FHW * behavioural_hw_factorm[monthidx]
-        self.bathdurationfunc = lambda monthidx: \
-            FHW * behavioural_hw_factorm[monthidx] * partGbonus
-        self.otherdurationfunc = lambda monthidx: \
-            FHW * other_hw_factorm[monthidx]
+        def showerdurationfunc (event):
+            monthidx  = next(idx for idx, value in enumerate(self.month_hour_starts) if value > event["time"])
+            return event["dur"] * FHW * self.behavioural_hw_factorm[monthidx]
+        def bathdurationfunc (bathsize, flowrate, event):
+            monthidx  = next(idx for idx, value in enumerate(self.month_hour_starts) if value > event["time"])
+            frac_HW = frac_hot_water(event_temperature, HW_temperature, cold_water_feed_temps[math.floor(event["time"])])
+            return (bathsize / frac_HW / flowrate) * FHW * self.behavioural_hw_factorm[monthidx] * partGbonus
+        def otherdurationfunc (flowrate, event):
+            monthidx  = next(idx for idx, value in enumerate(self.month_hour_starts) if value > event["time"])
+            frac_HW = frac_hot_water(event_temperature, HW_temperature, cold_water_feed_temps[math.floor(event["time"])])
+            return (event["vol"] / frac_HW / flowrate) * FHW * self.other_hw_factorm[monthidx]
         '''
         set up events dict
         check if showers/baths are present
@@ -44,15 +63,15 @@ class HW_event_adjust_allocate:
         
         for shower in project_dict["Shower"]:
             project_dict["Events"]["Shower"][shower] = []
-            self.showers.append(("Shower",shower,self.showerdurationfunc))
+            self.showers.append(("Shower",shower,showerdurationfunc))
             
         for bath in project_dict["Bath"]:
             project_dict["Events"]["Bath"][bath] = []
-            self.baths.append(("Bath",bath,self.bathdurationfunc))
+            self.baths.append(("Bath", bath, partial(bathdurationfunc, project_dict["Bath"][bath]["size"], project_dict["Bath"][bath]["flowrate"])))
             
         for other in project_dict["Other"]:
             project_dict["Events"]["Other"][other] = []
-            self.other.append(("Other",other,self.otherdurationfunc))
+            self.other.append(("Other", other, partial(otherdurationfunc, project_dict["Other"][other]["flowrate"])))
         
         #if theres no other events we need to add them
         if self.other == []:
