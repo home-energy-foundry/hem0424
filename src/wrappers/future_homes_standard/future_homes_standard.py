@@ -28,8 +28,6 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
 
     project_dict['InternalGains']={}
     
-    #TODO specify hot water temperature setpoint (55C) and minimum (52C)
-    
     TFA = calc_TFA(project_dict)
     
     nbeds = calc_nbeds(project_dict)
@@ -51,7 +49,7 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     create_appliance_gains(project_dict, TFA, N_occupants)
     
     for hwsource in project_dict["HotWaterSource"]:
-        if hwsource == "hw cylinder":
+        if project_dict["HotWaterSource"][hwsource]["type"] == "StorageTank":
             project_dict["HotWaterSource"][hwsource]["min_temp"] = 52.0
             project_dict["HotWaterSource"][hwsource]["setpoint_temp"] = 55.0
         
@@ -207,16 +205,6 @@ def calc_TFA(project_dict):
     return TFA
 
 def calc_nbeds(project_dict):
-    nbeds = 0
-    
-    '''
-    for zones in project_dict["Zone"]:
-        #TODO could do this with regex instead to cover more cases more easily
-        if project_dict["Zone"][zones].find("bed")!=-1\
-            or project_dict["Zone"][zones].find("Bed")!=-1:
-            nbeds+=1
-    '''
-    
     if "NumberOfBedrooms" in project_dict:
         nbeds = int(project_dict["NumberOfBedrooms"])
     else:
