@@ -12,7 +12,8 @@ import os
 import json
 import csv
 from fractions import Fraction
-from core import project, schedule
+from core import project, schedule, units
+from core.water_heat_demand.misc import frac_hot_water
 from cmath import log
 from wrappers.future_homes_standard.FHS_HW_events import HW_event_adjust_allocate, HW_events_generator
 
@@ -828,8 +829,6 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
         so the actual hw use predicted by sap depends on shower flowrates in dwelling, but this value does not
         '''
         ref_HW_vol += float(event["vol"])
-
-    ref_QHW = 4.18 * (mean_delta_T / 3600) * ref_HW_vol
     # Add daily average hot water use to hot water only heat pump (HWOHP) object, if present
     # TODO This is probably only valid if HWOHP is the only heat source for the
     #      storage tank. Make this more robust/flexible in future.
@@ -839,8 +838,8 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 if heat_source_obj['type'] == 'HeatPump_HWOnly':
                     heat_source_obj['vol_hw_daily_average'] = vol_HW_daily_average
 
-    targetQHW = 365 * 4.18 * (mean_delta_T / 3600) * vol_HW_daily_average
-    FHW = targetQHW / ref_QHW
+    FHW = (365 * vol_HW_daily_average) / ref_HW_vol
+
 
 
     '''
@@ -890,7 +889,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 project_dict["Events"][eventtype][name].append(
                     {"start": eventstart,
                     "duration": duration, 
-                    "temperature": 41.0}
+                    "temperature": event_temperature}
                 )
             elif event["type"].find("bath")!=-1:
                 eventstart = event["time"]
@@ -899,8 +898,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 #TODO durationfunc does all the duration calc including retyurning simply the size of the bath if its a bath
                 eventtype, name, durationfunc = HW_event_aa.get_bath()
                 
-                frac_HW = (event_temperature - cold_water_feed_temps[math.floor(event["time"])])\
-                            /(HW_temperature - cold_water_feed_temps[math.floor(event["time"])])
+                frac_HW = frac_hot_water(event_temperature, HW_temperature, cold_water_feed_temps[math.floor(event["time"])])
                 duration = ( event["vol"] / frac_HW / project_dict[eventtype][name]["flowrate"] ) * durationfunc(monthidx)
                 
                 
@@ -913,15 +911,15 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 project_dict["Events"][eventtype][name].append(
                     {"start": eventstart,
                      "duration": duration,
-                     "temperature": 41.0}
+                     "temperature": event_temperature}
                 )
             else:
                 eventstart = event["time"]
                 #now get monthly behavioural factor and apply it, along with FHW
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
                 eventtype, name, durationfunc = HW_event_aa.get_other()
-                frac_HW = (event_temperature - cold_water_feed_temps[math.floor(event["time"])])\
-                            /(HW_temperature - cold_water_feed_temps[math.floor(event["time"])])
+                
+                frac_HW = frac_hot_water(event_temperature, HW_temperature, cold_water_feed_temps[math.floor(event["time"])])
                 duration = ( event["vol"]  / frac_HW / project_dict[eventtype][name]["flowrate"] ) * durationfunc(monthidx)
                 
                 HWeventgen.overlap_check(hrlyevents, ["Other"], eventstart, duration)
@@ -932,7 +930,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 project_dict["Events"][eventtype][name].append(
                     {"start": eventstart,
                      "duration": duration,
-                     "temperature": 41.0}
+                     "temperature": event_temperature}
                 )
 
 
