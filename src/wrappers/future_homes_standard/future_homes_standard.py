@@ -831,8 +831,6 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
             partGbonus = 0.95
             #adjusting the size of the bath here as bath duration is not utilised by engine,
             #only bath size
-            for bath in project_dict["Bath"]:
-                project_dict["Bath"][bath]["size"] = project_dict["Bath"][bath]["size"] * 0.95
     else:
         sys.exit("Part G compliance missing from input file")
     

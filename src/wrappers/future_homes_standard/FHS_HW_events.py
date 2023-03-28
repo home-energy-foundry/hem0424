@@ -44,11 +44,11 @@ class HW_event_adjust_allocate:
         def bathdurationfunc (bathsize, flowrate, event):
             monthidx  = next(idx for idx, value in enumerate(self.month_hour_starts) if value > event["time"])
             frac_HW = frac_hot_water(event_temperature, HW_temperature, cold_water_feed_temps[math.floor(event["time"])])
-            return (bathsize / frac_HW / flowrate) * FHW * self.behavioural_hw_factorm[monthidx] * partGbonus
+            return (bathsize / frac_HW / flowrate) * FHW * self.behavioural_hw_factorm[monthidx]
         def otherdurationfunc (flowrate, event):
             monthidx  = next(idx for idx, value in enumerate(self.month_hour_starts) if value > event["time"])
             frac_HW = frac_hot_water(event_temperature, HW_temperature, cold_water_feed_temps[math.floor(event["time"])])
-            return (event["vol"] / frac_HW / flowrate) * FHW * self.other_hw_factorm[monthidx]
+            return (event["vol"] / frac_HW / flowrate) * FHW * self.other_hw_factorm[monthidx] * partGbonus
         '''
         set up events dict
         check if showers/baths are present
