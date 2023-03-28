@@ -1277,7 +1277,6 @@ class Project:
                 if usage_events is not None:
                     for event in usage_events:
                         bath_temp = event['temperature']
-                        #why do we not take the volume/duration from the input??
                         hw_demand += bath.hot_water_demand(bath_temp)
                         bath_duration = bath.get_size() / peak_flowrate
                         hw_energy_demand += misc.water_demand_to_kWh(

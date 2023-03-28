@@ -25,10 +25,9 @@ class HW_event_adjust_allocate:
         #event and monthidx are only things that should change between events, rest are globals so dont need to be captured
         #we need unused "event" in shower and bath syntax so that its the same for all 3
         self.showerdurationfunc = lambda monthidx: \
-            FHW  * behavioural_hw_factorm[monthidx]
+            FHW * behavioural_hw_factorm[monthidx]
         self.bathdurationfunc = lambda monthidx: \
-            FHW  * behavioural_hw_factorm[monthidx] * partGbonus
-            #dont need to apply FHW here as it has already been applied to HW_events_energy
+            FHW * behavioural_hw_factorm[monthidx] * partGbonus
         self.otherdurationfunc = lambda monthidx: \
             FHW * other_hw_factorm[monthidx]
         '''
@@ -96,13 +95,6 @@ class HW_events_generator:
         self.banding_correction = 1.0
         
         self.target_DHW_vol = daily_DHW_vol
-        
-        #utility for applying the sap10.2 monly factors (below)
-        self.month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
-        #from sap10.2 J5
-        self.behavioural_hw_factorm = [1.035, 1.021, 1.007, 0.993, 0.979, 0.965, 0.965, 0.979, 0.993, 1.007, 1.021, 1.035]
-        #from sap10.2 j2
-        self.other_hw_factorm = [1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00]
         
         this_directory = os.path.dirname(os.path.relpath(__file__))
         decilebandingfile =  os.path.join(this_directory, "decile_banding.csv")

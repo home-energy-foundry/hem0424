@@ -27,9 +27,13 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
 
     project_dict['InternalGains']={}
     
+    #TODO specify hot water temperature setpoint (55C) and minimum (52C)
     
     TFA = calc_TFA(project_dict)
-    N_occupants = calc_N_occupants(TFA)
+    
+    nbeds = calc_nbeds(project_dict)
+    
+    N_occupants = calc_N_occupants(TFA, nbeds)
     
     #construct schedules
     schedule_occupancy_weekday, schedule_occupancy_weekend = create_occupancy(N_occupants)
@@ -188,15 +192,31 @@ def calc_TFA(project_dict):
         
     return TFA
 
-def calc_N_occupants(TFA):
-    #in number of occupants + m^2
-    N = 0.0
+def calc_nbeds(project_dict):
+    nbeds = 0
     
-    if TFA > 13.9:
-        N = 1 + 1.76 * (1 - math.exp(-0.000349 * (TFA -13.9)**2)) + 0.0013 * (TFA -13.9)
-    elif TFA <= 13.9:
-        N = 1.0
-        
+    '''
+    for zones in project_dict["Zone"]:
+        #TODO could do this with regex instead to cover more cases more easily
+        if project_dict["Zone"][zones].find("bed")!=-1\
+            or project_dict["Zone"][zones].find("Bed")!=-1:
+            nbeds+=1
+    '''
+    
+    if "NumberOfBedrooms" in project_dict:
+        nbeds = int(project_dict["NumberOfBedrooms"])
+    else:
+        sys.exit("missing NumberOfBedrooms - required for FHS calculation")
+    
+    nbeds = min(nbeds,6)
+    return nbeds
+
+def calc_N_occupants(TFA, nbeds):
+    #in number of occupants + m^2
+    param1 = -0.07275 * nbeds ** 2 + 0.753 * nbeds + 0.4996
+    param2 = -0.00003888 * nbeds ** 2 - 0.00002379 * nbeds - 0.00042
+    N = 1 + param1 * (1 - math.exp(param2 * (TFA)**2))
+    
     return N
 
 def create_occupancy(N_occupants):
@@ -738,6 +758,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     
     #temperature of mixed hot water for event
     event_temperature = 41.0
+    HW_temperature = 52.0
+    mean_feedtemp = sum(cold_water_feed_temps) / len(cold_water_feed_temps)
+    mean_delta_T = HW_temperature - mean_feedtemp
     
     annual_HW_events = []
     annual_HW_events_energy = []
@@ -747,23 +770,21 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     #vol_daily_average = (25 * N_occupants) + 36
     
     #new relation based on Boiler Manufacturer data and EST surveys
-    mean_feedtemp = sum(cold_water_feed_temps) / len(cold_water_feed_temps)
-    mean_delta_T = event_temperature - mean_feedtemp
+
     
-    vol_daily_average =  60.3 * N_occupants ** 0.71
+    vol_HW_daily_average =  60.3 * N_occupants ** 0.71
     
-    HWeventgen = HW_events_generator(vol_daily_average)
+    HWeventgen = HW_events_generator(vol_HW_daily_average)
     ref_eventlist = HWeventgen.build_annual_HW_events(startmod)
-    ref_vol = 0
+    ref_HW_vol = 0
     for event in ref_eventlist:  
         '''
         NB while calibration is done by event volumes we use the event durations from the HW csv data for showers
-        so the actual hw use predicted by sap depends on shower flowrates in dwelling
-        flowrates implied by the data are ~5.9 for all events
+        so the actual hw use predicted by sap depends on shower flowrates in dwelling, but this value does not
         '''
-        ref_vol += float(event["vol"])
-    ref_QHW = 4.18 * (mean_delta_T / 3600) * ref_vol
+        ref_HW_vol += float(event["vol"])
 
+    ref_QHW = 4.18 * (mean_delta_T / 3600) * ref_HW_vol
     # Add daily average hot water use to hot water only heat pump (HWOHP) object, if present
     # TODO This is probably only valid if HWOHP is the only heat source for the
     #      storage tank. Make this more robust/flexible in future.
@@ -771,13 +792,15 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
         if hw_source_obj['type'] == 'StorageTank':
             for heat_source_obj in hw_source_obj['HeatSource'].values():
                 if heat_source_obj['type'] == 'HeatPump_HWOnly':
-                    heat_source_obj['vol_hw_daily_average'] = vol_daily_average
+                    heat_source_obj['vol_hw_daily_average'] = vol_HW_daily_average
 
-    targetQHW = 365 * 4.18 * (mean_delta_T / 3600) * vol_daily_average
+    targetQHW = 365 * 4.18 * (mean_delta_T / 3600) * vol_HW_daily_average
     FHW = targetQHW / ref_QHW
+
 
     '''
     if part G has been complied with, apply 5% reduction to duration of all events except showers
+    TODO: check bonus is applied to non baths correctly
     '''
     partGbonus = 1.0
     if "PartGcompliance" in project_dict:
@@ -828,8 +851,14 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 eventstart = event["time"]
                 #now get monthly behavioural factor and apply it, along with FHW and partGbonus
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
+                #TODO durationfunc does all the duration calc including retyurning simply the size of the bath if its a bath
                 eventtype, name, durationfunc = HW_event_aa.get_bath()
-                duration = ( event["vol"] / project_dict[eventtype][name]["flowrate"] ) * durationfunc(monthidx)
+                
+                frac_HW = (event_temperature - cold_water_feed_temps[math.floor(event["time"])])\
+                            /(HW_temperature - cold_water_feed_temps[math.floor(event["time"])])
+                duration = ( event["vol"] / frac_HW / project_dict[eventtype][name]["flowrate"] ) * durationfunc(monthidx)
+                
+                
                 
                 HWeventgen.overlap_check(hrlyevents, ["Shower", "Bath"], eventstart, duration)
                 hrlyevents[math.floor(eventstart)].append({"type":"Bath",
@@ -846,7 +875,9 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 #now get monthly behavioural factor and apply it, along with FHW
                 monthidx  = next(idx for idx, value in enumerate(month_hour_starts) if value > eventstart)
                 eventtype, name, durationfunc = HW_event_aa.get_other()
-                duration = ( event["vol"] / project_dict[eventtype][name]["flowrate"] ) * durationfunc(monthidx)
+                frac_HW = (event_temperature - cold_water_feed_temps[math.floor(event["time"])])\
+                            /(HW_temperature - cold_water_feed_temps[math.floor(event["time"])])
+                duration = ( event["vol"]  / frac_HW / project_dict[eventtype][name]["flowrate"] ) * durationfunc(monthidx)
                 
                 HWeventgen.overlap_check(hrlyevents, ["Other"], eventstart, duration)
                 hrlyevents[math.floor(eventstart)].append({"type": "Other",

@@ -30,6 +30,8 @@ updated_rows = []
 with open(decilebandingfile,'r') as bandsfile:
 	bandsfilereader = csv.DictReader(bandsfile)
 	print("median_daily_vol - calibration__vol - calibration_dhw_variance")
+	#TODO this is slow and could be parallelised, but it only needs to be run when changes are made to the
+	#HW events generation code - not on every run of the FHS wrapper
 	for row in bandsfilereader:
 		testvol = [0 for x in seedrange]
 		for seed in seedrange:
@@ -37,7 +39,8 @@ with open(decilebandingfile,'r') as bandsfile:
 			HWtestevents = HWtest.build_annual_HW_events()
 			for event in HWtestevents:
 				if event["type"].find("shower")!=-1:
-					#5.901 is the average flowrate of the sample data
+					#5.901 is the implied average flowrate of HOT water in the sample data
+					#this is not the same as the flowrate of a shower, whihch is of mixed warm water
 					testvol[seed] += float(event["dur"]) * 5.901 / 365
 				else:
 					testvol[seed] += float(event["vol"]) / 365
