@@ -822,8 +822,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
 
 
     '''
-    if part G has been complied with, apply 5% reduction to duration of all events except showers
-    TODO: check bonus is applied to non baths correctly
+    if part G has been complied with, apply 5% reduction to duration of Other events
     '''
     partGbonus = 1.0
     if "PartGcompliance" in project_dict:
