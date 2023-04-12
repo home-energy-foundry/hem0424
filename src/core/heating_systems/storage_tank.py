@@ -411,11 +411,16 @@ class StorageTank:
         #initialise list of final temperature of layers after thermal losses in degrees
         temp_s8_n = [0] * self.__NB_VOL
 
-        #thermal losses
+        # Thermal losses
+        # Note: Eqn 13 from BS EN 15316-5:2017 does not explicitly multiply by
+        # timestep (it seems to assume a 1 hour timestep implicitly), but it is
+        # necessary to convert the rate of heat loss to a total heat loss over
+        # the time period
         for i, vol_i in list(enumerate(self.__Vol_n)):
             Q_ls_n[i] = (H_sto_ls * self.__rho * self.__Cp) \
                         * (self.__Vol_n[i] / self.__V_total) \
-                        * (min(temp_s7_n[i], self.__temp_set_on) - self.__temp_amb)
+                        * (min(temp_s7_n[i], self.__temp_set_on) - self.__temp_amb) \
+                        * self.__simulation_time.timestep()
 
         #total thermal losses kWh
         Q_ls = sum(Q_ls_n)
