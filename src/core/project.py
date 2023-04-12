@@ -1056,7 +1056,7 @@ class Project:
                     heat_source_service,
                     self.__zones[data['Zone']],
                     self.__external_conditions,
-                    data['ecodesign_control_class'],
+                    data['ecodesign_controller'],
                     data['design_flow_temp'],
                     self.__simtime,
                     )

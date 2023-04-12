@@ -156,7 +156,12 @@
 				"name": "HeatNetwork"
 			},
 			"Control": "main__space heat timer__converted_from_OnOffTimeControl",
-			"ecodesign_control_class": 2,
+			"ecodesign_controller": {
+				"ecodesign_control_class": 2,
+				"min_outdoor_temp": -4,
+				"max_outdoor_temp": 20,
+				"min_flow_temp": 30,
+				"max_flow_temp": 55},
 			"design_flow_temp": 55,
 			"Zone": "zone 1"
 		}
