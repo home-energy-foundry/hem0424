@@ -11,7 +11,10 @@ import sys
 import os
 import json
 import csv
+from fractions import Fraction
 from core import project, schedule
+from cmath import log
+from third_party.bjorklund import bjorklund
 
 this_directory = os.path.dirname(os.path.relpath(__file__))
 FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_04-11-2022.csv")
@@ -21,7 +24,7 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     
     project_dict['SimulationTime']["start"] = 0
     project_dict['SimulationTime']["end"] = 8760
-    
+
     project_dict['InternalGains']={}
     
     
@@ -41,9 +44,9 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc)
     create_cooking_gains(project_dict,TFA, N_occupants)
     create_appliance_gains(project_dict, TFA, N_occupants)
-    create_hot_water_use_pattern(project_dict, TFA, N_occupants)
+    cold_water_feed_temps = create_cold_water_feed_temps(project_dict)
+    create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed_temps)
     create_cooling(project_dict)
-    create_cold_water_feed_temps(project_dict)
     
     
     return project_dict
@@ -257,16 +260,16 @@ def create_heating_pattern(project_dict):
 
     #07:30-09:30 and then 16:30-22:00
     heating_fhs_weekday = (
-        [False for x in range(14)] +
-        [True for x in range(5)] +
+        [False for x in range(15)] +
+        [True for x in range(4)] +
         [False for x in range(14)] +
         [True for x in range(11)] +
         [False for x in range(4)])
     
     #07:30-09:30 and then 18:30-22:00
     heating_nonlivingarea_fhs_weekday = (
-        [False for x in range(14)] +
-        [True for x in range(5)] +
+        [False for x in range(15)] +
+        [True for x in range(4)] +
         [False for x in range(18)] +
         [True for x in range(7)] +
         [False for x in range(4)])
@@ -274,8 +277,8 @@ def create_heating_pattern(project_dict):
     #08:30 - 22:00
     heating_fhs_weekend = (
         [False for x in range(17)] +
-        [True for x in range(28)] +
-        [False for x in range(3)])
+        [True for x in range(27)] +
+        [False for x in range(4)])
 
     '''
     if there is not separate time control of the non-living rooms
@@ -283,6 +286,16 @@ def create_heating_pattern(project_dict):
     the heating times are necessarily the same as the living room,
     so the evening heating period would also start at 16:30 on weekdays.
     '''
+    controltype = 0
+    if project_dict["HeatingControlType"]:
+        if project_dict["HeatingControlType"] =="SeparateTimeAndTempControl":
+            controltype = 3
+        elif project_dict["HeatingControlType"] =="SeparateTempControl":
+            controltype = 2
+        else:
+            sys.exit("invalid HeatingControlType (SeparateTempControl or SeparateTimeAndTempControl)")
+    else:
+        sys.exit("missing HeatingControlType (SeparateTempControl or SeparateTimeAndTempControl)")
     
     
     for zone in project_dict['Zone']:
@@ -310,8 +323,34 @@ def create_heating_pattern(project_dict):
                     if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
                         project_dict['Control']['HeatingPattern_LivingRoom']['setpoint_min'] \
                             = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
-
-            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling":
+            
+            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" \
+            and controltype == 2:
+                project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
+                    "type": "SetpointTimeControl",
+                    "start_day" : 0,
+                    "time_series_step":0.5,
+                    "schedule":{
+                        "main": [{"repeat": 53, "value": "week"}],
+                        "week": [{"repeat": 5, "value": "weekday"},
+                                 {"repeat": 2, "value": "weekend"}],
+                        "weekday": [restofdwelling_setpoint_fhs if x
+                                    else None
+                                    for x in heating_fhs_weekday],
+                        "weekend": [restofdwelling_setpoint_fhs if x
+                                    else None
+                                    for x in heating_fhs_weekend],
+                    }
+                }
+                if "SpaceHeatSystem" in project_dict["Zone"][zone].keys():
+                    spaceheatsystem = project_dict["Zone"][zone]["SpaceHeatSystem"]
+                    project_dict["SpaceHeatSystem"][spaceheatsystem]["Control"] = "HeatingPattern_RestOfDwelling"
+                    if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
+                        project_dict['Control']['HeatingPattern_RestOfDwelling']['setpoint_min'] \
+                            = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
+            
+            elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" \
+            and controltype == 3:
                 project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
                     "type": "SetpointTimeControl",
                     "start_day" : 0,
@@ -473,15 +512,17 @@ def create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc):
     if running_FEE_calc:
         lumens = TFA * 185
     else:
-        lumens = 11.2 * 59.73 * (TFA * N_occupants) ** 0.4714
+        #from analysis of EFUS 2017 data
+        lumens = 1417.7 * (TFA * N_occupants) ** 0.4081
 
-    kWhperyear = 1/3 * lumens/21 + 2/3 * lumens/lighting_efficacy
+    #dropped 1/3 - 2/3 split based on SAP2012 assumptions about portable lighting
+    kWhperyear = lumens/lighting_efficacy
     kWhperday = kWhperyear / 365
-    #lighting_energy_kWh=[]
+
     lighting_gains_W = []
         
     for monthly_profile in avg_monthly_halfhr_profiles:
-        #lighting_energy_kWh+=[frac * kWhperday for frac in monthly_profile]
+
         '''
         To obtain the lighting gains,
         the above should be converted to Watts by multiplying the individual half-hourly figure by (2 x 1000).
@@ -563,18 +604,18 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
         cookingfuels.append(fuel_type)
 
     if "electricity" in cookingfuels and "mains_gas" in cookingfuels:
-        EC1elec = 138
-        EC2elec = 28
-        EC1gas = 241
-        EC2gas = 48
+        EC1elec = 86
+        EC2elec = 49
+        EC1gas = 150
+        EC2gas = 86
     elif "mains_gas" in cookingfuels:
         EC1elec = 0
         EC2elec = 0
-        EC1gas = 481
-        EC2gas = 96
+        EC1gas = 299
+        EC2gas = 171
     elif "electricity" in cookingfuels:
-        EC1elec = 275
-        EC2elec = 55
+        EC1elec = 171
+        EC2elec = 98
         EC1gas = 0
         EC2gas = 0
         #TODO - if there is cooking with energy supply other than
@@ -632,8 +673,11 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         [0.022095847, 0.020796091, 0.019496336, 0.022095847, 0.023395603, 0.029894381, 0.040292427, 0.046791206, 0.049390717, 0.04549145, 0.046791206, 0.049390717, 0.04549145, 0.044191694, 0.04549145, 0.053289984, 0.067587297, 0.07278632, 0.066287542, 0.059788763, 0.053289984, 0.042891939, 0.031194137, 0.023395603],
         [0.024695359, 0.022095847, 0.020796091, 0.020796091, 0.020796091, 0.024695359, 0.029894381, 0.042891939, 0.048090962, 0.049390717, 0.04549145, 0.04549145, 0.046791206, 0.046791206, 0.044191694, 0.051990229, 0.064987786, 0.08188461, 0.076685587, 0.067587297, 0.061088519, 0.05458974, 0.04549145, 0.032493893],
         [0.025995114, 0.023395603, 0.022095847, 0.020796091, 0.019496336, 0.022095847, 0.02729487, 0.032493893, 0.048090962, 0.053289984, 0.051990229, 0.05458974, 0.057189252, 0.051990229, 0.055889496, 0.058489007, 0.075385832, 0.083184366, 0.08188461, 0.068887053, 0.062388274, 0.055889496, 0.046791206, 0.033793649]]
+    #old relation based on sap2012, efus 1998 data verified in 2013
+    #EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
     
-    EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
+    #new relation based on analysis of EFUS 2017 monitoring data
+    EA_annual_kWh = 145.04 * (TFA * N_occupants) ** 0.4856
     
     appliance_gains_W = []
     for monthly_profile in avg_monthly_hr_profiles:
@@ -683,7 +727,7 @@ class FHS_HW_events:
     def __init__(self, 
                  project_dict,
                  FHW,
-                 HW_events_valuesdict,
+                 HW_events_energy,
                  behavioural_hw_factorm,
                  other_hw_factorm,
                  partGbonus):
@@ -699,8 +743,9 @@ class FHS_HW_events:
             6 * FHW  * behavioural_hw_factorm[monthidx]
         self.bathdurationfunc = lambda event, monthidx: \
             6 * FHW  * behavioural_hw_factorm[monthidx] * partGbonus
+            #dont need to apply FHW here as it has already been applied to HW_events_energy
         self.otherdurationfunc = lambda event, monthidx: \
-            6 * (HW_events_valuesdict[event] / 1.4) * FHW  * other_hw_factorm[monthidx]
+            6 * (HW_events_energy[event] / 1.4) * other_hw_factorm[monthidx]
         '''
         set up events dict
         check if showers/baths are present
@@ -754,27 +799,41 @@ class FHS_HW_events:
         self.which_other = (self.which_other + 1) % len(self.other)
         return self.other[self.which_other]
 
-def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
+def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed_temps):
 
     HW_events_dict = {
         #time in decimal fractions of an hour
         'Time': [7, 7.083333333, 7.5, 8.016666667, 8.25, 8.5, 8.75, 9, 9.5, 10.5, 11.5, 11.75, 12.75, 14.5, 15.5, 16.5, 18, 18.25, 18.5, 19, 20.5, 21.25, 21.5],
-        'Weekday': ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Shower'],
+        'Weekday':  ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Shower'],
         'Saturday': ['Small', 'Shower', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Small'],
-        'Sunday': ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Bath']
+        'Sunday':   ['Small', 'Shower', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Small', 'Floor cleaning', 'Small', 'Small', 'Sdishwash', 'Small', 'Small', 'Small', 'Small', 'Household cleaning', 'Household cleaning', 'Small', 'Ldishwash', 'Small', 'Bath']
         }
 
-    HW_events_valuesdict = {
-        #event energy consumption in kWh
+    HW_events_energy = {
+        #event energy consumption in kWh - direct from EN13203-2:2018
         "Small":0.105,
-        "Shower":1.4,
-        "Floor cleaning":0.105,
-        "Sdishwash":0.315,
-        "Ldishwash":0.735,
-        "Household cleaning":0.105,
-        "Bath":1.4,
-        "None":0.0 #not in supplied spec, added for convenience with deleting events.
+        "Shower": 1.4,
+        "Floor cleaning": 0.105,
+        "Sdishwash": 0.315,
+        "Ldishwash": 0.735,
+        "Household cleaning": 0.105,
+        "Bath": 1.4,
+        "None": 0.0 #not in supplied spec, added for convenience with deleting events.
         }
+    
+    HW_events_volume = {
+        #event hot water volume in litres - inferred from EN13203-2:2018,
+        #given 6 minute showers and temperature 41C
+        "Small": 2.7,
+        "Shower": 36.0,
+        "Floor cleaning": 2.7,
+        "Sdishwash": 8.1,
+        "Ldishwash": 18.9,
+        "Household cleaning": 2.7,
+        "Bath": 36.0,
+        "None": 0.0 
+        }
+    
     #utility for applying the sap10.2 monly factors (below)
     month_hour_starts = [744, 1416, 2160, 2880, 3624, 4344, 5088, 5832, 6552, 7296, 8016, 8760]
     #from sap10.2 J5
@@ -782,26 +841,48 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     #from sap10.2 j2
     other_hw_factorm = [1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00]
     
-    Weekday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Weekday']]
-    Saturday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Saturday']]
-    Sunday_values = [HW_events_valuesdict[x] for x in HW_events_dict['Sunday']]
+    #temperature of mixed hot water for event
+    event_temperature = 41.0
+    
     
     annual_HW_events = []
-    annual_HW_events_values = []
+    annual_HW_events_energy = []
     startmod = 1 #this changes which day of the week we start on. 0 is sunday.
 
     for i in range(365):
+        #create year long list of hot water events and their associated energy demand,
+        #accounting for variation in feed temperature
         if (i+startmod) % 6 == 0:
             annual_HW_events.extend(HW_events_dict['Saturday'])
-            annual_HW_events_values.extend(Saturday_values)
+            
+            annual_HW_events_energy.extend([
+                4.18 / 3600\
+                * (event_temperature - cold_water_feed_temps[24 * i + math.floor(HW_events_dict['Time'][j])])\
+                   * HW_events_volume[x] 
+                for j, x in enumerate(HW_events_dict['Saturday'])
+            ])
         elif(i+startmod) % 7 == 0:
             annual_HW_events.extend(HW_events_dict['Sunday'])
-            annual_HW_events_values.extend(Sunday_values)
+            annual_HW_events_energy.extend([
+                4.18 / 3600\
+                * (event_temperature - cold_water_feed_temps[24 * i + math.floor(HW_events_dict['Time'][j])])\
+                   * HW_events_volume[x] 
+                for j, x in enumerate(HW_events_dict['Sunday'])
+            ])
         else:
             annual_HW_events.extend(HW_events_dict['Weekday'])
-            annual_HW_events_values.extend(Weekday_values)
+            annual_HW_events_energy.extend([
+                4.18 / 3600\
+                * (event_temperature - cold_water_feed_temps[24 * i + math.floor(HW_events_dict['Time'][j])])\
+                   * HW_events_volume[x] 
+                for j, x in enumerate(HW_events_dict['Weekday'])
+            ])
 
-    vol_daily_average = (25 * N_occupants) + 36
+    #SAP 2012 relation
+    #vol_daily_average = (25 * N_occupants) + 36
+    
+    #new relation based on Boiler Manufacturer data and EST surveys
+    vol_daily_average =  60.3 * N_occupants ** 0.71
 
     # Add daily average hot water use to hot water only heat pump (HWOHP) object, if present
     # TODO This is probably only valid if HWOHP is the only heat source for the
@@ -812,38 +893,47 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
                 if heat_source_obj['type'] == 'HeatPump_HWOnly':
                     heat_source_obj['vol_hw_daily_average'] = vol_daily_average
 
-    SAP2012QHW = 365 * 4.18 * (37/3600) * vol_daily_average
-    refQHW = 365 * sum(Weekday_values)
+    targetQHW = 365 * 4.18 * (37/3600) * vol_daily_average
+    refQHW = sum(annual_HW_events_energy)
 
     '''
     this will determine what proportion of events in the list to eliminate, if less than 1
     '''
-    ratio = SAP2012QHW / refQHW
-
+    ratio = targetQHW / refQHW
     if ratio < 1.0:
         '''
-        for each event type in the valuesdict, we want to eliminate every
-        kth event where k = ROUND(1/1-ratio,0)
+        approximate the (1-ratio) with a fraction and eliminate 
+        that fraction of events, so that the sum energy demand of events 
+        is (approximately) equal to targetQHW
         '''
+        fractionalk = Fraction((1.0 - ratio))
+        bjorklund_n_events = fractionalk.limit_denominator(len(annual_HW_events)).numerator
+        bjorklund_k_steps = fractionalk.limit_denominator(len(annual_HW_events)).denominator
+
+        elim_pattern = bjorklund(bjorklund_k_steps, bjorklund_n_events)
+        
         k=round(1.0/(1-ratio),0)
-        counters={event_type:0 for event_type in HW_events_valuesdict.keys()}
+        
+        counters={event_type:0 for event_type in HW_events_energy.keys()}
         
         for i,event in enumerate(annual_HW_events):
-            NEC = (math.floor(counters[event]/k) + math.floor(k/2)) % k
-            if counters[event] % k == NEC:
-                annual_HW_events_values[i] =  0.0
+            NEC = int((math.floor(counters[event]/k) + math.floor(k/2)) % k)
+            '''
+            NEC shifts around the elimination pattern to further break up any potential regularities
+            '''
+            if elim_pattern[(counters[event] + NEC) % len(elim_pattern)] == 1:
+                annual_HW_events_energy[i] =  0.0
                 annual_HW_events[i] = 'None'
             counters[event] += 1
-            
-        '''
-        correction factor
-        '''
-        QHWEN_eliminations = sum(annual_HW_events_values)
-        FHW = SAP2012QHW / QHWEN_eliminations
 
-        HW_events_valuesdict = {key : FHW * HW_events_valuesdict[key] for key in HW_events_valuesdict.keys()}
-    else:
-        FHW = 1.0
+    '''
+    correction factor - TODO remove this?
+    no longer needed, should always be very close to 1.
+    '''
+    QHWEN_eliminations = sum(annual_HW_events_energy)
+    FHW = (targetQHW / QHWEN_eliminations)
+    HW_events_energy = {key : FHW * HW_events_energy[key] for key in HW_events_energy.keys()}
+        
         
     '''
     if part G has been complied with, apply 5% reduction to duration of all events except showers
@@ -857,21 +947,16 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants):
     
     FHS_HW_event = FHS_HW_events(project_dict,
                      FHW,
-                     HW_events_valuesdict,
+                     HW_events_energy,
                      behavioural_hw_factorm,
                      other_hw_factorm,
                      partGbonus
                      )
+    
     '''
     now create lists of events
     Shower events should be  evenly spread across all showers in dwelling
     and so on for baths etc.
-    
-    energy adjustment factor FHW is applied to duration of event.
-    Durations of non shower events are obtained by finding ratio
-    of energy consumption vs showers, which have to be 6 mins long.
-    (so we are assuming temperature is always 41C and duration is
-    directly proportional to energy)
     '''
     for i, event in enumerate(annual_HW_events):
         if event != "None":
@@ -923,8 +1008,8 @@ def create_cooling(project_dict):
 
     #07:30-09:30 and then 16:30-22:00
     cooling_subschedule_livingroom_weekday = (
-        [None for x in range(14)] +
-        [cooling_setpoint for x in range(5)] +
+        [None for x in range(15)] +
+        [cooling_setpoint for x in range(4)] +
         [None for x in range(14)] +
         [cooling_setpoint for x in range(11)] +
         [None for x in range(4)])
@@ -932,8 +1017,8 @@ def create_cooling(project_dict):
     #08:30 - 22:00
     cooling_subschedule_livingroom_weekend = (
         [None for x in range(17)] +
-        [cooling_setpoint for x in range(28)] +
-        [None for x in range(3)])
+        [cooling_setpoint for x in range(27)] +
+        [None for x in range(4)])
 
     cooling_subschedule_restofdwelling = (
         #22:00-07:00 - ie nighttime only
@@ -973,12 +1058,12 @@ def create_cooling(project_dict):
                         "day": cooling_subschedule_restofdwelling
                     }
                 }
+        
                 spacecoolsystem = project_dict["Zone"][zone]["SpaceCoolSystem"]
                 project_dict["SpaceCoolSystem"][spacecoolsystem]["Control"] = "Cooling_RestOfDwelling"
                 if 'temp_setback' in project_dict["SpaceCoolSystem"][spacecoolsystem].keys():
                     project_dict['Control']['Cooling_RestOfDwelling']['setpoint_max'] \
                         = project_dict["SpaceCoolSystem"][spacecoolsystem]['temp_setback']
-
 
 def create_cold_water_feed_temps(project_dict):
     
@@ -1040,3 +1125,4 @@ def create_cold_water_feed_temps(project_dict):
         "time_series_step": 1,
         "temperatures": outputfeedtemp
     }
+    return outputfeedtemp
