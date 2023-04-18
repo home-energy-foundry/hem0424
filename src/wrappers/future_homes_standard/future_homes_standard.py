@@ -818,7 +818,6 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     HW_events_volume = {
         #event hot water volume in litres - inferred from EN13203-2:2018,
         #given 6 minute showers and temperature 41C
-        #TODO change bath value to align with size of bath in project dict?
         "Small": 2.7,
         "Shower": 36.0,
         "Floor cleaning": 2.7,
@@ -826,7 +825,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
         "Ldishwash": 18.9,
         "Household cleaning": 2.7,
         "Bath": 36.0,
-        "None":0.0 
+        "None": 0.0 
         }
     
     #utility for applying the sap10.2 monly factors (below)
@@ -877,7 +876,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     #vol_daily_average = (25 * N_occupants) + 36
     
     #new relation based on Boiler Manufacturer data and EST surveys
-    vol_daily_average = 74.4 *math.log(N_occupants) +42.2
+    vol_daily_average = 74.4 *math.log(N_occupants) + 42.2
 
     # Add daily average hot water use to hot water only heat pump (HWOHP) object, if present
     # TODO This is probably only valid if HWOHP is the only heat source for the
@@ -888,53 +887,43 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 if heat_source_obj['type'] == 'HeatPump_HWOnly':
                     heat_source_obj['vol_hw_daily_average'] = vol_daily_average
 
-    SAP2012QHW = 365 * 4.18 * (37/3600) * vol_daily_average
-    print(SAP2012QHW)
-    #print(365 * sum(Weekday_values))
-    #print(sum(annual_HW_events_energy))
+    targetQHW = 365 * 4.18 * (37/3600) * vol_daily_average
     refQHW = sum(annual_HW_events_energy)
 
     '''
     this will determine what proportion of events in the list to eliminate, if less than 1
     '''
-    ratio = SAP2012QHW / refQHW
-    print(str(ratio))
+    ratio = targetQHW / refQHW
 
     if ratio < 1.0:
         '''
-        for each event type in the valuesdict, we want to eliminate every
-        kth event where k = ROUND(1/1-ratio,0)
-        TODO: replace this with closest fraction to ratio and apply bjorklunds algorithm
+        apprixmate the (1-ratio) with a fraction and eliminate 
+        that fraction of events, so that the sum energy demand of events 
+        is (approximately) equal to targetQHW
         '''
-        k=round(1.0/(1-ratio),0)
-        print(k)
-        fractionalk = Fraction((1.0-ratio))
-        bjorklund_n_events = fractionalk.limit_denominator(8760).numerator
-        bjorklund_k_steps = fractionalk.limit_denominator(8760).denominator
+        fractionalk = Fraction((1.0 - ratio))
+        bjorklund_n_events = fractionalk.limit_denominator(len(annual_HW_events)).numerator
+        bjorklund_k_steps = fractionalk.limit_denominator(len(annual_HW_events)).denominator
         print(bjorklund_n_events)
         print(bjorklund_k_steps)
         elim_pattern = bjorklund(bjorklund_n_events, bjorklund_k_steps)
-        #print(bjorklund(euclidn,euclidk))
         
         counters={event_type:0 for event_type in HW_events_energy.keys()}
         
         for i,event in enumerate(annual_HW_events):
-            #NEC = (math.floor(counters[event]/k) + math.floor(k/2)) % k
-            #if counters[event] % k == NEC:
             if elim_pattern[counters[event] % len(elim_pattern)] == 1:
                 annual_HW_events_energy[i] =  0.0
                 annual_HW_events[i] = 'None'
             counters[event] += 1
             
         '''
-        correction factor
+        correction factor - TODO remove this?
+        no longer needed, should always be very close to 1.
         '''
         QHWEN_eliminations = sum(annual_HW_events_energy)
-        #FHW = (SAP2012QHW / QHWEN_eliminations)**0.65
-        FHW = (SAP2012QHW / QHWEN_eliminations)
-        print(FHW)
-
+        FHW = (targetQHW / QHWEN_eliminations)
         HW_events_energy = {key : FHW * HW_events_energy[key] for key in HW_events_energy.keys()}
+        
     else:
         FHW = 1.0
         
@@ -956,17 +945,10 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                      partGbonus
                      )
     
-    print(HW_events_energy)
     '''
     now create lists of events
     Shower events should be  evenly spread across all showers in dwelling
     and so on for baths etc.
-    
-    energy adjustment factor FHW is applied to duration of event.
-    Durations of non shower events are obtained by finding ratio
-    of energy consumption vs showers, which have to be 6 mins long.
-    (so we are assuming temperature is always 41C and duration is
-    directly proportional to energy)
     '''
     for i, event in enumerate(annual_HW_events):
         if event != "None":
