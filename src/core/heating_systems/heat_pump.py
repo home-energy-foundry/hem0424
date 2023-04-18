@@ -1083,6 +1083,22 @@ class HeatPumpServiceSpaceWarmAir(HeatPumpServiceSpace):
             self.__temp_return,
             )
 
+    def running_time_throughput_factor(self, energy_demand, space_heat_running_time_cumulative):
+        """ Return the cumulative running time and throughput factor (exhaust air HPs only)
+
+        Arguments:
+        energy_demand -- in kWh
+        space_heat_running_time_cumulative
+            -- running time spent on higher-priority space heating services
+        """
+        return HeatPumpServiceSpace.running_time_throughput_factor(
+            self,
+            space_heat_running_time_cumulative,
+            energy_demand,
+            self.__temp_flow,
+            self.__temp_return,
+            )
+
     def frac_convective(self):
         return self.__frac_convective
 
