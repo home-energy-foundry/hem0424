@@ -49,6 +49,7 @@ from core.ductwork import Ductwork
 import core.heating_systems.wwhrs as wwhrs
 from core.heating_systems.point_of_use import PointOfUse
 from core.units import Kelvin2Celcius
+from math import ceil
 
 
 class Project:
@@ -203,13 +204,26 @@ class Project:
                 )
             elif ctrl_type == 'ToUChargeControl':
                 sched = expand_schedule(bool, data['schedule'], "main", False)
+
+                # Simulating manual charge control
+                # Set charge_level to 1.0 (max) for each day of simulation (plus 1)
+                charge_level = [1.0] * ceil((self.__simtime.total_steps() * self.__simtime.timestep())/24 + 1)
+                # If charge_level is present in the input file overwrite initial vector
+                # User can specify a vector with all days (plus 1), or as a single float value to be used for each day
+                if 'charge_level' in data:
+                    # If the input is a vector, use the vector
+                    if isinstance(data['charge_level'], (list, tuple)):
+                        charge_level=data['charge_level']
+                    # Else, if input is a single value, use that value for each day of simulation
+                    else:
+                        charge_level = [data['charge_level']] * ceil((self.__simtime.total_steps() * self.__simtime.timestep())/24 + 1)
+
                 ctrl = ToUChargeControl(
                     schedule=sched,
                     simulation_time=self.__simtime,
                     start_day=data['start_day'],
                     time_series_step=data['time_series_step'],
-                    logic_type=data['logic_type'],
-                    charge_level=data['charge_level']
+                    charge_level=charge_level
                 )
             else:
                 sys.exit(name + ': control type (' + ctrl_type + ') not recognised.')
@@ -1203,7 +1217,7 @@ class Project:
                             hw_demand += hw_demand_i
                             hw_energy_demand += misc.water_demand_to_kWh(
                                 hw_demand_i,
-                                shower_temp,
+                                shower.get_temp_hot(),
                                 cold_water_temperature
                                 )
                             hw_duration += event['duration'] # shower minutes duration
@@ -1233,7 +1247,7 @@ class Project:
                         hw_demand += other.hot_water_demand(other_temp, other_duration)
                         hw_energy_demand += misc.water_demand_to_kWh(
                             other.hot_water_demand(other_temp, other_duration),
-                            other_temp,
+                            other.get_temp_hot(),
                             cold_water_temperature
                             )
                         hw_duration += event['duration'] # other minutes duration
@@ -1268,7 +1282,7 @@ class Project:
                         bath_duration = bath.get_size() / peak_flowrate
                         hw_energy_demand += misc.water_demand_to_kWh(
                             bath.hot_water_demand(bath_temp),
-                            bath_temp,
+                            bath.get_temp_hot(),
                             cold_water_temperature
                             )
                         hw_duration += bath_duration
@@ -1610,7 +1624,7 @@ class Project:
         hot_water_no_events_dict = {}
         hot_water_pipework_dict = {}
         ductwork_gains_dict = {}
-        heat_balance_all_dict = {}
+        heat_balance_all_dict = {'air_node': {}, 'external_boundary': {}}
 
         for z_name in self.__zones.keys():
             gains_internal_dict[z_name] = []
@@ -1620,7 +1634,8 @@ class Project:
             space_heat_demand_dict[z_name] = []
             space_cool_demand_dict[z_name] = []
             zone_list.append(z_name)
-            heat_balance_all_dict[z_name] = {}
+            for hb_name in heat_balance_all_dict.keys():
+                heat_balance_all_dict[hb_name][z_name] = {}
 
         for z_name, h_name in self.__heat_system_name_for_zone.items():
             space_heat_demand_system_dict[h_name] = []
@@ -1683,13 +1698,14 @@ class Project:
             for c_name, demand in space_cool_demand_system.items():
                 space_cool_demand_system_dict[c_name].append(demand)
 
-            for z_name, gains_losses_dict in heat_balance_dict.items():
-                if gains_losses_dict is not None:
-                    for heat_gains_losses_name, heat_gains_losses_value in gains_losses_dict.items():
-                        if heat_gains_losses_name in heat_balance_all_dict[z_name].keys():
-                            heat_balance_all_dict[z_name][heat_gains_losses_name].append(heat_gains_losses_value)
-                        else:
-                            heat_balance_all_dict[z_name][heat_gains_losses_name] =[heat_gains_losses_value]
+            for z_name, hb_dict in heat_balance_dict.items():
+                if hb_dict is not None:
+                    for hb_name, gains_losses_dict in hb_dict.items():
+                        for heat_gains_losses_name, heat_gains_losses_value in gains_losses_dict.items():
+                            if heat_gains_losses_name in heat_balance_all_dict[hb_name][z_name].keys():
+                                heat_balance_all_dict[hb_name][z_name][heat_gains_losses_name].append(heat_gains_losses_value)
+                            else:
+                                heat_balance_all_dict[hb_name][z_name][heat_gains_losses_name] =[heat_gains_losses_value]
 
             hot_water_demand_dict['demand'].append(hw_demand)
             hot_water_energy_demand_dict['energy_demand'].append(hw_energy_demand)
