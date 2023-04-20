@@ -42,7 +42,6 @@ class ToUChargeControl:
         simulation_time  -- reference to SimulationTime object
         start_day        -- first day of the time series, day of the year, 0 to 365 (single value)
         time_series_step -- timestep of the time series data, in hours
-        TODO: requires creation of an enum list once options are established.
         charge_level     -- Proportion of the charge targeted for each day
         """
         self.__schedule        = schedule

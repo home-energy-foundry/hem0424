@@ -8,6 +8,7 @@ initialises the relevant objects in the core model.
 
 # Standard library imports
 import sys
+from math import ceil
 
 # Local imports
 import core.units as units
@@ -49,7 +50,6 @@ from core.ductwork import Ductwork
 import core.heating_systems.wwhrs as wwhrs
 from core.heating_systems.point_of_use import PointOfUse
 from core.units import Kelvin2Celcius
-from math import ceil
 
 
 class Project:
@@ -175,11 +175,16 @@ class Project:
                                              )
 
         def dict_to_ctrl(name, data):
-            """ Parse dictionary of control data and return approprate control object """
+            """ Parse dictionary of control data and return appropriate control object """
             ctrl_type = data['type']
             if ctrl_type == 'OnOffTimeControl':
                 sched = expand_schedule(bool, data['schedule'], "main", False)
-                ctrl = OnOffTimeControl(sched, self.__simtime, data['start_day'], data['time_series_step'])
+                ctrl = OnOffTimeControl(
+                    schedule=sched,
+                    simulation_time=self.__simtime,
+                    start_day=data['start_day'],
+                    time_series_step=data['time_series_step']
+                )
             elif ctrl_type == 'SetpointTimeControl':
                 sched = expand_schedule(float, data['schedule'], "main", True)
 
@@ -280,7 +285,6 @@ class Project:
                 self.__wwhrs[name] = dict_to_wwhrs(name, data)
         else:
             self.__wwhrs = None
-
 
         def dict_to_shower(name, data):
             """ Parse dictionary of shower data and return approprate shower object """
@@ -948,13 +952,17 @@ class Project:
         self.__heat_system_names_requiring_overvent = []
 
         def dict_to_space_heat_system(name, data):
+            space_heater_type = data['type']
+            # ElecStorageHeater needs extra controllers
+            if space_heater_type == 'ElecStorageHeater' and 'ControlCharger' in data.keys():
+                charge_control = self.__controls[data['ControlCharger']]
+
             if 'Control' in data.keys():
                 ctrl = self.__controls[data['Control']]
                 # TODO Need to handle error if Control name is invalid.
             else:
                 ctrl = None
 
-            space_heater_type = data['type']
             if space_heater_type == 'InstantElecHeater':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
@@ -980,6 +988,7 @@ class Project:
                     data['thermal_mass'],
                     data['frac_convective'],
                     data['U_ins'],
+                    data['temp_charge_cut'],
                     data['mass_core'],
                     data['c_pcore'],
                     data['temp_core_target'],
@@ -993,7 +1002,8 @@ class Project:
                     energy_supply_conn,
                     self.__simtime,
                     ctrl,
-                    )
+                    charge_control,
+                )
             elif space_heater_type == 'WetDistribution':
                 heat_source = self.__heat_sources_wet[data['HeatSource']['name']]
                 if isinstance(heat_source, HeatPump):
