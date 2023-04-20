@@ -191,7 +191,19 @@ class BoilerServiceWaterCombi(BoilerService):
         else:
             exit('Invalid hot water test option')
 
+        self.__combi_loss = combi_loss
         return combi_loss
+
+    def internal_gains(self):
+        # TODO Fraction of hot water energy resulting in internal gains should
+        #      ideally be defined in one place, but it is duplicated here and in
+        #      main hot water demand calculation for now.
+        frac_dhw_energy_internal_gains = 0.25
+        gain_internal \
+            = frac_dhw_energy_internal_gains * self.__combi_loss \
+            * units.W_per_kW / self.__simulation_time.timestep()
+        self.__combi_loss = 0.0
+        return gain_internal
 
     def energy_output_max(self):
         """ Calculate the maximum energy output of the boiler"""
