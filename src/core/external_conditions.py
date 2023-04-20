@@ -11,7 +11,9 @@ based on BS EN ISO 52010-1:2017.
 
 # Standard library imports
 import sys
-from math import cos, sin, tan, pi, asin, acos, radians, degrees, exp, sqrt
+from math import cos, sin, tan, pi, asin, acos, radians, degrees, exp, sqrt, floor
+from itertools import product
+from copy import deepcopy
 
 # Local imports
 import core.units as units
@@ -69,8 +71,6 @@ class ExternalConditions:
         self.__simulation_time  = simulation_time
         self.__air_temps        = air_temps
         self.__wind_speeds      = wind_speeds
-        self.__diffuse_horizontal_radiation = diffuse_horizontal_radiation
-        self.__direct_beam_radiation = direct_beam_radiation
         self.__solar_reflectivity_of_ground = solar_reflectivity_of_ground
         self.__latitude = latitude # practical  range -90 to +90
         self.__longitude = longitude # practical range -180 to +180
@@ -83,6 +83,130 @@ class ExternalConditions:
         self.__direct_beam_conversion_needed = direct_beam_conversion_needed
         self.__shading_segments = shading_segments
         self.__time_series_step = time_series_step
+
+        days_in_year = 366 if leap_day_included else 365
+        hours_in_year = days_in_year * 24
+        time_shift = self.__init_time_shift()
+
+        # Calculate earth orbit deviation for each day of year
+        earth_orbit_deviation = [
+            self.__init_earth_orbit_deviation(current_day)
+            for current_day in range(0, days_in_year)
+            ]
+        # Calculate extra terrestrial radiation
+        self.__extra_terrestrial_radiation = [
+            self.__init_extra_terrestrial_radiation(earth_orbit_deviation[current_day])
+            for current_day in range(0, days_in_year)
+            ]
+        # Calculate solar declination for each day of year
+        self.__solar_declination = [
+            self.__init_solar_declination(earth_orbit_deviation[current_day])
+            for current_day in range(0, days_in_year)
+            ]
+        # Calculate equation of time for each day of year
+        equation_of_time = [
+            self.__init_equation_of_time(current_day)
+            for current_day in range(0, days_in_year)
+            ]
+        # Calculate solar time for each hour of year
+        self.__solar_time = [
+            self.__init_solar_time(
+                floor(current_hour % 24),
+                equation_of_time[floor(current_hour / 24)],
+                time_shift,
+                )
+            for current_hour in range(0, hours_in_year)
+            ]
+        # Calculate solar hour angle for each hour of year
+        self.__solar_hour_angle = [
+            self.__init_solar_hour_angle(self.__solar_time[current_hour])
+            for current_hour in range(0, hours_in_year)
+            ]
+        # Calculate solar altitude for each hour of year
+        self.__solar_altitude = [
+            self.__init_solar_altitude(
+                self.__solar_declination[floor(current_hour / 24)],
+                self.__solar_hour_angle[current_hour],
+                )
+            for current_hour in range(0, hours_in_year)
+            ]
+        # Calculate solar zenith angle for each hour of year
+        self.__solar_zenith_angle = [
+            self.__init_solar_zenith_angle(self.__solar_altitude[current_hour])
+            for current_hour in range(0, hours_in_year)
+            ]
+        # Calculate solar azimuth angle for each hour of year
+        self.__solar_azimuth_angle = [
+            self.__init_solar_azimuth_angle(
+                self.__solar_declination[floor(current_hour / 24)],
+                self.__solar_hour_angle[current_hour],
+                self.__solar_altitude[current_hour],
+                )
+            for current_hour in range(0, hours_in_year)
+            ]
+        # Calculate air mass for each hour of year
+        self.__air_mass = [
+            self.__init_air_mass(self.__solar_altitude[current_hour])
+            for current_hour in range(0, hours_in_year)
+            ]
+
+        # Calculate direct beam radiation for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        self.__direct_beam_radiation = [
+            self.__init_direct_beam_radiation(
+                direct_beam_radiation[simtime.time_series_idx(self.__start_day, self.__time_series_step)],
+                self.__solar_altitude[simtime.current_hour()]
+                )
+            for _, _, _ in simtime
+            ]
+        # Calculate diffuse horizontal radiation for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        self.__diffuse_horizontal_radiation = [
+            diffuse_horizontal_radiation[
+                simtime.time_series_idx(self.__start_day, self.__time_series_step)
+                ]
+            for _, _, _ in simtime
+            ]
+        # Calculate dimensionless clearness parameter for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        dimensionless_clearness_parameter = [
+            self.__init_dimensionless_clearness_parameter(
+                self.__diffuse_horizontal_radiation[t_idx],
+                self.__direct_beam_radiation[t_idx],
+                self.__solar_altitude[simtime.current_hour()],
+                )
+            for t_idx, _, _ in simtime
+            ]
+        # Calculate dimensionless sky brightness parameter for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        dimensionless_sky_brightness_parameter = [
+            self.__init_dimensionless_sky_brightness_parameter(
+                self.__air_mass[simtime.current_hour()],
+                self.__diffuse_horizontal_radiation[t_idx],
+                self.__extra_terrestrial_radiation[simtime.current_day()],
+                )
+            for t_idx, _, _ in simtime
+            ]
+        # Calculate circumsolar brightness coefficient, F1 for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        self.__F1 = [
+            self.__init_F1(
+                dimensionless_clearness_parameter[t_idx],
+                dimensionless_sky_brightness_parameter[t_idx],
+                self.__solar_zenith_angle[simtime.current_hour()],
+                )
+            for t_idx, _, _ in simtime
+            ]
+        # Calculate horizontal brightness coefficient, F2 for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        self.__F2 = [
+            self.__init_F2(
+                dimensionless_clearness_parameter[t_idx],
+                dimensionless_sky_brightness_parameter[t_idx],
+                self.__solar_zenith_angle[simtime.current_hour()],
+                )
+            for t_idx, _, _ in simtime
+            ]
 
     def testoutput_setup(self,tilt,orientation):
         """ print output to a file for analysis """
@@ -115,23 +239,26 @@ class ExternalConditions:
         """ print output to a file for analysis """
 
         #call this function once during every timestep to test outputs
+        current_timestep = self.__simulation_time.index()
+        current_hour = self.__simulation_time.current_hour()
+        current_day = self.__simulation_time.current_day()
 
         #write headers
         with open("test_sunpath.txt", "a") as o:
             o.write("\n")
             o.write(str(self.__simulation_time.hour_of_day()))
             o.write(",")
-            o.write(str(self.solar_time()))
+            o.write(str(self.__solar_time[current_hour]))
             o.write(",")
-            o.write(str(self.solar_declination()))
+            o.write(str(self.__solar_declination[current_day]))
             o.write(",")
-            o.write(str(self.solar_hour_angle()))
+            o.write(str(self.__solar_hour_angle[current_hour]))
             o.write(",")
-            o.write(str(self.solar_altitude()))
+            o.write(str(self.__solar_altitude[current_hour]))
             o.write(",")
-            o.write(str(self.solar_azimuth_angle()))
+            o.write(str(self.__solar_azimuth_angle[current_hour]))
             o.write(",")
-            o.write(str(self.air_mass()))
+            o.write(str(self.__air_mass[current_hour]))
             o.write(",")
             o.write(str(self.sun_surface_azimuth(orientation)))
             o.write(",")
@@ -139,15 +266,15 @@ class ExternalConditions:
             o.write(",")
             o.write(str(self.solar_angle_of_incidence(tilt, orientation)))
             o.write(",")
-            o.write(str(self.extra_terrestrial_radiation()))
+            o.write(str(self.__extra_terrestrial_radiation[current_day]))
             o.write(",")
-            o.write(str(self.F1()))
+            o.write(str(self.__F1[current_timestep]))
             o.write(",")
-            o.write(str(self.F2()))
+            o.write(str(self.__F2[current_timestep]))
             o.write(",")
-            o.write(str(self.dimensionless_clearness_parameter()))
+            o.write(str(self.__dimensionless_clearness_parameter[current_timestep]))
             o.write(",")
-            o.write(str(self.dimensionless_sky_brightness_parameter()))
+            o.write(str(self.__dimensionless_sky_brightness_parameter[current_timestep]))
             o.write(",")
             o.write(str(self.a_over_b(tilt, orientation)))
             o.write(",")
@@ -196,11 +323,13 @@ class ExternalConditions:
 
     def diffuse_horizontal_radiation(self):
         """ Return the diffuse_horizontal_radiation for the current timestep """
-        return self.__diffuse_horizontal_radiation[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
+        return self.__diffuse_horizontal_radiation[self.__simulation_time.index()]
 
     def direct_beam_radiation(self):
         """ Return the direct_beam_radiation for the current timestep """
-        raw_value = self.__direct_beam_radiation[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
+        return self.__direct_beam_radiation[self.__simulation_time.index()]
+    
+    def __init_direct_beam_radiation(self, raw_value, solar_altitude):
         # if the climate data to only provide direct horizontal (rather than normal:
         # If only direct (beam) solar irradiance at horizontal plane is available in the climatic data set,
         # it shall be converted to normal incidence by dividing the value by the sine of the solar altitude.
@@ -217,7 +346,7 @@ class ExternalConditions:
         normal beam irradiance is very sensative for tiny errors in the calculation of the 
         solar altitude."""
         if self.__direct_beam_conversion_needed:
-            sin_asol = sin(radians(self.solar_altitude()))
+            sin_asol = sin(radians(solar_altitude))
             #prevent division by zero error. if sin_asol = 0 then the sun is lower than the
             #horizon and there will be no direct radiation to convert
             if sin_asol > 0:
@@ -284,10 +413,10 @@ class ExternalConditions:
         # or a statement of the contents of the weather data file
         # not current used
 
-    def earth_orbit_deviation(self):
+    def __init_earth_orbit_deviation(self, current_day):
         """ Calculate Rdc, the earth orbit deviation, as a function of the day, in degrees """
 
-        nday = self.__simulation_time.current_day() + 1
+        nday = current_day + 1
         # nday is the day of the year, from 1 to 365 or 366 (leap year)
         # Note that current_day function returns days numbered 0 to 364 or 365,
         # so we need to add 1 above
@@ -296,10 +425,10 @@ class ExternalConditions:
 
         return Rdc
 
-    def solar_declination(self):
+    def __init_solar_declination(self, earth_orbit_deviation):
         """ Calculate solar declination in degrees """
 
-        Rdc = radians(self.earth_orbit_deviation())
+        Rdc = radians(earth_orbit_deviation)
         # note we convert to radians for the python cos & sin inputs in formula below
 
         solar_declination = 0.33281 - 22.984 * cos(Rdc) - 0.3499 * cos(2 * Rdc) \
@@ -308,7 +437,7 @@ class ExternalConditions:
 
         return solar_declination
 
-    def equation_of_time(self):
+    def __init_equation_of_time(self, current_day):
         """ Calculate the equation of time """
 
         """ 
@@ -316,7 +445,7 @@ class ExternalConditions:
         nday is the day of the year, from 1 to 365 or 366 (leap year)
         """    
 
-        nday = self.__simulation_time.current_day() + 1
+        nday = current_day + 1
         # nday is the day of the year, from 1 to 365 or 366 (leap year)
         # Note that current_day function returns days numbered 0 to 364 or 365,
         # so we need to add 1 here
@@ -340,7 +469,7 @@ class ExternalConditions:
 
         return teq
 
-    def time_shift(self):
+    def __init_time_shift(self):
         """ Calculate the time shift, in hours, resulting from the fact that the 
         longitude and the path of the sun are not equal
 
@@ -350,7 +479,7 @@ class ExternalConditions:
         tshift = self.timezone() - self.longitude() / 15
         return tshift
 
-    def solar_time(self):
+    def __init_solar_time(self, hour_of_day, equation_of_time, time_shift):
         """ Calculate the solar time, tsol, as a function of the equation of time, 
         the time shift and the hour of the day """
 
@@ -358,14 +487,14 @@ class ExternalConditions:
         tsol is the solar time, in h
         nhour is the actual (clock) time for the location, the hour of the day, in h
         """
-        nhour = self.__simulation_time.hour_of_day() + 1
+        nhour = hour_of_day + 1
         #note we +1 here because the simulation hour of day starts at 0
         #while the sun path standard hour of day starts at 1 (hour 0 to 1)
-        tsol = nhour - (self.equation_of_time() / 60) - self.time_shift()
+        tsol = nhour - (equation_of_time / 60) - time_shift
 
         return tsol
 
-    def solar_hour_angle(self):
+    def __init_solar_hour_angle(self, solar_time):
         """ Calculate the solar hour angle, in the middle of the 
         current hour as a function of the solar time """
 
@@ -385,7 +514,7 @@ class ExternalConditions:
         at (solar) time = (N -0,5) h of the (solar) day.
         """
 
-        w = (180 / 12) * (12.5 - self.solar_time())
+        w = (180 / 12) * (12.5 - solar_time)
 
         if w > 180:
             w = w - 360
@@ -394,7 +523,7 @@ class ExternalConditions:
 
         return w
 
-    def solar_altitude(self):
+    def __init_solar_altitude(self, solar_declination, solar_hour_angle):
         """  the angle between the solar beam and the horizontal surface, determined 
              in the middle of the current hour as a function of the solar hour angle, 
              the solar declination and the latitude """
@@ -410,22 +539,24 @@ class ExternalConditions:
         # note that we convert to radians for the sin & cos python functions and then
         # we need to convert the result back to degrees after the arcsin transformation
 
-        asol = asin( sin(radians(self.solar_declination())) * sin(radians(self.latitude())) \
-                    + cos(radians(self.solar_declination())) * cos(radians(self.latitude())) * cos(radians(self.solar_hour_angle())))
+        asol = asin(
+            sin(radians(solar_declination)) * sin(radians(self.latitude())) \
+          + cos(radians(solar_declination)) * cos(radians(self.latitude())) * cos(radians(solar_hour_angle))
+          )
 
         if degrees(asol) < 0.0001:
             return (0)
 
         return degrees(asol)
 
-    def solar_zenith_angle(self):
+    def __init_solar_zenith_angle(self, solar_altitude):
         """  the complementary angle of the solar altitude """
 
-        zenith = 90 - self.solar_altitude()
+        zenith = 90 - solar_altitude
 
         return zenith
 
-    def solar_azimuth_angle(self):
+    def __init_solar_azimuth_angle(self, solar_declination, solar_hour_angle, solar_altitude):
         """  calculates the solar azimuth angle,
         angle from South, eastwards positive, westwards negative, in degrees """
 
@@ -434,14 +565,16 @@ class ExternalConditions:
         objects are in the direction of the sun
         """
 
-        sin_aux1_numerator = cos(radians(self.solar_declination())) * sin(radians(180 - self.solar_hour_angle()))
+        sin_aux1_numerator \
+            = cos(radians(solar_declination)) \
+            * sin(radians(180 - solar_hour_angle))
 
         cos_aux1_numerator = cos(radians(self.latitude())) \
-                    * sin(radians(self.solar_declination())) + sin(radians(self.latitude())) \
-                    * cos(radians(self.solar_declination())) \
-                    * cos(radians(180 - self.solar_hour_angle()))
+                    * sin(radians(solar_declination)) + sin(radians(self.latitude())) \
+                    * cos(radians(solar_declination)) \
+                    * cos(radians(180 - solar_hour_angle))
 
-        denominator = cos(asin(sin(radians(self.solar_altitude()))))
+        denominator = cos(asin(sin(radians(solar_altitude))))
 
         sin_aux1 = sin_aux1_numerator / denominator            
         cos_aux1 = cos_aux1_numerator / denominator 
@@ -459,11 +592,11 @@ class ExternalConditions:
 
         return solar_azimuth
 
-    def air_mass(self):
+    def __init_air_mass(self, solar_altitude):
         """  calculates the air mass, m, the distance the solar beam travels through the earth atmosphere.
         The air mass is determined as a function of the sine of the solar altitude angle """
 
-        sa = self.solar_altitude()
+        sa = solar_altitude
 
         if sa >= 10:
             m = 1 / sin(radians(sa))
@@ -485,17 +618,21 @@ class ExternalConditions:
                           surface normal, -180 to 180, in degrees;
         """
 
-        # set up the parameters first just to make the very long equation slightly more readable     
-        sin_dec = sin(radians(self.solar_declination()))
-        cos_dec = cos(radians(self.solar_declination()))
+        # set up the parameters first just to make the very long equation slightly more readable
+        current_day = self.__simulation_time.current_day()
+        solar_declination = self.__solar_declination[current_day]
+        sin_dec = sin(radians(solar_declination))
+        cos_dec = cos(radians(solar_declination))
         sin_lat = sin(radians(self.latitude()))
         cos_lat = cos(radians(self.latitude()))
         sin_t = sin(radians(tilt))
         cos_t = cos(radians(tilt))
         sin_o = sin(radians(orientation))
         cos_o = cos(radians(orientation))
-        sin_sha = sin(radians(self.solar_hour_angle()))
-        cos_sha = cos(radians(self.solar_hour_angle()))
+        current_hour = self.__simulation_time.current_hour()
+        solar_hour_angle = self.__solar_hour_angle[current_hour]
+        sin_sha = sin(radians(solar_hour_angle))
+        cos_sha = cos(radians(solar_hour_angle))
 
         solar_angle_of_incidence = acos( \
                                    sin_dec * sin_lat * cos_t \
@@ -582,7 +719,7 @@ class ExternalConditions:
 
         return direct_irradiance
 
-    def extra_terrestrial_radiation(self):
+    def __init_extra_terrestrial_radiation(self, earth_orbit_deviation):
         """  calculates the extra terrestrial radiation, the normal irradiance out of the atmosphere 
         as a function of the day
 
@@ -600,7 +737,7 @@ class ExternalConditions:
         #when it should be the solar constant, given elsewhere as 1367
         #we use the correct version of the formula here
 
-        extra_terrestrial_radiation = 1367 * (1 + 0.033 * cos(radians(self.earth_orbit_deviation())))
+        extra_terrestrial_radiation = 1367 * (1 + 0.033 * cos(radians(earth_orbit_deviation)))
 
         return extra_terrestrial_radiation
 
@@ -647,19 +784,14 @@ class ExternalConditions:
 
         return brightness_coeff_dict[index][Fij]
 
-    def F1(self):
+    def __init_F1(self, E, delta, solar_zenith_angle):
         """ returns the circumsolar brightness coefficient, F1
 
         Arguments:
-        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
-                          upwards facing, 0 to 180, in degrees;
-        orientation    -- is the orientation angle of the inclined surface, expressed as the 
-                          geographical azimuth angle of the horizontal projection of the inclined 
-                          surface normal, -180 to 180, in degrees;
+        E -- dimensionless clearness parameter for the current timestep
+        delta -- dimensionless sky brightness parameter for the current timestep
+        solar_zenith_angle -- solar zenith angle for the current hour
         """
-
-        E = self.dimensionless_clearness_parameter()
-        delta = self.dimensionless_sky_brightness_parameter()
 
         #brightness coeffs
         f11 = self.brightness_coefficient(E, 'f11')
@@ -668,23 +800,18 @@ class ExternalConditions:
         #The formulation of F1 is made so as to avoid non-physical negative values 
         #that may occur and result in unacceptable distortions if the model is used 
         #for very low solar elevation angles
-        F1 = max(0, f11 + f12 * delta + f13 * (pi * self.solar_zenith_angle() / 180))
+        F1 = max(0, f11 + f12 * delta + f13 * (pi * solar_zenith_angle / 180))
 
         return F1
 
-    def F2(self):
+    def __init_F2(self, E, delta, solar_zenith_angle):
         """ returns the horizontal brightness coefficient, F2
 
         Arguments:
-        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
-                          upwards facing, 0 to 180, in degrees;
-        orientation    -- is the orientation angle of the inclined surface, expressed as the 
-                          geographical azimuth angle of the horizontal projection of the inclined 
-                          surface normal, -180 to 180, in degrees;
+        E -- dimensionless clearness parameter
+        delta -- dimensionless sky brightness parameter
+        solar_zenith_angle -- solar zenith angle for the current hour
         """
-
-        E = self.dimensionless_clearness_parameter()
-        delta = self.dimensionless_sky_brightness_parameter()
 
         #horizontal brightness coefficient, F2
         f21 = self.brightness_coefficient(E, 'f21')
@@ -698,16 +825,18 @@ class ExternalConditions:
         #away from the horizon. For overcast skies the horizon brightening has a 
         #negative value since for such skies the sky radiance increases rather than 
         #decreases away from the horizon.
-        F2 = f21 + f22 * delta + f23 * (pi * self.solar_zenith_angle() / 180)
+        F2 = f21 + f22 * delta + f23 * (pi * solar_zenith_angle / 180)
 
         return F2
 
-    def dimensionless_clearness_parameter(self):
-        """ returns the dimensionless clearness parameter, E, anisotropic sky conditions (Perez model)"""
-
-        Gsol_d = self.diffuse_horizontal_radiation()
-        Gsol_b = self.direct_beam_radiation()
-        asol = self.solar_altitude()
+    def __init_dimensionless_clearness_parameter(self, Gsol_d, Gsol_b, asol):
+        """ returns the dimensionless clearness parameter, E, anisotropic sky conditions (Perez model)
+        
+        Arguments:
+        Gsol_d -- diffuse horizontal radiation
+        Gsol_b -- direct beam radiation
+        asol -- solar altitude for the current hour
+        """
 
         #constant parameter for the clearness formula, K, in rad^-3 from table 9 of ISO 52010
         K = 1.014
@@ -720,20 +849,22 @@ class ExternalConditions:
 
         return E
 
-    def dimensionless_sky_brightness_parameter(self):
+    def __init_dimensionless_sky_brightness_parameter(
+            self,
+            air_mass,
+            diffuse_horizontal_radiation,
+            extra_terrestrial_radiation,
+            ):
         """  calculates the dimensionless sky brightness parameter, delta
 
         Arguments:
-        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
-                          upwards facing, 0 to 180, in degrees;
-        orientation    -- is the orientation angle of the inclined surface, expressed as the 
-                          geographical azimuth angle of the horizontal projection of the inclined 
-                          surface normal, -180 to 180, in degrees;
-
+        air_mass -- air mass for the current hour
+        diffuse_horizontal_radiation -- diffuse horizontal radiation for the current timestep
+        extra_terrestrial_radiation -- extra-terrestrial radiation for the current day
         """
 
-        delta = self.air_mass() * self.diffuse_horizontal_radiation() \
-              / self.extra_terrestrial_radiation()
+        delta = air_mass * diffuse_horizontal_radiation \
+              / extra_terrestrial_radiation
 
         return delta
 
@@ -748,11 +879,12 @@ class ExternalConditions:
                           surface normal, -180 to 180, in degrees;
         """
 
+        current_hour = self.__simulation_time.current_hour()
         #dimensionless parameters a & b
         #describing the incidence-weighted solid angle sustained by the circumsolar region as seen 
         #respectively by the tilted surface and the horizontal. 
         a = max(0, cos(radians(self.solar_angle_of_incidence(tilt, orientation))))
-        b = max(cos(radians(85)), cos(radians(self.solar_zenith_angle())))
+        b = max(cos(radians(85)), cos(radians(self.__solar_zenith_angle[current_hour])))
 
         return a / b
 
@@ -770,8 +902,8 @@ class ExternalConditions:
 
         #first set up parameters needed for the calculation
         Gsol_d = self.diffuse_horizontal_radiation()
-        F1 = self.F1()
-        F2 = self.F2()
+        F1 = self.__F1[self.__simulation_time.index()]
+        F2 = self.__F2[self.__simulation_time.index()]
 
         # Calculate components of diffuse radiation
         diffuse_irr_sky = Gsol_d * (1 - F1) * ((1 + cos(radians(tilt))) / 2)
@@ -793,9 +925,10 @@ class ExternalConditions:
         """
 
         #first set up parameters needed for the calculation
+        current_hour = self.__simulation_time.current_hour()
         Gsol_d = self.diffuse_horizontal_radiation()
         Gsol_b = self.direct_beam_radiation()
-        asol = radians(self.solar_altitude())
+        asol = radians(self.__solar_altitude[current_hour])
 
         ground_reflection_irradiance = (Gsol_d + Gsol_b * sin(asol)) * self.solar_reflectivity_of_ground() \
                                      * ((1 - cos(radians(tilt))) / 2)
@@ -814,7 +947,7 @@ class ExternalConditions:
         """
 
         Gsol_d = self.diffuse_horizontal_radiation()
-        F1 = self.F1()
+        F1 = self.__F1[self.__simulation_time.index()]
         a_over_b = self.a_over_b(tilt, orientation)
 
         circumsolar_irradiance = Gsol_d * F1 * a_over_b
@@ -916,8 +1049,9 @@ class ExternalConditions:
                           
         """
 
-        test1 = orientation - self.solar_azimuth_angle()
-        test2 = tilt - self.solar_altitude()
+        current_hour = self.__simulation_time.current_hour()
+        test1 = orientation - self.__solar_azimuth_angle[current_hour]
+        test2 = tilt - self.__solar_altitude[current_hour]
 
         if (-90 > test1 or test1 > 90):
             # surface outside solar beam
@@ -935,7 +1069,8 @@ class ExternalConditions:
 
         """
 
-        azimuth = self.solar_azimuth_angle()
+        current_hour = self.__simulation_time.current_hour()
+        azimuth = self.__solar_azimuth_angle[current_hour]
 
         for segment in self.__shading_segments:
             if (azimuth < segment["start"] and azimuth > segment["end"]):
@@ -956,7 +1091,8 @@ class ExternalConditions:
                          and the shading obstacle p in segment i, in m
         """
 
-        Hshade = max(0, Hobst - Hkbase - Lkobst * tan(radians(self.solar_altitude())))
+        current_hour = self.__simulation_time.current_hour()
+        Hshade = max(0, Hobst - Hkbase - Lkobst * tan(radians(self.__solar_altitude[current_hour])))
         return Hshade
 
     def overhang_shading_height(self, Hk, Hkbase, Hovh, Lkovh ):
@@ -1021,8 +1157,9 @@ class ExternalConditions:
         # (note only applicable to transparent building elements so window_shading
         # will always be False for other elements)
         if window_shading:
-            altitude = self.solar_altitude()
-            azimuth = self.solar_azimuth_angle()
+            current_hour = self.__simulation_time.current_hour()
+            altitude = self.__solar_altitude[current_hour]
+            azimuth = self.__solar_azimuth_angle[current_hour]
             # if there is then loop through all objects and calc shading heights/widths
             for shade_obj in window_shading:
                 depth = shade_obj["depth"]
@@ -1144,137 +1281,155 @@ class ExternalConditions:
         #      F_w_sky when alpha = 0
         beta = radians(tilt)
 
+        #create lists of diffuse shading factors to keep the largest one
+        #in case there are multiple shading objects
+        Fdiff_list = []
+
         # Unpack window shading details
-        D_ovh = 0.0
-        L_ovh = 1.0 # Cannot be zero as this leads to divide-by-zero later on
-        D_finR = 0.0
-        L_finR = 1.0 # Cannot be zero as this leads to divide-by-zero later on
-        D_finL = 0.0
-        L_finL = 1.0 # Cannot be zero as this leads to divide-by-zero later on
+        ovh_D_L_ls = [[0.0,1.0]] # [D,L] - L cannot be zero as this leads to divide-by-zero later on
+        finR_D_L_ls = [[0.0,1.0]] # [D,L] - L cannot be zero as this leads to divide-by-zero later on
+        finL_D_L_ls = [[0.0,1.0]] # [D,L] - L cannot be zero as this leads to divide-by-zero later on
+
         if window_shading:
             for shade_obj in window_shading:
                 if shade_obj["type"] == "overhang":
-                    D_ovh = shade_obj["depth"]
-                    L_ovh = shade_obj["distance"]
+                    ovh_D_L_ls.append([shade_obj["depth"],shade_obj["distance"]])
                 elif shade_obj["type"] == "sidefinright":
-                    D_finR = shade_obj["depth"]
-                    L_finR = shade_obj["distance"]
+                    finR_D_L_ls.append([shade_obj["depth"],shade_obj["distance"]])
                 elif shade_obj["type"] == "sidefinleft":
-                    D_finL = shade_obj["depth"]
-                    L_finL = shade_obj["distance"]
+                    finL_D_L_ls.append([shade_obj["depth"],shade_obj["distance"]])
                 else:
                     sys.exit("shading object type" + shade_obj["type"] + "not recognised")
+        
+        #the default values should not be used if shading is specified
+        if len(ovh_D_L_ls) >= 2:
+            ovh_D_L_ls.pop(0)
+        if len(finR_D_L_ls) >= 2:
+            finR_D_L_ls.pop(0)
+        if len(finL_D_L_ls) >= 2:
+            finL_D_L_ls.pop(0)
 
-        # Calculate required geometric ratios
-        # Note: PD CEN ISO/TR 52016-2:2017 Section F.6.3 refers to ISO 52016-1:2017
-        #       Section F.5.5.1.6 for the definition of P1 and P2. However, this
-        #       section does not exist. Therefore, these definitions have been
-        #       taken from Section F.3.5.1.2 instead, also supported by Table F.6
-        #       in PD CEN ISO/TR 52016-2:2017. These sources define P1 and P2
-        #       differently for fins and for overhangs so it is assumed that
-        #       should also apply here.
-        P1_ovh = D_ovh / height
-        P2_ovh = L_ovh / height
-        P1_finL = D_finL / width
-        P2_finL = L_finL / width
-        P1_finR = D_finR / width
-        P2_finR = L_finR / width
+        #perform the diff shading calculation for each comination of overhangs and fins
+        for ovh_D_L,finR_D_L,finL_D_L in product(ovh_D_L_ls,finR_D_L_ls,finL_D_L_ls):
+            D_ovh = ovh_D_L[0]
+            L_ovh = ovh_D_L[1]
+            D_finL = finL_D_L[0]
+            L_finL = finL_D_L[1]
+            D_finR = finR_D_L[0]
+            L_finR = finR_D_L[1]
+            # Calculate required geometric ratios
+            # Note: PD CEN ISO/TR 52016-2:2017 Section F.6.3 refers to ISO 52016-1:2017
+            #       Section F.5.5.1.6 for the definition of P1 and P2. However, this
+            #       section does not exist. Therefore, these definitions have been
+            #       taken from Section F.3.5.1.2 instead, also supported by Table F.6
+            #       in PD CEN ISO/TR 52016-2:2017. These sources define P1 and P2
+            #       differently for fins and for overhangs so it is assumed that
+            #       should also apply here.
+            P1_ovh = D_ovh / height
+            P2_ovh = L_ovh / height
+            P1_finL = D_finL / width
+            P2_finL = L_finL / width
+            P1_finR = D_finR / width
+            P2_finR = L_finR / width
 
-        # Calculate view factors (eqns F.15 to F.18) required for eqns F.9 to F.14
-        # Note: The equations in the standard refer to P1 and P2, but as per the
-        #       comment above, there are different definitions of these for fins
-        #       and for overhangs. The decision on which ones to use for each of
-        #       the equations below has been made depending on which of the
-        #       subsequent equations the resulting variables are used in (e.g.
-        #       F_w_s is used to calculate F_sh_dif_fins so we use P1 and P2 for
-        #       fins).
-        # Note: For F_w_r, we could set P1 equal to P1 for fins and P2 equal to
-        #       P1 (not P2) for overhangs, as this appears to be consistent with
-        #       example in Table F.6
-        # F_w_r = 1 - exp(-0.8632 * (P1_fin + P1_ovh))
-        # Note: Formula in standard for view factor to fins seems to assume that
-        #       fins are the same on each side. Therefore, here we take the
-        #       average of this view factor calculated with the dimensions of
-        #       each fin.
-        F_w_s \
-            = ( 0.6514 * (1 - (P2_finL / sqrt(P1_finL * P1_finL + P2_finL * P2_finL)))
-              + 0.6514 * (1 - (P2_finR / sqrt(P1_finR * P1_finR + P2_finR * P2_finR)))
-              ) \
-            / 2
-        F_w_o = 0.3282 * (1 - (P2_ovh / sqrt(P1_ovh * P1_ovh + P2_ovh * P2_ovh)))
-        F_w_sky = (1 - sin(alpha + beta - radians(90))) / 2
+            # Calculate view factors (eqns F.15 to F.18) required for eqns F.9 to F.14
+            # Note: The equations in the standard refer to P1 and P2, but as per the
+            #       comment above, there are different definitions of these for fins
+            #       and for overhangs. The decision on which ones to use for each of
+            #       the equations below has been made depending on which of the
+            #       subsequent equations the resulting variables are used in (e.g.
+            #       F_w_s is used to calculate F_sh_dif_fins so we use P1 and P2 for
+            #       fins).
+            # Note: For F_w_r, we could set P1 equal to P1 for fins and P2 equal to
+            #       P1 (not P2) for overhangs, as this appears to be consistent with
+            #       example in Table F.6
+            # F_w_r = 1 - exp(-0.8632 * (P1_fin + P1_ovh))
+            # Note: Formula in standard for view factor to fins seems to assume that
+            #       fins are the same on each side. Therefore, here we take the
+            #       average of this view factor calculated with the dimensions of
+            #       each fin.
+            F_w_s \
+                = ( 0.6514 * (1 - (P2_finL / sqrt(P1_finL * P1_finL + P2_finL * P2_finL)))
+                  + 0.6514 * (1 - (P2_finR / sqrt(P1_finR * P1_finR + P2_finR * P2_finR)))
+                  ) \
+                / 2
+            F_w_o = 0.3282 * (1 - (P2_ovh / sqrt(P1_ovh * P1_ovh + P2_ovh * P2_ovh)))
+            F_w_sky = (1 - sin(alpha + beta - radians(90))) / 2
 
-        # Calculate denominators of eqns F.9 to F.14
-        view_factor_sky_no_obstacles = (1 + cos(beta)) / 2
-        view_factor_ground_no_obstacles = (1 - cos(beta)) / 2
+            # Calculate denominators of eqns F.9 to F.14
+            view_factor_sky_no_obstacles = (1 + cos(beta)) / 2
+            view_factor_ground_no_obstacles = (1 - cos(beta)) / 2
 
-        # Setback and remote obstacles (eqns F.9 and F.10): Top half of each eqn
-        # is view factor to sky (F.9) or ground (F.10) with setback and distant
-        # obstacles
-        # TODO Uncomment these lines when definitions of P1 and P2 in formula
-        #      for F_w_r have been confirmed.
-        # if view_factor_sky_no_obstacles == 0:
-        #     # Shading makes no difference if sky not visible (avoid divide-by-zero)
-        #     F_sh_dif_setback = 1.0
-        # else:
-        #     F_sh_dif_setback = (1 - F_w_r) * F_w_sky \
-        #                      / view_factor_sky_no_obstacles
-        # if view_factor_ground_no_obstacles == 0:
-        #     # Shading makes no difference if ground not visible (avoid divide-by-zero)
-        #     F_sh_ref_setback = 1.0
-        # else:
-        #     F_sh_ref_setback = (1 - F_w_r) * (1 - F_w_sky) \
-        #                      / view_factor_ground_no_obstacles
+            # Setback and remote obstacles (eqns F.9 and F.10): Top half of each eqn
+            # is view factor to sky (F.9) or ground (F.10) with setback and distant
+            # obstacles
+            # TODO Uncomment these lines when definitions of P1 and P2 in formula
+            #      for F_w_r have been confirmed.
+            # if view_factor_sky_no_obstacles == 0:
+            #     # Shading makes no difference if sky not visible (avoid divide-by-zero)
+            #     F_sh_dif_setback = 1.0
+            # else:
+            #     F_sh_dif_setback = (1 - F_w_r) * F_w_sky \
+            #                      / view_factor_sky_no_obstacles
+            # if view_factor_ground_no_obstacles == 0:
+            #     # Shading makes no difference if ground not visible (avoid divide-by-zero)
+            #     F_sh_ref_setback = 1.0
+            # else:
+            #     F_sh_ref_setback = (1 - F_w_r) * (1 - F_w_sky) \
+            #                      / view_factor_ground_no_obstacles
 
-        # Fins and remote obstacles (eqns F.11 and F.12): Top half of each eqn
-        # is view factor to sky (F.11) or ground (F.12) with fins and distant
-        # obstacles
-        if view_factor_sky_no_obstacles == 0:
-            # Shading makes no difference if sky not visible (avoid divide-by-zero)
-            F_sh_dif_fins = 1.0
-        else:
-            F_sh_dif_fins = (1 - F_w_s) * F_w_sky \
-                          / view_factor_sky_no_obstacles
-        if view_factor_ground_no_obstacles == 0:
-            # Shading makes no difference if ground not visible (avoid divide-by-zero)
-            F_sh_ref_fins = 1.0
-        else:
-            F_sh_ref_fins = (1 - F_w_s) * (1 - F_w_sky) \
-                          / view_factor_ground_no_obstacles
+            # Fins and remote obstacles (eqns F.11 and F.12): Top half of each eqn
+            # is view factor to sky (F.11) or ground (F.12) with fins and distant
+            # obstacles
+            if view_factor_sky_no_obstacles == 0:
+                # Shading makes no difference if sky not visible (avoid divide-by-zero)
+                F_sh_dif_fins = 1.0
+            else:
+                F_sh_dif_fins = (1 - F_w_s) * F_w_sky \
+                              / view_factor_sky_no_obstacles
+            if view_factor_ground_no_obstacles == 0:
+                # Shading makes no difference if ground not visible (avoid divide-by-zero)
+                F_sh_ref_fins = 1.0
+            else:
+                F_sh_ref_fins = (1 - F_w_s) * (1 - F_w_sky) \
+                              / view_factor_ground_no_obstacles
 
-        # Overhangs and remote obstacles (eqns F.13 and F.14)
-        # Top half of eqn F.13 is view factor to sky with overhangs
-        if view_factor_sky_no_obstacles == 0:
-            # Shading makes no difference if sky not visible (avoid divide-by-zero)
-            F_sh_dif_overhangs = 1.0
-        else:
-            F_sh_dif_overhangs = (F_w_sky - F_w_o) \
-                               / view_factor_sky_no_obstacles
-        # Top half of eqn F.14 is view factor to ground with distant obstacles,
-        # but does not account for overhangs blocking any part of the view of
-        # the ground, presumably because this will not happen in the vast
-        # majority of cases
-        if view_factor_ground_no_obstacles == 0:
-            # Shading makes no difference if ground not visible (avoid divide-by-zero)
-            F_sh_ref_overhangs = 1.0
-        else:
-            F_sh_ref_overhangs = (1 - F_w_sky) \
-                               / view_factor_ground_no_obstacles
+            # Overhangs and remote obstacles (eqns F.13 and F.14)
+            # Top half of eqn F.13 is view factor to sky with overhangs
+            if view_factor_sky_no_obstacles == 0:
+                # Shading makes no difference if sky not visible (avoid divide-by-zero)
+                F_sh_dif_overhangs = 1.0
+            else:
+                F_sh_dif_overhangs = (F_w_sky - F_w_o) \
+                                   / view_factor_sky_no_obstacles
+            # Top half of eqn F.14 is view factor to ground with distant obstacles,
+            # but does not account for overhangs blocking any part of the view of
+            # the ground, presumably because this will not happen in the vast
+            # majority of cases
+            if view_factor_ground_no_obstacles == 0:
+                # Shading makes no difference if ground not visible (avoid divide-by-zero)
+                F_sh_ref_overhangs = 1.0
+            else:
+                F_sh_ref_overhangs = (1 - F_w_sky) \
+                                   / view_factor_ground_no_obstacles
 
-        # Keep the smallest of the three shading reduction factors as the
-        # diffuse or reflected shading factor. Also enforce that these cannot be
-        # negative (which may happen with some extreme tilt values)
-        # TODO Add setback shading factors to the arguments to min function when
-        #      definitions of P1 and P2 in formula for F_w_r have been confirmed.
-        # F_sh_dif = max(0.0, min(F_sh_dif_setback, F_sh_dif_fins, F_sh_dif_overhangs))
-        # F_sh_ref = max(0.0, min(F_sh_ref_setback, F_sh_ref_fins, F_sh_ref_overhangs))
-        F_sh_dif = max(0.0, min(F_sh_dif_fins, F_sh_dif_overhangs))
-        F_sh_ref = max(0.0, min(F_sh_ref_fins, F_sh_ref_overhangs))
+            # Keep the smallest of the three shading reduction factors as the
+            # diffuse or reflected shading factor. Also enforce that these cannot be
+            # negative (which may happen with some extreme tilt values)
+            # TODO Add setback shading factors to the arguments to min function when
+            #      definitions of P1 and P2 in formula for F_w_r have been confirmed.
+            # F_sh_dif = max(0.0, min(F_sh_dif_setback, F_sh_dif_fins, F_sh_dif_overhangs))
+            # F_sh_ref = max(0.0, min(F_sh_ref_setback, F_sh_ref_fins, F_sh_ref_overhangs))
+            F_sh_dif = max(0.0, min(F_sh_dif_fins, F_sh_dif_overhangs))
+            F_sh_ref = max(0.0, min(F_sh_ref_fins, F_sh_ref_overhangs))
 
-        Fdiff = ( F_sh_dif * (diffuse_irr_sky + diffuse_irr_hor)
-                + F_sh_ref * diffuse_irr_ref
-                ) \
-              / diffuse_irr_total
+            Fdiff = ( F_sh_dif * (diffuse_irr_sky + diffuse_irr_hor)
+                    + F_sh_ref * diffuse_irr_ref
+                    ) \
+                  / diffuse_irr_total
+            Fdiff_list.append(Fdiff)
+
+        Fdiff = max(Fdiff_list)
 
         return Fdiff
 

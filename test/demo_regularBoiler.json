@@ -85,6 +85,8 @@
 			"type": "StorageTank",
 			"volume": 80.0,
 			"daily_losses": 1.68,
+			"min_temp": 52.0,
+			"setpoint_temp": 55.0,
 			"ColdWaterSource": "mains water",
 			"HeatSource": {
 				"regularBoiler": {
@@ -94,6 +96,8 @@
 					"ColdWaterSource": "mains water",
 					"EnergySupply": "mains elec",
 					"Control": "hw timer",
+					"heater_position": 0.1,
+					"thermostat_position": 0.33,
 					"temp_return": 60
 				}
 			},
@@ -159,6 +163,7 @@
 		"regularBoiler": {
 			"type": "Boiler",
 			"EnergySupply": "mains gas",
+			"EnergySupply_aux": "mains elec",
 			"rated_power": 24.0,
 			"efficiency_full_load": 0.891,
 			"efficiency_part_load": 0.991,

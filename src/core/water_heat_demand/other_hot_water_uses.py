@@ -24,12 +24,17 @@ class OtherHotWater:
         """
         self.__flowrate          = flowrate
         self.__cold_water_source = cold_water_source
+        self.__temp_hot = 52.0 # TODO Get hot temp from somewhere rather than hard-coding
 
     def get_flowrate(self):
         return self.__flowrate
         
     def get_cold_water_source(self):
         return(self.__cold_water_source)
+    
+    def get_temp_hot(self):
+        return(self.__temp_hot)
+
         
     def hot_water_demand(self, temp_target, total_demand_duration):
         """ Calculate volume of hot water required
@@ -42,12 +47,11 @@ class OtherHotWater:
                                  timestep, in minutes
         """
         temp_cold = self.__cold_water_source.temperature()
-        temp_hot  = 52.0 # TODO Get hot temp from somewhere rather than hard-coding
 
         # TODO Account for behavioural variation factor fbeh
         vol_warm_water = self.__flowrate * total_demand_duration
         # ^^^ litres = litres/minute * minutes
-        vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, temp_cold)
+        vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, self.__temp_hot, temp_cold)
 
         return vol_hot_water
 

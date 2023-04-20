@@ -26,9 +26,13 @@ class MixerShower:
         self.__flowrate          = flowrate
         self.__cold_water_source = cold_water_source
         self.__wwhrs = wwhrs
+        self.__temp_hot  = 52.0 # TODO Get hot temp from somewhere rather than hard-coding
 
     def get_cold_water_source(self):
         return(self.__cold_water_source)
+    
+    def get_temp_hot(self):
+        return(self.__temp_hot)
         
     def hot_water_demand(self, temp_target, total_shower_duration):
         """ Calculate volume of hot water required
@@ -42,12 +46,10 @@ class MixerShower:
         """
         temp_cold = self.__cold_water_source.temperature()
 
-        temp_hot  = 52.0 # TODO Get hot temp from somewhere rather than hard-coding
-
         # TODO Account for behavioural variation factor fbeh
         vol_warm_water = self.__flowrate * total_shower_duration
         # ^^^ litres = litres/minute * minutes
-        vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, temp_cold)
+        vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, self.__temp_hot, temp_cold)
         # first calculate the volume of hot water needed if heating from cold water source
 
         if self.__wwhrs is not None:
@@ -56,7 +58,7 @@ class MixerShower:
 
             if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemB): # just returns hot water to the shower
                 # return the required volume of hot water once the recovered heat has been accounted for.
-                vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
+                vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, self.__temp_hot, wwhrs_return_temperature)
 
             elif isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemC): # just returns hot water to the hot water source
                 # Set the actual return temperature given the temperature and flowrate of the waste water.
@@ -67,7 +69,7 @@ class MixerShower:
                 self.__wwhrs.set_temperature_for_return(wwhrs_return_temperature)
                 
                 # return the required volume of hot water once the recovered heat has been accounted for.
-                vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, temp_hot, wwhrs_return_temperature)
+                vol_hot_water  = vol_warm_water * frac_hot_water(temp_target, self.__temp_hot, wwhrs_return_temperature)
 
         return vol_hot_water
 

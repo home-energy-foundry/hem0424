@@ -92,14 +92,15 @@ def run_project(
         )
 
     if heat_balance:
-        heat_balance_output_file = file_path[0] + '_results_heat_balance.csv'
         hour_per_step = project_dict['SimulationTime']['step']
-        write_heat_balance_output_file(
-            heat_balance_output_file,
-            timestep_array,
-            hour_per_step,
-            heat_balance_dict,
-            )
+        for hb_name, hb_dict in heat_balance_dict.items():
+            heat_balance_output_file = file_path[0] + '_results_heat_balance_' + hb_name + '.csv'
+            write_heat_balance_output_file(
+                heat_balance_output_file,
+                timestep_array,
+                hour_per_step,
+                hb_dict,
+                )
 
     # Sum per-timestep figures as needed
     space_heat_demand_total = sum(sum(h_dem) for h_dem in zone_dict['Space heat demand'].values())

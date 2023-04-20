@@ -107,6 +107,8 @@
 			"type": "StorageTank",
 			"volume": 80.0,
 			"daily_losses": 1.68,
+			"min_temp": 52.0,
+			"setpoint_temp": 55.0,
 			"ColdWaterSource": "mains water",
 			"HeatSource": {
 				"heat pump 1": {
@@ -123,7 +125,9 @@
 						}
 					},
 					"EnergySupply": "mains elec",
-					"Control": "hw timer"
+					"Control": "hw timer",
+					"heater_position": 0.1,
+					"thermostat_position": 0.33
 				}
 			},
 			"primary_pipework": {

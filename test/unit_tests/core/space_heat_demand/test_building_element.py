@@ -28,12 +28,12 @@ class TestBuildingElementOpaque(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 [0.0, 5.0, 10.0, 15.0],
                                 None,
+                                [0.0] * 4, # Diffuse horizontal radiation
+                                [0.0] * 4, # Direct beam radiation
                                 None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
+                                55.0, # Latitude
+                                0.0, # Longitude
+                                0.0, # Timezone
                                 0, # Start day
                                 None,
                                 1, # Time-series step,
@@ -216,12 +216,12 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 [0.0, 5.0, 10.0, 15.0],
                                 None,
+                                [0.0] * 4, # Diffuse horizontal radiation
+                                [0.0] * 4, # Direct beam radiation
                                 None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
+                                55.0, # Latitude
+                                0.0, # Longitude
+                                0.0, # Timezone
                                 0, # Start day
                                 None,
                                 1, # Time-series step
@@ -419,12 +419,12 @@ class TestBuildingElementGround(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 airtemp,
                                 None,
+                                [0.0] * 8760, # Diffuse horizontal radiation
+                                [0.0] * 8760, # Direct beam radiation
                                 None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
+                                55.0, # Latitude
+                                0.0, # Longitude
+                                0.0, # Timezone
                                 0, # Start day
                                 None,
                                 1, # Time-series step
@@ -606,12 +606,12 @@ class TestBuildingElementTransparent(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 [0.0, 5.0, 10.0, 15.0],
                                 None,
+                                [0.0] * 4, # Diffuse horizontal radiation
+                                [0.0] * 4, # Direct beam radiation
                                 None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
+                                55.0, # Latitude
+                                0.0, # Longitude
+                                0.0, # Timezone
                                 0, # Start day
                                 None,
                                 1, # Time-series step

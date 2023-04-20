@@ -31,12 +31,12 @@ class TestVentilationElementInfiltration(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 air_temps,
                                 wind_speeds,
+                                [0.0] * 8, # Diffuse horizontal radiation
+                                [0.0] * 8, # Direct beam radiation
                                 None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
+                                55.0, # Latitude
+                                0.0, # Longitude
+                                0.0, # Timezone
                                 0, # Start day
                                 None,
                                 1, # Time-series step
@@ -135,12 +135,12 @@ class TestMechnicalVentilationHeatRecovery(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 air_temps,
                                 wind_speeds,
+                                [0.0] * 8, # Diffuse horizontal radiation
+                                [0.0] * 8, # Direct beam radiation
                                 None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
+                                55.0, # Latitude
+                                0.0, # Longitude
+                                0.0, # Timezone
                                 0, # Start day
                                 None,
                                 1, # Time-series step
@@ -162,6 +162,11 @@ class TestMechnicalVentilationHeatRecovery(unittest.TestCase):
                 self.assertAlmostEqual(
                     self.mvhr.h_ve(75.0),
                     4.28975166666666,
+                    msg="incorrect heat transfer coeffient (h_ve) returned"
+                    )
+                self.assertAlmostEqual(
+                    self.mvhr.h_ve(75.0, 1.2),
+                    5.147701999999999,
                     msg="incorrect heat transfer coeffient (h_ve) returned"
                     )
 
@@ -204,12 +209,12 @@ class TestWholeHouseExtractVentilation(unittest.TestCase):
         ec = ExternalConditions(self.simtime,
                                 air_temps,
                                 wind_speeds,
+                                [0.0] * 8, # Diffuse horizontal radiation
+                                [0.0] * 8, # Direct beam radiation
                                 None,
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
+                                55.0, # Latitude
+                                0.0, # Longitude
+                                0.0, # Timezone
                                 0, # Start day
                                 None,
                                 1, # Time-series step
@@ -235,11 +240,26 @@ class TestWholeHouseExtractVentilation(unittest.TestCase):
             7.657876998697917,
             7.585921145833332,
             ]
+        results_with_throughput_factor = [
+            9.757213648437498,
+            9.656672593749999,
+            9.5584972109375,
+            9.4626875,
+            9.3692434609375,
+            9.27816509375,
+            9.1894523984375,
+            9.103105374999997,
+            ]
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.whev.h_ve(75.0),
                     results[t_idx],
+                    msg="incorrect heat transfer coeffient (h_ve) returned"
+                    )
+                self.assertAlmostEqual(
+                    self.whev.h_ve(75.0, 1.2),
+                    results_with_throughput_factor[t_idx],
                     msg="incorrect heat transfer coeffient (h_ve) returned"
                     )
 

@@ -1,5 +1,6 @@
 {
 	"PartGcompliance":true,
+	"HeatingControlType": "SeparateTempControl",
 	"SimulationTime": {
 		"start": 0,
 		"end": 8,
@@ -91,13 +92,6 @@
 		},
 		"mains gas": {
 			"fuel": "mains_gas"
-		},
-		"heat network": {
-			"fuel": "custom",
-			"factor":{
-				"Emissions Factor kgCO2e/kWh": 0.07,
-				"Emissions Factor kgCO2e/kWh including out-of-scope emissions": 0.06,
-				"Primary Energy Factor kWh/kWh delivered": 1.7}
 		}
 	},
 	"Control": {
@@ -131,13 +125,17 @@
 			"type": "StorageTank",
 			"volume": 80.0,
 			"daily_losses": 1.68,
+			"min_temp": 52.0,
+			"setpoint_temp": 55.0,
 			"ColdWaterSource": "mains water",
 			"HeatSource": {
 				"immersion": {
 					"type": "ImmersionHeater",
 					"power": 3.0,
 					"EnergySupply": "mains elec",
-					"Control": "hw timer"
+					"Control": "hw timer",
+					"heater_position": 0.1,
+					"thermostat_position": 0.33
 				}
 			}
 		}

@@ -34,6 +34,7 @@ class SourceType(Enum):
     EXHAUST_AIR_MIXED = auto()
     WATER_GROUND = auto()
     WATER_SURFACE = auto()
+    HEAT_NETWORK = auto()
 
     @classmethod
     def from_string(cls, strval):
@@ -51,9 +52,61 @@ class SourceType(Enum):
             return cls.WATER_GROUND
         elif strval == 'WaterSurface':
             return cls.WATER_SURFACE
+        elif strval == 'HeatNetwork':
+            return cls.HEAT_NETWORK
         else:
             sys.exit('SourceType (' + str(strval) + ') not valid.')
             # TODO Exit just the current case instead of whole program entirely?
+
+    @classmethod
+    def is_exhaust_air(cls, source_type):
+        # If string has been provided, convert to SourceType before running check
+        if isinstance(source_type, str):
+            source_type = cls.from_string(source_type)
+
+        if source_type in (cls.EXHAUST_AIR_MEV, cls.EXHAUST_AIR_MVHR, cls.EXHAUST_AIR_MIXED):
+            return True
+        elif source_type in (
+            cls.GROUND,
+            cls.OUTSIDE_AIR,
+            cls.WATER_GROUND,
+            cls.WATER_SURFACE,
+            cls.HEAT_NETWORK,
+            ):
+            return False
+        else:
+            sys.exit('SourceType (' + str(source_type) + ') not defined as exhaust air or not.')
+
+    @classmethod
+    def source_fluid_is_air(cls, source_type):
+        # If string has been provided, convert to SourceType before running check
+        if isinstance(source_type, str):
+            source_type = cls.from_string(source_type)
+
+        if source_type \
+        in (cls.OUTSIDE_AIR, cls.EXHAUST_AIR_MEV, cls.EXHAUST_AIR_MVHR, cls.EXHAUST_AIR_MIXED):
+            return True
+        elif source_type in (cls.GROUND, cls.WATER_GROUND, cls.WATER_SURFACE, cls.HEAT_NETWORK):
+            return False
+        else:
+            sys.exit( 'SourceType (' + str(source_type) \
+                    + ') not defined as having air as source fluid or not.')
+
+    @classmethod
+    def source_fluid_is_water(cls, source_type):
+        # If string has been provided, convert to SourceType before running check
+        if isinstance(source_type, str):
+            source_type = cls.from_string(source_type)
+
+        if source_type in (cls.GROUND, cls.WATER_GROUND, cls.WATER_SURFACE, cls.HEAT_NETWORK):
+            return True
+        elif source_type \
+        in (cls.OUTSIDE_AIR, cls.EXHAUST_AIR_MEV, cls.EXHAUST_AIR_MVHR, cls.EXHAUST_AIR_MIXED):
+            return False
+        else:
+            sys.exit( 'SourceType (' + str(source_type) \
+                    + ') not defined as having water as source fluid or not.')
+
 
 class SinkType(Enum):
     AIR = auto()
@@ -99,6 +152,98 @@ def carnot_cop(temp_source, temp_outlet, temp_diff_limit_low=None):
     if temp_diff_limit_low is not None:
         temp_diff = max (temp_diff, temp_diff_limit_low)
     return temp_outlet / temp_diff
+
+def interpolate_exhaust_air_heat_pump_test_data(throughput_exhaust_air, hp_dict_test_data):
+    """ Interpolate between test data records for different air flow rates
+    
+    Arguments:
+    throughput_exhaust_air -- throughput (litres / second) of exhaust air
+    hp_dict_test_data
+        -- list of dictionaries of heat pump test data, each with the following elements:
+                - air_flow_rate
+                - test_letter
+                - capacity
+                - cop
+                - degradation_coeff
+                - design_flow_temp (in Celsius)
+                - temp_outlet (in Celsius)
+                - temp_source (in Celsius)
+                - temp_test (in Celsius)
+    """
+    # Split test records into different lists by air flow rate
+    test_data_by_air_flow_rate = {}
+    for test_data_record in hp_dict_test_data:
+        if test_data_record['air_flow_rate'] not in test_data_by_air_flow_rate.keys():
+            # Initialise list for this air flow rate if it does not already exist
+            test_data_by_air_flow_rate[test_data_record['air_flow_rate']] = []
+        test_data_by_air_flow_rate[test_data_record['air_flow_rate']].append(test_data_record)
+
+    # Check that all lists have same combinations of design flow temp and test letter
+    fixed_temps_and_test_letters = None
+    for air_flow_rate, test_data_record_list in test_data_by_air_flow_rate.items():
+        # Find and save all the combinations of design flow temp and test letter
+        # for this air flow rate
+        fixed_temps_and_test_letters_this = []
+        for test_data_record in test_data_record_list:
+            fixed_temps_and_test_letters_this.append(
+                ( test_data_record['design_flow_temp'],
+                  test_data_record['test_letter'],
+                  test_data_record['temp_outlet'],
+                  test_data_record['temp_source'],
+                  test_data_record['temp_test'],
+                ))
+
+        if fixed_temps_and_test_letters is None:
+            # If we are on the first iteration of the loop, save the list of
+            # design flow temps and test letters from this loop for comparison
+            # in subsequent loops
+            fixed_temps_and_test_letters = fixed_temps_and_test_letters_this
+        else:
+            # If we are not on the first iteration of the loop, check that same
+            # design flow temps and test letters are present for this air flow
+            # rate and the first one
+            assert set(fixed_temps_and_test_letters) \
+                == set(fixed_temps_and_test_letters_this)
+
+    # Construct test data records interpolated by air flow rate
+    air_flow_rates_ordered = sorted(test_data_by_air_flow_rate.keys())
+    hp_dict_test_data_interp_by_air_flow_rate = []
+    for design_flow_temp, test_letter, temp_outlet, temp_source, temp_test \
+    in fixed_temps_and_test_letters:
+        # Create lists of test data values ordered by air flow rate
+        capacity_list = []
+        cop_list = []
+        degradation_coeff_list = []
+        for air_flow_rate in air_flow_rates_ordered:
+            for test_record in test_data_by_air_flow_rate[air_flow_rate]:
+                if test_record['design_flow_temp'] == design_flow_temp \
+                and test_record['test_letter'] == test_letter:
+                    capacity_list.append(test_record['capacity'])
+                    cop_list.append(test_record['cop'])
+                    degradation_coeff_list.append(test_record['degradation_coeff'])
+
+        # Interpolate test data by air flow rate
+        capacity = np.interp(throughput_exhaust_air, air_flow_rates_ordered, capacity_list)
+        cop      = np.interp(throughput_exhaust_air, air_flow_rates_ordered, cop_list)
+        degradation_coeff \
+                 = np.interp(throughput_exhaust_air, air_flow_rates_ordered, degradation_coeff_list)
+
+        # Construct interpolated test data record 
+        hp_dict_test_data_interp_by_air_flow_rate.append({
+            "test_letter": test_letter,
+            "capacity": capacity,
+            "cop": cop,
+            "degradation_coeff": degradation_coeff,
+            "design_flow_temp": design_flow_temp,
+            "temp_outlet": temp_outlet,
+            "temp_source": temp_source,
+            "temp_test": temp_test,
+            })
+
+    # Find lowest air flow rate in test data
+    lowest_air_flow_rate_in_test_data = min(test_data_by_air_flow_rate.keys())
+
+    return lowest_air_flow_rate_in_test_data, hp_dict_test_data_interp_by_air_flow_rate
 
 
 # Classes
@@ -264,7 +409,7 @@ class HeatPumpTestData:
 
         def init_temp_spread_test_conditions():
             """ List temp spread at test conditions for the design flow temps in the test data """
-            dtheta_out_by_flow_temp = {35: 5.0, 55: 8.0, 65: 10.0}
+            dtheta_out_by_flow_temp = {20: 5.0, 35: 5.0, 55: 8.0, 65: 10.0}
             dtheta_out = []
             for dsgn_flow_temp in self.__dsgn_flow_temps:
                 dtheta_out.append(dtheta_out_by_flow_temp[dsgn_flow_temp])
@@ -769,7 +914,10 @@ class HeatPumpServiceSpace(HeatPumpService):
     specific to providing space heating.
     """
 
-    __TIME_CONSTANT_SPACE = 1370
+    __TIME_CONSTANT_SPACE = {
+        SinkType.WATER: 1370,
+        SinkType.AIR: 120,
+        }
 
     def __init__(
             self,
@@ -821,6 +969,31 @@ class HeatPumpServiceSpace(HeatPumpService):
             Celcius2Kelvin(temp_flow),
             Celcius2Kelvin(temp_return),
             self.__temp_limit_upper,
+            self.__TIME_CONSTANT_SPACE[self._HeatPumpService__hp._HeatPump__sink_type],
+            service_on,
+            temp_spread_correction = self.temp_spread_correction,
+            )
+
+    def running_time_throughput_factor(
+            self,
+            space_heat_running_time_cumulative,
+            energy_demand,
+            temp_flow,
+            temp_return,
+            ):
+        """ Return the cumulative running time and throughput factor (exhaust air HPs only) """
+        service_on = self.is_on()
+        if not service_on:
+            energy_demand = 0.0
+
+        return self._HeatPumpService__hp._HeatPump__running_time_throughput_factor(
+            space_heat_running_time_cumulative,
+            self._HeatPumpService__service_name,
+            ServiceType.SPACE,
+            energy_demand,
+            Celcius2Kelvin(temp_flow),
+            Celcius2Kelvin(temp_return),
+            self.__temp_limit_upper,
             self.__TIME_CONSTANT_SPACE,
             service_on,
             temp_spread_correction = self.temp_spread_correction,
@@ -838,9 +1011,9 @@ class HeatPumpServiceSpace(HeatPumpService):
         #      in BS EN ISO 15316-4-2:2008 were positive (although some were
         #      different numbers) and signs in temp_spread_correction equation
         #      have not changed, so need to check which is correct.
-        if self._HeatPumpService__hp._HeatPump__source_type == SourceType.OUTSIDE_AIR:
+        if SourceType.source_fluid_is_air(self._HeatPumpService__hp._HeatPump__source_type):
             temp_diff_evaporator = - 15.0
-        elif self._HeatPumpService__hp._HeatPump__source_type == SourceType.GROUND:
+        elif SourceType.source_fluid_is_water(self._HeatPumpService__hp._HeatPump__source_type):
             temp_diff_evaporator = - 10.0
         else:
             sys.exit('SourceType not recognised')
@@ -854,6 +1027,64 @@ class HeatPumpServiceSpace(HeatPumpService):
             temp_diff_condenser,
             self.__temp_diff_emit_dsgn,
             )
+
+
+class HeatPumpServiceSpaceWarmAir(HeatPumpServiceSpace):
+    """ An object to represent a warm air space heating service provided by a heat pump.
+
+    This object contains the parts of the heat pump calculation that are
+    specific to providing space heating via warm air.
+    """
+    def __init__(
+            self,
+            heat_pump,
+            service_name,
+            temp_diff_emit_dsgn,
+            control,
+            temp_flow,
+            frac_convective,
+            ):
+        """ Construct a HeatPumpServiceSpaceWarmAir object
+
+        Arguments:
+        heat_pump -- reference to the HeatPump object providing the service
+        service_name -- name of the service demanding energy from the heat pump
+        temp_diff_emit_dsgn -- design temperature difference across the emitters, in deg C or K
+        control -- reference to a control object which must implement is_on() and setpnt() funcs
+        temp_flow -- flow temperature, in deg C
+        frac_convective -- convective fraction for heating
+        """
+        self.__frac_convective = frac_convective
+        self.__temp_flow = temp_flow
+        # Return temp won't be used in the relevant code paths anyway, so this is arbitrary
+        self.__temp_return = temp_flow
+
+        # Upper operating limit for temperature, in deg C
+        temp_limit_upper = temp_flow
+
+        super().__init__(
+            heat_pump,
+            service_name,
+            temp_limit_upper,
+            temp_diff_emit_dsgn,
+            control,
+            )
+
+    def demand_energy(self, energy_demand):
+        """ Demand energy (in kWh) from the heat pump
+
+        Arguments:
+        energy_demand -- space heating energy demand, in kWh
+        """
+        return HeatPumpServiceSpace.demand_energy(
+            self,
+            energy_demand,
+            self.__temp_flow,
+            self.__temp_return,
+            )
+
+    def frac_convective(self):
+        return self.__frac_convective
 
 
 class HeatPump:
@@ -878,12 +1109,14 @@ class HeatPump:
             energy_supply_conn_name_auxiliary,
             simulation_time,
             external_conditions,
+            throughput_exhaust_air=None,
+            heat_network=None,
             ):
         """ Construct a HeatPump object
 
         Arguments:
         hp_dict -- dictionary of heat pump characteristics, with the following elements:
-            - test_data -- EN 14825 test data dictionary
+            - test_data -- EN 14825 test data (list of dictionaries)
             - SourceType -- string specifying heat source type, one of:
                 - "Ground"
                 - "OutsideAir"
@@ -892,6 +1125,7 @@ class HeatPump:
                 - "ExhaustAirMixed"
                 - "WaterGround"
                 - "WaterSurface"
+                - "HeatNetwork"
             - SinkType -- string specifying heat distribution type, one of:
                 - "Air"
                 - "Water"
@@ -928,11 +1162,17 @@ class HeatPump:
             - power_crankcase_heater -- power (kW) consumption in crankcase heater mode
             - power_off -- power (kW) consumption in off mode
             - power_max_backup -- max. power (kW) of backup heater
+            - temp_distribution_heat_network
+                  -- distribution temperature of the heat network (for HPs that use heat
+                     network as heat source)
         energy_supply -- reference to EnergySupply object
         energy_supply_conn_name_auxiliary
             -- name to be used for EnergySupplyConnection object for auxiliary energy
         simulation_time -- reference to SimulationTime object
         external_conditions -- reference to ExternalConditions object
+        throughput_exhaust_air -- throughput (litres / second) of exhaust air
+        heat_network -- reference to EnergySupply object representing heat network
+                        (for HPs that use heat network as heat source)
 
         Other variables:
         energy_supply_connections
@@ -944,11 +1184,11 @@ class HeatPump:
         self.__energy_supply = energy_supply
         self.__simulation_time = simulation_time
         self.__external_conditions = external_conditions
+        self.__throughput_exhaust_air = throughput_exhaust_air
 
         self.__energy_supply_connections = {}
         self.__energy_supply_connection_aux \
             = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
-        self.__test_data = HeatPumpTestData(hp_dict['test_data'])
 
         self.__service_results = []
         self.__total_time_running_current_timestep = 0.0
@@ -958,11 +1198,9 @@ class HeatPump:
         self.__sink_type = SinkType.from_string(hp_dict['sink_type'])
         self.__backup_ctrl = BackupCtrlType.from_string(hp_dict['backup_ctrl_type'])
         self.__modulating_ctrl = bool(hp_dict['modulating_control'])
-        if self.__modulating_ctrl:
-            self.__min_modulation_rate_35 = float(hp_dict['min_modulation_rate_35'])
-            self.__min_modulation_rate_55 = float(hp_dict['min_modulation_rate_55'])
         self.__time_constant_onoff_operation = float(hp_dict['time_constant_onoff_operation'])
-        self.__temp_return_feed_max = Celcius2Kelvin(float(hp_dict['temp_return_feed_max']))
+        if self.__sink_type != SinkType.AIR:
+            self.__temp_return_feed_max = Celcius2Kelvin(float(hp_dict['temp_return_feed_max']))
         self.__temp_lower_op_limit = Celcius2Kelvin(float(hp_dict['temp_lower_operating_limit']))
         self.__temp_diff_flow_return_min \
             = float(hp_dict['min_temp_diff_flow_return_for_hp_to_operate'])
@@ -974,6 +1212,57 @@ class HeatPump:
         self.__power_off_mode = hp_dict['power_off']
         self.__power_max_backup = hp_dict['power_max_backup']
 
+        # HPs that use heat network as heat source require different/additional
+        # initialisation, which is implemented here
+        if self.__source_type == SourceType.HEAT_NETWORK:
+            if heat_network is None:
+                sys.exit('If HP uses heat network as source, then heat network must be specified')
+            self.__temp_distribution_heat_network = hp_dict['temp_distribution_heat_network']
+            self.__energy_supply_HN = heat_network
+            self.__energy_supply_HN_connections = {}
+
+        # Exhaust air HP requires different/additional initialisation, which is implemented here
+        if SourceType.is_exhaust_air(self.__source_type):
+            lowest_air_flow_rate_in_test_data, hp_dict['test_data'] \
+                = interpolate_exhaust_air_heat_pump_test_data(
+                    throughput_exhaust_air,
+                    hp_dict['test_data'],
+                    )
+            self.__overvent_ratio = max(
+                1.0,
+                lowest_air_flow_rate_in_test_data / throughput_exhaust_air,
+                )
+        else:
+            self.__overvent_ratio = 1.0
+
+        # Check there is no remaining test data specific to an air flow rate
+        # For exhaust air HPs, this should have been eliminated in the
+        # interpolation above and for other HPs, it should not be present in the
+        # first place.
+        for test_data_record in hp_dict['test_data']:
+            if 'air_flow_rate' in test_data_record:
+                sys.exit('Unexpected test data specific to an air flow rate')
+
+        # Parse and initialise heat pump test data
+        self.__test_data = HeatPumpTestData(hp_dict['test_data'])
+
+        if self.__modulating_ctrl:
+            if self.__sink_type == SinkType.AIR:
+                self.__temp_min_modulation_rate_low = 20.0
+                self.__min_modulation_rate_low = float(hp_dict['min_modulation_rate_20'])
+            elif self.__sink_type == SinkType.WATER:
+                self.__temp_min_modulation_rate_low = 35.0
+                self.__min_modulation_rate_low = float(hp_dict['min_modulation_rate_35'])
+            else:
+                sys.exit('Sink type not recognised')
+
+            if 55.0 in self.__test_data._HeatPumpTestData__dsgn_flow_temps:
+                self.__temp_min_modulation_rate_high = 55.0
+                self.__min_modulation_rate_55 = float(hp_dict['min_modulation_rate_55'])
+
+    def source_is_exhaust_air(self):
+        return SourceType.is_exhaust_air(self.__source_type)
+
     def __create_service_connection(self, service_name):
         """ Return a HeatPumpService object """
         # Check that service_name is not already registered
@@ -984,6 +1273,11 @@ class HeatPump:
         # Set up EnergySupplyConnection for this service
         self.__energy_supply_connections[service_name] = \
             self.__energy_supply.connection(service_name)
+
+        # If HP uses heat network as source, then set up connection
+        if self.__source_type == SourceType.HEAT_NETWORK:
+            self.__energy_supply_HN_connections[service_name] \
+                = self.__energy_supply_HN.connection(service_name)
 
     def create_service_hot_water(
             self,
@@ -1038,6 +1332,42 @@ class HeatPump:
             control,
             )
 
+    def create_service_space_heating_warm_air(
+            self,
+            service_name,
+            control,
+            frac_convective,
+            ):
+        """ Return a HeatPumpServiceSpaceWarmAir object and create an EnergySupplyConnection for it
+
+        Arguments:
+        service_name -- name of the service demanding energy from the heat pump
+        control -- reference to a control object which must implement is_on() func
+        frac_convective -- convective fraction for heating
+        """
+        if self.__sink_type != SinkType.AIR:
+            sys.exit('Warm air space heating service requires heat pump with sink type Air')
+
+        # Use low temperature test data for space heating - set flow temp such
+        # that it matches the one used in the test
+        temp_flow = self.__test_data._HeatPumpTestData__dsgn_flow_temps[0]
+
+        # Design temperature difference across the emitters, in deg C or K
+        temp_diff_emit_dsgn = max(
+            temp_flow / 7.0,
+            self.__test_data.temp_spread_test_conditions(temp_flow),
+            )
+
+        self.__create_service_connection(service_name)
+        return HeatPumpServiceSpaceWarmAir(
+            self,
+            service_name,
+            temp_diff_emit_dsgn,
+            control,
+            temp_flow,
+            frac_convective,
+            )
+
     def __get_temp_source(self):
         """ Get source temp according to rules in CALCM-01 - DAHPSE - V2.0_DRAFT13, 3.1.1 """
         if self.__source_type == SourceType.GROUND:
@@ -1046,16 +1376,20 @@ class HeatPump:
             temp_source = max(0, min(8, temp_ext * 0.25806 + 2.8387))
         elif self.__source_type == SourceType.OUTSIDE_AIR:
             temp_source = self.__external_conditions.air_temp()
-        # elif self.__source_type == SourceType.EXHAUST_AIR_MEV:
-        #     # TODO Get from internal air temp of zone?
-        # elif self.__source_type == SourceType.EXHAUST_AIR_MVHR:
-        #     # TODO Get from internal air temp of zone?
+        elif self.__source_type == SourceType.EXHAUST_AIR_MEV:
+            # TODO Get from internal air temp of zone?
+            temp_source = 20.0
+        elif self.__source_type == SourceType.EXHAUST_AIR_MVHR:
+            # TODO Get from internal air temp of zone?
+            temp_source = 20.0
         # elif self.__source_type == SourceType.EXHAUST_AIR_MIXED:
         #     # TODO
         # elif self.__source_type == SourceType.WATER_GROUND:
         #     # TODO
         # elif self.__source_type == SourceType.WATER_SURFACE:
         #     # TODO
+        elif self.__source_type == SourceType.HEAT_NETWORK:
+            temp_source = self.__temp_distribution_heat_network
         else:
             # If we reach here, then earlier input validation has failed, or a
             # SourceType option is missing above.
@@ -1198,7 +1532,7 @@ class HeatPump:
         # If required output temp is below upper limit
             return energy_output_required
 
-    def __demand_energy(
+    def __run_demand_energy_calc(
             self,
             service_name,
             service_type,
@@ -1210,10 +1544,21 @@ class HeatPump:
             service_on, # bool - is service allowed to run?
             temp_spread_correction=1.0,
             temp_used_for_scaling=None,
+            additional_time_unavailable=0.0,
             ):
         """ Calculate energy required by heat pump to satisfy demand for the service indicated.
 
-        Note: Call via a HeatPumpService object, not directly.
+        Note: Call via the __demand_energy func, not directly.
+              This function should not save any results to member variables of
+              this class, because it may need to be run more than once (e.g. for
+              exhaust air heat pumps). Results should be returned to the
+              __demand_energy function which calls this one and will save results
+              when appropriate.
+        Note: The optional variable additional_time_unavailable is used for
+              calculating running time without needing to update any state - the
+              variable contains the time already committed to other services
+              where the running time has not been added to
+              self.__total_time_running_current_timestep
         """
         if temp_used_for_scaling is None:
             temp_used_for_scaling = temp_return_feed
@@ -1242,23 +1587,34 @@ class HeatPump:
 
         # Calculate running time of HP
         time_required = energy_output_limited / thermal_capacity_op_cond
-        time_available = timestep - self.__total_time_running_current_timestep
+        time_available = timestep - self.__total_time_running_current_timestep - additional_time_unavailable
         time_running_current_service = min(time_required, time_available)
-        self.__total_time_running_current_timestep += time_running_current_service
 
         # Calculate load ratio
         load_ratio = time_running_current_service / timestep
         if self.__modulating_ctrl:
-            # Note: min modulation rates are always for 35 and 55
-            # TODO What if we only have the rate at one of these temps (e.g. a low-
-            #      temperature heat pump that does not go up to 55degC output)?
-            load_ratio_continuous_min \
-                = (min(max(temp_output, 35.0), 55.0) - 35.0) \
-                / (55.0 - 35.0) \
-                * self.__min_modulation_rate_35 \
-                + (1.0 - (min(max(temp_output, 35.0), 55.0) - 35.0)) \
-                / (55.0 - 35.0) \
-                * self.__min_modulation_rate_55
+            if 55.0 in self.__test_data._HeatPumpTestData__dsgn_flow_temps:
+                load_ratio_continuous_min \
+                    = ( min(
+                            max(temp_output, self.__temp_min_modulation_rate_low),
+                            self.__temp_min_modulation_rate_high
+                            )
+                      - self.__temp_min_modulation_rate_low
+                      ) \
+                    / (self.__temp_min_modulation_rate_high - self.__temp_min_modulation_rate_low) \
+                    * self.__min_modulation_rate_low \
+                    + ( 1.0 
+                      - ( min(
+                              max(temp_output, self.__temp_min_modulation_rate_low),
+                              self.__temp_min_modulation_rate_high
+                          )
+                        - self.__temp_min_modulation_rate_low
+                        )
+                      ) \
+                    / (self.__temp_min_modulation_rate_high - self.__temp_min_modulation_rate_low) \
+                    * self.__min_modulation_rate_55
+            else:
+                load_ratio_continuous_min = self.__min_modulation_rate_low
         else:
             # On/off heat pump cannot modulate below maximum power
             load_ratio_continuous_min = 1.0
@@ -1290,7 +1646,12 @@ class HeatPump:
         #      classes. May be able to skip a lot of the calculation.
         below_min_ext_temp = (temp_source <= self.__temp_lower_op_limit)
         inadequate_capacity = (energy_output_required > thermal_capacity_op_cond * timestep)
-        above_temp_return_feed_max = (temp_return_feed > self.__temp_return_feed_max)
+        if self.__sink_type == SinkType.WATER:
+            above_temp_return_feed_max = (temp_return_feed > self.__temp_return_feed_max)
+        elif self.__sink_type == SinkType.AIR:
+            above_temp_return_feed_max = False
+        else:
+            sys.exit('Return feed temp check not defined for sink type')
 
         use_backup_heater_only \
             = self.__backup_ctrl != BackupCtrlType.NONE \
@@ -1364,8 +1725,7 @@ class HeatPump:
         energy_delivered_total = energy_delivered_HP + energy_delivered_backup
         energy_input_total = energy_input_HP + energy_input_backup
 
-        # Save results that are needed later (in the timestep_end function)
-        self.__service_results.append({
+        return energy_delivered_total, energy_input_total, {
             'service_name': service_name,
             'service_type': service_type,
             'service_on': service_on,
@@ -1377,11 +1737,101 @@ class HeatPump:
             'use_backup_heater_only': use_backup_heater_only,
             'hp_operating_in_onoff_mode': hp_operating_in_onoff_mode,
             'energy_input_HP_divisor': energy_input_HP_divisor,
-            })
+            'energy_input_HP': energy_input_HP,
+            'energy_delivered_HP': energy_delivered_HP,
+            }
+
+    def __demand_energy(
+            self,
+            service_name,
+            service_type,
+            energy_output_required,
+            temp_output, # Kelvin
+            temp_return_feed, # Kelvin
+            temp_limit_upper, # Kelvin
+            time_constant_for_service,
+            service_on, # bool - is service allowed to run?
+            temp_spread_correction=1.0,
+            temp_used_for_scaling=None,
+            ):
+        """ Calculate energy required by heat pump to satisfy demand for the service indicated.
+
+        Note: Call via a HeatPumpService object, not directly.
+        """
+        energy_delivered_total, energy_input_total, service_results \
+            = self.__run_demand_energy_calc(
+                service_name,
+                service_type,
+                energy_output_required,
+                temp_output,
+                temp_return_feed,
+                temp_limit_upper,
+                time_constant_for_service,
+                service_on,
+                temp_spread_correction,
+                temp_used_for_scaling,
+                )
+
+        # Save results that are needed later (in the timestep_end function)
+        self.__service_results.append(service_results)
+        self.__total_time_running_current_timestep \
+            += service_results['time_running']
 
         # Feed/return results to other modules
         self.__energy_supply_connections[service_name].demand_energy(energy_input_total)
         return energy_delivered_total
+
+    def __running_time_throughput_factor(
+            self,
+            space_heat_running_time_cumulative,
+            service_name,
+            service_type,
+            energy_output_required,
+            temp_output,
+            temp_return_feed,
+            temp_limit_upper,
+            time_constant_for_service,
+            service_on,
+            temp_spread_correction,
+            ):
+        """ Return the cumulative running time and throughput factor (exhaust air HPs only) """
+
+        timestep = self.__simulation_time.timestep()
+
+        # TODO Run HP calculation to get total running time incl space heating,
+        #      but do not save space heating running time
+        energy_delivered_total, energy_input_total, service_results \
+            = self.__run_demand_energy_calc(
+                service_name,
+                service_type,
+                energy_output_required,
+                temp_output,
+                temp_return_feed,
+                temp_limit_upper,
+                time_constant_for_service,
+                service_on,
+                temp_spread_correction,
+                additional_time_unavailable=space_heat_running_time_cumulative,
+                )
+
+        # Add running time for the current space heating service to the cumulative total
+        space_heat_running_time_cumulative += service_results['time_running']
+        # Total running time for calculating throughput factor is time already
+        # spent on water heating plus (unsaved) time running space heating. This
+        # assumes that water heating service is always calculated before space
+        # heating service.
+        total_running_time \
+            = self.__total_time_running_current_timestep + space_heat_running_time_cumulative
+
+        # Apply overventilation ratio to part of timestep where HP is running
+        # to calculate throughput_factor.
+        throughput_factor \
+            = ( (timestep - total_running_time) \
+              + self.__overvent_ratio * total_running_time \
+              ) \
+            / timestep
+
+        return total_running_time, throughput_factor
 
     def __calc_ancillary_energy(self, timestep, time_remaining_current_timestep):
         """ Calculate ancillary energy for each service """
@@ -1426,6 +1876,7 @@ class HeatPump:
                 energy_input_HP = 0.0
 
             self.__energy_supply_connections[service_name].demand_energy(energy_input_HP)
+            self.__service_results[service_no]['energy_input_HP'] += energy_input_HP
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
         """ Calculate auxiliary energy according to CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.7 """
@@ -1468,6 +1919,15 @@ class HeatPump:
 
         self.__energy_supply_connection_aux.demand_energy(energy_aux)
 
+    def __extract_energy_from_source(self):
+        """ If HP uses heat network as source, calculate energy extracted from heat network """
+        for service_data in self.__service_results:
+            service_name = service_data['service_name']
+            energy_delivered_HP = service_data['energy_delivered_HP']
+            energy_input_HP = service_data['energy_input_HP']
+            energy_extracted_HP = energy_delivered_HP - energy_input_HP
+            self.__energy_supply_HN_connections[service_name].demand_energy(energy_extracted_HP)
+
     def timestep_end(self):
         """ Calculations to be done at the end of each timestep """
         timestep = self.__simulation_time.timestep()
@@ -1475,6 +1935,9 @@ class HeatPump:
 
         self.__calc_ancillary_energy(timestep, time_remaining_current_timestep)
         self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
+
+        if self.__source_type == SourceType.HEAT_NETWORK:
+            self.__extract_energy_from_source()
 
         # Variables below need to be reset at the end of each timestep.
         self.__total_time_running_current_timestep = 0.0

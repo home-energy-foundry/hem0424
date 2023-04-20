@@ -44,7 +44,7 @@ class TestElecStorageHeater(unittest.TestCase):
                                              False, False, False, False,
                                              False, False, False, False, 
                                              True, True, True, True, 
-                                             False, False, False, False], self.simtime, 0, 1, "Manual", [ 1.0, 0.8 ])
+                                             False, False, False, False], self.simtime, 0, 1, [ 1.0, 0.8 ])
 
         data = {"rated_power": 4.0,
                 "rated_power_instant": 0.75,

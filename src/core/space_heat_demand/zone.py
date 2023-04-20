@@ -14,6 +14,9 @@ import numpy as np
 
 # Local imports
 import core.units as units
+from core.space_heat_demand.ventilation_element import \
+    MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation, \
+    VentilationElementInfiltration, NaturalVentilation
 
 # Convective fractions
 # (default values from BS EN ISO 52016-1:2017, Table B.11)
@@ -39,6 +42,7 @@ class Zone:
             building_elements,
             thermal_bridging,
             vent_elements,
+            vent_cool_extra = None,
             print_heat_balance = False,
             ):
         """ Construct a Zone object
@@ -52,6 +56,8 @@ class Zone:
                                bridges in the zone, in W / K
                              - list of ThermalBridge objects for this zone
         vent_elements     -- list of ventilation elements (infiltration, mech vent etc.)
+        vent_cool_extra   -- element providing additional ventilation in response to high
+                             internal temperature
         print_heat_balance-- flag to indicate whether to print the heat balance breakdown
 
         Other variables:
@@ -82,6 +88,7 @@ class Zone:
         self.__volume = volume
         self.__building_elements = building_elements
         self.__vent_elements     = vent_elements
+        self.__vent_cool_extra = vent_cool_extra
 
         # If thermal_bridging is a list of ThermalBridge objects, calculate the
         # overall heat transfer coefficient for thermal bridges, otherwise just
@@ -140,6 +147,8 @@ class Zone:
             gains_solar,
             gains_heat_cool,
             f_hc_c,
+            vent_extra_h_ve=0.0,
+            throughput_factor=1.0,
             print_heat_balance = False,
             ):
         """ Calculate temperatures according to procedure in BS EN ISO 52016-1:2017, section 6.5.6
@@ -152,6 +161,10 @@ class Zone:
         gains_solar     -- directly transmitted solar gains, in W
         gains_heat_cool -- gains from heating (positive) or cooling (negative), in W
         f_hc_c          -- convective fraction for heating/cooling
+        vent_extra_h_ve -- additional ventilation heat transfer coeff in response
+                           to high internal temperature
+        throughput_factor -- proportional increase in ventilation rate due to
+                             overventilation requirement
         print_heat_balance -- flag to record whether to return the heat balance outputs
 
         Temperatures are calculated by solving (for X) a matrix equation A.X = B, where:
@@ -270,6 +283,24 @@ class Zone:
         # - Calculate RHS of zone heat balance eqn and add to vector_b
 
         # Coeff for temperature of thermal zone
+        # TODO Throughput factor only applies to MVHR and WHEV, therefore only
+        #      these systems accept throughput_factor as an argument to the h_ve
+        #      function, hence the branch on the type in the loop below. This
+        #      means that the MVHR and WHEV classes no longer have the same
+        #      interface as other ventilation element classes, which could make
+        #      future development more difficult. Ideally, we would find a
+        #      cleaner way to implement this difference.
+        sum_vent_elements_h_ve = vent_extra_h_ve
+        for vei in self.__vent_elements:
+            if type(vei) in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation):
+                sum_vent_elements_h_ve \
+                    += vei.h_ve(self.__volume, throughput_factor)
+            elif type(vei) in (VentilationElementInfiltration, NaturalVentilation):
+                sum_vent_elements_h_ve \
+                    += vei.h_ve(self.__volume)
+            else:
+                sys.exit( 'Applicability of throughput factor not defined for '
+                        + 'ventilation element type ' + type(vei))
         matrix_a[self.__zone_idx][self.__zone_idx] \
             = (self.__c_int / delta_t) \
             + sum([ eli.area
@@ -279,7 +310,7 @@ class Zone:
                       )
                   for eli in self.__building_elements
                   ]) \
-            + sum([vei.h_ve(self.__volume) for vei in self.__vent_elements]) \
+            + sum_vent_elements_h_ve \
             + self.__tb_heat_trans_coeff
         # Add final sum term for LHS of eqn 38 in loop below.
         # These are coeffs for temperatures of internal surface nodes of
@@ -290,9 +321,30 @@ class Zone:
                 = - eli.area \
                 * eli.h_ci(temp_prev[self.__zone_idx], temp_prev[self.__element_positions[eli][1]])
         # RHS of heat balance eqn for zone
+        # TODO Throughput factor only applies to MVHR and WHEV, therefore only
+        #      these systems accept throughput_factor as an argument to the h_ve
+        #      function, hence the branch on the type in the loop below. This
+        #      means that the MVHR and WHEV classes no longer have the same
+        #      interface as other ventilation element classes, which could make
+        #      future development more difficult. Ideally, we would find a
+        #      cleaner way to implement this difference.
+        sum_vent_elements_h_ve_times_temp_supply = 0.0
+        if vent_extra_h_ve != 0:
+            sum_vent_elements_h_ve_times_temp_supply \
+                += vent_extra_h_ve * self.__vent_cool_extra.temp_supply()
+        for vei in self.__vent_elements:
+            if type(vei) in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation):
+                sum_vent_elements_h_ve_times_temp_supply \
+                    += vei.h_ve(self.__volume, throughput_factor) * vei.temp_supply()
+            elif type(vei) in (VentilationElementInfiltration, NaturalVentilation):
+                sum_vent_elements_h_ve_times_temp_supply \
+                    += vei.h_ve(self.__volume) * vei.temp_supply()
+            else:
+                sys.exit( 'Applicability of throughput factor not defined for '
+                        + 'ventilation element type ' + type(vei))
         vector_b[self.__zone_idx] \
             = (self.__c_int / delta_t) * temp_prev[self.__zone_idx] \
-            + sum([vei.h_ve(self.__volume) * vei.temp_supply() for vei in self.__vent_elements]) \
+            + sum_vent_elements_h_ve_times_temp_supply \
             + self.__tb_heat_trans_coeff * temp_ext_air \
             + f_int_c * gains_internal \
             + f_sol_c * gains_solar \
@@ -302,7 +354,9 @@ class Zone:
         vector_x = np.linalg.solve(matrix_a, vector_b)
 
         if print_heat_balance:
-            #collect heat balance outputs in W
+            heat_balance_dict = {}
+
+            # Collect outputs, in W, for heat balance at air node
             temp_internal = vector_x[self.__zone_idx]
             hb_gains_solar = f_sol_c * gains_solar
             hb_gains_internal = f_int_c * gains_internal
@@ -312,7 +366,7 @@ class Zone:
             hb_loss_ventilation = sum([vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply()) for vei in self.__vent_elements])
             hb_loss_fabric = (hb_gains_solar+hb_gains_internal+hb_gains_heat_cool+hb_energy_to_change_temp)\
                             -(hb_loss_thermal_bridges+hb_loss_ventilation)
-            heat_balance_dict = {
+            heat_balance_dict['air_node'] = {
                 'solar gains' : hb_gains_solar,
                 'internal gains' : hb_gains_internal,
                 'heating or cooling system gains' : hb_gains_heat_cool,
@@ -321,6 +375,32 @@ class Zone:
                 'heat loss through ventilation' : hb_loss_ventilation,
                 'fabric heat loss' : hb_loss_fabric
                                 }
+
+            # Collect outputs, in W, for heat balance at external boundary
+            hb_fabric_ext_air = 0.0
+            hb_fabric_ext_sol = 0.0
+            hb_fabric_ext_sky = 0.0
+            for eli in self.__building_elements:
+                # Get position in vector for the first (external) node of the building element
+                idx = self.__element_positions[eli][0]
+                temp_ext_surface = vector_x[idx]
+                i_sol_dir, i_sol_dif = eli.i_sol_dir_dif()
+                f_sh_dir, f_sh_dif = eli.shading_factors_direct_diffuse()
+                hb_fabric_ext_air += eli.area \
+                     * ( (eli.h_ce() + eli.h_re()) * (eli.temp_ext() - temp_ext_surface))
+                hb_fabric_ext_sol += eli.area \
+                    * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir)
+                hb_fabric_ext_sky += eli.area * (- eli.therm_rad_to_sky)
+            heat_balance_dict['external_boundary'] = {
+                'solar gains': gains_solar,
+                'internal gains': gains_internal,
+                'heating or cooling system gains': gains_heat_cool,
+                'thermal_bridges': - hb_loss_thermal_bridges,
+                'ventilation': - hb_loss_ventilation,
+                'fabric_ext_air': hb_fabric_ext_air,
+                'fabric_ext_sol': hb_fabric_ext_sol,
+                'fabric_ext_sky': hb_fabric_ext_sky,
+                }
         else:
             heat_balance_dict = None
         return vector_x, heat_balance_dict
@@ -360,6 +440,7 @@ class Zone:
             frac_convective_cool,
             temp_setpnt_heat,
             temp_setpnt_cool,
+            throughput_factor=1.0,
             ):
         """ Calculate heating and cooling demand in the zone for the current timestep
 
@@ -374,9 +455,19 @@ class Zone:
         frac_convective_cool -- convective fraction for cooling
         temp_setpnt_heat -- temperature setpoint for heating, in deg C
         temp_setpnt_cool -- temperature setpoint for cooling, in deg C
+        throughput_factor -- proportional increase in ventilation rate due to
+                             overventilation requirement
         """
         if temp_setpnt_cool < temp_setpnt_heat:
             sys.exit('ERROR: Cooling setpoint is below heating setpoint.')
+
+        if self.__vent_cool_extra is not None:
+            temp_setpnt_cool_vent = self.__vent_cool_extra.temp_setpnt()
+            if temp_setpnt_cool_vent is None:
+                # Set cooling setpoint to Planck temperature to ensure no cooling demand
+                temp_setpnt_cool_vent = units.Kelvin2Celcius(1.4e32)
+            if temp_setpnt_cool_vent < temp_setpnt_heat:
+                sys.exit('ERROR: Setpoint for additional ventilation is below heating setpoint.')
 
         # Calculate timestep in seconds
         delta_t = delta_t_h * units.seconds_per_hour
@@ -393,11 +484,84 @@ class Zone:
             gains_solar,
             gains_heat_cool,
             1.0, # Value does not matter as gains_heat_cool = 0.0
+            throughput_factor = throughput_factor,
             )
 
         # Calculate internal operative temperature at free-floating conditions
         # i.e. with no heating/cooling
         temp_operative_free = self.__temp_operative(temp_vector_no_heat_cool)
+        temp_int_air_free = temp_vector_no_heat_cool[self.__zone_idx]
+
+        # Check setpoint for additional ventilation. If above setpoint:
+        # First calculate temps with max. additional ventilation, then check
+        # setpoints again. If still above cooling setpoint, do not use additional
+        # ventilation - just use cooling instead. Otherwise, cooling demand is zero
+        # and need to use interpolation to work out additional ventilation required
+        # (just like calc for heat_cool_load_unrestricted below)
+        h_ve_cool_extra = 0.0
+        if self.__vent_cool_extra is not None and temp_operative_free > temp_setpnt_cool_vent:
+            # Calculate node and internal air temperatures with maximum additional ventilation
+            h_ve_cool_max = self.__vent_cool_extra.h_ve_max(
+                self.__volume,
+                temp_operative_free,
+                )
+            temp_vector_vent_max, _ = self.__calc_temperatures(
+                delta_t,
+                self.__temp_prev,
+                temp_ext_air,
+                gains_internal,
+                gains_solar,
+                gains_heat_cool,
+                1.0, # Value does not matter as gains_heat_cool = 0.0
+                vent_extra_h_ve = h_ve_cool_max,
+                throughput_factor = throughput_factor,
+                )
+
+            # Calculate internal operative temperature with maximum ventilation
+            temp_operative_vent_max = self.__temp_operative(temp_vector_vent_max)
+            temp_int_air_vent_max = temp_vector_vent_max[self.__zone_idx]
+
+            vent_cool_extra_temp_supply = self.__vent_cool_extra.temp_supply()
+
+            # If there is cooling potential from additional ventilation
+            if temp_operative_vent_max < temp_operative_free \
+            and temp_int_air_free > vent_cool_extra_temp_supply:
+                # Calculate ventilation required to reach cooling setpoint for ventilation
+                h_ve_cool_req \
+                    = h_ve_cool_max * (temp_setpnt_cool_vent - temp_operative_free) \
+                    / (temp_operative_vent_max - temp_operative_free) \
+                    * ( (temp_int_air_vent_max - vent_cool_extra_temp_supply)
+                      / (temp_int_air_free - vent_cool_extra_temp_supply)
+                      )
+
+                # Calculate additional ventilation rate achieved
+                h_ve_cool_extra = min(h_ve_cool_req, h_ve_cool_max)
+
+                # Calculate node and internal air temperatures with heating/cooling gains of zero
+                temp_vector_no_heat_cool_vent_extra, _ = self.__calc_temperatures(
+                    delta_t,
+                    self.__temp_prev,
+                    temp_ext_air,
+                    gains_internal,
+                    gains_solar,
+                    gains_heat_cool,
+                    1.0, # Value does not matter as gains_heat_cool = 0.0
+                    vent_extra_h_ve = h_ve_cool_extra,
+                    throughput_factor = throughput_factor,
+                    )
+
+                # Calculate internal operative temperature at free-floating conditions
+                # i.e. with no heating/cooling
+                temp_operative_free_vent_extra = self.__temp_operative(temp_vector_no_heat_cool_vent_extra)
+
+                # If temperature achieved by additional ventilation is above setpoint
+                # for active cooling, assume cooling system will be used instead of
+                # additional ventilation. Otherwise, use resultant operative temperature
+                # in calculation of space heating/cooling demand.
+                if temp_operative_free_vent_extra > temp_setpnt_cool:
+                    h_ve_cool_extra = 0.0
+                else:
+                    temp_operative_free = temp_operative_free_vent_extra
 
         # Determine relevant setpoint (if neither, then return space heating/cooling demand of zero)
         # Determine maximum heating/cooling
@@ -416,7 +580,7 @@ class Zone:
             heat_cool_load_upper = 10.0 * self.__useful_area
             frac_convective = frac_convective_heat
         else:
-            return 0.0, 0.0 # No heating or cooling load
+            return 0.0, 0.0, h_ve_cool_extra # No heating or cooling load
 
         # Calculate node and internal air temperatures with maximum heating/cooling
         temp_vector_upper_heat_cool, _ = self.__calc_temperatures(
@@ -427,6 +591,8 @@ class Zone:
             gains_solar,
             heat_cool_load_upper,
             frac_convective,
+            vent_extra_h_ve = h_ve_cool_extra,
+            throughput_factor = throughput_factor,
             )
 
         # Calculate internal operative temperature with maximum heating/cooling
@@ -447,7 +613,7 @@ class Zone:
             space_heat_demand = heat_cool_demand
         else:
             pass
-        return space_heat_demand, space_cool_demand
+        return space_heat_demand, space_cool_demand, h_ve_cool_extra
 
     def update_temperatures(self,
             delta_t,
@@ -456,6 +622,8 @@ class Zone:
             gains_solar,
             gains_heat_cool,
             frac_convective,
+            vent_extra_h_ve=0.0,
+            throughput_factor=1.0,
             ):
         """ Update node and internal air temperatures for calculation of next timestep
 
@@ -466,6 +634,8 @@ class Zone:
         gains_solar     -- directly transmitted solar gains, in W
         gains_heat_cool -- gains from heating (positive) or cooling (negative), in W
         frac_convective -- convective fraction for heating/cooling (as appropriate)
+        throughput_factor -- proportional increase in ventilation rate due to
+                             overventilation requirement
         heat_balance_dict -- dictionary to record heat balance outputs
         """
 
@@ -479,7 +649,9 @@ class Zone:
             gains_solar,
             gains_heat_cool,
             frac_convective,
-            self.__print_heat_balance,
+            vent_extra_h_ve = vent_extra_h_ve,
+            throughput_factor = throughput_factor,
+            print_heat_balance = self.__print_heat_balance,
             )
         return heat_balance_dict
 
