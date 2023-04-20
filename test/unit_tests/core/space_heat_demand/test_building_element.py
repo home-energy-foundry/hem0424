@@ -31,9 +31,9 @@ class TestBuildingElementOpaque(unittest.TestCase):
                                 None,
                                 None,
                                 None,
-                                None,
-                                None,
-                                None,
+                                55.0, # Latitude
+                                0.0, # Longitude
+                                0.0, # Timezone
                                 0, # Start day
                                 None,
                                 1, # Time-series step,
@@ -219,9 +219,9 @@ class TestBuildingElementAdjacentZTC(unittest.TestCase):
                                 None,
                                 None,
                                 None,
-                                None,
-                                None,
-                                None,
+                                55.0, # Latitude
+                                0.0, # Longitude
+                                0.0, # Timezone
                                 0, # Start day
                                 None,
                                 1, # Time-series step
@@ -422,9 +422,9 @@ class TestBuildingElementGround(unittest.TestCase):
                                 None,
                                 None,
                                 None,
-                                None,
-                                None,
-                                None,
+                                55.0, # Latitude
+                                0.0, # Longitude
+                                0.0, # Timezone
                                 0, # Start day
                                 None,
                                 1, # Time-series step
@@ -609,9 +609,9 @@ class TestBuildingElementTransparent(unittest.TestCase):
                                 None,
                                 None,
                                 None,
-                                None,
-                                None,
-                                None,
+                                55.0, # Latitude
+                                0.0, # Longitude
+                                0.0, # Timezone
                                 0, # Start day
                                 None,
                                 1, # Time-series step
@@ -687,7 +687,7 @@ class TestBuildingElementTransparent(unittest.TestCase):
     def test_fabric_heat_loss(self):
         """ Test that correct fabric heat loss is returned when queried """
         self.assertAlmostEqual(self.be.fabric_heat_loss(),
-                               11.36,
+                               8.16,
                                2,
                                "incorrect fabric heat loss returned")
 

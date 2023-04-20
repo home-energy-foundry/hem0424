@@ -4,6 +4,7 @@
 
 This module provides objects to model heat storage vessels e.g. hot water
 cylinder with immersion heater.
+Also incudes solar thermal behaviours.
 Energy calculation (storage modelled with multiple volumes) - Method A from BS EN 15316-5:2017
 """
 
@@ -14,6 +15,7 @@ from copy import deepcopy
 from core.material_properties import WATER
 from core.pipework import Pipework
 import core.units as units
+import sys
 
 
 class StorageTank:
@@ -68,6 +70,7 @@ class StorageTank:
             temp_hot,
             cold_feed,
             simulation_time,
+            heat_source_dict,
             primary_pipework=None,
             energy_supply_conn_unmet_demand=None,
             contents=WATER,
@@ -81,12 +84,15 @@ class StorageTank:
         temp_hot             -- temperature of the hot water, in deg C
         cold_feed            -- reference to ColdWaterSource object
         simulation_time      -- reference to SimulationTime object
+        heat_source_dict     -- dict where keys are heat source objects and
+                                values are tuples of heater and thermostat
+                                position
         energy_supply_conn_unmet_demand 
             -- reference to EnergySupplyConnection object to be used to record unmet energy demand
         contents             -- reference to MaterialProperties object
 
         Other variables:
-        heat_sources         -- list (initialised to empty) of heat sources
+        heat_source_data     -- list of heat sources, sorted by heater position
         """
         self.__Q_std_ls_ref = losses
         self.__temp_hot     = temp_hot
@@ -94,7 +100,6 @@ class StorageTank:
         self.__contents     = contents
         self.__energy_supply_conn_unmet_demand = energy_supply_conn_unmet_demand
         self.__simulation_time = simulation_time
-        self.__heat_sources = []
 
         #total volume in litres
         self.__V_total = volume
@@ -110,6 +115,10 @@ class StorageTank:
          We are expecting to run a "warm-up" period for the main calculation so this doesn't matter.
          """
         self.__temp_n = [self.__temp_set_on] * self.__NB_VOL
+        self.__energy_demand_test = 0
+        
+        # Set initial values
+        self.__input_energy_adj_prev_timestep = 0
         
         if primary_pipework is not None:
             self.__primary_pipework = Pipework(
@@ -121,14 +130,8 @@ class StorageTank:
                     primary_pipework["surface_reflectivity"],
                     primary_pipework["pipe_contents"])
 
-    def add_heat_source(self, heat_source, proportion_of_tank_heated):
-        """ Add a reference to heat source object and specify position in tank.
-
-        Heat source object must implement the demand_energy(energy_demand) function.
-        """
-        # TODO Add proportion to list. Account for thermostat position for each
-        #      heat source individually?
-        self.__heat_sources.append(heat_source)
+        # sort heat source data in order from the bottom of the tank based on heater position
+        self.__heat_source_data = sorted(heat_source_dict.items(), key=lambda x:x[1])
 
     def stand_by_losses_coefficient(self):
         """Appendix B B.2.8 Stand-by losses are usually determined in terms of energy losses during
@@ -301,21 +304,49 @@ class StorageTank:
 
         return temp_s3_n
 
-    def potential_energy_input(self):
+    # Heat source. Addition of temp_s3_n as an argument
+    def potential_energy_input(self, temp_s3_n, heat_source, heater_layer, thermostat_layer):
         """Energy input for the storage from the generation system
         (expressed per energy carrier X)
         Heat Source = energy carrier"""
         #initialise list of potential energy input for each layer
         Q_x_in_n = [0] * self.__NB_VOL
 
-        #TODO - allow position of heat source to be defined in any layer (assume bottom tank atm)
-        #TODO - this should be calculated in accordance to EN 15316-1. check this is used.
-        for heat_source in self.__heat_sources:
-            energy_potential = heat_source.energy_output_max()
-            Q_x_in_n[0] += energy_potential
+        if isinstance(heat_source, SolarThermalSystem):
+            # We are passing the storage tank object to the SolarThermal as this needs to call
+            # back the storage tank....
+            energy_potential = heat_source.energy_output_max(self, temp_s3_n)
+        else:
+            #No demand from heat source if the temperature of the tank at the 
+            #thermostat position is below the set point
+            if temp_s3_n[thermostat_layer] >= self.__temp_out_W_min:
+                energy_potential = 0.0
+            else:
+                energy_potential = heat_source.energy_output_max()
+
+        Q_x_in_n[heater_layer] += energy_potential
 
         return Q_x_in_n
 
+    # Function added into Storage tank to be called by the Solar Thermal object.
+    # Calculates the impact on storage tank temperature due to the proposed energy input
+    def storage_tank_potential_effect(self, energy_proposed, temp_s3_n):
+        """ Assuming initially no water draw-off """
+
+        #initialise list of potential energy input for each layer
+        Q_x_in_n = [0] * self.__NB_VOL
+        
+        # TODO - Ensure we are feeding in the right volumen
+        Q_x_in_n[0] = energy_proposed
+
+        Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
+
+        #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
+        Q_h_sto_s7, temp_s7_n = self.rearrange_temperatures(temp_s6_n)                
+        
+        # TODO - Check [0] is bottom layer temp and that solart thermal inlet is top layer __NB_VOL-1
+        return temp_s7_n[0], temp_s7_n[self.__NB_VOL-1]
+  
     def energy_input(self, temp_s3_n, Q_x_in_n):
         """The input of energy(s) is (are) allocated to the specific location(s)
         of the input of energy.
@@ -380,7 +411,7 @@ class StorageTank:
 
         return Q_h_sto_end, temp_s7_n
 
-    def thermal_losses(self, temp_s7_n, Q_x_in_n, Q_h_sto_s7):
+    def thermal_losses(self, temp_s7_n, Q_x_in_n, Q_h_sto_s7, thermostat_layer):
         """Thermal losses are calculated with respect to the impact of the temperature set point"""
         #standby losses coefficient - kW/K
         H_sto_ls = self.stand_by_losses_coefficient()
@@ -426,9 +457,7 @@ class StorageTank:
         """excess energy is calculated as the difference from the energy stored, Qsto,step7, and
            energy stored once the set temperature is obtained, Qsto,step8, with addition of the
            thermal losses."""
-        #TODO depends on the position of the thermostat
-        #TODO - assumption currently that the thermostat is in the bottom layer of the tank
-        if temp_s7_n[0] > self.__temp_set_on:
+        if temp_s7_n[thermostat_layer] > self.__temp_set_on:
             energy_surplus = Q_h_sto_s7 - Q_ls \
                              - ( self.__rho * self.__Cp * self.__V_total * self.__temp_set_on)
         else:
@@ -514,6 +543,46 @@ class StorageTank:
             o.write(str(temp_s8_n))
             o.write(",")
 
+    def run_heat_sources(self, temp_s3_n, heat_source, heater_layer, thermostat_layer):
+        #6.4.3.8 STEP 6 Energy input into the storage
+        #input energy delivered to the storage in kWh - timestep dependent
+        Q_x_in_n = self.potential_energy_input(temp_s3_n, heat_source, heater_layer, thermostat_layer)
+        Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
+
+        #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
+        Q_h_sto_s7, temp_s7_n = self.rearrange_temperatures(temp_s6_n)
+
+        #STEP 8 Thermal losses and final temperature
+        Q_in_H_W, Q_ls, temp_s8_n = self.thermal_losses(temp_s7_n, Q_x_in_n, Q_h_sto_s7, thermostat_layer)
+
+        #TODO 6.4.3.11 Heat exchanger
+
+        #Additional calculations
+        #6.4.6 Calculation of the auxiliary energy
+        #accounted for elsewhere so not included here
+        W_sto_aux = 0
+
+        #6.4.7 Recoverable, recovered thermal losses
+        #recovered auxiliary energy to the heating medium - kWh
+        Q_sto_h_aux_rvd = W_sto_aux * self.__f_rvd_aux
+        #recoverable auxiliary energy transmitted to the heated space - kWh
+        Q_sto_h_rbl_aux = W_sto_aux * self.__f_sto_m * (1 - self.__f_rvd_aux)
+        #recoverable heat losses (storage) - kWh
+        Q_sto_h_rbl_env = Q_ls * self.__f_sto_m
+        #total recoverable heat losses  for heating - kWh
+        self.__Q_sto_h_ls_rbl = Q_sto_h_rbl_env + Q_sto_h_rbl_aux
+        
+        #demand adjusted energy from heat source (before was just using potential without taking it)
+        input_energy_adj = deepcopy(Q_in_H_W)
+
+        #energy demand saved for unittest
+        self.__energy_demand_test = deepcopy(input_energy_adj)
+
+        heat_source_output = self.heat_source_output(heat_source, input_energy_adj)
+        input_energy_adj = input_energy_adj - heat_source_output
+
+        return temp_s8_n, Q_x_in_n, Q_s6, temp_s6_n, temp_s7_n, Q_in_H_W, Q_ls
+
     def demand_hot_water(self, volume_demanded):
         """ Draw off hot water from the tank
         Energy calculation as per BS EN 15316-5:2017 Method A sections 6.4.3, 6.4.6, 6.4.7
@@ -546,41 +615,17 @@ class StorageTank:
 
         #TODO 6.4.3.6 STEP 4 Volume to be withdrawn from the storage (for Heating)
         #TODO - 6.4.3.7 STEP 5 Temperature of the storage after volume withdrawn (for Heating)
-
-        #6.4.3.8 STEP 6 Energy input into the storage
-        #input energy delivered to the storage in kWh - timestep dependent
-        Q_x_in_n = self.potential_energy_input()
-
-        Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
-
-        #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
-        Q_h_sto_s7, temp_s7_n = self.rearrange_temperatures(temp_s6_n)
-
-        #STEP 8 Thermal losses and final temperature
-        Q_in_H_W, Q_ls, temp_s8_n \
-            = self.thermal_losses(temp_s7_n, Q_x_in_n, Q_h_sto_s7)
-
-        #TODO 6.4.3.11 Heat exchanger
-
-        #Additional calculations
-        #6.4.6 Calculation of the auxiliary energy
-        #accounted for elsewhere so not included here
-        W_sto_aux = 0
-
-        #6.4.7 Recoverable, recovered thermal losses
-        #recovered auxiliary energy to the heating medium - kWh
-        Q_sto_h_aux_rvd = W_sto_aux * self.__f_rvd_aux
-        #recoverable auxiliary energy transmitted to the heated space - kWh
-        Q_sto_h_rbl_aux = W_sto_aux * self.__f_sto_m * (1 - self.__f_rvd_aux)
-        #recoverable heat losses (storage) - kWh
-        Q_sto_h_rbl_env = Q_ls * self.__f_sto_m
-        #total recoverable heat losses  for heating - kWh
-        self.__Q_sto_h_ls_rbl = Q_sto_h_rbl_env + Q_sto_h_rbl_aux
-
-        #demand adjusted energy from heat source (before was just using potential without taking it)
-        input_energy_adj = deepcopy(Q_in_H_W)
-        for heat_source in self.__heat_sources:
-            input_energy_adj = input_energy_adj - self.get_demand_energy(heat_source, input_energy_adj)
+        
+        # Run over multiple heat sources
+        for heat_source,  heat_source_data in self.__heat_source_data:
+            heater_layer = int(heat_source_data[0] *self.__NB_VOL)
+            thermostat_layer = int(heat_source_data[1] *self.__NB_VOL)
+            temp_s8_n, Q_x_in_n, Q_s6, temp_s6_n, temp_s7_n, Q_in_H_W, Q_ls = self.run_heat_sources(
+                temp_s3_n,
+                heat_source,
+                heater_layer,
+                thermostat_layer
+                )
 
         #set temperatures calculated to be initial temperatures of volumes for the next timestep
         self.__temp_n = deepcopy(temp_s8_n)
@@ -593,6 +638,9 @@ class StorageTank:
             Vol_use_W_n, temp_s3_n, Q_x_in_n, Q_s6, temp_s6_n,
             temp_s7_n, Q_in_H_W, Q_ls, temp_s8_n,
             )"""
+    
+    def test_energy_demand(self):
+        return(self.__energy_demand_test)
 
     def internal_gains(self):
         """ Return the DHW recoverable heat losses as internal gain for the current timestep in W"""
@@ -601,20 +649,36 @@ class StorageTank:
         return self.__Q_sto_h_ls_rbl * units.W_per_kW / self.__simulation_time.timestep() \
         + primary_gains_timestep
 
-            
-    def get_demand_energy(self, heat_source, input_energy_adj):
+
+    def heat_source_output(self, heat_source, input_energy_adj):
         # function that also calculates pipework loss before sending on the demand energy 
         # if immersion heater, no pipework losses
         if isinstance(heat_source, ImmersionHeater):
             return(heat_source.demand_energy(input_energy_adj))
+        elif isinstance(heat_source, SolarThermalSystem):
+            return(heat_source.demand_energy(input_energy_adj))
         else:
-            demand_energy = heat_source.demand_energy(input_energy_adj)
-            # primary losses for the timestep calculated from  temperature difference
-            primary_pipework_losses = self.__primary_pipework.heat_loss(self.__temp_hot, self.__temp_amb)
-            self.__primary_gains = primary_pipework_losses
-            demand_energy+=primary_pipework_losses
+            primary_pipework_losses_kWh = 0.0
+            #TODO multiple heat source for primary pipework
+            if input_energy_adj > 0.0 and self.__input_energy_adj_prev_timestep == 0.0:
+                primary_pipework_losses_kWh += self.__primary_pipework.cool_down_loss(self.__temp_hot, self.__temp_amb)
+                input_energy_adj += primary_pipework_losses_kWh
+
+            if input_energy_adj > 0.0:
+                # primary losses for the timestep calculated from  temperature difference
+                primary_pipework_losses = self.__primary_pipework.heat_loss(self.__temp_hot, self.__temp_amb)
+                self.__primary_gains = primary_pipework_losses
+                primary_pipework_losses_kWh += primary_pipework_losses * self.__simulation_time.timestep() / units.W_per_kW
+                input_energy_adj += primary_pipework_losses_kWh
+    
+            if input_energy_adj == 0.0 and self.__input_energy_adj_prev_timestep > 0.0:
+                self.__primary_gains += self.__primary_pipework.cool_down_loss(self.__temp_hot, self.__temp_amb)
+            heat_source_output = heat_source.demand_energy(input_energy_adj) - primary_pipework_losses_kWh
+            # Save input energy for next timestep
+            self.__input_energy_adj_prev_timestep = input_energy_adj
+            
             # TODO - how are these gains reflected in the calculations? allocation by zone?
-            return(demand_energy)
+            return(heat_source_output)
 
 
 
@@ -663,3 +727,215 @@ class ImmersionHeater:
             power_max = 0.0
 
         return power_max
+
+
+
+""" The following code contains objects that represent solar thermal systems.
+Method 3 in BS EN 15316-4-3:2017.
+"""
+
+class SolarThermalSystem:
+    """ An object to represent a solar thermal system """
+
+    #BS EN 15316-4-3:2017 Appendix B default input data
+    #Model Information
+    #Air temperature in a heated space in the building
+    #Default taken from Table B20 of standard
+    __air_temp_heated_room = 20
+
+    def __init__(self, 
+                 sol_loc,
+                 area_module,
+                 modules,
+                 peak_collector_efficiency,
+                 incidence_angle_modifier,
+                 first_order_hlc,
+                 second_order_hlc,
+                 collector_mass_flow_rate,
+                 power_pump,
+                 power_pump_control,
+                 energy_supply_conn,
+                 tilt,
+                 orientation,
+                 solar_loop_piping_hlc,
+                 ext_cond, 
+                 simulation_time,
+                 contents=WATER,
+                 ):
+        """ Construct a SolarThermalSystem object
+
+        Arguments:
+        sol_loc         -- Location of the main part of the collector loop piping
+        area_module     -- Collector module reference area 
+        modules         -- Number of collector modules installed
+        peak_collector_efficiency 
+                        -- Peak collector efficiency
+        incidence_angle_modifier 
+                        -- Hemispherical incidence angle modifier
+        first_order_hlc -- First order heat loss coefficient
+        second_order_hlc 
+                        -- Second order heat loss coefficient
+        collector_mass_flow_rate 
+                        -- Mass flow rate solar loop
+        power_pump      -- Power of collector pump
+        power_pump_control
+                        -- Power of collector pump controller
+        energy_supply_conn    
+                        -- reference to EnergySupplyConnection object
+        tilt            -- is the tilt angle (inclination) of the PV panel from horizontal,
+                            measured upwards facing, 0 to 90, in degrees.
+                            0=horizontal surface, 90=vertical surface.
+                            Needed to calculate solar irradiation at the panel surface.
+        orientation     -- is the orientation angle of the inclined surface, expressed as the
+                            geographical azimuth angle of the horizontal projection of the inclined
+                            surface normal, -180 to 180, in degrees;
+                            Assumed N 180 or -180, E 90, S 0, W -90
+                            TODO - PV standard refers to angle as between 0 to 360?
+                            Needed to calculate solar irradiation at the panel surface.
+        solar_loop_piping_hlc 
+                        -- Heat loss coefficient of the collector loop piping                   
+        ext_cond        -- reference to ExternalConditions object
+        simulation_time -- reference to SimulationTime object
+        contents        -- reference to MaterialProperties object
+
+        overshading     -- TODO could add at a later date. Feed into solar module
+        """
+        self.__sol_loc = sol_loc
+        self.__area = area_module * modules
+        self.__peak_collector_efficiency = peak_collector_efficiency
+        self.__incidence_angle_modifier = incidence_angle_modifier
+        self.__first_order_hlc = first_order_hlc
+        self.__second_order_hlc = second_order_hlc
+        self.__collector_mass_flow_rate = collector_mass_flow_rate
+        self.__power_pump = power_pump
+        self.__power_pump_control = power_pump_control
+        self.__energy_supply_conn = energy_supply_conn
+        self.__tilt = tilt
+        self.__orientation = orientation
+        self.__solar_loop_piping_hlc = solar_loop_piping_hlc
+        self.__external_conditions = ext_cond
+        self.__simulation_time = simulation_time
+        self.__heat_output_collector_loop = 0
+        self.__energy_supplied = 0 
+        
+        #water specific heat in kWh/kg.K
+        self.__Cp = contents.specific_heat_capacity()
+
+    def energy_output_max(self, storage_tank, temp_storage_tank_s3_n):
+        """ Calculate collector loop heat output
+            eq 49 to 58 of STANDARD """
+
+        # Eq 49        
+        if self.__sol_loc == 'HS':
+            self.__air_temp_coll_loop = self.__air_temp_heated_room
+        elif self.__sol_loc == 'NHS':
+            self.__air_temp_coll_loop \
+                = ( self.__air_temp_heated_room
+                + self.__external_conditions.air_temp()
+                ) / 2
+        elif self.__sol_loc == 'OUT':
+            self.__air_temp_coll_loop = self.__external_conditions.air_temp()
+        else:
+            sys.exit('SolarThermalSystem: Collector loop location not valid.')
+            
+        #First estimation of average collector water temperature. Eq 51
+        #initialise temperature
+        # If first time step, pick bottom of the tank temperature as inlet_temp_s1
+        if (self.__simulation_time.index() == 0):
+            inlet_temp_s1 = temp_storage_tank_s3_n[0]
+            self.__inlet_temp = deepcopy(inlet_temp_s1)
+        else:
+            inlet_temp_s1 = deepcopy(self.__inlet_temp)
+
+        #solar_irradiance in W/m2
+        solar_irradiance = self.__external_conditions.calculated_total_solar_irradiance( \
+            self.__tilt,
+            self.__orientation
+            )
+        if (solar_irradiance == 0):
+            # TODO Consider the case of energy left from previous step not totally dissipated
+            # TODO Solar irradiance can be negative due to negative diffuse radiation values.
+            # TODO Should negative values be set to zero? Why is diffuse irradiation calc producing neg values?
+            self.__heat_output_collector_loop = 0
+            return 0
+            
+        avg_collector_water_temp \
+            = inlet_temp_s1 \
+            + ( 0.4 * solar_irradiance * self.__area ) \
+            / ( self.__collector_mass_flow_rate * self.__Cp * 2 )
+            
+        #Calculation of collector efficiency
+        for _ in range(4):
+            # Eq 53
+            Th = (avg_collector_water_temp - self.__external_conditions.air_temp()) / (solar_irradiance )
+            
+            # Eq 52
+            collector_efficiency \
+                = self.__peak_collector_efficiency \
+                * self.__incidence_angle_modifier \
+                - self.__first_order_hlc * Th \
+                - self.__second_order_hlc * Th**2 * solar_irradiance 
+
+            # Eq 54
+            collector_absorber_heat_input = self.__peak_collector_efficiency * solar_irradiance * \
+            self.__area * self.__simulation_time.timestep() / units.W_per_kW
+
+            # Eq 55
+            collector_output_heat = collector_efficiency * solar_irradiance * \
+            self.__area * self.__simulation_time.timestep() / units.W_per_kW
+
+            # Eq 56
+            heat_loss_collector_loop_piping \
+                 = self.__solar_loop_piping_hlc \
+                 * ( avg_collector_water_temp 
+                   - self.__air_temp_coll_loop 
+                   ) \
+                 * self.__simulation_time.timestep() / units.W_per_kW
+
+            # Eq 57
+            self.__heat_output_collector_loop = collector_output_heat - heat_loss_collector_loop_piping
+            if self.__heat_output_collector_loop < self.__power_pump * self.__simulation_time.timestep() * 3 / units.W_per_kW:
+                self.__heat_output_collector_loop = 0
+            
+            #Call to the storage tank
+            temp_layer_0, inlet_temp2 = \
+                storage_tank.storage_tank_potential_effect(self.__heat_output_collector_loop, temp_storage_tank_s3_n)
+            
+            # Eq 58
+            avg_collector_water_temp \
+                = ( self.__inlet_temp + inlet_temp2 ) / 2 \
+                + self.__heat_output_collector_loop \
+                / (self.__collector_mass_flow_rate 
+                  * self.__Cp 
+                  * 2
+                  )
+                                                
+        # Copy the finishing value of inlet temp ready for start of next timestep
+        self.__inlet_temp = deepcopy(inlet_temp2)
+
+        return self.__heat_output_collector_loop
+    
+    def demand_energy(self, energy_demand):
+        """ Demand energy (in kWh) from the solar thermal"""
+
+        self.__energy_supplied = min(energy_demand, self.__heat_output_collector_loop )
+
+        # Eq 59 and 60 to calculate auxiliary energy - note that the if condition
+        # is the wrong way round in BS EN 15316-4-3:2017
+        if self.__energy_supplied == 0: 
+            auxilliary_energy_consumption = self.__power_pump_control * self.__simulation_time.timestep()
+        else:
+            auxilliary_energy_consumption = ( self.__power_pump_control + self.__power_pump ) \
+            * self.__simulation_time.timestep()
+            
+        self.__energy_supply_conn.demand_energy(auxilliary_energy_consumption)
+        
+        return self.__energy_supplied
+
+    # methods to facilitate unit testing
+    def test_energy_potential(self):
+        return(self.__heat_output_collector_loop)
+
+    def test_energy_supplied(self):
+        return(self.__energy_supplied)
+               

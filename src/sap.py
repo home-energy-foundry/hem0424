@@ -342,9 +342,11 @@ if __name__ == '__main__':
         )
     parser.add_argument(
         '--parallel', '-p',
-        action='store_true',
-        default=False,
-        help='run calculations for different input files in parallel',
+        action='store',
+        type=int,
+        default=0,
+        help=('run calculations for different input files in parallel'
+              '(specify no of files to run simultaneously)'),
         )
     parser.add_argument(
         '--preprocess-only',
@@ -389,7 +391,7 @@ if __name__ == '__main__':
     else:
         external_conditions_dict = None
 
-    if not cli_args.parallel:
+    if cli_args.parallel == 0:
         print('Running '+str(len(inp_filenames))+' cases in series')
         for inpfile in inp_filenames:
             run_project(
@@ -402,11 +404,12 @@ if __name__ == '__main__':
                 )
     else:
         import multiprocessing as mp
-        print('Running '+str(len(inp_filenames))+' cases in parallel')
+        print('Running '+str(len(inp_filenames))+' cases in parallel'
+              ' ('+str(cli_args.parallel)+' at a time)')
         run_project_args = [
             (inpfile, external_conditions_dict, preproc_only, fhs_assumptions, fhs_FEE_assumptions, heat_balance)
             for inpfile in inp_filenames
             ]
-        with mp.Pool() as p:
+        with mp.Pool(processes=cli_args.parallel) as p:
             p.starmap(run_project, run_project_args)
 

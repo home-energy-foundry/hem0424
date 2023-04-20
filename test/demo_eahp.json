@@ -53,22 +53,6 @@
 			}
 		},
 		"space heat timer": {
-			"type": "OnOffTimeControl",
-			"start_day": 0,
-			"time_series_step": 1,
-			"schedule": {
-				"main": [true, false, false, {"value": true, "repeat": 5}]
-			}
-		},
-		"zone 1 radiators__space heat timer__converted_from_OnOffTimeControl": {
-			"type": "SetpointTimeControl",
-			"start_day": 0,
-			"time_series_step": 1,
-			"schedule": {
-				"main": [21.0, null, null, {"value": 21.0, "repeat": 5}]
-			}
-		},
-		"zone 2 radiators__space heat timer__converted_from_OnOffTimeControl": {
 			"type": "SetpointTimeControl",
 			"start_day": 0,
 			"time_series_step": 1,
@@ -153,11 +137,17 @@
 			]
 		}
 	},
+	"Ventilation": {
+		"type": "WHEV",
+		"req_ach": 0.5,
+		"SFP": 1.5,
+		"EnergySupply": "mains elec"
+	},
 	"HeatSourceWet": {
 		"hp": {
 			"type": "HeatPump",
 			"EnergySupply": "mains elec",
-			"source_type": "OutsideAir",
+			"source_type": "ExhaustAirMEV",
 			"sink_type": "Water",
 			"backup_ctrl_type": "TopUp",
 			"modulating_control": true,
@@ -176,6 +166,7 @@
 			"power_max_backup": 3.0,
 			"test_data": [
 				{
+					"air_flow_rate": 100.0,
 					"test_letter": "A",
 					"capacity": 8.4,
 					"cop": 4.6,
@@ -186,6 +177,7 @@
 					"temp_test": -7
 				},
 				{
+					"air_flow_rate": 100.0,
 					"test_letter": "B",
 					"capacity": 8.3,
 					"cop": 4.9,
@@ -196,6 +188,7 @@
 					"temp_test": 2
 				},
 				{
+					"air_flow_rate": 100.0,
 					"test_letter": "C",
 					"capacity": 8.3,
 					"cop": 5.1,
@@ -206,6 +199,7 @@
 					"temp_test": 7
 				},
 				{
+					"air_flow_rate": 100.0,
 					"test_letter": "D",
 					"capacity": 8.2,
 					"cop": 5.4,
@@ -216,6 +210,7 @@
 					"temp_test": 12
 				},
 				{
+					"air_flow_rate": 100.0,
 					"test_letter": "F",
 					"capacity": 8.4,
 					"cop": 4.6,
@@ -226,6 +221,7 @@
 					"temp_test": -7
 				},
 				{
+					"air_flow_rate": 100.0,
 					"test_letter": "A",
 					"capacity": 8.8,
 					"cop": 3.2,
@@ -236,6 +232,7 @@
 					"temp_test": -7
 				},
 				{
+					"air_flow_rate": 100.0,
 					"test_letter": "B",
 					"capacity": 8.6,
 					"cop": 3.6,
@@ -246,6 +243,7 @@
 					"temp_test": 2
 				},
 				{
+					"air_flow_rate": 100.0,
 					"test_letter": "C",
 					"capacity": 8.5,
 					"cop": 3.9,
@@ -256,6 +254,7 @@
 					"temp_test": 7
 				},
 				{
+					"air_flow_rate": 100.0,
 					"test_letter": "D",
 					"capacity": 8.5,
 					"cop": 4.3,
@@ -266,9 +265,120 @@
 					"temp_test": 12
 				},
 				{
+					"air_flow_rate": 100.0,
 					"test_letter": "F",
 					"capacity": 8.8,
 					"cop": 3.2,
+					"degradation_coeff": 0.90,
+					"design_flow_temp": 55,
+					"temp_outlet": 52,
+					"temp_source": 0,
+					"temp_test": -7
+				},
+				{
+					"air_flow_rate": 200.0,
+					"test_letter": "A",
+					"capacity": 9.4,
+					"cop": 5.1,
+					"degradation_coeff": 0.90,
+					"design_flow_temp": 35,
+					"temp_outlet": 34,
+					"temp_source": 0,
+					"temp_test": -7
+				},
+				{
+					"air_flow_rate": 200.0,
+					"test_letter": "B",
+					"capacity": 9.3,
+					"cop": 5.4,
+					"degradation_coeff": 0.90,
+					"design_flow_temp": 35,
+					"temp_outlet": 30,
+					"temp_source": 0,
+					"temp_test": 2
+				},
+				{
+					"air_flow_rate": 200.0,
+					"test_letter": "C",
+					"capacity": 9.3,
+					"cop": 5.6,
+					"degradation_coeff": 0.90,
+					"design_flow_temp": 35,
+					"temp_outlet": 27,
+					"temp_source": 0,
+					"temp_test": 7
+				},
+				{
+					"air_flow_rate": 200.0,
+					"test_letter": "D",
+					"capacity": 9.2,
+					"cop": 5.9,
+					"degradation_coeff": 0.95,
+					"design_flow_temp": 35,
+					"temp_outlet": 24,
+					"temp_source": 0,
+					"temp_test": 12
+				},
+				{
+					"air_flow_rate": 200.0,
+					"test_letter": "F",
+					"capacity": 9.4,
+					"cop": 5.1,
+					"degradation_coeff": 0.90,
+					"design_flow_temp": 35,
+					"temp_outlet": 34,
+					"temp_source": 0,
+					"temp_test": -7
+				},
+				{
+					"air_flow_rate": 200.0,
+					"test_letter": "A",
+					"capacity": 9.8,
+					"cop": 3.7,
+					"degradation_coeff": 0.90,
+					"design_flow_temp": 55,
+					"temp_outlet": 52,
+					"temp_source": 0,
+					"temp_test": -7
+				},
+				{
+					"air_flow_rate": 200.0,
+					"test_letter": "B",
+					"capacity": 9.6,
+					"cop": 4.9,
+					"degradation_coeff": 0.90,
+					"design_flow_temp": 55,
+					"temp_outlet": 42,
+					"temp_source": 0,
+					"temp_test": 2
+				},
+				{
+					"air_flow_rate": 200.0,
+					"test_letter": "C",
+					"capacity": 9.5,
+					"cop": 4.4,
+					"degradation_coeff": 0.98,
+					"design_flow_temp": 55,
+					"temp_outlet": 36,
+					"temp_source": 0,
+					"temp_test": 7
+				},
+				{
+					"air_flow_rate": 200.0,
+					"test_letter": "D",
+					"capacity": 9.5,
+					"cop": 4.8,
+					"degradation_coeff": 0.98,
+					"design_flow_temp": 55,
+					"temp_outlet": 30,
+					"temp_source": 0,
+					"temp_test": 12
+				},
+				{
+					"air_flow_rate": 200.0,
+					"test_letter": "F",
+					"capacity": 9.8,
+					"cop": 3.7,
 					"degradation_coeff": 0.90,
 					"design_flow_temp": 55,
 					"temp_outlet": 52,
@@ -290,7 +400,7 @@
 				"name": "hp",
 				"temp_flow_limit_upper": 65.0
 			},
-			"Control": "zone 1 radiators__space heat timer__converted_from_OnOffTimeControl",
+			"Control": "space heat timer",
 			"ecodesign_control_class": 2,
 			"design_flow_temp": 55,
 			"Zone": "zone 1"
@@ -306,7 +416,7 @@
 				"name": "hp",
 				"temp_flow_limit_upper": 65.0
 			},
-			"Control": "zone 2 radiators__space heat timer__converted_from_OnOffTimeControl",
+			"Control": "space heat timer",
 			"ecodesign_control_class": 2,
 			"design_flow_temp": 55,
 			"Zone": "zone 2"
@@ -336,6 +446,8 @@
 			"SpaceHeatSystem": "zone 1 radiators",
 			"area": 80.0,
 			"volume": 250.0,
+			"temp_setpnt_heat": 21.0,
+			"temp_setpnt_cool": 25.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
@@ -448,6 +560,8 @@
 			"SpaceHeatSystem": "zone 2 radiators",
 			"area": 80.0,
 			"volume": 250.0,
+			"temp_setpnt_heat": 21.0,
+			"temp_setpnt_cool": 25.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",

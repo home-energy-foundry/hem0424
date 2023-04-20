@@ -39,10 +39,10 @@
 	},
 	"InternalGains": {
 		"metabolic gains":{
-		"start_day": 212,
+			"start_day": 212,
 			"time_series_step": 1,
 			"schedule": {
-			"main": [3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1]
+				"main": [3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1]
 			}
 		},
 		"other": {
@@ -85,7 +85,11 @@
 	},
 	"EnergySupply": {
 		"mains elec": {
-			"fuel": "electricity"
+			"fuel": "electricity",
+			"ElectricBattery": {
+				"capacity": 2000,
+				"charge_discharge_efficiency": 0.8
+			}
 		}
 	},
 	"Control": {
@@ -103,6 +107,14 @@
 			"time_series_step": 1,
 			"schedule": {
 				"main": [{"value": 21.0, "repeat": 24}]
+			}
+		},
+		"cooling system 1__hw timer__converted_from_OnOffTimeControl": {
+			"type": "SetpointTimeControl",
+			"start_day": 212,
+			"time_series_step": 1,
+			"schedule": {
+				"main": [{"value": 25.0, "repeat": 24}]
 			}
 		}
 	},
@@ -124,21 +136,11 @@
 			}
 		}
 	},
-	"WWHRS": {
-		"Example_Inst_WWHRS": {
-			"type": "WWHRS_InstantaneousSystemC",
-			"ColdWaterSource": "mains water",
-			"flow_rates": [5,7,9,11,13],
-			"efficiencies": [44.8,39.1,34.8,31.4,28.6],
-			"utilisation_factor": 0.7
-		}
-	},
 	"Shower": {
 		"mixer": {
 			"type": "MixerShower",
 			"flowrate": 8.0,
-			"ColdWaterSource": "mains water",
-			"WWHRS": "Example_Inst_WWHRS"
+			"ColdWaterSource": "mains water"
 		},
 		"IES": {
 			"type": "InstantElecShower",
@@ -188,9 +190,7 @@
 				{"start": 6, "duration": 6, "temperature": 41.0}
 			],
 			"mixer": [
-				{"start": 7, "duration": 6, "temperature": 41.0},
-				{"start": 9, "duration": 6, "temperature": 41.0},
-				{"start": 11, "duration": 6, "temperature": 41.0}
+				{"start": 7, "duration": 6, "temperature": 41.0}
 			]
 		},
 		"Bath":{
@@ -211,6 +211,16 @@
 			"frac_convective": 0.4,
 			"EnergySupply": "mains elec",
 			"Control": "main__hw timer__converted_from_OnOffTimeControl"
+		}
+	},
+	"SpaceCoolSystem": {
+		"cooling system 1": {
+			"type": "AirConditioning",
+			"cooling_capacity": 3.0,
+			"efficiency": 4.3,
+			"frac_convective": 0.95,
+			"EnergySupply": "mains elec",
+			"Control": "cooling system 1__hw timer__converted_from_OnOffTimeControl"
 		}
 	},
 	"Ventilation": {
@@ -241,6 +251,7 @@
 	"Zone": {
 		"zone 1": {
 			"SpaceHeatSystem": "main",
+			"SpaceCoolSystem": "cooling system 1",
 			"area": 80.0,
 			"volume": 250.0,
 			"BuildingElement": {

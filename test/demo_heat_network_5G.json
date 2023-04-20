@@ -41,6 +41,14 @@
 	"EnergySupply": {
 		"mains elec": {
 			"fuel": "electricity"
+		},
+		"heat network": {
+			"fuel": "custom",
+			"factor":{
+				"Emissions Factor kgCO2e/kWh": 0.041,
+				"Emissions Factor kgCO2e/kWh including out-of-scope emissions": 0.041,
+				"Primary Energy Factor kWh/kWh delivered": 0.850
+			}
 		}
 	},
 	"Control": {
@@ -157,7 +165,9 @@
 		"hp": {
 			"type": "HeatPump",
 			"EnergySupply": "mains elec",
-			"source_type": "OutsideAir",
+			"source_type": "HeatNetwork",
+			"EnergySupply_heat_network": "heat network",
+			"temp_distribution_heat_network": 20.0,
 			"sink_type": "Water",
 			"backup_ctrl_type": "TopUp",
 			"modulating_control": true,
@@ -182,7 +192,7 @@
 					"degradation_coeff": 0.90,
 					"design_flow_temp": 35,
 					"temp_outlet": 34,
-					"temp_source": 0,
+					"temp_source": 20,
 					"temp_test": -7
 				},
 				{
@@ -192,7 +202,7 @@
 					"degradation_coeff": 0.90,
 					"design_flow_temp": 35,
 					"temp_outlet": 30,
-					"temp_source": 0,
+					"temp_source": 20,
 					"temp_test": 2
 				},
 				{
@@ -202,7 +212,7 @@
 					"degradation_coeff": 0.90,
 					"design_flow_temp": 35,
 					"temp_outlet": 27,
-					"temp_source": 0,
+					"temp_source": 20,
 					"temp_test": 7
 				},
 				{
@@ -212,7 +222,7 @@
 					"degradation_coeff": 0.95,
 					"design_flow_temp": 35,
 					"temp_outlet": 24,
-					"temp_source": 0,
+					"temp_source": 20,
 					"temp_test": 12
 				},
 				{
@@ -222,7 +232,7 @@
 					"degradation_coeff": 0.90,
 					"design_flow_temp": 35,
 					"temp_outlet": 34,
-					"temp_source": 0,
+					"temp_source": 20,
 					"temp_test": -7
 				},
 				{
@@ -232,7 +242,7 @@
 					"degradation_coeff": 0.90,
 					"design_flow_temp": 55,
 					"temp_outlet": 52,
-					"temp_source": 0,
+					"temp_source": 20,
 					"temp_test": -7
 				},
 				{
@@ -242,7 +252,7 @@
 					"degradation_coeff": 0.90,
 					"design_flow_temp": 55,
 					"temp_outlet": 42,
-					"temp_source": 0,
+					"temp_source": 20,
 					"temp_test": 2
 				},
 				{
@@ -252,7 +262,7 @@
 					"degradation_coeff": 0.98,
 					"design_flow_temp": 55,
 					"temp_outlet": 36,
-					"temp_source": 0,
+					"temp_source": 20,
 					"temp_test": 7
 				},
 				{
@@ -262,7 +272,7 @@
 					"degradation_coeff": 0.98,
 					"design_flow_temp": 55,
 					"temp_outlet": 30,
-					"temp_source": 0,
+					"temp_source": 20,
 					"temp_test": 12
 				},
 				{
@@ -272,7 +282,7 @@
 					"degradation_coeff": 0.90,
 					"design_flow_temp": 55,
 					"temp_outlet": 52,
-					"temp_source": 0,
+					"temp_source": 20,
 					"temp_test": -7
 				}
 			]

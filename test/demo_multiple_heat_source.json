@@ -91,7 +91,15 @@
 					"ColdWaterSource": "mains water",
 					"EnergySupply": "mains elec",
 					"Control": "hw timer",
-					"heater_position": 0.1,
+					"heater_position": 0.5,
+					"thermostat_position": 0.5
+				},
+				"immersion": {
+					"type": "ImmersionHeater",
+					"power": 3.0,
+					"EnergySupply": "mains elec",
+					"Control": "hw timer",
+					"heater_position": 0.3,
 					"thermostat_position": 0.33
 				}
 			},

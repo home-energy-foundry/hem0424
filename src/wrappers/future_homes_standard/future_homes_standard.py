@@ -160,7 +160,9 @@ def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy
                     for x in results_totals[Energysupply]
                 ]
 
-    with open(file_path + '_postproc.csv', 'w') as postproc_file:
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(file_path + '_postproc.csv', 'w', newline='') as postproc_file:
         writer = csv.writer(postproc_file)
         #write header row
         writer.writerow(results.keys())
@@ -589,23 +591,29 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
     check for gas and/or electric cooking. Remove any existing objects
     so that we can add our own (just one for gas and one for elec)
     '''
-    cookingenergysupplies=[]
+    cookingenergysupplies = []
     for item in list(project_dict["ApplianceGains"]):
         if project_dict["ApplianceGains"][item]["type"]=="cooking":
             cookingenergysupplies.append(project_dict["ApplianceGains"][item]["EnergySupply"])
             project_dict["ApplianceGains"].pop(item)
-        
-    if "mains elec" in cookingenergysupplies and "mains gas" in cookingenergysupplies:
+
+    #From the cooking energy supplies, need to find the associated fuel they use
+    cookingfuels=[]
+    for item in cookingenergysupplies:
+        fuel_type = project_dict["EnergySupply"][item]["fuel"]
+        cookingfuels.append(fuel_type)
+
+    if "electricity" in cookingfuels and "mains_gas" in cookingfuels:
         EC1elec = 86
         EC2elec = 49
         EC1gas = 150
         EC2gas = 86
-    elif "mains gas" in cookingenergysupplies:
+    elif "mains_gas" in cookingfuels:
         EC1elec = 0
         EC2elec = 0
         EC1gas = 299
         EC2gas = 171
-    elif "mains elec" in cookingenergysupplies:
+    elif "electricity" in cookingfuels:
         EC1elec = 171
         EC2elec = 98
         EC1gas = 0
@@ -625,7 +633,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
 
     
     #add back gas and electric cooking gains if they are present 
-    if "mains gas" in cookingenergysupplies:
+    if "mains_gas" in cookingfuels:
         project_dict['ApplianceGains']['Gascooking'] = {
             "type":"cooking",
             "EnergySupply": "mains gas",
@@ -637,7 +645,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
                 "day": cooking_gas_profile_W
             }
         }
-    if "mains elec" in cookingenergysupplies:
+    if "electricity" in cookingfuels:
         project_dict['ApplianceGains']['Eleccooking'] = {
             "type":"cooking",
             "EnergySupply": "mains elec",

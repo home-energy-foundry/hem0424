@@ -36,7 +36,7 @@ def weather_data_to_dict(weather_file):
                 wind_speeds.append(float(row[COLUMN_WIND_SPEED]))
                 dir_beam_rad.append(float(row[COLUMN_DNI_RAD]))
                 diff_hor_rad.append(float(row[COLUMN_DIF_RAD]))
-                ground_solar_reflc.append(float(row[COLUMN_GROUND_REFLECT]))
+                ground_solar_reflc.append(0.2)
             line_count = line_count + 1
 
     external_conditions = {

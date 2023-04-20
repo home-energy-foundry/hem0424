@@ -291,7 +291,7 @@ class Boiler:
     def __init__(self, 
                 boiler_dict,
                 energy_supply,
-                energy_supply_conn_name_auxiliary,
+                energy_supply_conn_aux,
                 simulation_time,
                 ext_cond, 
                 ):
@@ -313,8 +313,7 @@ class Boiler:
         self.__simulation_time = simulation_time
         self.__external_conditions = ext_cond
         self.__energy_supply_connections = {}
-        self.__energy_supply_connection_aux \
-            = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
+        self.__energy_supply_connection_aux = energy_supply_conn_aux
         self.__service_results = []
 
         # boiler properties
@@ -343,20 +342,13 @@ class Boiler:
 
         #SAP model properties
         self.__room_temp = 19.5 #TODO use actual room temp instead of hard coding
-        self.__outside_temp = self.__external_conditions.air_temp()
 
         #30 is the nominal temperature difference between boiler and test room 
         #during standby loss test (EN15502-1 or EN15034)
         self.__temp_rise_standby_loss = 30.0
         #boiler standby heat loss power law index
         self.__sby_loss_idx = 1.25 
-        if self.__boiler_location == "external":
-            self.__temp_boiler_loc = self.__outside_temp
-        elif self.__boiler_location == "internal":
-            self.__temp_boiler_loc = self.__room_temp 
-        else:
-            sys.exit('boiler location ('+ str(self.__boiler_location) + ') not valid')
-            
+
         #Calculate offset for EBV curves
         average_measured_eff = (corrected_part_load_gross + self.__corrected_full_load_gross) / 2.0
         # test conducted at return temperature 30C
@@ -454,11 +446,11 @@ class Boiler:
             control,
             )
 
-    def __cycling_adjustment(self, temp_return_feed, standing_loss, prop_of_timestep_at_min_rate):
+    def __cycling_adjustment(self, temp_return_feed, standing_loss, prop_of_timestep_at_min_rate, temp_boiler_loc):
         ton_toff = (1.0 - prop_of_timestep_at_min_rate) / prop_of_timestep_at_min_rate
         cycling_adjustment = standing_loss \
                              * ton_toff \
-                             * ((temp_return_feed - self.__temp_boiler_loc) \
+                             * ((temp_return_feed - temp_boiler_loc) \
                              / (self.__temp_rise_standby_loss) \
                              ) \
                              ** self.__sby_loss_idx
@@ -466,11 +458,11 @@ class Boiler:
         return cycling_adjustment
 
 
-    def location_adjustment(self, temp_return_feed, standing_loss):
+    def location_adjustment(self, temp_return_feed, standing_loss, temp_boiler_loc):
         location_adjustment \
             = max((standing_loss * \
                     ((temp_return_feed - self.__room_temp))**self.__sby_loss_idx \
-                    - (temp_return_feed - self.__temp_boiler_loc)**self.__sby_loss_idx)\
+                    - (temp_return_feed - temp_boiler_loc)**self.__sby_loss_idx)\
                     , 0.0
                  )
         return location_adjustment
@@ -484,7 +476,9 @@ class Boiler:
             ):
         """ Calculate energy required by boiler to satisfy demand for the service indicated."""
         timestep = self.__simulation_time.timestep()
-        
+        #use weather temperature at timestep
+        outside_temp = self.__external_conditions.air_temp()
+
         energy_output_max_power = self.__boiler_power * (timestep - self.__total_time_running_current_timestep)
         energy_output_provided = min(energy_output_required, energy_output_max_power)
         # If there is no demand on the boiler or no remaining time then no energy should be provided
@@ -512,21 +506,30 @@ class Boiler:
         prop_of_timestep_at_min_rate = min(energy_output_required \
                                / (self.__boiler_power * self.__min_modulation_load * (timestep - self.__total_time_running_current_timestep))
                                ,1.0)
-        cycling_adjustment = 0.0
-        if (0.0 < prop_of_timestep_at_min_rate < 1.0) and service_type != ServiceType.WATER_COMBI:
-            cycling_adjustment = self.__cycling_adjustment(temp_return_feed,
-                                                           standing_loss,
-                                                           prop_of_timestep_at_min_rate
-                                                           )
 
         # A boiler’s efficiency reduces when installed outside due to an increase in case heat loss.
         # The following adjustment is made when the boiler is located outside 
         # (when installed inside no adjustment is necessary so location_adjustment=0)
+        if self.__boiler_location == "external":
+            temp_boiler_loc = outside_temp
+        elif self.__boiler_location == "internal":
+            temp_boiler_loc = self.__room_temp
+        else:
+            sys.exit('boiler location ('+ str(self.__boiler_location) + ') not valid')
+
         location_adjustment = 0.0
         if self.__boiler_location == "external":
             location_adjustment = self.location_adjustment(temp_return_feed,
-                                                       standing_loss
+                                                       standing_loss,
+                                                       temp_boiler_loc
                                                        )
+        cycling_adjustment = 0.0
+        if (0.0 < prop_of_timestep_at_min_rate < 1.0) and service_type != ServiceType.WATER_COMBI:
+            cycling_adjustment = self.__cycling_adjustment(temp_return_feed,
+                                                           standing_loss,
+                                                           prop_of_timestep_at_min_rate,
+                                                           temp_boiler_loc
+                                                           )
 
         cyclic_location_adjustment = cycling_adjustment + location_adjustment
 
@@ -609,43 +612,56 @@ class Boiler:
     def effvsreturntemp(self, return_temp, offset):
         """ Return boiler efficiency at different return temperatures """
         mains_gas_dewpoint = 52.2
+        lpg_dewpoint = 48.3
         #TODO: add remaining fuels 
         if self.__fuel_code == Fuel_code.MAINS_GAS:
             if return_temp < mains_gas_dewpoint:
                 theoretical_eff = -0.00007 * (return_temp)**2 + 0.0017 * return_temp + 0.979 
             else:
                 theoretical_eff = -0.0006 * return_temp + 0.9129
-            
-            blr_theoretical_eff = theoretical_eff - offset
+        elif (self.__fuel_code == Fuel_code.LPG_BULK) or \
+             (self.__fuel_code == Fuel_code.LPG_BOTTLED) or \
+             (self.__fuel_code == Fuel_code.LPG_CONDITION_11F):
+            if return_temp < lpg_dewpoint:
+                theoretical_eff = -0.00006 * (return_temp)**2 + 0.0013 * return_temp + 0.9859
+            else:
+                theoretical_eff = -0.0006 * return_temp + 0.933
         else:
             exit('Fuel code does not exist')
+        blr_theoretical_eff = theoretical_eff - offset
 
         return blr_theoretical_eff
 
     def high_value_correction_part_load(self, net_efficiency_part_load):
         """ Return a Boiler efficiency corrected for high values """
         if self.__fuel_code == Fuel_code.MAINS_GAS:
-            corrected_net_efficiency_part_load = min(net_efficiency_part_load \
-                                                     - 0.213 \
-                                                     * (net_efficiency_part_load - 0.966), \
-                                                     1.08)
+            maximum_part_load_eff = 1.08
+        elif (self.__fuel_code == Fuel_code.LPG_BULK) or \
+             (self.__fuel_code == Fuel_code.LPG_BOTTLED) or \
+             (self.__fuel_code == Fuel_code.LPG_CONDITION_11F):
+            maximum_part_load_eff = 1.06
         else:
             exit('Unknown fuel code '+str(self.__fuel_code))
+        corrected_net_efficiency_part_load = min(net_efficiency_part_load \
+                                                 - 0.213 \
+                                                 * (net_efficiency_part_load - 0.966), \
+                                                 maximum_part_load_eff)
         return corrected_net_efficiency_part_load
 
     def high_value_correction_full_load(self, net_efficiency_full_load):
-        if self.__fuel_code == Fuel_code.MAINS_GAS:
-            corrected_net_efficiency_full_load = min(net_efficiency_full_load \
-                                                     - 0.673 * (net_efficiency_full_load - 0.955), \
-                                                     0.98)
-        else:
-            exit('Unknown fuel code '+str(self.__fuel_code))
+        corrected_net_efficiency_full_load = min(net_efficiency_full_load \
+                                                 - 0.673 * (net_efficiency_full_load - 0.955), \
+                                                 0.98)
         return corrected_net_efficiency_full_load
 
     def net_to_gross(self):
         """ Returns net to gross factor """
         if self.__fuel_code == Fuel_code.MAINS_GAS:
             net_to_gross = 0.901
+        elif (self.__fuel_code == Fuel_code.LPG_BULK) or \
+             (self.__fuel_code == Fuel_code.LPG_BOTTLED) or \
+             (self.__fuel_code == Fuel_code.LPG_CONDITION_11F):
+            net_to_gross = 0.921
         else:
             exit('Unknown fuel code '+str(self.__fuel_code))
         return net_to_gross

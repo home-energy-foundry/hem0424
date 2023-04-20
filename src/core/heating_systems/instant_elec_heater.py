@@ -54,4 +54,5 @@ class InstantElecHeater:
             energy_supplied = 0.0
 
         self.__energy_supply_conn.demand_energy(energy_supplied)
+        
         return energy_supplied

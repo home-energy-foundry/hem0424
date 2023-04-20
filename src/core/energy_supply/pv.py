@@ -18,13 +18,17 @@ class PhotovoltaicSystem:
           informative values from table C.4 Annex C BS EN 15316-4-3:2017
           note from 6.2.4.7.2 rear surface free - is if PV system is not integrated.
           Assume this means NOT integrated (BIPV)  or attached (BAPV)
+          Increased by 0.85/0.8 based on median quoted performance ratio from
+          "Performance of Distributed PV in the UK: A Statistical Analysis of
+          Over 7000 systems" conference paper from 31st European Photovoltaic
+          Solar Energy Conference and Exhibition, September 2015, assuming this
+          applies to moderately ventilated case.
     """
     __f_perf_lookup = {
-        'unventilated': 0.76,
-        'moderately_ventilated': 0.80,
-        'strongly_or_forced_ventilated': 0.82,
+        'unventilated': 0.81,
+        'moderately_ventilated': 0.85,
+        'strongly_or_forced_ventilated': 0.87,
         'rear_surface_free': 1.00,
-
     }
 
     def __init__(self, peak_power, ventilation_strategy, pitch, orientation,

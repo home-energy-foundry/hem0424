@@ -52,15 +52,7 @@
 				"main": [true, true, false, {"value": true, "repeat": 5}]
 			}
 		},
-		"space heat timer": {
-			"type": "OnOffTimeControl",
-			"start_day": 0,
-			"time_series_step": 1,
-			"schedule": {
-				"main": [true, false, false, {"value": true, "repeat": 5}]
-			}
-		},
-		"zone 1 radiators__space heat timer__converted_from_OnOffTimeControl": {
+		"zone 1 warm air": {
 			"type": "SetpointTimeControl",
 			"start_day": 0,
 			"time_series_step": 1,
@@ -68,7 +60,7 @@
 				"main": [21.0, null, null, {"value": 21.0, "repeat": 5}]
 			}
 		},
-		"zone 2 radiators__space heat timer__converted_from_OnOffTimeControl": {
+		"zone 2 warm air": {
 			"type": "SetpointTimeControl",
 			"start_day": 0,
 			"time_series_step": 1,
@@ -158,16 +150,16 @@
 			"type": "HeatPump",
 			"EnergySupply": "mains elec",
 			"source_type": "OutsideAir",
-			"sink_type": "Water",
+			"sink_type": "Air",
 			"backup_ctrl_type": "TopUp",
 			"modulating_control": true,
-			"min_modulation_rate_35": 0.35,
+			"min_modulation_rate_20": 0.35,
 			"min_modulation_rate_55": 0.4,
 			"time_constant_onoff_operation": 140,
 			"temp_return_feed_max": 70.0,
 			"temp_lower_operating_limit": -5.0,
 			"min_temp_diff_flow_return_for_hp_to_operate": 0.0,
-			"var_flow_temp_ctrl_during_test": true,
+			"var_flow_temp_ctrl_during_test": false,
 			"power_heating_circ_pump": 0.015,
 			"power_source_circ_pump": 0.010,
 			"power_standby": 0.015,
@@ -179,50 +171,50 @@
 					"test_letter": "A",
 					"capacity": 8.4,
 					"cop": 4.6,
-					"degradation_coeff": 0.90,
-					"design_flow_temp": 35,
-					"temp_outlet": 34,
-					"temp_source": 0,
+					"degradation_coeff": 0.12,
+					"design_flow_temp": 20,
+					"temp_outlet": 20,
+					"temp_source": -7,
 					"temp_test": -7
 				},
 				{
 					"test_letter": "B",
 					"capacity": 8.3,
 					"cop": 4.9,
-					"degradation_coeff": 0.90,
-					"design_flow_temp": 35,
-					"temp_outlet": 30,
-					"temp_source": 0,
+					"degradation_coeff": 0.12,
+					"design_flow_temp": 20,
+					"temp_outlet": 20,
+					"temp_source": 2,
 					"temp_test": 2
 				},
 				{
 					"test_letter": "C",
 					"capacity": 8.3,
 					"cop": 5.1,
-					"degradation_coeff": 0.90,
-					"design_flow_temp": 35,
-					"temp_outlet": 27,
-					"temp_source": 0,
+					"degradation_coeff": 0.12,
+					"design_flow_temp": 20,
+					"temp_outlet": 20,
+					"temp_source": 7,
 					"temp_test": 7
 				},
 				{
 					"test_letter": "D",
 					"capacity": 8.2,
 					"cop": 5.4,
-					"degradation_coeff": 0.95,
-					"design_flow_temp": 35,
-					"temp_outlet": 24,
-					"temp_source": 0,
+					"degradation_coeff": 0.12,
+					"design_flow_temp": 20,
+					"temp_outlet": 20,
+					"temp_source": 12,
 					"temp_test": 12
 				},
 				{
 					"test_letter": "F",
 					"capacity": 8.4,
 					"cop": 4.6,
-					"degradation_coeff": 0.90,
-					"design_flow_temp": 35,
-					"temp_outlet": 34,
-					"temp_source": 0,
+					"degradation_coeff": 0.12,
+					"design_flow_temp": 20,
+					"temp_outlet": 20,
+					"temp_source": -7,
 					"temp_test": -7
 				},
 				{
@@ -231,8 +223,8 @@
 					"cop": 3.2,
 					"degradation_coeff": 0.90,
 					"design_flow_temp": 55,
-					"temp_outlet": 52,
-					"temp_source": 0,
+					"temp_outlet": 55,
+					"temp_source": -7,
 					"temp_test": -7
 				},
 				{
@@ -241,8 +233,8 @@
 					"cop": 3.6,
 					"degradation_coeff": 0.90,
 					"design_flow_temp": 55,
-					"temp_outlet": 42,
-					"temp_source": 0,
+					"temp_outlet": 55,
+					"temp_source": 2,
 					"temp_test": 2
 				},
 				{
@@ -251,8 +243,8 @@
 					"cop": 3.9,
 					"degradation_coeff": 0.98,
 					"design_flow_temp": 55,
-					"temp_outlet": 36,
-					"temp_source": 0,
+					"temp_outlet": 55,
+					"temp_source": 7,
 					"temp_test": 7
 				},
 				{
@@ -261,8 +253,8 @@
 					"cop": 4.3,
 					"degradation_coeff": 0.98,
 					"design_flow_temp": 55,
-					"temp_outlet": 30,
-					"temp_source": 0,
+					"temp_outlet": 55,
+					"temp_source": 12,
 					"temp_test": 12
 				},
 				{
@@ -271,45 +263,33 @@
 					"cop": 3.2,
 					"degradation_coeff": 0.90,
 					"design_flow_temp": 55,
-					"temp_outlet": 52,
-					"temp_source": 0,
+					"temp_outlet": 55,
+					"temp_source": -7,
 					"temp_test": -7
 				}
 			]
 		}
 	},
 	"SpaceHeatSystem": {
-		"zone 1 radiators": {
-			"type": "WetDistribution",
-			"thermal_mass": 0.14,
-			"c": 0.08,
-			"n": 1.2,
+		"zone 1 warm air": {
+			"type": "WarmAir",
 			"temp_diff_emit_dsgn": 10.0,
-			"frac_convective": 0.4,
+			"frac_convective": 0.9,
 			"HeatSource": {
 				"name": "hp",
 				"temp_flow_limit_upper": 65.0
 			},
-			"Control": "zone 1 radiators__space heat timer__converted_from_OnOffTimeControl",
-			"ecodesign_control_class": 2,
-			"design_flow_temp": 55,
-			"Zone": "zone 1"
+			"Control": "zone 1 warm air"
 		},
-		"zone 2 radiators": {
-			"type": "WetDistribution",
-			"thermal_mass": 0.14,
-			"c": 0.08,
-			"n": 1.2,
+		"zone 2 warm air": {
+			"type": "WarmAir",
 			"temp_diff_emit_dsgn": 10.0,
-			"frac_convective": 0.4,
+			"frac_convective": 0.9,
 			"HeatSource": {
 				"name": "hp",
 				"temp_flow_limit_upper": 65.0
 			},
-			"Control": "zone 2 radiators__space heat timer__converted_from_OnOffTimeControl",
-			"ecodesign_control_class": 2,
-			"design_flow_temp": 55,
-			"Zone": "zone 2"
+			"Control": "zone 2 warm air"
 		}
 	},
 	"Infiltration": {
@@ -333,7 +313,7 @@
 	},
 	"Zone": {
 		"zone 1": {
-			"SpaceHeatSystem": "zone 1 radiators",
+			"SpaceHeatSystem": "zone 1 warm air",
 			"area": 80.0,
 			"volume": 250.0,
 			"BuildingElement": {
@@ -445,7 +425,7 @@
 			}
 		},
 		"zone 2": {
-			"SpaceHeatSystem": "zone 2 radiators",
+			"SpaceHeatSystem": "zone 2 warm air",
 			"area": 80.0,
 			"volume": 250.0,
 			"BuildingElement": {
