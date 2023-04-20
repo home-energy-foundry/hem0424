@@ -42,24 +42,10 @@ class StorageTank:
     __f_sto_m = 0.75
     #standby losses adaptation
     __f_sto_bac_acc = 1
-    #Design Data
-    #***Operative conditions Table B.4
-    #TODO - determine difference and purpose between temperature required for DHW and set point
-    #temperature required for DHW - degress
-    #__temp_out_W_min = 55 default in table B.4
-    #hot water was found to be leaving the cylinder at 52oC
-    #in the 2008 EST field trial that SAP10 and earlier are based on.
-    #Assume this is refering to the same thing until investigated further.
-    #TODO possibly link and vary per demand event in future
-    __temp_out_W_min = 52
     #ambient temperature - degress
     #TODO - link to zone temp at timestep possibly and location of tank (in or out of heated space)
     __temp_amb = 16
-    #thermostat set temperature - degrees
-    #TODO - possible move to init  as input, maybe per layer and/or timestep
-    #__temp_set_on = 65  default in table B.4
-    #use 55oC as more consistent with average delivery temperature of 52
-    __temp_set_on = 55
+
     # Primary pipework gains for the timestep
     __primary_gains = 0
 
@@ -67,6 +53,8 @@ class StorageTank:
             self,
             volume,
             losses,
+            min_temp,
+            setpoint_temp,
             temp_hot,
             cold_feed,
             simulation_time,
@@ -81,6 +69,8 @@ class StorageTank:
         volume               -- total volume of the tank, in litres
         losses               -- measured standby losses due to cylinder insulation
                                 at standardised conditions, in kWh/24h
+        min_temp             -- minimum temperature required for DHW
+        setpoint_temp        -- set point temperature
         temp_hot             -- temperature of the hot water, in deg C
         cold_feed            -- reference to ColdWaterSource object
         simulation_time      -- reference to SimulationTime object
@@ -94,10 +84,12 @@ class StorageTank:
         Other variables:
         heat_source_data     -- list of heat sources, sorted by heater position
         """
-        self.__Q_std_ls_ref = losses
-        self.__temp_hot     = temp_hot
-        self.__cold_feed    = cold_feed
-        self.__contents     = contents
+        self.__Q_std_ls_ref   = losses
+        self.__temp_out_W_min = min_temp
+        self.__temp_set_on    = setpoint_temp
+        self.__temp_hot       = temp_hot
+        self.__cold_feed      = cold_feed
+        self.__contents       = contents
         self.__energy_supply_conn_unmet_demand = energy_supply_conn_unmet_demand
         self.__simulation_time = simulation_time
 
@@ -547,6 +539,9 @@ class StorageTank:
         #6.4.3.8 STEP 6 Energy input into the storage
         #input energy delivered to the storage in kWh - timestep dependent
         Q_x_in_n = self.potential_energy_input(temp_s3_n, heat_source, heater_layer, thermostat_layer)
+        return self.__calculate_temperatures(temp_s3_n, heat_source, Q_x_in_n, thermostat_layer)
+
+    def __calculate_temperatures(self, temp_s3_n, heat_source, Q_x_in_n, thermostat_layer):
         Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
 
         #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
@@ -638,7 +633,34 @@ class StorageTank:
             Vol_use_W_n, temp_s3_n, Q_x_in_n, Q_s6, temp_s6_n,
             temp_s7_n, Q_in_H_W, Q_ls, temp_s8_n,
             )"""
-    
+
+    def additional_energy_input(self, heat_source, energy_input):
+        if energy_input == 0.0:
+            return 0.0
+        for heat_source_ref, heat_source_data in self.__heat_source_data:
+            if heat_source is heat_source_ref:
+                # Break out of loop, preserving current value of heat_source_data
+                break
+
+        heater_layer = int(heat_source_data[0] *self.__NB_VOL)
+        thermostat_layer = int(heat_source_data[1] *self.__NB_VOL)
+
+        Q_x_in_n = [0] * self.__NB_VOL
+        Q_x_in_n[heater_layer] = energy_input
+        temp_s8_n, _, _, _, _, Q_in_H_W, _ = self.__calculate_temperatures(
+                self.__temp_n,
+                heat_source,
+                Q_x_in_n,
+                thermostat_layer,
+                )
+
+        #set temperatures calculated to be initial temperatures of volumes for the next timestep
+        self.__temp_n = deepcopy(temp_s8_n)
+
+        # Return energy accepted
+        return Q_in_H_W
+
+
     def test_energy_demand(self):
         return(self.__energy_demand_test)
 
@@ -693,11 +715,18 @@ class ImmersionHeater:
         energy_supply_conn -- reference to EnergySupplyConnection object
         simulation_time    -- reference to SimulationTime object
         control            -- reference to a control object which must implement is_on() func
+        diverter           -- reference to a PV diverter object
         """
         self.__pwr                = rated_power
         self.__energy_supply_conn = energy_supply_conn
         self.__simulation_time    = simulation_time
         self.__control            = control
+        self.__diverter = None
+
+    def connect_diverter(self, diverter):
+        if self.__diverter is not None:
+            sys.exit('Diverter already connected.')
+        self.__diverter = diverter
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heater """
@@ -711,16 +740,21 @@ class ImmersionHeater:
         else:
             energy_supplied = 0.0
 
+        # If there is a diverter to this immersion heater, then any heating
+        # capacity already in use is not available to the diverter.
+        if self.__diverter is not None:
+            self.__diverter.capacity_already_in_use(energy_supplied)
+
         self.__energy_supply_conn.demand_energy(energy_supplied)
         return energy_supplied
 
-    def energy_output_max(self):
+    def energy_output_max(self, ignore_standard_ctrl=False):
         """ Calculate the maximum energy output (in kWh) from the heater """
 
         # Account for time control where present. If no control present, assume
         # system is always active (except for basic thermostatic control, which
         # is implicit in demand calculation).
-        if self.__control is None or self.__control.is_on():
+        if self.__control is None or self.__control.is_on() or ignore_standard_ctrl:
             # Energy that heater is able to supply is limited by power rating
             power_max = self.__pwr * self.__simulation_time.timestep()
         else:
@@ -728,6 +762,57 @@ class ImmersionHeater:
 
         return power_max
 
+
+class PVDiverter:
+    """ An object to represent a PV diverter """
+
+    def __init__(self, storage_tank, immersion_heater):
+        """ Construct a PVDiverter object
+        
+        Arguments:
+        storage_tank -- reference to the StorageTank object fed by the diverter
+        immersion_heater -- reference to the ImmersionHeater object fed by the diverter
+
+        Other variables:
+        capacity_already_in_use -- variable to track heater output that would
+                                   happen anyway, to avoid double-counting
+        """
+        self.__storage_tank = storage_tank
+        self.__immersion_heater = immersion_heater
+        self.__capacity_already_in_use = 0.0
+
+        self.__immersion_heater.connect_diverter(self)
+
+    def capacity_already_in_use(self, energy_supplied):
+        """ Record heater output that would happen anyway, to avoid double-counting """
+        self.__capacity_already_in_use += energy_supplied
+
+    def divert_surplus(self, supply_surplus):
+        """ Divert as much surplus as possible to the heater
+
+        Arguments:
+        supply_surplus -- surplus energy, in kWh, available to be diverted (negative by convention)
+        """
+        # Check how much spare capacity the immersion heater has
+        imm_heater_max_capacity_spare \
+            = self.__immersion_heater.energy_output_max(ignore_standard_ctrl=True) \
+            - self.__capacity_already_in_use
+
+        # Calculate the maximum energy that could be diverted
+        # Note: supply_surplus argument is negative by convention, so negate it here
+        energy_diverted_max = min(imm_heater_max_capacity_spare, - supply_surplus)
+
+        # Add additional energy to storage tank and calculate how much energy was accepted
+        energy_diverted = self.__storage_tank.additional_energy_input(
+            self.__immersion_heater,
+            energy_diverted_max,
+            )
+
+        return energy_diverted
+
+    def timestep_end(self):
+        """ Reset variable at end of timestep """
+        self.__capacity_already_in_use = 0.0
 
 
 """ The following code contains objects that represent solar thermal systems.

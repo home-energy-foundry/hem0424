@@ -85,7 +85,11 @@
 	},
 	"EnergySupply": {
 		"mains elec": {
-			"fuel": "electricity"
+			"fuel": "electricity",
+			"diverter": {
+				"StorageTank": "hw cylinder",
+				"HeatSource": "immersion"
+			}
 		}
 	},
 	"Control": {
@@ -94,7 +98,13 @@
 			"start_day": 212,
 			"time_series_step": 1,
 			"schedule": {
-				"main": [{"value": true, "repeat": 24}]
+				"main": [
+					{"value": true, "repeat": 7},
+					{"value": true, "repeat": 2},
+					{"value": true, "repeat": 7},
+					{"value": true, "repeat": 7},
+					{"value": true, "repeat": 1}
+					]
 			}
 		},
 		"main__hw timer__converted_from_OnOffTimeControl": {
@@ -123,22 +133,11 @@
 			"setpoint_temp": 55.0,
 			"ColdWaterSource": "mains water",
 			"HeatSource": {
-				"SolarThermalSystem": {
-					"type": "SolarThermalSystem",
-					"sol_loc": "OUT",
-					"area_module": 3,
-					"modules": 1,
-					"peak_collector_efficiency": 0.8,
-					"incidence_angle_modifier": 0.9,
-					"first_order_hlc": 3.5,
-					"second_order_hlc": 0,
-	  				"collector_mass_flow_rate": 1,
-	  				"power_pump": 100,
-	  				"power_pump_control": 10,
+				"immersion": {
+					"type": "ImmersionHeater",
+					"power": 3.0,
 					"EnergySupply": "mains elec",
-					"tilt": 30,
-  					"orientation": 0,
-  					"solar_loop_piping_hlc": 0.5,
+					"Control": "hw timer",
 					"heater_position": 0.1,
 					"thermostat_position": 0.33
 				}

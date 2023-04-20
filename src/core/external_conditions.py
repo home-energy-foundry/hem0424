@@ -13,6 +13,8 @@ based on BS EN ISO 52010-1:2017.
 import sys
 from math import cos, sin, tan, pi, asin, acos, radians, degrees, exp, sqrt, floor
 from itertools import product
+from copy import deepcopy
+
 # Local imports
 import core.units as units
 
@@ -69,8 +71,6 @@ class ExternalConditions:
         self.__simulation_time  = simulation_time
         self.__air_temps        = air_temps
         self.__wind_speeds      = wind_speeds
-        self.__diffuse_horizontal_radiation = diffuse_horizontal_radiation
-        self.__direct_beam_radiation = direct_beam_radiation
         self.__solar_reflectivity_of_ground = solar_reflectivity_of_ground
         self.__latitude = latitude # practical  range -90 to +90
         self.__longitude = longitude # practical range -180 to +180
@@ -150,6 +150,64 @@ class ExternalConditions:
             for current_hour in range(0, hours_in_year)
             ]
 
+        # Calculate direct beam radiation for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        self.__direct_beam_radiation = [
+            self.__init_direct_beam_radiation(
+                direct_beam_radiation[simtime.time_series_idx(self.__start_day, self.__time_series_step)],
+                self.__solar_altitude[simtime.current_hour()]
+                )
+            for _, _, _ in simtime
+            ]
+        # Calculate diffuse horizontal radiation for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        self.__diffuse_horizontal_radiation = [
+            diffuse_horizontal_radiation[
+                simtime.time_series_idx(self.__start_day, self.__time_series_step)
+                ]
+            for _, _, _ in simtime
+            ]
+        # Calculate dimensionless clearness parameter for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        dimensionless_clearness_parameter = [
+            self.__init_dimensionless_clearness_parameter(
+                self.__diffuse_horizontal_radiation[t_idx],
+                self.__direct_beam_radiation[t_idx],
+                self.__solar_altitude[simtime.current_hour()],
+                )
+            for t_idx, _, _ in simtime
+            ]
+        # Calculate dimensionless sky brightness parameter for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        dimensionless_sky_brightness_parameter = [
+            self.__init_dimensionless_sky_brightness_parameter(
+                self.__air_mass[simtime.current_hour()],
+                self.__diffuse_horizontal_radiation[t_idx],
+                self.__extra_terrestrial_radiation[simtime.current_day()],
+                )
+            for t_idx, _, _ in simtime
+            ]
+        # Calculate circumsolar brightness coefficient, F1 for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        self.__F1 = [
+            self.__init_F1(
+                dimensionless_clearness_parameter[t_idx],
+                dimensionless_sky_brightness_parameter[t_idx],
+                self.__solar_zenith_angle[simtime.current_hour()],
+                )
+            for t_idx, _, _ in simtime
+            ]
+        # Calculate horizontal brightness coefficient, F2 for each timestep
+        simtime = deepcopy(self.__simulation_time)
+        self.__F2 = [
+            self.__init_F2(
+                dimensionless_clearness_parameter[t_idx],
+                dimensionless_sky_brightness_parameter[t_idx],
+                self.__solar_zenith_angle[simtime.current_hour()],
+                )
+            for t_idx, _, _ in simtime
+            ]
+
     def testoutput_setup(self,tilt,orientation):
         """ print output to a file for analysis """
 
@@ -181,6 +239,7 @@ class ExternalConditions:
         """ print output to a file for analysis """
 
         #call this function once during every timestep to test outputs
+        current_timestep = self.__simulation_time.index()
         current_hour = self.__simulation_time.current_hour()
         current_day = self.__simulation_time.current_day()
 
@@ -209,13 +268,13 @@ class ExternalConditions:
             o.write(",")
             o.write(str(self.__extra_terrestrial_radiation[current_day]))
             o.write(",")
-            o.write(str(self.F1()))
+            o.write(str(self.__F1[current_timestep]))
             o.write(",")
-            o.write(str(self.F2()))
+            o.write(str(self.__F2[current_timestep]))
             o.write(",")
-            o.write(str(self.dimensionless_clearness_parameter()))
+            o.write(str(self.__dimensionless_clearness_parameter[current_timestep]))
             o.write(",")
-            o.write(str(self.dimensionless_sky_brightness_parameter()))
+            o.write(str(self.__dimensionless_sky_brightness_parameter[current_timestep]))
             o.write(",")
             o.write(str(self.a_over_b(tilt, orientation)))
             o.write(",")
@@ -264,11 +323,13 @@ class ExternalConditions:
 
     def diffuse_horizontal_radiation(self):
         """ Return the diffuse_horizontal_radiation for the current timestep """
-        return self.__diffuse_horizontal_radiation[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
+        return self.__diffuse_horizontal_radiation[self.__simulation_time.index()]
 
     def direct_beam_radiation(self):
         """ Return the direct_beam_radiation for the current timestep """
-        raw_value = self.__direct_beam_radiation[self.__simulation_time.time_series_idx(self.__start_day, self.__time_series_step)]
+        return self.__direct_beam_radiation[self.__simulation_time.index()]
+    
+    def __init_direct_beam_radiation(self, raw_value, solar_altitude):
         # if the climate data to only provide direct horizontal (rather than normal:
         # If only direct (beam) solar irradiance at horizontal plane is available in the climatic data set,
         # it shall be converted to normal incidence by dividing the value by the sine of the solar altitude.
@@ -285,8 +346,7 @@ class ExternalConditions:
         normal beam irradiance is very sensative for tiny errors in the calculation of the 
         solar altitude."""
         if self.__direct_beam_conversion_needed:
-            current_hour = self.__simulation_time.current_hour()
-            sin_asol = sin(radians(self.__solar_altitude[current_hour]))
+            sin_asol = sin(radians(solar_altitude))
             #prevent division by zero error. if sin_asol = 0 then the sun is lower than the
             #horizon and there will be no direct radiation to convert
             if sin_asol > 0:
@@ -724,20 +784,14 @@ class ExternalConditions:
 
         return brightness_coeff_dict[index][Fij]
 
-    def F1(self):
+    def __init_F1(self, E, delta, solar_zenith_angle):
         """ returns the circumsolar brightness coefficient, F1
 
         Arguments:
-        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
-                          upwards facing, 0 to 180, in degrees;
-        orientation    -- is the orientation angle of the inclined surface, expressed as the 
-                          geographical azimuth angle of the horizontal projection of the inclined 
-                          surface normal, -180 to 180, in degrees;
+        E -- dimensionless clearness parameter for the current timestep
+        delta -- dimensionless sky brightness parameter for the current timestep
+        solar_zenith_angle -- solar zenith angle for the current hour
         """
-
-        current_hour = self.__simulation_time.current_hour()
-        E = self.dimensionless_clearness_parameter()
-        delta = self.dimensionless_sky_brightness_parameter()
 
         #brightness coeffs
         f11 = self.brightness_coefficient(E, 'f11')
@@ -746,24 +800,18 @@ class ExternalConditions:
         #The formulation of F1 is made so as to avoid non-physical negative values 
         #that may occur and result in unacceptable distortions if the model is used 
         #for very low solar elevation angles
-        F1 = max(0, f11 + f12 * delta + f13 * (pi * self.__solar_zenith_angle[current_hour] / 180))
+        F1 = max(0, f11 + f12 * delta + f13 * (pi * solar_zenith_angle / 180))
 
         return F1
 
-    def F2(self):
+    def __init_F2(self, E, delta, solar_zenith_angle):
         """ returns the horizontal brightness coefficient, F2
 
         Arguments:
-        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
-                          upwards facing, 0 to 180, in degrees;
-        orientation    -- is the orientation angle of the inclined surface, expressed as the 
-                          geographical azimuth angle of the horizontal projection of the inclined 
-                          surface normal, -180 to 180, in degrees;
+        E -- dimensionless clearness parameter
+        delta -- dimensionless sky brightness parameter
+        solar_zenith_angle -- solar zenith angle for the current hour
         """
-
-        current_hour = self.__simulation_time.current_hour()
-        E = self.dimensionless_clearness_parameter()
-        delta = self.dimensionless_sky_brightness_parameter()
 
         #horizontal brightness coefficient, F2
         f21 = self.brightness_coefficient(E, 'f21')
@@ -777,17 +825,18 @@ class ExternalConditions:
         #away from the horizon. For overcast skies the horizon brightening has a 
         #negative value since for such skies the sky radiance increases rather than 
         #decreases away from the horizon.
-        F2 = f21 + f22 * delta + f23 * (pi * self.__solar_zenith_angle[current_hour] / 180)
+        F2 = f21 + f22 * delta + f23 * (pi * solar_zenith_angle / 180)
 
         return F2
 
-    def dimensionless_clearness_parameter(self):
-        """ returns the dimensionless clearness parameter, E, anisotropic sky conditions (Perez model)"""
-
-        current_hour = self.__simulation_time.current_hour()
-        Gsol_d = self.diffuse_horizontal_radiation()
-        Gsol_b = self.direct_beam_radiation()
-        asol = self.__solar_altitude[current_hour]
+    def __init_dimensionless_clearness_parameter(self, Gsol_d, Gsol_b, asol):
+        """ returns the dimensionless clearness parameter, E, anisotropic sky conditions (Perez model)
+        
+        Arguments:
+        Gsol_d -- diffuse horizontal radiation
+        Gsol_b -- direct beam radiation
+        asol -- solar altitude for the current hour
+        """
 
         #constant parameter for the clearness formula, K, in rad^-3 from table 9 of ISO 52010
         K = 1.014
@@ -800,22 +849,22 @@ class ExternalConditions:
 
         return E
 
-    def dimensionless_sky_brightness_parameter(self):
+    def __init_dimensionless_sky_brightness_parameter(
+            self,
+            air_mass,
+            diffuse_horizontal_radiation,
+            extra_terrestrial_radiation,
+            ):
         """  calculates the dimensionless sky brightness parameter, delta
 
         Arguments:
-        tilt           -- is the tilt angle of the inclined surface from horizontal, measured 
-                          upwards facing, 0 to 180, in degrees;
-        orientation    -- is the orientation angle of the inclined surface, expressed as the 
-                          geographical azimuth angle of the horizontal projection of the inclined 
-                          surface normal, -180 to 180, in degrees;
-
+        air_mass -- air mass for the current hour
+        diffuse_horizontal_radiation -- diffuse horizontal radiation for the current timestep
+        extra_terrestrial_radiation -- extra-terrestrial radiation for the current day
         """
 
-        current_hour = self.__simulation_time.current_hour()
-        current_day = self.__simulation_time.current_day()
-        delta = self.__air_mass[current_hour] * self.diffuse_horizontal_radiation() \
-              / self.__extra_terrestrial_radiation[current_day]
+        delta = air_mass * diffuse_horizontal_radiation \
+              / extra_terrestrial_radiation
 
         return delta
 
@@ -853,8 +902,8 @@ class ExternalConditions:
 
         #first set up parameters needed for the calculation
         Gsol_d = self.diffuse_horizontal_radiation()
-        F1 = self.F1()
-        F2 = self.F2()
+        F1 = self.__F1[self.__simulation_time.index()]
+        F2 = self.__F2[self.__simulation_time.index()]
 
         # Calculate components of diffuse radiation
         diffuse_irr_sky = Gsol_d * (1 - F1) * ((1 + cos(radians(tilt))) / 2)
@@ -898,7 +947,7 @@ class ExternalConditions:
         """
 
         Gsol_d = self.diffuse_horizontal_radiation()
-        F1 = self.F1()
+        F1 = self.__F1[self.__simulation_time.index()]
         a_over_b = self.a_over_b(tilt, orientation)
 
         circumsolar_irradiance = Gsol_d * F1 * a_over_b
