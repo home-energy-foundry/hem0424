@@ -150,12 +150,7 @@ class StorageTank:
         temperature for domestic hot water."""
         Q_out_W_n = [0] * self.__NB_VOL
         for i, temp_i in enumerate(self.__temp_n):
-            #TODO not sure if __temp_out_W_min is right temperature to be using. 
-            #use cold temp instead.
-            """if temp_i > self.__temp_out_W_min:
-                Q_out_W_n[i] = self.__rho * self.__Cp * self.__Vol_n[i] \
-                               * (self.__temp_n[i] - self.__temp_out_W_min)"""
-            if temp_i > self.__temp_out_W_min:
+            if temp_i > self.__cold_feed.temperature():
                 Q_out_W_n[i] = self.__rho * self.__Cp * self.__Vol_n[i] \
                                * (self.__temp_n[i] - self.__cold_feed.temperature())
             else:

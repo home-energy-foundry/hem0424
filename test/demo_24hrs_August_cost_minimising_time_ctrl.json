@@ -1,21 +1,21 @@
 {
 	"SimulationTime": {
-		"start": 0,
-		"end": 24,
+		"start": 5088,
+		"end": 5112,
 		"step": 1
 	},
 	"ExternalConditions": {
-		"air_temperatures": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+		"air_temperatures": [19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0, 19.0],
 		"wind_speeds": [3.9, 3.8, 3.9, 4.1, 3.8, 4.2, 4.3, 4.1, 3.9, 3.8, 3.9, 4.1, 3.8, 4.2, 4.3, 4.1, 3.9, 3.8, 3.9, 4.1, 3.8, 4.2, 4.3, 4.1],
 		"ground_temperatures": [8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7, 8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7, 8.0, 8.7, 9.4, 10.1, 10.8, 10.5, 11.0, 12.7],
-		"diffuse_horizontal_radiation": [0, 0, 0, 0, 0, 0, 0, 0, 52, 85, 95, 88, 80, 58, 21, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		"direct_beam_radiation": [0, 0, 0, 0, 0, 0, 0, 0, 169, 284, 328, 397, 354, 205, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		"solar_reflectivity_of_ground": [0.2, 0.22, 0.2, 0.22, 0.247, 0.24, 0.26, 0.233, 0.287, 0.233, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.213, 0.227, 0.22, 0.24],
+		"diffuse_horizontal_radiation": [0, 0, 0, 0, 35, 73, 139, 244, 320, 361, 369, 348, 318, 249, 225, 198, 121, 68, 19, 0, 0, 0, 0, 0],
+		"direct_beam_radiation": [0, 0, 0, 0, 0, 0, 7, 53, 63, 164, 339, 242, 315, 577, 385, 285, 332, 126, 7, 0, 0, 0, 0, 0],
+		"solar_reflectivity_of_ground": [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
 		"latitude": 51.383,
 		"longitude": -0.783,
 		"timezone": 0,
-		"start_day": 0,
-		"end_day": 0,
+		"start_day": 212,
+		"end_day": 212,
 		"time_series_step": 1,
 		"january_first": 1,
 		"daylight_savings": "not applicable",
@@ -38,15 +38,15 @@
 		
 	},
 	"InternalGains": {
-		"metabolic gains": {
-			"start_day": 0,
+		"metabolic gains":{
+			"start_day": 212,
 			"time_series_step": 1,
 			"schedule": {
-				"main": [3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1]	
+				"main": [3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1, 3.2, 4.6, 7.3, 5.2, 8.9, 5.6, 10.2, 8.1]
 			}
 		},
 		"other": {
-			"start_day": 0,
+			"start_day": 212,
 			"time_series_step": 1,
 			"schedule": {
 				"main": [1.1, 2.5, 2.3, 4.7, 7.2, 6.8, 9.1, 7.6, 1.1, 2.5, 2.3, 4.7, 7.2, 6.8, 9.1, 7.6, 1.1, 2.5, 2.3, 4.7, 7.2, 6.8, 9.1, 7.6]
@@ -55,7 +55,7 @@
 	},
 	"ApplianceGains": {
 		"lighting": {
-			"start_day": 0,
+			"start_day": 212,
 			"time_series_step": 1,
 			"gains_fraction": 0.5,
 			"EnergySupply": "mains elec",
@@ -65,7 +65,7 @@
 			}
 		},
 		"cooking": {
-			"start_day": 0,
+			"start_day": 212,
 			"time_series_step": 1,
 			"gains_fraction": 1,
 			"EnergySupply": "mains elec",
@@ -77,9 +77,9 @@
 	},
 	"ColdWaterSource": {
 		"mains water": {
-			"start_day": 0,
-			"temperatures": [9.0, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.0, 9.1, 9.2, 9.3,
-							 9.4, 9.5, 9.6, 9.7, 9.0, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7],
+			"start_day": 212,
+			"temperatures": [17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7, 17.0, 17.1, 17.2, 17.3,
+							 17.4, 17.5, 17.6, 17.7, 17.0, 17.1, 17.2, 17.3, 17.4, 17.5, 17.6, 17.7],
 			"time_series_step": 1
 		}
 	},
@@ -90,31 +90,34 @@
 	},
 	"Control": {
 		"hw timer": {
-			"type": "OnOffTimeControl",
-			"start_day": 0,
+			"type": "OnOffCostMinimisingTimeControl",
+			"start_day": 212,
 			"time_series_step": 1,
+			"time_on_daily": 12.0,
 			"schedule": {
-				"main": [false, false, false, false, false, false, false, false, true, true, true, true, 
-				         true, true, true, true, true, true, true, true, false, false, false, false]
-			}
-		},
-		"esh_charge_control": {
-			"type": "ToUChargeControl",
-			"start_day": 0,
-			"time_series_step": 1,
-			"logic_type": "Manual",
-			"charge_level": [ 1.0, 0.8 ],
-			"schedule": {
-				"main": [{"value": true, "repeat": 7}, {"value": false, "repeat": 5}, {"value": false, "repeat": 5}, {"value": true, "repeat": 7}]
+				"main": [
+					{"repeat": 7, "value": 5.0},
+					{"repeat": 2, "value": 10.0},
+					{"repeat": 8, "value": 7.5},
+					{"repeat": 6, "value": 15.0},
+					5.0
+				]
 			}
 		},
 		"main__hw timer__converted_from_OnOffTimeControl": {
 			"type": "SetpointTimeControl",
-			"start_day": 0,
+			"start_day": 212,
 			"time_series_step": 1,
 			"schedule": {
-				"main": [2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 21.0, 21.0, 21.0, 21.0, 21.0, 
-                         21.0, 21.0, 21.0, 21.0,21.0, 21.0, 21.0, 21.0, 12.0, 12.0, 12.0, 12.0]
+				"main": [{"value": 21.0, "repeat": 24}]
+			}
+		},
+		"cooling system 1__hw timer__converted_from_OnOffTimeControl": {
+			"type": "SetpointTimeControl",
+			"start_day": 212,
+			"time_series_step": 1,
+			"schedule": {
+				"main": [{"value": 25.0, "repeat": 24}]
 			}
 		}
 	},
@@ -132,8 +135,8 @@
 					"power": 3.0,
 					"EnergySupply": "mains elec",
 					"Control": "hw timer",
-					"heater_position": 0.1,
-					"thermostat_position": 0.33
+					"heater_position": 0.0,
+					"thermostat_position": 0.1
 				}
 			}
 		}
@@ -188,6 +191,7 @@
 		"Shower": {
 			"IES": [
 				{"start": 4.1, "duration": 6, "temperature": 41.0},
+				{"start": 4.5, "duration": 6, "temperature": 41.0},
 				{"start": 6, "duration": 6, "temperature": 41.0}
 			],
 			"mixer": [
@@ -207,27 +211,21 @@
 	},
 	"SpaceHeatSystem": {
 		"main": {
-			"type": "ElecStorageHeater",
-			"rated_power": 5.0,
-			"rated_power_instant": 0.75,
-			"air_flow_type": "fan-assisted",
-			"temp_dis_safe": 60.0,
-			"thermal_mass": 0.01278,
-			"frac_convective": 0.7,
-			"U_ins": 0.3,
-			"mass_core": 130.0,
-			"c_pcore": 920.0,
-			"temp_core_target": 500.0,
-			"A_core": 4.0,
-			"c_wall": 8.0,
-			"n_wall": 0.9,
-			"thermal_mass_wall": 23.0,
-			"fan_pwr": 11.0,
-			"n_units": 2,
+			"type": "InstantElecHeater",
+			"rated_power": 6.0,
+			"frac_convective": 0.4,
 			"EnergySupply": "mains elec",
-			"Control": "main__hw timer__converted_from_OnOffTimeControl",
-			"ControlCharger": "esh_charge_control",
-			"Zone": "zone 1"
+			"Control": "main__hw timer__converted_from_OnOffTimeControl"
+		}
+	},
+	"SpaceCoolSystem": {
+		"cooling system 1": {
+			"type": "AirConditioning",
+			"cooling_capacity": 3.0,
+			"efficiency": 4.3,
+			"frac_convective": 0.95,
+			"EnergySupply": "mains elec",
+			"Control": "cooling system 1__hw timer__converted_from_OnOffTimeControl"
 		}
 	},
 	"Ventilation": {
@@ -258,13 +256,14 @@
 	"Zone": {
 		"zone 1": {
 			"SpaceHeatSystem": "main",
+			"SpaceCoolSystem": "cooling system 1",
 			"area": 80.0,
 			"volume": 250.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
 					"a_sol": 0.6,
-					"r_c": 1.7,
+					"r_c": 0.7,
 					"k_m": 19000,
 					"mass_distribution_class": "IE",
 					"pitch": 90,
@@ -277,7 +276,7 @@
 				"wall 1":{
 					"type": "BuildingElementOpaque",
 					"a_sol": 0.61,
-					"r_c": 1.71,
+					"r_c": 0.71,
 					"k_m": 19100,
 					"mass_distribution_class": "M",
 					"pitch": 90,
@@ -290,7 +289,7 @@
 				"wall 2": {
 					"type": "BuildingElementOpaque",
 					"a_sol": 0.62,
-					"r_c": 1.72,
+					"r_c": 0.72,
 					"k_m": 19200,
 					"mass_distribution_class": "E",
 					"pitch": 90,
@@ -303,7 +302,7 @@
 				"wall 3":{
 					"type": "BuildingElementOpaque",
 					"a_sol": 0.63,
-					"r_c": 1.73,
+					"r_c": 0.73,
 					"k_m": 19300,
 					"mass_distribution_class": "I",
 					"pitch": 90,
@@ -315,7 +314,7 @@
 				},
 				"window 0":{
 					"type": "BuildingElementTransparent",
-					"r_c": 1.4,
+					"r_c": 0.4,
 					"pitch": 90,
 					"orientation": 90,
 					"g_value": 0.75,
@@ -333,7 +332,7 @@
 					"type": "BuildingElementGround",
 					"area": 15.0,
 					"pitch": 180.0,
-					"u_value": 0.4,
+					"u_value": 1.4,
 					"r_f": 0.2,
 					"k_m": 19300,
 					"mass_distribution_class": "D",
@@ -346,7 +345,7 @@
 					"type": "BuildingElementAdjacentZTC",
 					"area": 20.0,
 					"pitch": 0.0,
-					"r_c": 1.74,
+					"r_c": 0.74,
 					"k_m": 19400,
 					"mass_distribution_class": "I"
 				}

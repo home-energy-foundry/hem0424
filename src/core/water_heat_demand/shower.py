@@ -118,12 +118,20 @@ class InstantElecShower:
         # ^^^ kWh = kW * hours
         vol_warm_water = elec_demand \
                        / WATER.volumetric_energy_content_kWh_per_litre(temp_target, temp_cold)
+        temp_hot = 52.0 # TODO Define this centrally rather than hard-coding
+        vol_hot_water_equiv \
+            = vol_warm_water * frac_hot_water(temp_target, temp_hot, temp_cold)
 
         self.__elec_supply_conn.demand_energy(elec_demand)
 
         # Instantaneous electric shower heats its own water, so no demand on
         # the water heating system.
-        return 0.0
+        # TODO For now, we return the equivalent volume of hot water so that it
+        #      can feed into the internal gains calculation. Ideally, we should
+        #      find a way to do this that preserves the same interface between
+        #      shower types, but at the time of writing the code that calls this
+        #      function handles shower types differently anyway.
+        return vol_hot_water_equiv
         # TODO Should this return hot water demand or send message to HW system?
         #      The latter would allow for different showers to be connected to
         #      different HW systems, but complicates the implementation of the

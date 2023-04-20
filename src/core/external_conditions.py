@@ -84,6 +84,10 @@ class ExternalConditions:
         self.__shading_segments = shading_segments
         self.__time_series_step = time_series_step
 
+        # Initialise results cache (to improve performance)
+        self.__cached_results = {}
+        self.__cached_timestep = None
+
         days_in_year = 366 if leap_day_included else 365
         hours_in_year = days_in_year * 24
         time_shift = self.__init_time_shift()
@@ -1009,24 +1013,46 @@ class ExternalConditions:
         return total_irradiance
 
     def calculated_direct_diffuse_total_irradiance(self, tilt, orientation, diffuse_breakdown=False):
-        diffuse_irr_total, diffuse_irr_sky, diffuse_irr_circumsolar, diffuse_irr_horiz \
-            = self.diffuse_irradiance(tilt, orientation)
-        ground_refl_irr = self.ground_reflection_irradiance(tilt)
+        t_idx = self.__simulation_time.index()
+        if t_idx != self.__cached_timestep:
+            # If we have moved on to a new timestep, then clear the cached results
+            self.__cached_results = {}
+            self.__cached_timestep = t_idx
 
-        calculated_direct = self.direct_irradiance(tilt, orientation) + diffuse_irr_circumsolar
-        calculated_diffuse = diffuse_irr_total \
-                           - diffuse_irr_circumsolar \
-                           + ground_refl_irr
-        total_irradiance = calculated_direct \
-                         + calculated_diffuse
+        if (tilt, orientation) in self.__cached_results.keys():
+            # Look up cached values if this tilt and orientation has already been calculated
+            calculated_direct = self.__cached_results[(tilt, orientation)]['calculated_direct']
+            calculated_diffuse = self.__cached_results[(tilt, orientation)]['calculated_diffuse']
+            total_irradiance = self.__cached_results[(tilt, orientation)]['total_irradiance']
+            diffuse_res_breakdown = self.__cached_results[(tilt, orientation)]['diffuse_res_breakdown']
+        else:
+            # Calculate results if this tilt and orientation has not already been calculated
+            diffuse_irr_total, diffuse_irr_sky, diffuse_irr_circumsolar, diffuse_irr_horiz \
+                = self.diffuse_irradiance(tilt, orientation)
+            ground_refl_irr = self.ground_reflection_irradiance(tilt)
 
-        if diffuse_breakdown:
+            calculated_direct = self.direct_irradiance(tilt, orientation) + diffuse_irr_circumsolar
+            calculated_diffuse = diffuse_irr_total \
+                               - diffuse_irr_circumsolar \
+                               + ground_refl_irr
+            total_irradiance = calculated_direct \
+                             + calculated_diffuse
+
             diffuse_res_breakdown = {
                 'sky': diffuse_irr_sky,
                 'circumsolar': diffuse_irr_circumsolar,
                 'horiz': diffuse_irr_horiz,
                 'ground_refl': ground_refl_irr,
                 }
+
+            # Cache calculated results
+            self.__cached_results[(tilt, orientation)] = {}
+            self.__cached_results[(tilt, orientation)]['calculated_direct'] = calculated_direct
+            self.__cached_results[(tilt, orientation)]['calculated_diffuse'] = calculated_diffuse
+            self.__cached_results[(tilt, orientation)]['total_irradiance'] = total_irradiance
+            self.__cached_results[(tilt, orientation)]['diffuse_res_breakdown'] = diffuse_res_breakdown
+
+        if diffuse_breakdown:
             return calculated_direct, calculated_diffuse, total_irradiance, diffuse_res_breakdown
         else:
             return calculated_direct, calculated_diffuse, total_irradiance
@@ -1293,11 +1319,11 @@ class ExternalConditions:
         if window_shading:
             for shade_obj in window_shading:
                 if shade_obj["type"] == "overhang":
-                    ovh_D_L_ls.append([shade_obj["depth"],shade_obj["distance"] + 0.5 * height])
+                    ovh_D_L_ls.append([shade_obj["depth"],shade_obj["distance"]])
                 elif shade_obj["type"] == "sidefinright":
-                    finR_D_L_ls.append([shade_obj["depth"],shade_obj["distance"] + 0.5 * width])
+                    finR_D_L_ls.append([shade_obj["depth"],shade_obj["distance"]])
                 elif shade_obj["type"] == "sidefinleft":
-                    finL_D_L_ls.append([shade_obj["depth"],shade_obj["distance"] + 0.5 * width])
+                    finL_D_L_ls.append([shade_obj["depth"],shade_obj["distance"]])
                 else:
                     sys.exit("shading object type" + shade_obj["type"] + "not recognised")
         

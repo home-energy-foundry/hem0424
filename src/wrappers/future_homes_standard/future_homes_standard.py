@@ -61,7 +61,14 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     
     return project_dict
 
-def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy_export, timestep_array, file_path):
+def apply_fhs_postprocessing(
+        project_dict,
+        results_totals,
+        energy_import,
+        energy_export,
+        timestep_array,
+        file_path,
+        ):
     """ Post-process core simulation outputs as required for Future Homes Standard """
     
     emissionfactors = {}
@@ -127,32 +134,38 @@ def apply_fhs_postprocessing(project_dict, results_totals, energy_import, energy
                 factor_header_part = str(factor)
                 for replacement in header_replacements:
                     factor_header_part = factor_header_part.replace(*replacement)
-                    
-                this_header = (str(Energysupply) + 
-                               ' total ' +
-                               factor_header_part
-                )
-                results[this_header] = [
-                    x * float(emissionfactors[this_fuel_code][factor])
-                    for x in results_totals[Energysupply]
-                ]
-                
-                this_fuel_code_export = this_fuel_code + "_export"
-                this_header = (str(Energysupply) + 
+
+                # Apply relevant factors to energy imported
+                import_header = (str(Energysupply) + 
                                ' import ' +
                                factor_header_part
                 )
-                results[this_header] = [
-                    x * float(emissionfactors[this_fuel_code_export][factor])
+                results[import_header] = [
+                    x * float(emissionfactors[this_fuel_code][factor])
                     for x in energy_import[Energysupply]
                 ]
-                this_header = (str(Energysupply) + 
+
+                # Apply relevant factors to energy exported
+                this_fuel_code_export = this_fuel_code + "_export"
+                export_header = (str(Energysupply) + 
                                ' export ' +
                                factor_header_part
                 )
-                results[this_header] = [
-                    x * float(emissionfactors[this_fuel_code_export][factor])
+                net_export_factor = float(emissionfactors[this_fuel_code][factor]) \
+                                  - float(emissionfactors[this_fuel_code_export][factor])
+                results[export_header] = [
+                    x * net_export_factor
                     for x in energy_export[Energysupply]
+                ]
+
+                # Calculate net CO2/PE from import and export figures
+                total_header = (str(Energysupply) + 
+                               ' total ' +
+                               factor_header_part
+                )
+                results[total_header] = [
+                    results[import_header][i] + results[export_header][i]
+                    for i, x in enumerate(results_totals[Energysupply])
                 ]
         else:
             for factor in emissionfactors[this_fuel_code]:
@@ -291,7 +304,13 @@ def create_heating_pattern(project_dict):
         [False for x in range(14)] +
         [True for x in range(11)] +
         [False for x in range(4)])
-    
+    # Start all-day HW schedule 1 hour before space heating
+    hw_sched_allday_weekday \
+        = ( [False for x in range(13)]
+          + [True for x in range(31)]
+          + [False for x in range(4)]
+        )
+
     #07:30-09:30 and then 18:30-22:00
     heating_nonlivingarea_fhs_weekday = (
         [False for x in range(15)] +
@@ -305,6 +324,12 @@ def create_heating_pattern(project_dict):
         [False for x in range(17)] +
         [True for x in range(27)] +
         [False for x in range(4)])
+    # Start all-day HW schedule 1 hour before space heating
+    hw_sched_allday_weekend \
+        = ( [False for x in range(15)]
+          + [True for x in range(29)]
+          + [False for x in range(4)]
+        )
 
     '''
     if there is not separate time control of the non-living rooms
@@ -400,28 +425,48 @@ def create_heating_pattern(project_dict):
                         project_dict['Control']['HeatingPattern_RestOfDwelling']['setpoint_min'] \
                             = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
     '''
-    water heating pattern - same as space heating
+    water heating pattern - same as space heating if not otherwise specified and
+    system is not instantaneous
     '''
 
     for hwsource in project_dict['HotWaterSource']:
-        # Instantaneous water heating systems must be available 24 hours a day
-        if project_dict['HotWaterSource'][hwsource]["type"] == "StorageTank":
+        hw_source_type = project_dict['HotWaterSource'][hwsource]["type"]
+        if hw_source_type == "StorageTank":
             for heatsource in project_dict['HotWaterSource'][hwsource]["HeatSource"]:
-                hwcontrolname = project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"]
-                project_dict["Control"][hwcontrolname] = {
-                    "type": "OnOffTimeControl",
-                    "start_day" : 0,
-                    "time_series_step":0.5,
-                    "schedule":{
-                        "main": [{"repeat": 53, "value": "week"}],
-                        "week": [{"repeat": 5, "value": "weekday"},
-                                 {"repeat": 2, "value": "weekend"}],
-                        "weekday": heating_nonlivingarea_fhs_weekday,
-                        "weekend": heating_fhs_weekend
-                    }
-                }
-    
+                # If control schedule has not already been provided, use standardised schedule
+                if "Control" not in project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]:
+                    hwcontrolname = "Water heating control: " + hwsource + ": " + heatsource
+                    project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"] \
+                        = hwcontrolname
 
+                    hw_sched_default = project_dict['WaterHeatSchedDefault']
+                    if hw_sched_default == "HeatingHours":
+                        hw_sched_weekday = heating_fhs_weekday
+                        hw_sched_weekend = heating_fhs_weekend
+                    elif hw_sched_default == "AllDay":
+                        hw_sched_weekday = hw_sched_allday_weekday
+                        hw_sched_weekend = hw_sched_allday_weekend
+                    else:
+                        sys.exit('Selected default water heating schedule (' + hw_sched_default + ') unknown')
+
+                    project_dict["Control"][hwcontrolname] = {
+                        "type": "OnOffTimeControl",
+                        "start_day" : 0,
+                        "time_series_step":0.5,
+                        "schedule":{
+                            "main": [{"repeat": 53, "value": "week"}],
+                            "week": [{"repeat": 5, "value": "weekday"},
+                                     {"repeat": 2, "value": "weekend"}],
+                            "weekday": hw_sched_weekday,
+                            "weekend": hw_sched_weekend
+                        }
+                    }
+        elif hw_source_type in ("CombiBoiler", "PointOfUse", "HIU"):
+            # Instantaneous water heating systems must be available 24 hours a day
+            pass
+        else:
+            sys.exit("Standard water heating schedule not defined for HotWaterSource type"
+                      + hw_source_type)
 
 def create_evaporative_losses(project_dict,TFA, N_occupants):
     evaporative_losses_fhs = -40 * N_occupants / TFA
