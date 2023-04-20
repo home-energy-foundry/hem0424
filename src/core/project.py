@@ -636,7 +636,7 @@ class Project:
                 = self.__energy_supplies['_unmet_demand'].connection(name)
 
         self.__total_floor_area = sum(zone.area() for zone in self.__zones.values())
-        total_volume = sum(zone.volume() for zone in self.__zones.values())
+        self.__total_volume = sum(zone.volume() for zone in self.__zones.values())
 
         # Add internal gains from applicances to the internal gains dictionary and
         # create an energy supply connection for appliances
@@ -674,7 +674,7 @@ class Project:
                     not in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation):
                         sys.exit('Exhaust air heat pump requires ventilation to be MVHR or WHEV.')
                     throughput_exhaust_air \
-                        = air_change_rate_to_flow_rate(air_change_rate_req, total_volume) \
+                        = air_change_rate_to_flow_rate(air_change_rate_req, self.__total_volume) \
                         * units.litres_per_cubic_metre
                 else:
                     throughput_exhaust_air = None
@@ -1195,6 +1195,17 @@ class Project:
 
         return TMP
 
+    def temp_internal_air(self):
+        # Initialise internal air temperature and total area of all zones
+        internal_air_temperature = 0
+
+        # TODO here we are treating overall indoor temperature as average of all zones
+        for z_name, zone in self.__zones.items():
+            internal_air_temperature += zone.temp_internal_air() * zone.volume()
+
+        internal_air_temperature /= self.__total_volume # average internal temperature
+        return internal_air_temperature
+
     def run(self):
         """ Run the simulation """
 
@@ -1211,7 +1222,8 @@ class Project:
             pw_losses_internal = 0.0
             pw_losses_external = 0.0
             point_of_use = False
-            
+            vol_hot_water_equiv_elec_shower = 0.0
+
             # TODO - this assumes there is only one hot water source
             # if any hotwatersource is point of use, they all are.
             # should we assign hotwatersource to each hot water event?
@@ -1256,6 +1268,10 @@ class Project:
                                         )
                                 pw_losses_internal += pw_losses_internal_shower
                                 pw_losses_external += pw_losses_external_shower
+                        else:
+                            # If electric shower, function returns equivalent
+                            # amount of hot water for internal gains calculation
+                            vol_hot_water_equiv_elec_shower += hw_demand_i
 
             for name, other in self.__other_water_events.items():
                 # Get all other use events for the current timestep
@@ -1328,6 +1344,16 @@ class Project:
                             pw_losses_internal += pw_losses_internal_bath
                             pw_losses_external += pw_losses_external_bath
 
+            vol_hot_water_at_tapping_point = hw_demand + vol_hot_water_equiv_elec_shower
+            frac_dhw_energy_internal_gains = 0.25
+            gains_internal_dhw_use \
+                = frac_dhw_energy_internal_gains \
+                * misc.water_demand_to_kWh(
+                    vol_hot_water_at_tapping_point,
+                    52.0, # TODO Hot water temperature - define this centrally
+                    self.temp_internal_air(),
+                    )
+
             vol_hot_water_left_in_pipework \
                 = self.__water_heating_pipework['internal'].volume_litres() \
                 + self.__water_heating_pipework['external'].volume_litres()
@@ -1339,6 +1365,7 @@ class Project:
             # - number of events in timestep
             # - losses from internal distribution pipework (kWh)
             # - losses from external distribution pipework (kWh)
+            # - internal gains due to hot water use (kWh)
             # - hot water energy demand (kWh)
             return \
                 hw_demand, \
@@ -1346,6 +1373,7 @@ class Project:
                 all_events, \
                 pw_losses_internal, \
                 pw_losses_external, \
+                gains_internal_dhw_use, \
                 hw_energy_demand
 
         def calc_pipework_losses(hw_demand, t_idx, delta_t_h, cold_water_temperature, hw_duration, hw_pipework):
@@ -1354,17 +1382,8 @@ class Project:
 
             # TODO demand water temperature is 52 as elsewhere, need to set it somewhere
             demand_water_temperature = 52
-            
-            # Initialise internal air temperature and total area of all zones
-            internal_air_temperature = 0
-            overall_volume = 0
-            
-            # TODO here we are treating overall indoor temperature as average of all zones
-            for z_name, zone in self.__zones.items():
-                internal_air_temperature += zone.temp_internal_air() * zone.volume()
-                overall_volume += zone.volume()
-            internal_air_temperature /= overall_volume # average internal temperature
-            
+            internal_air_temperature = self.temp_internal_air()
+
             hot_water_time_fraction = hw_duration / (delta_t_h * units.minutes_per_hour)
             
             if hot_water_time_fraction>1:
@@ -1414,17 +1433,8 @@ class Project:
             # assume 100% efficiency 
             # i.e. temp inside the supply and extract ducts is room temp and temp inside exhaust and intake is external temp
             # assume MVHR unit is running 100% of the time
-    
-            # Initialise internal air temperature and total area of all zones
-            internal_air_temperature = 0
-            overall_volume = 0
-    
-            # Calculate internal air temperature
-            # TODO here we are treating overall indoor temperature as average of all zones
-            for z_name, zone in self.__zones.items():
-                internal_air_temperature += zone.temp_internal_air() * zone.volume()
-                overall_volume += zone.volume()
-            internal_air_temperature /= overall_volume # average internal temperature
+
+            internal_air_temperature = self.temp_internal_air()
 
             # Calculate heat loss from ducts when unit is inside
             # Air temp inside ducts increases, heat lost from dwelling
@@ -1454,8 +1464,8 @@ class Project:
                 self.__external_conditions.air_temp(),
                 exhaust_duct_temp,
                 efficiency)
-    
-            return ductwork_watts_heat_loss, overall_volume # heat loss in Watts for the timestep
+
+            return ductwork_watts_heat_loss # heat loss in Watts for the timestep
 
         def calc_space_heating(delta_t_h, gains_internal_dhw):
             """ Calculate space heating demand, heating system output and temperatures
@@ -1468,11 +1478,11 @@ class Project:
             # Calculate timestep in seconds
             delta_t = delta_t_h * units.seconds_per_hour
 
-            ductwork_losses, overall_zone_volume, ductwork_losses_per_m3 = 0.0, 0.0, 0.0
+            ductwork_losses, ductwork_losses_per_m3 = 0.0, 0.0
             # ductwork gains/losses only for MVHR
             if isinstance(self.__ventilation, MechnicalVentilationHeatRecovery):
-                ductwork_losses, overall_zone_volume = calc_ductwork_losses(0, delta_t_h, self.__ventilation.efficiency())
-                ductwork_losses_per_m3 = ductwork_losses / overall_zone_volume
+                ductwork_losses = calc_ductwork_losses(0, delta_t_h, self.__ventilation.efficiency())
+                ductwork_losses_per_m3 = ductwork_losses / self.__total_volume
 
             # Calculate internal and solar gains for each zone
             gains_internal_zone = {}
@@ -1709,14 +1719,15 @@ class Project:
         for t_idx, t_current, delta_t_h in self.__simtime:
             timestep_array.append(t_current)
             hw_demand, hw_duration, no_events, \
-                pw_losses_internal, pw_losses_external, hw_energy_demand \
+                pw_losses_internal, pw_losses_external, gains_internal_dhw_use, hw_energy_demand \
                 = hot_water_demand(t_idx)
 
             self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
 
             gains_internal_dhw \
-                = pw_losses_internal * units.W_per_kW / self.__simtime.timestep()
+                = (pw_losses_internal + gains_internal_dhw_use) \
+                * units.W_per_kW / self.__simtime.timestep()
             if isinstance(self.__hot_water_sources['hw cylinder'], StorageTank):
                 gains_internal_dhw += self.__hot_water_sources['hw cylinder'].internal_gains()
 

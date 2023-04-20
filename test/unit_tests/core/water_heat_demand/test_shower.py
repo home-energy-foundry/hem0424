@@ -64,6 +64,6 @@ class TestInstantElecShower(unittest.TestCase):
                     )
                 self.assertEqual(
                     self.instantelecshower.hot_water_demand(40.0, ((t_idx+1)*6)),
-                    0.0,
+                    [86.04206500956023, 175.59605103991885, 268.8814531548757][t_idx],
                     "correct hot water demand not returned"
                     )
