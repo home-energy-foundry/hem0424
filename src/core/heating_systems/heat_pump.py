@@ -696,14 +696,14 @@ class HeatPumpTestData:
         # In eqns below, method uses condition A rather than coldest. From
         # CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.4:
         # The Temperature Operation Limit (TOL) is defined in EN14825 as
-        # “the lowest outdoor temperature at which the unit can still
+        # "the lowest outdoor temperature at which the unit can still
         # deliver heating capacity and is declared by the manufacturer.
         # Below this temperature the heat pump will not be able to
-        # deliver any heating capacity.”
+        # deliver any heating capacity."
         # The weather data used within this calculation method does not
-        # feature a source temperature at or below the “TOL” test
-        # temperature (which is -7°C to -10°C). Therefore, test data at
-        # the TOL test condition is not used (Test condition “A” at -7°C
+        # feature a source temperature at or below the "TOL" test
+        # temperature (which is -7C to -10C). Therefore, test data at
+        # the TOL test condition is not used (Test condition "A" at -7C
         # is sufficient).
         # TODO The above implies that the TOL test temperature data may
         #      be needed if we change the weather data from that used in
