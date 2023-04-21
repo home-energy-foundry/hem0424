@@ -1011,10 +1011,15 @@ class HeatPumpServiceSpace(HeatPumpService):
         #      in BS EN ISO 15316-4-2:2008 were positive (although some were
         #      different numbers) and signs in temp_spread_correction equation
         #      have not changed, so need to check which is correct.
+        #      Note: using negative numbers leads to divide-by-zero errors in
+        #      the calculation which do not occur when using positive numbers.
+        #      Given that the equation that uses these figures already has a
+        #      minus sign in front of this variable (as written in the standard)
+        #      this would seem to suggest that using positive numbers is correct
         if SourceType.source_fluid_is_air(self._HeatPumpService__hp._HeatPump__source_type):
-            temp_diff_evaporator = - 15.0
+            temp_diff_evaporator = 15.0
         elif SourceType.source_fluid_is_water(self._HeatPumpService__hp._HeatPump__source_type):
-            temp_diff_evaporator = - 10.0
+            temp_diff_evaporator = 10.0
         else:
             sys.exit('SourceType not recognised')
 
