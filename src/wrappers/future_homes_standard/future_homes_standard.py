@@ -216,8 +216,8 @@ def calc_nbeds(project_dict):
 
 def calc_N_occupants(TFA, nbeds):
     #in number of occupants + m^2
-    param1 = -0.07275 * (nbeds + 1) ** 2 + 0.753 * (nbeds + 1) + 0.4996
-    param2 = -0.00003888 * (nbeds + 1) ** 2 - 0.00002379 * (nbeds+ 1) - 0.00042
+    param1 = -0.07275 * (nbeds - 1) ** 2 + 0.753 * (nbeds - 1) + 0.4996
+    param2 = -0.00003888 * (nbeds - 1) ** 2 - 0.00002379 * (nbeds - 1) - 0.00042
     N = 1 + param1 * (1 - math.exp(param2 * (TFA)**2))
     
     return N
