@@ -43,8 +43,9 @@ class HW_event_adjust_allocate:
             return event["dur"] * FHW * self.behavioural_hw_factorm[monthidx]
         def bathdurationfunc (bathsize, flowrate, event):
             monthidx  = next(idx for idx, value in enumerate(self.month_hour_starts) if value > event["time"])
-            frac_HW = frac_hot_water(event_temperature, HW_temperature, cold_water_feed_temps[math.floor(event["time"])])
-            return (bathsize / frac_HW / flowrate) * FHW * self.behavioural_hw_factorm[monthidx]
+            #bathsize is already a volume of warm water (not hot water) 
+            #so application frac_HW is unnecessary here
+            return (bathsize / flowrate) * FHW * self.behavioural_hw_factorm[monthidx]
         def otherdurationfunc (flowrate, event):
             monthidx  = next(idx for idx, value in enumerate(self.month_hour_starts) if value > event["time"])
             frac_HW = frac_hot_water(event_temperature, HW_temperature, cold_water_feed_temps[math.floor(event["time"])])
@@ -67,30 +68,49 @@ class HW_event_adjust_allocate:
             
         for bath in project_dict["Bath"]:
             project_dict["Events"]["Bath"][bath] = []
+            #partial bindings here allow these functions
+            #to be used interchangeably, with event as the only argument
             self.baths.append(("Bath", bath, partial(bathdurationfunc, project_dict["Bath"][bath]["size"], project_dict["Bath"][bath]["flowrate"])))
             
         for other in project_dict["Other"]:
             project_dict["Events"]["Other"][other] = []
             self.other.append(("Other", other, partial(otherdurationfunc, project_dict["Other"][other]["flowrate"])))
         
-        #if theres no other events we need to add them
+        #if there are no other events we need to add them
+        #using a default of 8.0l/min flowrate - 
+        #event duration is calculated such as to deliver a fixed volume of water (otherdurationfunc above)
+        #so this choice only affects how sharp peaks in HW demand can be.
         if self.other == []:
+            if "header tank" in project_dict["ColdWaterSource"]:
+                feedtype="header tank"
+            else:
+                feedtype="mains water"
+            
+            project_dict["Other"].update({        
+                "other": {
+            "flowrate": 8.0,
+            "ColdWaterSource": feedtype
+            }})
             project_dict["Events"]["Other"] = {"other":[]}
-            self.other.append(("Other","other",self.otherdurationfunc))
-        #if no shower present, baths should be taken and vice versa. If neither is present then bath sized drawoff
+            self.other.append(("Other","other",partial(otherdurationfunc, project_dict["Other"]["other"]["flowrate"])))
+        
+        #if no shower present, baths should be taken and vice versa. 
+        #If neither is present then bath sized drawoff
         if not self.showers and self.baths:
             self.showers = self.baths
         elif not self.baths and self.showers:
             self.baths = self.showers
         elif not self.showers and not self.baths:
-            self.baths.append(("Other","other",self.bathdurationfunc))
-            self.showers.append(("Other","other",self.bathdurationfunc))
+            #bath sized events occur whenever a shower or bath would 
+            #if there are no shower or bath facilities in the dwelling 
+            #using a default of 100L and 8.0l/min flowrate
+            self.baths.append(("Other","other",partial(bathdurationfunc, 100, 8.0)))
+            self.showers.append(("Other","other",partial(bathdurationfunc, 100, 8.0)))
     '''
-    the below getters return the name of the end user for the drawoff, 
-    and the function to calculate the duration of the drawoff.
+    the functions below return the name of the end user for the drawoff, 
+    and the function to be used to calculate the duration of the drawoff.
     If there is no shower then baths are taken when showers would have been, as specified above, so
-    this will return the duration function *for a bath*, ie with the possibility
-    for part G bonus. 
+    this will return the duration function *for a bath* despite the event being named a shower.
     '''
     def get_shower(self):
         self.which_shower = (self.which_shower + 1) % len(self.showers)
@@ -108,8 +128,8 @@ class HW_events_generator:
         
         
         self.HWseed = HWseed
-        random.seed(self.HWseed)
-        self.rng = np.random.default_rng(seed = self.HWseed)
+        self.rng = random.Random(self.HWseed)
+        self.rng_poisson = np.random.default_rng(seed = self.HWseed)
         self.decile = -1
         self.banding_correction = 1.0
         
@@ -125,10 +145,8 @@ class HW_events_generator:
             for row in bandsfilereader:
                 if daily_DHW_vol >= float(row["min_daily_dhw_vol"])\
                     and daily_DHW_vol < float(row["max_daily_dhw_vol"]):
-                    #print(daily_DHW_vol)
                     self.decile = int(row["decile"]) - 1
                     self.banding_correction = daily_DHW_vol / float(row["calibration_daily_dhw_vol"])
-                    #print(float(row["median_daily_dhw_vol"]))
             if self.decile == -1:
                 if daily_DHW_vol < bandsfilereader[0]["min_daily_dhw_vol"]:
                     self.decile = 0
@@ -139,7 +157,6 @@ class HW_events_generator:
             if self.decile == -1:
                 print("HW decile error, exiting")
                 sys.exit()
-        #print(self.banding_correction)
         if not correct_banding:
             self.banding_correction = 1.0
 
@@ -191,7 +208,7 @@ class HW_events_generator:
                 self.week[day][event_type].update\
                 (
                     {'hourly_event_distribution':\
-                     [{"poisson_arr":self.rng.poisson(self.banding_correction *\
+                     [{"poisson_arr":self.rng_poisson.poisson(self.banding_correction *\
                      x * float(self.week[day][event_type]['event_count'])/ sumeventcnt,53).tolist(),\
                      '__poisson_arr_idx':0}
                     for x in hrlyeventcnts]}
@@ -199,15 +216,13 @@ class HW_events_generator:
         
 
     def events_in_hour(self, time, type, event_dict):
-        #expected_event_count = event_dict['hourly_event_distribution'][math.floor(time % 24)] * self.banding_correction
         out = []
-        #count = self.rng.poisson(expected_event_count)
         count = event_dict['hourly_event_distribution'][math.floor(time % 24)]["poisson_arr"]\
                 [event_dict['hourly_event_distribution'][math.floor(time % 24)]['__poisson_arr_idx']]
         event_dict['hourly_event_distribution'][math.floor(time % 24)]['__poisson_arr_idx'] += 1
         for i in range(count):
             out.append({
-                'time': time + random.random(), #random offset to time within the hour
+                'time': time + self.rng.random(), #random offset to time within the hour
                 'type': type,
                 'vol': event_dict["mean_event_volume"], #these could be distributed rather than always the mean
                 'dur': event_dict["mean_dur"]
@@ -228,7 +243,7 @@ class HW_events_generator:
     def reroll_event_time(self, time):
         #sometimes events will overlap and we need to change the time so they dont
         #do this by adding random value betwen 0-30 mins to current time until its not overlapping with anything
-        return (time + random.random() / 2) % 8760
+        return (time + self.rng.random() / 2) % 8760
     
     def build_annual_HW_events(self, startday = 0):
         list_days = list(zip(*list(self.week.items())))[1]
