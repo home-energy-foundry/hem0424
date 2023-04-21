@@ -218,6 +218,8 @@ def calc_N_occupants(TFA, nbeds):
     param1 = -0.07407603 * nbeds ** 2 + 0.90544638 * nbeds + 0.35440360
     param2 = -0.00003034 * nbeds ** 2 + 0.00007753 * nbeds - 0.00056306
     N = 1 + param1 * (1 - math.exp(param2 * (TFA)**2))
+    
+    return N
 
 def create_occupancy(N_occupants):
     #in number of occupants
@@ -411,6 +413,7 @@ def create_heating_pattern(project_dict):
                     if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
                         project_dict['Control']['HeatingPattern_RestOfDwelling']['setpoint_min'] \
                             = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
+        #todo: else condition to deal with zone that doesnt have specified livingroom/rest of dwelling
     '''
     water heating pattern - same as space heating if not otherwise specified and
     system is not instantaneous
@@ -859,6 +862,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 
             if not (name in project_dict["Shower"] and project_dict["Shower"][name]["type"] == "InstantElecShower"):
                 #IES can overlap with anything so ignore them entirely
+                #TODO - implies 2 uses of the same IES may overlap, could check them separately
                 HWeventgen.overlap_check(hrlyevents, ["Shower", "Bath"], eventstart, duration)
                 hrlyevents[math.floor(eventstart)].append({"type":"Shower",
                                                            "eventstart": eventstart,
