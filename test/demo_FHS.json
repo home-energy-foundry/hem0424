@@ -145,20 +145,20 @@
 		"mixer": {
 			"type": "MixerShower",
 			"flowrate": 8.0,
-			"ColdWaterSource": "mains water"
+			"ColdWaterSource": "header tank"
 		}
 	},
 	"Bath": {
 		"medium": {
 			"size": 100,
-			"ColdWaterSource": "mains water",
+			"ColdWaterSource": "header tank",
 			"flowrate": 8.0
 		}
 	},
 	"Other": {
 		"other": {
 			"flowrate": 8.0,
-			"ColdWaterSource": "mains water"
+			"ColdWaterSource": "header tank"
 		}
 	},
 	"Distribution": {

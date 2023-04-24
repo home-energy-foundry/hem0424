@@ -25,6 +25,7 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     
     project_dict['SimulationTime']["start"] = 0
     project_dict['SimulationTime']["end"] = 8760
+    #TODO set step to 1 unless given debug flag
 
     project_dict['InternalGains']={}
     
@@ -210,13 +211,13 @@ def calc_nbeds(project_dict):
     else:
         sys.exit("missing NumberOfBedrooms - required for FHS calculation")
     
-    nbeds = min(nbeds,6)
+    nbeds = min(nbeds,5)
     return nbeds
 
 def calc_N_occupants(TFA, nbeds):
     #in number of occupants + m^2
-    param1 = -0.07275 * nbeds ** 2 + 0.753 * nbeds + 0.4996
-    param2 = -0.00003888 * nbeds ** 2 - 0.00002379 * nbeds - 0.00042
+    param1 = -0.07275 * (nbeds - 1) ** 2 + 0.753 * (nbeds - 1) + 0.4996
+    param2 = -0.00003888 * (nbeds - 1) ** 2 - 0.00002379 * (nbeds - 1) - 0.00042
     N = 1 + param1 * (1 - math.exp(param2 * (TFA)**2))
     
     return N
@@ -413,6 +414,7 @@ def create_heating_pattern(project_dict):
                     if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
                         project_dict['Control']['HeatingPattern_RestOfDwelling']['setpoint_min'] \
                             = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
+        #todo: else condition to deal with zone that doesnt have specified livingroom/rest of dwelling
     '''
     water heating pattern - same as space heating if not otherwise specified and
     system is not instantaneous
@@ -861,6 +863,7 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 
             if not (name in project_dict["Shower"] and project_dict["Shower"][name]["type"] == "InstantElecShower"):
                 #IES can overlap with anything so ignore them entirely
+                #TODO - implies 2 uses of the same IES may overlap, could check them separately
                 HWeventgen.overlap_check(hrlyevents, ["Shower", "Bath"], eventstart, duration)
                 hrlyevents[math.floor(eventstart)].append({"type":"Shower",
                                                            "eventstart": eventstart,
