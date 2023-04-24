@@ -350,7 +350,11 @@ class ElecStorageHeater:
 
         q_dis: float
 
-        q_out_wall: float = self.__c * (t_wall - self.temp_air) ** self.__n
+        q_out_wall: float
+        if t_wall >= self.temp_air:
+            q_out_wall = self.__c * (t_wall - self.temp_air) ** self.__n
+        else:
+            q_out_wall = self.__c * (t_wall - self.temp_air)
 
         # Equation for calculating q_dis
         q_dis = self.__calulate_q_dis(time=time, t_core=t_core, q_out_wall=q_out_wall, q_dis_modo=q_dis_modo)
