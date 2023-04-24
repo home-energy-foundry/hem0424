@@ -30,6 +30,7 @@ def run_project(
         fhs_assumptions=False,
         fhs_FEE_assumptions=False,
         heat_balance=False,
+        use_fast_solver=False,
         ):
     file_path = os.path.splitext(inp_filename)
     output_file = file_path[0] + '_results.csv'
@@ -57,7 +58,7 @@ def run_project(
             json.dump(project_dict, preproc_file, sort_keys=True, indent=4)
         return # Skip actual calculation if preproc only option has been selected
 
-    project = Project(project_dict, heat_balance)
+    project = Project(project_dict, heat_balance, use_fast_solver)
 
     # Calculate static parameters and output
     heat_trans_coeff, heat_loss_param = project.calc_HTC_HLP()
@@ -386,6 +387,13 @@ if __name__ == '__main__':
         default=False,
         help='output heat balance for each zone',
         )
+    parser.add_argument(
+        '--use-fast-solver',
+        action='store_true',
+        default=False,
+        help=('use optimised solver (results may differ slightly due to reordering '
+              'of floating-point ops)')
+        )
     cli_args = parser.parse_args()
 
     inp_filenames = cli_args.input_file
@@ -395,6 +403,7 @@ if __name__ == '__main__':
     fhs_FEE_assumptions = cli_args.future_homes_standard_FEE
     preproc_only = cli_args.preprocess_only
     heat_balance = cli_args.heat_balance
+    use_fast_solver = cli_args.use_fast_solver
 
     if epw_filename is not None:
         external_conditions_dict = weather_data_to_dict(epw_filename)
@@ -414,13 +423,21 @@ if __name__ == '__main__':
                 fhs_assumptions,
                 fhs_FEE_assumptions,
                 heat_balance,
+                use_fast_solver,
                 )
     else:
         import multiprocessing as mp
         print('Running '+str(len(inp_filenames))+' cases in parallel'
               ' ('+str(cli_args.parallel)+' at a time)')
         run_project_args = [
-            (inpfile, external_conditions_dict, preproc_only, fhs_assumptions, fhs_FEE_assumptions, heat_balance)
+            ( inpfile,
+              external_conditions_dict,
+              preproc_only,
+              fhs_assumptions,
+              fhs_FEE_assumptions,
+              heat_balance,
+              use_fast_solver,
+            )
             for inpfile in inp_filenames
             ]
         with mp.Pool(processes=cli_args.parallel) as p:

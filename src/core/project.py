@@ -57,7 +57,7 @@ from core.units import Kelvin2Celcius
 class Project:
     """ An object to represent the overall model to be simulated """
 
-    def __init__(self, proj_dict, print_heat_balance):
+    def __init__(self, proj_dict, print_heat_balance, use_fast_solver):
         """ Construct a Project object and the various components of the simulation
 
         Arguments:
@@ -65,6 +65,8 @@ class Project:
                      and lists of input data for system components, external
                      conditions, occupancy etc.
         print_heat_balance -- flag to idindicate whether to print the heat balance outputs
+        use_fast_solver -- flag to indicate whether to use the optimised solver (results
+                           may differ slightly due to reordering of floating-point ops)
 
         Other (self.__) variables:
         simtime            -- SimulationTime object for this Project
@@ -626,6 +628,7 @@ class Project:
                 vent_elements,
                 vent_cool_extra = vent_cool_extra,
                 print_heat_balance = print_heat_balance,
+                use_fast_solver = use_fast_solver,
                 )
 
         self.__zones = {}

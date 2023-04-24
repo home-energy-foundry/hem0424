@@ -44,6 +44,7 @@ class Zone:
             vent_elements,
             vent_cool_extra = None,
             print_heat_balance = False,
+            use_fast_solver=False,
             ):
         """ Construct a Zone object
 
@@ -59,6 +60,8 @@ class Zone:
         vent_cool_extra   -- element providing additional ventilation in response to high
                              internal temperature
         print_heat_balance-- flag to indicate whether to print the heat balance breakdown
+        use_fast_solver -- flag to indicate whether to use the optimised solver (results
+                           may differ slightly due to reordering of floating-point ops)
 
         Other variables:
         area_el_total     -- total area of all building elements associated
@@ -122,6 +125,7 @@ class Zone:
         self.__temp_prev = [10.0] * self.__no_of_temps
 
         self.__print_heat_balance = print_heat_balance
+        self.__use_fast_solver = use_fast_solver
 
     def area(self):
         return self.__useful_area
@@ -351,8 +355,10 @@ class Zone:
             + f_hc_c * gains_heat_cool
 
         # Solve matrix eqn A.X = B to calculate vector_x (temperatures)
-        #vector_x = np.linalg.solve(matrix_a, vector_b)
-        vector_x = self.__fast_solver(matrix_a, vector_b)
+        if self.__use_fast_solver:
+            vector_x = self.__fast_solver(matrix_a, vector_b)
+        else:
+            vector_x = np.linalg.solve(matrix_a, vector_b)
 
         if print_heat_balance:
             heat_balance_dict = {}
