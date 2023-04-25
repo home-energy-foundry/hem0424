@@ -828,7 +828,8 @@ class Project:
                         data['name'] + '_water_heating',
                         55, # TODO Remove hard-coding of HW temp
                         cold_water_source,
-                        data['temp_return']
+                        data['temp_return'],
+                        ctrl,
                         )
                 elif isinstance(heat_source_wet, HeatNetwork):
                     # Add heat network hot water service for feeding hot water cylinder

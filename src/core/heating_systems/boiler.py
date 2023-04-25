@@ -62,15 +62,24 @@ class BoilerService:
     - demand_energy(self, energy_demand)
     """
 
-    def __init__(self, boiler, service_name):
+    def __init__(self, boiler, service_name, control=None):
         """ Construct a BoilerService object
 
         Arguments:
         boiler       -- reference to the Boiler object providing the service
         service_name -- name of the service demanding energy from the boiler
+        control -- reference to a control object which must implement is_on() func
         """
         self._boiler = boiler
         self._service_name = service_name
+        self.__control = control
+
+    def is_on(self):
+        if self.__control is not None:
+            service_on = self.__control.is_on()
+        else:
+            service_on = True
+        return service_on
 
 
 class BoilerServiceWaterCombi(BoilerService):
@@ -224,7 +233,8 @@ class BoilerServiceWaterRegular(BoilerService):
                  temp_hot_water,
                  cold_feed,
                  temp_return,
-                 simulation_time
+                 simulation_time,
+                 control=None,
                 ):
         """ Construct a BoilerServiceWaterRegular object
 
@@ -235,8 +245,9 @@ class BoilerServiceWaterRegular(BoilerService):
         temp_hot_water -- temperature of the hot water to be provided, in deg C
         cold_feed -- reference to ColdWaterSource object
         simulation_time -- reference to SimulationTime object
+        control -- reference to a control object which must implement is_on() func
         """
-        super().__init__(boiler, service_name)
+        super().__init__(boiler, service_name, control)
         
         self.__temp_hot_water = temp_hot_water
         self.__cold_feed = cold_feed
@@ -247,7 +258,10 @@ class BoilerServiceWaterRegular(BoilerService):
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the boiler """
-        
+        service_on = self.is_on()
+        if not service_on:
+            energy_demand = 0.0
+
         return self._boiler._Boiler__demand_energy(
             self.__service_name,
             ServiceType.WATER_REGULAR,
@@ -258,6 +272,10 @@ class BoilerServiceWaterRegular(BoilerService):
 
     def energy_output_max(self):
         """ Calculate the maximum energy output of the boiler"""
+        service_on = self.is_on()
+        if not service_on:
+            return 0.0
+
         return self._boiler._Boiler__energy_output_max(self.__temp_hot_water)
 
 
@@ -417,7 +435,8 @@ class Boiler:
             service_name,
             temp_hot_water,
             cold_feed,
-            temp_return
+            temp_return,
+            control=None,
             ):
             """ Return a BoilerServiceWaterRegular object and create an EnergySupplyConnection for it
 
@@ -437,7 +456,8 @@ class Boiler:
                 temp_hot_water,
                 cold_feed,
                 temp_return,
-                self.__simulation_time
+                self.__simulation_time,
+                control,
                 )
 
     def create_service_space_heating(
