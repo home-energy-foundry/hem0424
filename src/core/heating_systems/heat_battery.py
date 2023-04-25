@@ -517,8 +517,6 @@ class HeatBattery:
         E_loss = self.__Q_loss_ts * time_remaining_current_timestep #kWh 
         E_in = self.__Q_in_ts * time_remaining_current_timestep #kWh 
 
-        self.__energy_supply_conn.demand_energy(E_in * self.__n_units)
-
         charge_level: float = self.__charge_level
         target_charge: float = self.__charge_control.target_charge()
         delta_charge_level = ( E_in - E_loss ) / self.__heat_storage_capacity
@@ -536,6 +534,8 @@ class HeatBattery:
         
         # self.__charge_level is set to updated charge level 
         self.__charge_level = charge_level
+
+        self.__energy_supply_conn.demand_energy(E_in * self.__n_units)
 
         current_hour: int = self.__simulation_time.current_hour()
         
