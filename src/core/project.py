@@ -847,7 +847,8 @@ class Project:
                         data['name'] + '_water_heating',
                         55, # TODO Remove hard-coding of HW temp
                         cold_water_source,
-                        data['temp_return']
+                        data['temp_return'],
+                        ctrl,
                         )
                 else:
                     sys.exit(name + ': HeatSource type not recognised')

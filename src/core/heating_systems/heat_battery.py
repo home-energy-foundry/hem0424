@@ -47,6 +47,7 @@ class HeatBatteryService:
         Arguments:
         heat_battery -- reference to the Heat Battery object providing the service
         service_name -- name of the service demanding energy from the heat battery
+        control -- reference to a control object which must implement is_on() func
         """
         self._heat_battery = heat_battery
         self._service_name = service_name
@@ -73,7 +74,8 @@ class HeatBatteryServiceWaterRegular(HeatBatteryService):
                  temp_hot_water,
                  cold_feed,
                  temp_return,
-                 simulation_time
+                 simulation_time,
+                 control=None,
                 ):
         """ Construct a HeatBatteryServiceWaterRegular object
 
@@ -84,8 +86,9 @@ class HeatBatteryServiceWaterRegular(HeatBatteryService):
         temp_hot_water     -- temperature of the hot water to be provided, in deg C
         cold_feed          -- reference to ColdWaterSource object
         simulation_time    -- reference to SimulationTime object
+        control -- reference to a control object which must implement is_on() func
         """
-        super().__init__(heat_battery, service_name)
+        super().__init__(heat_battery, service_name, control)
         
         self.__temp_hot_water = temp_hot_water
         self.__cold_feed = cold_feed
@@ -96,7 +99,10 @@ class HeatBatteryServiceWaterRegular(HeatBatteryService):
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat_battery """
-        
+        service_on = self.is_on()
+        if not service_on:
+            energy_demand = 0.0
+
         return self._heat_battery._HeatBattery__demand_energy(
             self.__service_name,
             ServiceType.WATER_REGULAR,
@@ -106,6 +112,10 @@ class HeatBatteryServiceWaterRegular(HeatBatteryService):
 
     def energy_output_max(self):
         """ Calculate the maximum energy output of the heat_battery"""
+        service_on = self.is_on()
+        if not service_on:
+            return 0.0
+
         return self._heat_battery._HeatBattery__energy_output_max(self.__temp_hot_water)
 
 class HeatBatteryServiceSpace(HeatBatteryService):
@@ -311,7 +321,8 @@ class HeatBattery:
             service_name,
             temp_hot_water,
             cold_feed,
-            temp_return
+            temp_return,
+            control=None,
             ):
             """ Return a HeatBatteryServiceWaterRegular object and create an EnergySupplyConnection for it
 
@@ -331,7 +342,8 @@ class HeatBattery:
                 temp_hot_water,
                 cold_feed,
                 temp_return,
-                self.__simulation_time
+                self.__simulation_time,
+                control,
                 )
 
     def create_service_space_heating(
