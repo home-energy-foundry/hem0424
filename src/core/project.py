@@ -862,6 +862,7 @@ class Project:
                     data['vol_hw_daily_average'],
                     energy_supply_conn,
                     self.__simtime,
+                    ctrl,
                     )
             else:
                 sys.exit(name + ': heat source type (' + heat_source_type + ') not recognised.')
