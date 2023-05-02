@@ -411,7 +411,8 @@ class Zone:
                 }
 
             # Collect outputs, in W, for heat balance at external boundary
-            hb_fabric_ext_air = 0.0
+            hb_fabric_ext_air_convective = 0.0
+            hb_fabric_ext_air_radiative = 0.0
             hb_fabric_ext_sol = 0.0
             hb_fabric_ext_sky = 0.0
             for eli in self.__building_elements:
@@ -420,8 +421,10 @@ class Zone:
                 temp_ext_surface = vector_x[idx]
                 i_sol_dir, i_sol_dif = eli.i_sol_dir_dif()
                 f_sh_dir, f_sh_dif = eli.shading_factors_direct_diffuse()
-                hb_fabric_ext_air += eli.area \
-                     * ( (eli.h_ce() + eli.h_re()) * (eli.temp_ext() - temp_ext_surface))
+                hb_fabric_ext_air_convective += eli.area \
+                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface))
+                hb_fabric_ext_air_radiative += eli.area \
+                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface)
                 hb_fabric_ext_sol += eli.area \
                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir)
                 hb_fabric_ext_sky += eli.area * (- eli.therm_rad_to_sky)
@@ -432,7 +435,8 @@ class Zone:
                 'thermal_bridges': - hb_loss_thermal_bridges,
                 'ventilation': - hb_loss_ventilation,
                 'infiltration': - hb_loss_infiltration,
-                'fabric_ext_air': hb_fabric_ext_air,
+                'fabric_ext_air_convective': hb_fabric_ext_air_convective,
+                'fabric_ext_air_radiative': hb_fabric_ext_air_radiative,
                 'fabric_ext_sol': hb_fabric_ext_sol,
                 'fabric_ext_sky': hb_fabric_ext_sky,
                 }
