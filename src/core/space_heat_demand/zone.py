@@ -363,7 +363,17 @@ class Zone:
             hb_gains_heat_cool = f_hc_c * gains_heat_cool
             hb_energy_to_change_temp = (self.__c_int / delta_t)*(temp_internal-temp_prev[self.__zone_idx])
             hb_loss_thermal_bridges = self.__tb_heat_trans_coeff*(temp_internal-temp_ext_air)
-            hb_loss_ventilation = sum([vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply()) for vei in self.__vent_elements])
+            hb_loss_ventilation = 0 #sum([vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply()) for vei in self.__vent_elements])
+            hb_loss_infiltration = 0
+            for vei in self.__vent_elements:
+                if type(vei) in (VentilationElementInfiltration,):
+                    #vei.infiltration() #if the infiltration function exists in the class, then it is the infiltration object
+                    hb_loss_infiltration += vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply())
+                elif type(vei) in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation, NaturalVentilation, WindowOpeningForCooling):
+                    hb_loss_ventilation += vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply())
+                else:
+                    sys.exit("Ventilation element not recognised.")
+            
             hb_loss_fabric = (hb_gains_solar+hb_gains_internal+hb_gains_heat_cool+hb_energy_to_change_temp)\
                             -(hb_loss_thermal_bridges+hb_loss_ventilation)
             heat_balance_dict['air_node'] = {
@@ -372,6 +382,7 @@ class Zone:
                 'heating or cooling system gains' : hb_gains_heat_cool,
                 'energy to change internal temperature' : hb_energy_to_change_temp,
                 'heat loss through thermal bridges' : hb_loss_thermal_bridges,
+                'heat loss through infiltration' : hb_loss_infiltration,
                 'heat loss through ventilation' : hb_loss_ventilation,
                 'fabric heat loss' : hb_loss_fabric
                                 }
@@ -419,6 +430,7 @@ class Zone:
                 'heating or cooling system gains': gains_heat_cool,
                 'thermal_bridges': - hb_loss_thermal_bridges,
                 'ventilation': - hb_loss_ventilation,
+                'infiltration': - hb_loss_infiltration,
                 'fabric_ext_air': hb_fabric_ext_air,
                 'fabric_ext_sol': hb_fabric_ext_sol,
                 'fabric_ext_sky': hb_fabric_ext_sky,
