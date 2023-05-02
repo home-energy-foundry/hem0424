@@ -16,7 +16,8 @@ import numpy as np
 import core.units as units
 from core.space_heat_demand.ventilation_element import \
     MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation, \
-    VentilationElementInfiltration, NaturalVentilation
+    VentilationElementInfiltration, NaturalVentilation, \
+    WindowOpeningForCooling
 
 # Convective fractions
 # (default values from BS EN ISO 52016-1:2017, Table B.11)
@@ -361,7 +362,7 @@ class Zone:
             hb_gains_solar = f_sol_c * gains_solar
             hb_gains_internal = f_int_c * gains_internal
             hb_gains_heat_cool = f_hc_c * gains_heat_cool
-            hb_energy_to_change_temp = (self.__c_int / delta_t)*(temp_internal-temp_prev[self.__zone_idx])
+            hb_energy_to_change_temp = -(self.__c_int / delta_t)*(temp_internal-temp_prev[self.__zone_idx])
             hb_loss_thermal_bridges = self.__tb_heat_trans_coeff*(temp_internal-temp_ext_air)
             hb_loss_ventilation = 0 #sum([vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply()) for vei in self.__vent_elements])
             hb_loss_infiltration = 0
