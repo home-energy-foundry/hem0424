@@ -376,6 +376,28 @@ class Zone:
                 'fabric heat loss' : hb_loss_fabric
                                 }
 
+            # Collect outputs, in W, for heat balance at internal fabric boundary
+            fabric_int_sol = (1.0 - f_sol_c) * gains_solar
+            fabric_int_int_gains = (1.0 - f_int_c) * gains_internal
+            fabric_int_heat_cool = (1.0 - f_hc_c) * gains_heat_cool
+            
+            fabric_int_air_convective = 0.0
+            
+            for eli in self.__building_elements:
+                idx = self.__element_positions[eli][1]
+                temp_int_surface = vector_x[idx]
+                air_node_temp = vector_x[self.__zone_idx]
+                
+                fabric_int_air_convective += eli.area \
+                     * ( (eli.h_ci(temp_prev[self.__zone_idx], temp_prev[self.__element_positions[eli][1]])) * (air_node_temp - temp_int_surface))
+               
+            heat_balance_dict['internal_boundary'] = {
+                'fabric_int_air_convective': fabric_int_air_convective,
+                'fabric_int_sol': fabric_int_sol,
+                'fabric_int_int_gains': fabric_int_int_gains,
+                'fabric_int_heat_cool':fabric_int_heat_cool,
+                }
+
             # Collect outputs, in W, for heat balance at external boundary
             hb_fabric_ext_air = 0.0
             hb_fabric_ext_sol = 0.0
