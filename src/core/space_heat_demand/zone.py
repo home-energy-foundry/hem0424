@@ -18,6 +18,9 @@ from core.space_heat_demand.ventilation_element import \
     MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation, \
     VentilationElementInfiltration, NaturalVentilation, \
     WindowOpeningForCooling
+from core.space_heat_demand.building_element import \
+    BuildingElementAdjacentZTU_Simple, BuildingElementAdjacentZTC, \
+    BuildingElementGround, BuildingElementOpaque, BuildingElementTransparent
 
 # Convective fractions
 # (default values from BS EN ISO 52016-1:2017, Table B.11)
@@ -415,6 +418,12 @@ class Zone:
             hb_fabric_ext_air_radiative = 0.0
             hb_fabric_ext_sol = 0.0
             hb_fabric_ext_sky = 0.0
+            hb_fabric_ext_opaque = 0.0
+            hb_fabric_ext_transparent = 0.0
+            hb_fabric_ext_ground = 0.0
+            hb_fabric_ext_ZTC = 0.0
+            hb_fabric_ext_ZTU = 0.0
+            
             for eli in self.__building_elements:
                 # Get position in vector for the first (external) node of the building element
                 idx = self.__element_positions[eli][0]
@@ -428,6 +437,47 @@ class Zone:
                 hb_fabric_ext_sol += eli.area \
                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir)
                 hb_fabric_ext_sky += eli.area * (- eli.therm_rad_to_sky)
+                #fabric heat loss per building type
+                if type(eli) in (BuildingElementOpaque,):
+                    hb_fabric_ext_opaque += eli.area \
+                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
+                     + eli.area \
+                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
+                     + eli.area \
+                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
+                     + eli.area * (- eli.therm_rad_to_sky)
+                elif type(eli) in (BuildingElementTransparent,):
+                    hb_fabric_ext_transparent += eli.area \
+                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
+                     + eli.area \
+                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
+                     + eli.area \
+                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
+                     + eli.area * (- eli.therm_rad_to_sky)
+                elif type(eli) in (BuildingElementGround,):
+                    hb_fabric_ext_ground += eli.area \
+                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
+                     + eli.area \
+                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
+                     + eli.area \
+                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
+                     + eli.area * (- eli.therm_rad_to_sky)
+                elif type(eli) in (BuildingElementAdjacentZTC,):
+                    hb_fabric_ext_ZTC += eli.area \
+                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
+                     + eli.area \
+                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
+                     + eli.area \
+                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
+                     + eli.area * (- eli.therm_rad_to_sky)
+                elif type(eli) in (BuildingElementAdjacentZTU_Simple,):
+                    hb_fabric_ext_ZTU += eli.area \
+                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
+                     + eli.area \
+                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
+                     + eli.area \
+                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
+                     + eli.area * (- eli.therm_rad_to_sky)
             heat_balance_dict['external_boundary'] = {
                 'solar gains': gains_solar,
                 'internal gains': gains_internal,
@@ -439,6 +489,11 @@ class Zone:
                 'fabric_ext_air_radiative': hb_fabric_ext_air_radiative,
                 'fabric_ext_sol': hb_fabric_ext_sol,
                 'fabric_ext_sky': hb_fabric_ext_sky,
+                'opaque_fabric_ext': hb_fabric_ext_opaque,
+                'transparent_fabric_ext': hb_fabric_ext_transparent,
+                'ground_fabric_ext': hb_fabric_ext_ground,
+                'ZTC_fabric_ext': hb_fabric_ext_ZTC,
+                'ZTU_fabric_ext': hb_fabric_ext_ZTU,
                 }
         else:
             heat_balance_dict = None
