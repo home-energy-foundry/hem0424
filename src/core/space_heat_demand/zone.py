@@ -379,7 +379,7 @@ class Zone:
                     sys.exit("Ventilation element not recognised.")
             
             hb_loss_fabric = (hb_gains_solar+hb_gains_internal+hb_gains_heat_cool+hb_energy_to_change_temp)\
-                            -(hb_loss_thermal_bridges+hb_loss_ventilation)
+                            -(hb_loss_thermal_bridges+hb_loss_ventilation+hb_loss_infiltration)
             heat_balance_dict['air_node'] = {
                 'solar gains' : hb_gains_solar,
                 'internal gains' : hb_gains_internal,
