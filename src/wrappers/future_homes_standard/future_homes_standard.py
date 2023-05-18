@@ -799,7 +799,8 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
     #vol_daily_average = (25 * N_occupants) + 36
     
     #new relation based on Boiler Manufacturer data and EST surveys
-    vol_HW_daily_average =  60.3 * N_occupants ** 0.71
+    #reduced by 15% to account for pipework losses present in the source data
+    vol_HW_daily_average =  0.85 * 60.3 * N_occupants ** 0.71
     
     HWeventgen = HW_events_generator(vol_HW_daily_average)
     ref_eventlist = HWeventgen.build_annual_HW_events(startmod)
