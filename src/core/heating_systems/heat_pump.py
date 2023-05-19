@@ -948,6 +948,7 @@ class HeatPumpServiceSpace(HeatPumpService):
         """ Calculate the maximum energy output of the HP, accounting for time
             spent on higher-priority services
         """
+        temp_output = Celcius2Kelvin(temp_output)
         return self._HeatPumpService__hp._HeatPump__energy_output_max(temp_output)
 
     def demand_energy(self, energy_demand, temp_flow, temp_return):
