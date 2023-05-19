@@ -125,6 +125,18 @@ class Emitters:
         
         return flow_temp, return_temp
 
+    def power_output_emitter(self, temp_emitter, temp_rm):
+        """ Calculate emitter output at given emitter and room temp
+
+        Power output from emitter (eqn from 2020 ASHRAE Handbook p644):
+            power_output = c * (T_E - T_rm) ^ n
+        where:
+            T_E is mean emitter temperature
+            T_rm is air temperature in the room/zone
+            c and n are characteristic of the emitters (e.g. derived from BS EN 442 tests)
+        """
+        return self.__c * (temp_emitter - temp_rm) ** self.__n
+
     def temp_emitter_req(self, power_emitter_req, temp_rm):
         """ Calculate emitter temperature that gives required power output at given room temp
 
@@ -179,22 +191,60 @@ class Emitters:
             (power_input - self.__c * max(0, temp_diff[0]) ** self.__n) / self.__thermal_mass,
         )
 
-    def temp_emitter(self, time_start, time_end, temp_emitter_start, temp_rm, power_input):
+    def temp_emitter(
+            self,
+            time_start,
+            time_end,
+            temp_emitter_start,
+            temp_rm,
+            power_input,
+            temp_emitter_max=None,
+            ):
         """ Calculate emitter temperature after specified time with specified power input """
         # Calculate emitter temp at start of timestep
         temp_diff_start = temp_emitter_start - temp_rm
 
+        if temp_emitter_max is not None:
+            temp_diff_max = temp_emitter_max - temp_rm
+    
+            # Define event where emitter reaches max. temp (event occurs when func returns zero)
+            def temp_diff_max_reached(t, y):
+                return y[0] - temp_diff_max
+            temp_diff_max_reached.terminal = True
+
+            events = temp_diff_max_reached
+        else:
+            events = None
+
         # Get function representing change rate equation and solve iteratively
         func_temp_emitter_change_rate \
             = self.__func_temp_emitter_change_rate(power_input)
-        temp_diff_emitter_rm_results \
-            = solve_ivp(func_temp_emitter_change_rate, (time_start, time_end), (temp_diff_start,))
+        temp_diff_emitter_rm_results = solve_ivp(
+            func_temp_emitter_change_rate,
+            (time_start, time_end),
+            (temp_diff_start,),
+            events=events,
+            )
 
-        # Calculate emitter temp at end of timestep
+        # Get time at which emitters reach max. temp
+        time_temp_diff_max_reached = None
+        if temp_emitter_max is not None:
+            t_events = temp_diff_emitter_rm_results.t_events[0]
+            if len(t_events) > 0:
+                time_temp_diff_max_reached = temp_diff_emitter_rm_results.t_events[0][-1]
+
+        # Get emitter temp at end of timestep
         temp_diff_emitter_rm_final = temp_diff_emitter_rm_results.y[0][-1]
-        return temp_rm + temp_diff_emitter_rm_final
+        temp_emitter = temp_rm + temp_diff_emitter_rm_final
+        return temp_emitter, time_temp_diff_max_reached
 
-    def __energy_required_from_heat_source(self, energy_demand, timestep, temp_rm_prev):
+    def __energy_required_from_heat_source(
+            self,
+            energy_demand,
+            timestep,
+            temp_rm_prev,
+            temp_emitter_max,
+            ):
         # When there is some demand, calculate max. emitter temperature
         # achievable and emitter temperature required, and base calculation
         # on the lower of the two.
@@ -224,22 +274,75 @@ class Emitters:
         #        heating services which in reality would be running at the same
         #        time.
 
-        # Calculate emitter and flow temperature required
+        # Calculate emitter temperature required
         power_emitter_req = energy_demand / timestep
-        # TODO Apply upper limit to emitter temperature (or is this dealt
-        #      with in HP/boiler module?)
         temp_emitter_req = self.temp_emitter_req(power_emitter_req, temp_rm_prev)
-        temp_flow_req, _ = self.temp_flow_return()
 
-        # Calculate energy input required
+        # Calculate extra energy required for emitters to reach temp required
         energy_req_to_warm_emitters \
             = self.__thermal_mass * (temp_emitter_req - self.__temp_emitter_prev)
-        energy_req_from_heat_source = max(energy_req_to_warm_emitters + energy_demand,0.0)
+        # Calculate energy input required to meet energy demand
+        energy_req_from_heat_source = max(energy_req_to_warm_emitters + energy_demand, 0.0)
 
-        # Calculate target flow and return temperature
-        temp_flow_target, temp_return_target = self.temp_flow_return()
+        # === Limit energy to account for maximum emitter temperature ===
 
-        return energy_req_from_heat_source, temp_flow_target, temp_return_target
+        if self.__temp_emitter_prev > temp_emitter_max:
+            # If emitters are already above max. temp for this timestep,
+            # then heat source should provide no energy until emitter temp
+            # falls to maximum
+            energy_provided_by_heat_source_max_min = 0.0
+        else:
+            # If emitters are below max. temp for this timestep, then max energy
+            # required from heat source will depend on maximum warm-up rate,
+            # which depends on the maximum energy output from the heat source
+            energy_provided_by_heat_source_max_min = self.__heat_source.energy_output_max(
+                temp_emitter_max,
+                )
+
+        # Calculate time to reach max. emitter temp at max heat source output
+        power_output_max_min  = energy_provided_by_heat_source_max_min / timestep
+        temp_emitter, time_temp_emitter_max_reached = self.temp_emitter(
+            0.0,
+            timestep,
+            self.__temp_emitter_prev,
+            temp_rm_prev,
+            power_output_max_min,
+            temp_emitter_max,
+            )
+        if time_temp_emitter_max_reached is None:
+            time_in_warmup_cooldown_phase = timestep
+            temp_emitter_max_reached = False
+        else:
+            time_in_warmup_cooldown_phase = time_temp_emitter_max_reached
+            temp_emitter_max_reached = True
+
+        # Before this time, energy output from heat source is maximum
+        energy_req_from_heat_source_before_temp_emitter_max_reached \
+            = power_output_max_min * time_in_warmup_cooldown_phase
+
+        # After this time, energy output is amount needed to maintain
+        # emitter temp (based on emitter output at constant emitter temp)
+        energy_req_from_heat_source_after_temp_emitter_max_reached \
+            = self.power_output_emitter(temp_emitter, temp_rm_prev) \
+            * (timestep - time_in_warmup_cooldown_phase)
+
+        # Total energy input req from heat source is therefore sum of energy
+        # output required before and after max emitter temp reached
+        energy_req_from_heat_source_max \
+            = energy_req_from_heat_source_before_temp_emitter_max_reached \
+            + energy_req_from_heat_source_after_temp_emitter_max_reached
+
+        if temp_emitter_max_reached and temp_emitter_req > temp_emitter_max:
+            temp_emitter_max_is_final_temp = True
+        else:
+            temp_emitter_max_is_final_temp = False
+
+        # Total energy input req from heat source is therefore lower of:
+        # - energy output required to meet space heating demand
+        # - energy output when emitters reach maximum temperature
+        return \
+            min(energy_req_from_heat_source, energy_req_from_heat_source_max), \
+            temp_emitter_max_is_final_temp
 
     def demand_energy(self, energy_demand):
         """ Demand energy from emitters and calculate how much energy can be provided
@@ -250,13 +353,23 @@ class Emitters:
         timestep = self.__simtime.timestep()
         temp_rm_prev = self.__zone.temp_internal_air()
 
+        # Calculate target flow and return temperature
+        temp_flow_target, temp_return_target = self.temp_flow_return()
+        temp_emitter_max = (temp_flow_target + temp_return_target) / 2.0
+
         if energy_demand <= 0:
             # Emitters cooling down or at steady-state with heating off
             energy_provided_by_heat_source = 0.0
+            temp_emitter_max_is_final_temp = False
         else:
             # Emitters warming up or cooling down to a target temperature
-            energy_req_from_heat_source, temp_flow_target, temp_return_target \
-                = self.__energy_required_from_heat_source(energy_demand, timestep, temp_rm_prev)
+            energy_req_from_heat_source, temp_emitter_max_is_final_temp \
+                = self.__energy_required_from_heat_source(
+                    energy_demand,
+                    timestep,
+                    temp_rm_prev,
+                    temp_emitter_max,
+                    )
             # Get energy output of heat source (i.e. energy input to emitters)
             # TODO Instead of passing temp_flow_req into heating system module,
             #      calculate average flow temp achieved across timestep?
@@ -266,17 +379,23 @@ class Emitters:
                 temp_return_target,
                 )
 
-        # Calculate emitter temperature and output achieved at end of timestep.
+        # Calculate emitter temperature achieved at end of timestep.
+        # Do not allow emitter temp to rise above maximum
         # Do not allow emitter temp to fall below room temp
-        power_provided_by_heat_source = energy_provided_by_heat_source / timestep
-        temp_emitter = self.temp_emitter(
-            0.0,
-            timestep,
-            self.__temp_emitter_prev,
-            temp_rm_prev,
-            power_provided_by_heat_source,
-            )
+        if temp_emitter_max_is_final_temp:
+            temp_emitter = temp_emitter_max
+        else:
+            power_provided_by_heat_source = energy_provided_by_heat_source / timestep
+            temp_emitter, _ = self.temp_emitter(
+                0.0,
+                timestep,
+                self.__temp_emitter_prev,
+                temp_rm_prev,
+                power_provided_by_heat_source,
+                )
         temp_emitter = max(temp_emitter, temp_rm_prev)
+
+        # Calculate emitter output achieved at end of timestep.
         energy_released_from_emitters \
             = energy_provided_by_heat_source \
             + self.__thermal_mass * (self.__temp_emitter_prev - temp_emitter)
@@ -301,14 +420,23 @@ class Emitters:
         timestep = self.__simtime.timestep()
         temp_rm_prev = self.__zone.temp_internal_air()
 
+        # Calculate target flow and return temperature
+        temp_flow_target, temp_return_target = self.temp_flow_return()
+        temp_emitter_max = (temp_flow_target + temp_return_target) / 2.0
+
         if energy_demand <= 0:
             # Emitters cooling down or at steady-state with heating off
             # In this case, running time is 0.0 and throughput factor is 1.0
             return 0.0, 1.0
         else:
             # Emitters warming up or cooling down to a target temperature
-            energy_req_from_heat_source, temp_flow_target, temp_return_target \
-                = self.__energy_required_from_heat_source(energy_demand, timestep, temp_rm_prev)
+            energy_req_from_heat_source, _ \
+                = self.__energy_required_from_heat_source(
+                    energy_demand,
+                    timestep,
+                    temp_rm_prev,
+                    temp_emitter_max,
+                    )
             return self.__heat_source.running_time_throughput_factor(
                 space_heat_running_time_cumulative,
                 energy_req_from_heat_source,
