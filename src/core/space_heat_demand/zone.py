@@ -367,11 +367,10 @@ class Zone:
             hb_gains_heat_cool = f_hc_c * gains_heat_cool
             hb_energy_to_change_temp = -(self.__c_int / delta_t)*(temp_internal-temp_prev[self.__zone_idx])
             hb_loss_thermal_bridges = self.__tb_heat_trans_coeff*(temp_internal-temp_ext_air)
-            hb_loss_ventilation = 0 #sum([vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply()) for vei in self.__vent_elements])
+            hb_loss_ventilation = 0
             hb_loss_infiltration = 0
             for vei in self.__vent_elements:
                 if type(vei) in (VentilationElementInfiltration,):
-                    #vei.infiltration() #if the infiltration function exists in the class, then it is the infiltration object
                     hb_loss_infiltration += vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply())
                 elif type(vei) in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation, NaturalVentilation, WindowOpeningForCooling):
                     hb_loss_ventilation += vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply())
@@ -438,46 +437,23 @@ class Zone:
                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir)
                 hb_fabric_ext_sky += eli.area * (- eli.therm_rad_to_sky)
                 #fabric heat loss per building type
+                hb_fabric_ext = eli.area \
+                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
+                     + eli.area \
+                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
+                     + eli.area \
+                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
+                     + eli.area * (- eli.therm_rad_to_sky)
                 if type(eli) in (BuildingElementOpaque,):
-                    hb_fabric_ext_opaque += eli.area \
-                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
-                     + eli.area \
-                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
-                     + eli.area \
-                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
-                     + eli.area * (- eli.therm_rad_to_sky)
+                    hb_fabric_ext_opaque += hb_fabric_ext
                 elif type(eli) in (BuildingElementTransparent,):
-                    hb_fabric_ext_transparent += eli.area \
-                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
-                     + eli.area \
-                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
-                     + eli.area \
-                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
-                     + eli.area * (- eli.therm_rad_to_sky)
+                    hb_fabric_ext_transparent += hb_fabric_ext
                 elif type(eli) in (BuildingElementGround,):
-                    hb_fabric_ext_ground += eli.area \
-                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
-                     + eli.area \
-                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
-                     + eli.area \
-                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
-                     + eli.area * (- eli.therm_rad_to_sky)
+                    hb_fabric_ext_ground += hb_fabric_ext
                 elif type(eli) in (BuildingElementAdjacentZTC,):
-                    hb_fabric_ext_ZTC += eli.area \
-                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
-                     + eli.area \
-                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
-                     + eli.area \
-                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
-                     + eli.area * (- eli.therm_rad_to_sky)
+                    hb_fabric_ext_ZTC += hb_fabric_ext
                 elif type(eli) in (BuildingElementAdjacentZTU_Simple,):
-                    hb_fabric_ext_ZTU += eli.area \
-                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
-                     + eli.area \
-                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
-                     + eli.area \
-                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
-                     + eli.area * (- eli.therm_rad_to_sky)
+                    hb_fabric_ext_ZTU += hb_fabric_ext
             heat_balance_dict['external_boundary'] = {
                 'solar gains': gains_solar,
                 'internal gains': gains_internal,
