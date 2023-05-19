@@ -436,7 +436,7 @@ class Zone:
                 hb_fabric_ext_sol += eli.area \
                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir)
                 hb_fabric_ext_sky += eli.area * (- eli.therm_rad_to_sky)
-                #fabric heat loss per building type
+                #fabric heat loss per building element type
                 hb_fabric_ext = eli.area \
                      * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
                      + eli.area \
