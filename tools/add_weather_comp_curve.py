@@ -16,8 +16,7 @@ for f in sys.argv[1:]:
         "ecodesign_control_class": 2,
         "min_outdoor_temp": -4,
         "max_outdoor_temp": 20,
-        "min_flow_temp": 30,
-        "max_flow_temp": 55}
+        "min_flow_temp": 30}
 
     for sh_system in inp_dict['SpaceHeatSystem'].values():
         if sh_system['type'] == 'WetDistribution':
