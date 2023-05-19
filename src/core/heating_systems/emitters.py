@@ -71,7 +71,7 @@ class Emitters:
             self.__min_outdoor_temp = ecodesign_controller['min_outdoor_temp']
             self.__max_outdoor_temp = ecodesign_controller['max_outdoor_temp']
             self.__min_flow_temp = ecodesign_controller['min_flow_temp']
-            self.__max_flow_temp = ecodesign_controller['max_flow_temp']
+            self.__max_flow_temp = self.__design_flow_temp
         
         # Set initial values
         self.__temp_emitter_prev = 20.0
@@ -102,15 +102,10 @@ class Emitters:
             
             # use weather temperature at the timestep
             outside_temp = self.__external_conditions.air_temp()
-            # weather compensation properties could be an input
-            # setting max flow temp as the design flow temperature
-            min_outdoor_temp = self.__min_outdoor_temp
-            max_outdoor_temp = self.__max_outdoor_temp 
-            min_flow_temp = self.__min_flow_temp
-            max_flow_temp = self.__max_flow_temp
 
-            outdoor_temp_limits = [min_outdoor_temp, max_outdoor_temp]
-            flow_temp_limits = [min_flow_temp, max_flow_temp]
+            # set outdoor and flow temp limits for weather compensation curve
+            outdoor_temp_limits = [self.__min_outdoor_temp, self.__max_outdoor_temp ]
+            flow_temp_limits = [self.__min_flow_temp, self.__max_flow_temp]
 
             # Uses numpy interp
             flow_temp = interp(outside_temp, outdoor_temp_limits, flow_temp_limits)
