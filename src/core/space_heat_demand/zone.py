@@ -16,7 +16,11 @@ import numpy as np
 import core.units as units
 from core.space_heat_demand.ventilation_element import \
     MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation, \
-    VentilationElementInfiltration, NaturalVentilation
+    VentilationElementInfiltration, NaturalVentilation, \
+    WindowOpeningForCooling
+from core.space_heat_demand.building_element import \
+    BuildingElementAdjacentZTU_Simple, BuildingElementAdjacentZTC, \
+    BuildingElementGround, BuildingElementOpaque, BuildingElementTransparent
 
 # Convective fractions
 # (default values from BS EN ISO 52016-1:2017, Table B.11)
@@ -368,45 +372,111 @@ class Zone:
             hb_gains_solar = f_sol_c * gains_solar
             hb_gains_internal = f_int_c * gains_internal
             hb_gains_heat_cool = f_hc_c * gains_heat_cool
-            hb_energy_to_change_temp = (self.__c_int / delta_t)*(temp_internal-temp_prev[self.__zone_idx])
+            hb_energy_to_change_temp = -(self.__c_int / delta_t)*(temp_internal-temp_prev[self.__zone_idx])
             hb_loss_thermal_bridges = self.__tb_heat_trans_coeff*(temp_internal-temp_ext_air)
-            hb_loss_ventilation = sum([vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply()) for vei in self.__vent_elements])
+            hb_loss_ventilation = 0
+            hb_loss_infiltration = 0
+            for vei in self.__vent_elements:
+                if type(vei) in (VentilationElementInfiltration,):
+                    hb_loss_infiltration += vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply())
+                elif type(vei) in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation, NaturalVentilation, WindowOpeningForCooling):
+                    hb_loss_ventilation += vei.h_ve(self.__volume) * (temp_internal-vei.temp_supply())
+                else:
+                    sys.exit("Ventilation element not recognised.")
+            
             hb_loss_fabric = (hb_gains_solar+hb_gains_internal+hb_gains_heat_cool+hb_energy_to_change_temp)\
-                            -(hb_loss_thermal_bridges+hb_loss_ventilation)
+                            -(hb_loss_thermal_bridges+hb_loss_ventilation+hb_loss_infiltration)
             heat_balance_dict['air_node'] = {
                 'solar gains' : hb_gains_solar,
                 'internal gains' : hb_gains_internal,
                 'heating or cooling system gains' : hb_gains_heat_cool,
                 'energy to change internal temperature' : hb_energy_to_change_temp,
                 'heat loss through thermal bridges' : hb_loss_thermal_bridges,
+                'heat loss through infiltration' : hb_loss_infiltration,
                 'heat loss through ventilation' : hb_loss_ventilation,
                 'fabric heat loss' : hb_loss_fabric
                                 }
 
+            # Collect outputs, in W, for heat balance at internal fabric boundary
+            fabric_int_sol = (1.0 - f_sol_c) * gains_solar
+            fabric_int_int_gains = (1.0 - f_int_c) * gains_internal
+            fabric_int_heat_cool = (1.0 - f_hc_c) * gains_heat_cool
+            
+            fabric_int_air_convective = 0.0
+            
+            for eli in self.__building_elements:
+                idx = self.__element_positions[eli][1]
+                temp_int_surface = vector_x[idx]
+                air_node_temp = vector_x[self.__zone_idx]
+                
+                fabric_int_air_convective += eli.area \
+                     * ( (eli.h_ci(temp_prev[self.__zone_idx], temp_prev[self.__element_positions[eli][1]])) * (air_node_temp - temp_int_surface))
+               
+            heat_balance_dict['internal_boundary'] = {
+                'fabric_int_air_convective': fabric_int_air_convective,
+                'fabric_int_sol': fabric_int_sol,
+                'fabric_int_int_gains': fabric_int_int_gains,
+                'fabric_int_heat_cool':fabric_int_heat_cool,
+                }
+
             # Collect outputs, in W, for heat balance at external boundary
-            hb_fabric_ext_air = 0.0
+            hb_fabric_ext_air_convective = 0.0
+            hb_fabric_ext_air_radiative = 0.0
             hb_fabric_ext_sol = 0.0
             hb_fabric_ext_sky = 0.0
+            hb_fabric_ext_opaque = 0.0
+            hb_fabric_ext_transparent = 0.0
+            hb_fabric_ext_ground = 0.0
+            hb_fabric_ext_ZTC = 0.0
+            hb_fabric_ext_ZTU = 0.0
+            
             for eli in self.__building_elements:
                 # Get position in vector for the first (external) node of the building element
                 idx = self.__element_positions[eli][0]
                 temp_ext_surface = vector_x[idx]
                 i_sol_dir, i_sol_dif = eli.i_sol_dir_dif()
                 f_sh_dir, f_sh_dif = eli.shading_factors_direct_diffuse()
-                hb_fabric_ext_air += eli.area \
-                     * ( (eli.h_ce() + eli.h_re()) * (eli.temp_ext() - temp_ext_surface))
+                hb_fabric_ext_air_convective += eli.area \
+                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface))
+                hb_fabric_ext_air_radiative += eli.area \
+                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface)
                 hb_fabric_ext_sol += eli.area \
                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir)
                 hb_fabric_ext_sky += eli.area * (- eli.therm_rad_to_sky)
+                #fabric heat loss per building element type
+                hb_fabric_ext = eli.area \
+                     * ( (eli.h_ce()) * (eli.temp_ext() - temp_ext_surface)) \
+                     + eli.area \
+                     * (eli.h_re()) * (eli.temp_ext() - temp_ext_surface) \
+                     + eli.area \
+                     * eli.a_sol * (i_sol_dif * f_sh_dif + i_sol_dir * f_sh_dir) \
+                     + eli.area * (- eli.therm_rad_to_sky)
+                if type(eli) in (BuildingElementOpaque,):
+                    hb_fabric_ext_opaque += hb_fabric_ext
+                elif type(eli) in (BuildingElementTransparent,):
+                    hb_fabric_ext_transparent += hb_fabric_ext
+                elif type(eli) in (BuildingElementGround,):
+                    hb_fabric_ext_ground += hb_fabric_ext
+                elif type(eli) in (BuildingElementAdjacentZTC,):
+                    hb_fabric_ext_ZTC += hb_fabric_ext
+                elif type(eli) in (BuildingElementAdjacentZTU_Simple,):
+                    hb_fabric_ext_ZTU += hb_fabric_ext
             heat_balance_dict['external_boundary'] = {
                 'solar gains': gains_solar,
                 'internal gains': gains_internal,
                 'heating or cooling system gains': gains_heat_cool,
                 'thermal_bridges': - hb_loss_thermal_bridges,
                 'ventilation': - hb_loss_ventilation,
-                'fabric_ext_air': hb_fabric_ext_air,
+                'infiltration': - hb_loss_infiltration,
+                'fabric_ext_air_convective': hb_fabric_ext_air_convective,
+                'fabric_ext_air_radiative': hb_fabric_ext_air_radiative,
                 'fabric_ext_sol': hb_fabric_ext_sol,
                 'fabric_ext_sky': hb_fabric_ext_sky,
+                'opaque_fabric_ext': hb_fabric_ext_opaque,
+                'transparent_fabric_ext': hb_fabric_ext_transparent,
+                'ground_fabric_ext': hb_fabric_ext_ground,
+                'ZTC_fabric_ext': hb_fabric_ext_ZTC,
+                'ZTU_fabric_ext': hb_fabric_ext_ZTU,
                 }
         else:
             heat_balance_dict = None

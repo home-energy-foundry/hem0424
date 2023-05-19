@@ -1695,7 +1695,7 @@ class Project:
         hot_water_no_events_dict = {}
         hot_water_pipework_dict = {}
         ductwork_gains_dict = {}
-        heat_balance_all_dict = {'air_node': {}, 'external_boundary': {}}
+        heat_balance_all_dict = {'air_node': {}, 'internal_boundary': {},'external_boundary': {}}
 
         for z_name in self.__zones.keys():
             gains_internal_dict[z_name] = []
