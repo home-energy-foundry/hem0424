@@ -28,7 +28,7 @@ class Emitters:
             heat_source,
             zone,
             ext_cond,
-            control_class,
+            ecodesign_controller,
             design_flow_temp,
             simulation_time
             ):
@@ -62,8 +62,16 @@ class Emitters:
         self.__simtime = simulation_time
         self.__external_conditions = ext_cond
 
-        self.__ecodesign_control_class = Ecodesign_control_class.from_num(control_class)
         self.__design_flow_temp = design_flow_temp
+        self.__ecodesign_control_class = Ecodesign_control_class.from_num(ecodesign_controller['ecodesign_control_class'])
+        if self.__ecodesign_control_class == Ecodesign_control_class.class_II \
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_III \
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_VI \
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_VII:
+            self.__min_outdoor_temp = ecodesign_controller['min_outdoor_temp']
+            self.__max_outdoor_temp = ecodesign_controller['max_outdoor_temp']
+            self.__min_flow_temp = ecodesign_controller['min_flow_temp']
+            self.__max_flow_temp = self.__design_flow_temp
         
         # Set initial values
         self.__temp_emitter_prev = 20.0
@@ -79,8 +87,7 @@ class Emitters:
         if self.__ecodesign_control_class == Ecodesign_control_class.class_II \
             or self.__ecodesign_control_class == Ecodesign_control_class.class_III \
             or self.__ecodesign_control_class == Ecodesign_control_class.class_VI \
-            or self.__ecodesign_control_class == Ecodesign_control_class.class_VII \
-            or self.__ecodesign_control_class == Ecodesign_control_class.class_VIII:
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_VII :
             # A heater flow temperature control that varies the flow temperature of 
             # water leaving the heat dependant upon prevailing outside temperature 
             # and selected weather compensation curve.
@@ -95,20 +102,18 @@ class Emitters:
             
             # use weather temperature at the timestep
             outside_temp = self.__external_conditions.air_temp()
-            # weather compensation properties could be an input
-            # setting max flow temp as the design flow temperature
-            min_outdoor_temp = -4.0 
-            max_outdoor_temp = 20.0 
-            min_flow_temp = 30.0 
 
-            outdoor_temp_limits = [min_outdoor_temp, max_outdoor_temp]
-            flow_temp_limits = [min_flow_temp, self.__design_flow_temp]
+            # set outdoor and flow temp limits for weather compensation curve
+            outdoor_temp_limits = [self.__min_outdoor_temp, self.__max_outdoor_temp ]
+            flow_temp_limits = [self.__min_flow_temp, self.__max_flow_temp]
 
             # Uses numpy interp
             flow_temp = interp(outside_temp, outdoor_temp_limits, flow_temp_limits)
 
         elif self.__ecodesign_control_class == Ecodesign_control_class.class_I \
-            or self.__ecodesign_control_class == Ecodesign_control_class.class_IV :
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_IV \
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_V \
+            or self.__ecodesign_control_class == Ecodesign_control_class.class_VIII :
             flow_temp = self.__design_flow_temp
 
         else:
