@@ -820,7 +820,7 @@ class Project:
                     heat_source = heat_source_wet.create_service_hot_water(
                         data['name'] + '_water_heating',
                         temp_setpoint,
-                        50, # TODO Remove hard-coding of return temp
+                        55, # TODO Remove hard-coding of return temp
                         data['temp_flow_limit_upper'],
                         cold_water_source,
                         ctrl,
@@ -831,7 +831,7 @@ class Project:
                         data['name'] + '_water_heating',
                         temp_setpoint,
                         cold_water_source,
-                        data['temp_return'],
+                        55, # TODO Remove hard-coding of return temp
                         ctrl,
                         )
                 elif isinstance(heat_source_wet, HeatNetwork):
@@ -839,7 +839,7 @@ class Project:
                     heat_source = heat_source_wet.create_service_hot_water(
                         data['name'] + '_water_heating',
                         temp_setpoint,
-                        50, # TODO Remove hard-coding of return temp
+                        55, # TODO Remove hard-coding of return temp
                         data['temp_flow_limit_upper'],
                         cold_water_source,
                         ctrl,
@@ -850,7 +850,7 @@ class Project:
                         data['name'] + '_water_heating',
                         temp_setpoint,
                         cold_water_source,
-                        data['temp_return'],
+                        55, # TODO Remove hard-coding of return temp
                         ctrl,
                         )
                 else:
