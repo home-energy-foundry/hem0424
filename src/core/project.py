@@ -764,7 +764,7 @@ class Project:
             for name, data in proj_dict['HeatSourceWet'].items():
                 self.__heat_sources_wet[name] = dict_to_heat_source_wet(name, data)
 
-        def dict_to_heat_source(name, data):
+        def dict_to_heat_source(name, data, temp_setpoint):
             """ Parse dictionary of heat source data and return approprate heat source object """
             if 'Control' in data.keys():
                 ctrl = self.__controls[data['Control']]
@@ -819,8 +819,8 @@ class Project:
                 if isinstance(heat_source_wet, HeatPump):
                     heat_source = heat_source_wet.create_service_hot_water(
                         data['name'] + '_water_heating',
-                        55, # TODO Remove hard-coding of HW temp
-                        50, # TODO Remove hard-coding of return temp
+                        temp_setpoint,
+                        55, # TODO Remove hard-coding of return temp
                         data['temp_flow_limit_upper'],
                         cold_water_source,
                         ctrl,
@@ -829,17 +829,17 @@ class Project:
                     heat_source = heat_source_wet.create_service_hot_water_regular(
                         data,
                         data['name'] + '_water_heating',
-                        55, # TODO Remove hard-coding of HW temp
+                        temp_setpoint,
                         cold_water_source,
-                        data['temp_return'],
+                        55, # TODO Remove hard-coding of return temp
                         ctrl,
                         )
                 elif isinstance(heat_source_wet, HeatNetwork):
                     # Add heat network hot water service for feeding hot water cylinder
                     heat_source = heat_source_wet.create_service_hot_water(
                         data['name'] + '_water_heating',
-                        55, # TODO Remove hard-coding of HW temp
-                        50, # TODO Remove hard-coding of return temp
+                        temp_setpoint,
+                        55, # TODO Remove hard-coding of return temp
                         data['temp_flow_limit_upper'],
                         cold_water_source,
                         ctrl,
@@ -848,9 +848,9 @@ class Project:
                     heat_source = heat_source_wet.create_service_hot_water_regular(
                         data,
                         data['name'] + '_water_heating',
-                        55, # TODO Remove hard-coding of HW temp
+                        temp_setpoint,
                         cold_water_source,
-                        data['temp_return'],
+                        55, # TODO Remove hard-coding of return temp
                         ctrl,
                         )
                 else:
@@ -897,7 +897,11 @@ class Project:
 
                 heat_source_dict= {}
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
-                    heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
+                    heat_source = dict_to_heat_source(
+                        heat_source_name,
+                        heat_source_data,
+                        data['setpoint_temp'],
+                        )
                     heat_source_dict[heat_source] = heat_source_data['heater_position'], \
                                                     heat_source_data['thermostat_position']
 
@@ -906,7 +910,6 @@ class Project:
                     data['daily_losses'],
                     data['min_temp'],
                     data['setpoint_temp'],
-                    55.0, # TODO Remove hard-coding of hot water temp
                     cold_water_source,
                     self.__simtime,
                     heat_source_dict,
@@ -928,7 +931,7 @@ class Project:
                 hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_combi(
                     data,
                     data['HeatSourceWet'] + '_water_heating',
-                    55, # TODO Remove hard-coding of HW temp
+                    60, # TODO Remove hard-coding of HW temp
                     cold_water_source
                     )
             elif hw_source_type == 'PointOfUse':
@@ -948,7 +951,7 @@ class Project:
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
                 hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_direct(
                     data['HeatSourceWet'] + '_water_heating',
-                    55, # TODO Remove hard-coding of HW temp
+                    60, # TODO Remove hard-coding of HW temp
                     cold_water_source,
                     data['HIU_daily_loss']
                     )
