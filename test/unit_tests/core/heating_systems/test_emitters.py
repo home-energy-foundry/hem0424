@@ -85,7 +85,13 @@ class TestEmitters(unittest.TestCase):
             self.shading_segments
             )
         
-        self.emitters = Emitters(0.14, 0.08, 1.2, 10.0, 0.4, heat_source, zone, ext_cond, 2, 55.0, self.simtime)
+        ecodesign_controller = {
+                "ecodesign_control_class": 2,
+                "min_outdoor_temp": -4,
+                "max_outdoor_temp": 20,
+                "min_flow_temp": 30}
+
+        self.emitters = Emitters(0.14, 0.08, 1.2, 10.0, 0.4, heat_source, zone, ext_cond, ecodesign_controller, 55.0, self.simtime)
 
     def test_demand_energy(self):
         """ Test that Emitter object returns correct energy supplied """
@@ -98,15 +104,15 @@ class TestEmitters(unittest.TestCase):
                 energy_demand -= energy_provided
                 self.assertEqual(
                     energy_provided,
-                    [0.26481930394248643, 0.8298460545452833, 1.301166517644123, 1.561584597997277,
-                     1.3663790053799807, 0.9752088626903335, 0.7086536127948441, 0.5233452308830262]
+                    [0.34897521144655874, 0.3837234398345157, 0.3837234398345157, 0.3837234398345157,
+                     0.4788200381574288, 0.48053985548703587, 0.48053985548703587, 0.48053985548703587]
                     [t_idx],
                     'incorrect energy provided by emitters',
                     )
                 self.assertEqual(
                     self.emitters._Emitters__temp_emitter_prev,
-                    [35.96557640041081, 47.89524743937307, 56.45834374191505, 58.92751500769138,
-                     49.16766496926295, 42.20188737861771, 37.14007585865454, 33.4018956380615]
+                    [31.726190476190474, 31.726190476190474, 31.726190476190474, 31.726190476190474,
+                     34.14434523809524, 34.14434523809524, 34.14434523809524, 34.14434523809524]
                     [t_idx],
                     'incorrect emitter temperature calculated'
                     )
