@@ -931,7 +931,7 @@ class Project:
                 hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_combi(
                     data,
                     data['HeatSourceWet'] + '_water_heating',
-                    55, # TODO Remove hard-coding of HW temp
+                    60, # TODO Remove hard-coding of HW temp
                     cold_water_source
                     )
             elif hw_source_type == 'PointOfUse':
@@ -951,7 +951,7 @@ class Project:
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
                 hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_direct(
                     data['HeatSourceWet'] + '_water_heating',
-                    55, # TODO Remove hard-coding of HW temp
+                    60, # TODO Remove hard-coding of HW temp
                     cold_water_source,
                     data['HIU_daily_loss']
                     )
