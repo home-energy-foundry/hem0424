@@ -55,7 +55,6 @@ class StorageTank:
             losses,
             min_temp,
             setpoint_temp,
-            temp_hot,
             cold_feed,
             simulation_time,
             heat_source_dict,
@@ -71,7 +70,6 @@ class StorageTank:
                                 at standardised conditions, in kWh/24h
         min_temp             -- minimum temperature required for DHW
         setpoint_temp        -- set point temperature
-        temp_hot             -- temperature of the hot water, in deg C
         cold_feed            -- reference to ColdWaterSource object
         simulation_time      -- reference to SimulationTime object
         heat_source_dict     -- dict where keys are heat source objects and
@@ -87,7 +85,6 @@ class StorageTank:
         self.__Q_std_ls_ref   = losses
         self.__temp_out_W_min = min_temp
         self.__temp_set_on    = setpoint_temp
-        self.__temp_hot       = temp_hot
         self.__cold_feed      = cold_feed
         self.__contents       = contents
         self.__energy_supply_conn_unmet_demand = energy_supply_conn_unmet_demand
@@ -683,18 +680,18 @@ class StorageTank:
             primary_pipework_losses_kWh = 0.0
             #TODO multiple heat source for primary pipework
             if input_energy_adj > 0.0 and self.__input_energy_adj_prev_timestep == 0.0:
-                primary_pipework_losses_kWh += self.__primary_pipework.cool_down_loss(self.__temp_hot, self.__temp_amb)
+                primary_pipework_losses_kWh += self.__primary_pipework.cool_down_loss(self.__temp_set_on, self.__temp_amb)
                 input_energy_adj += primary_pipework_losses_kWh
 
             if input_energy_adj > 0.0:
                 # primary losses for the timestep calculated from  temperature difference
-                primary_pipework_losses = self.__primary_pipework.heat_loss(self.__temp_hot, self.__temp_amb)
+                primary_pipework_losses = self.__primary_pipework.heat_loss(self.__temp_set_on, self.__temp_amb)
                 self.__primary_gains = primary_pipework_losses
                 primary_pipework_losses_kWh += primary_pipework_losses * self.__simulation_time.timestep() / units.W_per_kW
                 input_energy_adj += primary_pipework_losses_kWh
     
             if input_energy_adj == 0.0 and self.__input_energy_adj_prev_timestep > 0.0:
-                self.__primary_gains += self.__primary_pipework.cool_down_loss(self.__temp_hot, self.__temp_amb)
+                self.__primary_gains += self.__primary_pipework.cool_down_loss(self.__temp_set_on, self.__temp_amb)
             heat_source_output = heat_source.demand_energy(input_energy_adj) - primary_pipework_losses_kWh
             # Save input energy for next timestep
             self.__input_energy_adj_prev_timestep = input_energy_adj

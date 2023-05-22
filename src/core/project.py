@@ -906,7 +906,6 @@ class Project:
                     data['daily_losses'],
                     data['min_temp'],
                     data['setpoint_temp'],
-                    55.0, # TODO Remove hard-coding of hot water temp
                     cold_water_source,
                     self.__simtime,
                     heat_source_dict,

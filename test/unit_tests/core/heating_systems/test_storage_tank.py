@@ -38,7 +38,7 @@ class Test_StorageTank(unittest.TestCase):
         energysupplyconn = self.energysupply.connection("immersion")
         imheater         = ImmersionHeater(50.0, energysupplyconn, self.simtime, control)
         heat_source_dict = {imheater: (0.1, 0.33)}
-        self.storagetank = StorageTank(150.0, 1.68, 52.0, 55.0, 55.0, coldfeed, self.simtime, heat_source_dict)
+        self.storagetank = StorageTank(150.0, 1.68, 52.0, 55.0, coldfeed, self.simtime, heat_source_dict)
 
     def test_demand_hot_water(self):
         for t_idx, _, _ in self.simtime:
