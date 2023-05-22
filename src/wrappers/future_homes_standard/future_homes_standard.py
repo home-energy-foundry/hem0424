@@ -52,7 +52,7 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     for hwsource in project_dict["HotWaterSource"]:
         if project_dict["HotWaterSource"][hwsource]["type"] == "StorageTank":
             project_dict["HotWaterSource"][hwsource]["min_temp"] = 52.0
-            project_dict["HotWaterSource"][hwsource]["setpoint_temp"] = 55.0
+            project_dict["HotWaterSource"][hwsource]["setpoint_temp"] = 60.0
         
     cold_water_feed_temps = create_cold_water_feed_temps(project_dict)
     create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed_temps)
