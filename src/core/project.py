@@ -764,7 +764,7 @@ class Project:
             for name, data in proj_dict['HeatSourceWet'].items():
                 self.__heat_sources_wet[name] = dict_to_heat_source_wet(name, data)
 
-        def dict_to_heat_source(name, data):
+        def dict_to_heat_source(name, data, temp_setpoint):
             """ Parse dictionary of heat source data and return approprate heat source object """
             if 'Control' in data.keys():
                 ctrl = self.__controls[data['Control']]
@@ -819,7 +819,7 @@ class Project:
                 if isinstance(heat_source_wet, HeatPump):
                     heat_source = heat_source_wet.create_service_hot_water(
                         data['name'] + '_water_heating',
-                        55, # TODO Remove hard-coding of HW temp
+                        temp_setpoint,
                         50, # TODO Remove hard-coding of return temp
                         data['temp_flow_limit_upper'],
                         cold_water_source,
@@ -829,7 +829,7 @@ class Project:
                     heat_source = heat_source_wet.create_service_hot_water_regular(
                         data,
                         data['name'] + '_water_heating',
-                        55, # TODO Remove hard-coding of HW temp
+                        temp_setpoint,
                         cold_water_source,
                         data['temp_return'],
                         ctrl,
@@ -838,7 +838,7 @@ class Project:
                     # Add heat network hot water service for feeding hot water cylinder
                     heat_source = heat_source_wet.create_service_hot_water(
                         data['name'] + '_water_heating',
-                        55, # TODO Remove hard-coding of HW temp
+                        temp_setpoint,
                         50, # TODO Remove hard-coding of return temp
                         data['temp_flow_limit_upper'],
                         cold_water_source,
@@ -848,7 +848,7 @@ class Project:
                     heat_source = heat_source_wet.create_service_hot_water_regular(
                         data,
                         data['name'] + '_water_heating',
-                        55, # TODO Remove hard-coding of HW temp
+                        temp_setpoint,
                         cold_water_source,
                         data['temp_return'],
                         ctrl,
@@ -897,7 +897,11 @@ class Project:
 
                 heat_source_dict= {}
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
-                    heat_source = dict_to_heat_source(heat_source_name, heat_source_data)
+                    heat_source = dict_to_heat_source(
+                        heat_source_name,
+                        heat_source_data,
+                        data['setpoint_temp'],
+                        )
                     heat_source_dict[heat_source] = heat_source_data['heater_position'], \
                                                     heat_source_data['thermostat_position']
 
