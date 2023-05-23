@@ -135,7 +135,7 @@ class Emitters:
             T_rm is air temperature in the room/zone
             c and n are characteristic of the emitters (e.g. derived from BS EN 442 tests)
         """
-        return self.__c * (temp_emitter - temp_rm) ** self.__n
+        return self.__c * max(0, (temp_emitter - temp_rm)) ** self.__n
 
     def temp_emitter_req(self, power_emitter_req, temp_rm):
         """ Calculate emitter temperature that gives required power output at given room temp
