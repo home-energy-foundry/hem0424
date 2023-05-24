@@ -133,7 +133,7 @@ class HeatBatteryServiceSpace(HeatBatteryService):
         service_name -- name of the service demanding energy from the heat battery
         control      -- reference to a control object which must implement is_on() and setpnt() funcs
         """
-        super().__init__(heat_battery, service_name)
+        super().__init__(heat_battery, service_name, control)
         self.__service_name = service_name
         self.__control = control
 
@@ -142,6 +142,8 @@ class HeatBatteryServiceSpace(HeatBatteryService):
 
     def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the heat battery """
+        if not self.is_on():
+            return 0.0
 
         return self._heat_battery._HeatBattery__demand_energy(
             self.__service_name,
@@ -152,6 +154,9 @@ class HeatBatteryServiceSpace(HeatBatteryService):
 
     def energy_output_max(self, temp_output):
         """ Calculate the maximum energy output of the heat battery"""
+        if not self.is_on():
+            return 0.0
+
         return self._heat_battery._HeatBattery__energy_output_max(temp_output)
 
 class HeatBattery:
