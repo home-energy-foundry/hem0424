@@ -1159,6 +1159,8 @@ class HeatPump:
                 - "Substitute" -- when heat pump has insufficient capacity, backup
                                   heater will provide all the heat required, and
                                   heat pump will switch off
+            - time_delay_backup -- time after which the backup heater will activate
+                                   if demand has not been satisfied
             - modulating_control -- boolean specifying whether or not the heat
                                     has controls capable of varying the output
                                     (as opposed to just on/off control)
@@ -1214,11 +1216,14 @@ class HeatPump:
 
         self.__service_results = []
         self.__total_time_running_current_timestep = 0.0
+        self.__time_running_continuous = 0.0
 
         # Assign hp_dict elements to member variables of this class
         self.__source_type = SourceType.from_string(hp_dict['source_type'])
         self.__sink_type = SinkType.from_string(hp_dict['sink_type'])
         self.__backup_ctrl = BackupCtrlType.from_string(hp_dict['backup_ctrl_type'])
+        if self.__backup_ctrl != BackupCtrlType.NONE:
+            self.__time_delay_backup = float(hp_dict['time_delay_backup'])
         self.__modulating_ctrl = bool(hp_dict['modulating_control'])
         self.__time_constant_onoff_operation = float(hp_dict['time_constant_onoff_operation'])
         if self.__sink_type != SinkType.AIR:
@@ -1554,6 +1559,10 @@ class HeatPump:
         # If required output temp is below upper limit
             return energy_output_required
 
+    def __backup_heater_delay_time_elapsed(self):
+        """ Check if backup heater is available or still in delay period """
+        return self.__time_running_continuous >= self.__time_delay_backup
+
     def __run_demand_energy_calc(
             self,
             service_name,
@@ -1667,7 +1676,11 @@ class HeatPump:
         # TODO Consider moving some of these checks earlier or to HeatPumpService
         #      classes. May be able to skip a lot of the calculation.
         below_min_ext_temp = (temp_source <= self.__temp_lower_op_limit)
-        inadequate_capacity = (energy_output_required > thermal_capacity_op_cond * timestep)
+        if self.__backup_ctrl != BackupCtrlType.NONE \
+        and self.__backup_heater_delay_time_elapsed():
+            inadequate_capacity = (energy_output_required > thermal_capacity_op_cond * timestep)
+        else:
+            inadequate_capacity = False
         if self.__sink_type == SinkType.WATER:
             above_temp_return_feed_max = (temp_return_feed > self.__temp_return_feed_max)
         elif self.__sink_type == SinkType.AIR:
@@ -1724,7 +1737,9 @@ class HeatPump:
                 energy_input_HP_divisor = None
 
         # Calculate energy delivered by backup heater
-        if self.__backup_ctrl == BackupCtrlType.NONE or not service_on:
+        if self.__backup_ctrl == BackupCtrlType.NONE \
+        or not self.__backup_heater_delay_time_elapsed() \
+        or not service_on:
             energy_delivered_backup = 0.0
         elif self.__backup_ctrl == BackupCtrlType.TOPUP \
         or self.__backup_ctrl == BackupCtrlType.SUBSTITUTE:
@@ -1954,6 +1969,11 @@ class HeatPump:
         """ Calculations to be done at the end of each timestep """
         timestep = self.__simulation_time.timestep()
         time_remaining_current_timestep = timestep - self.__total_time_running_current_timestep
+
+        if time_remaining_current_timestep == 0.0:
+            self.__time_running_continuous += self.__total_time_running_current_timestep
+        else:
+            self.__time_running_continuous = 0.0
 
         self.__calc_ancillary_energy(timestep, time_remaining_current_timestep)
         self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
