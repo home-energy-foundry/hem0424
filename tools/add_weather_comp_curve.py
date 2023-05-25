@@ -13,13 +13,13 @@ for f in sys.argv[1:]:
         inp_dict = json.load(json_file)
 
     for sh_system in inp_dict['SpaceHeatSystem'].values():
-        ecodesign_dict = {
-            "ecodesign_control_class": sh_system['ecodesign_control_class'],
-            "min_outdoor_temp": -4,
-            "max_outdoor_temp": 20,
-            "min_flow_temp": 30}
-
         if sh_system['type'] == 'WetDistribution':
+            ecodesign_dict = {
+                "ecodesign_control_class": sh_system['ecodesign_control_class'],
+                "min_outdoor_temp": -4,
+                "max_outdoor_temp": 20,
+                "min_flow_temp": 30}
+
             sh_system['ecodesign_controller'] = ecodesign_dict
             ecodesign_dict_1 = sh_system['ecodesign_controller']
             del sh_system['ecodesign_control_class']
