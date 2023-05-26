@@ -1,5 +1,6 @@
 {
 	"PartGcompliance":true,
+	"NumberOfBedrooms": 2,
 	"HeatingControlType": "SeparateTempControl",
 	"WaterHeatSchedDefault": "AllDay",
 	"SimulationTime": {
