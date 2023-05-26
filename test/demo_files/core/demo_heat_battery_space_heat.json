@@ -97,6 +97,15 @@
                 "main": [{"value": true, "repeat": 24}]
 			}
 		},
+		"heat battery charge control": {
+			"type": "ToUChargeControl",
+			"start_day": 0,
+			"time_series_step": 1,
+			"target_charge": 1.0,
+			"schedule": {
+				"main": [true, false, false, {"value": true, "repeat": 21}]
+			}
+		},
 		"space heat timer": {
 			"type": "OnOffTimeControl",
 			"start_day": 0,
@@ -120,10 +129,14 @@
             "volume": 80.0,
             "daily_losses": 1.68,
             "ColdWaterSource": "mains water",
+            "setpoint_temp": 60.0,
+            "min_temp": 52.0,
             "HeatSource": {
                 "immersion": {
                     "type": "ImmersionHeater",
                     "power": 3.0,
+                    "heater_position": 0.0,
+                    "thermostat_position": 0.0,
                     "EnergySupply": "mains elec",
                     "Control": "hw timer"
                 }
@@ -188,6 +201,7 @@
 			"heat_storage_capacity": 80.0,
 			"max_rated_heat_output": 15.0,
 			"max_rated_losses": 0.22,
+			"ControlCharge": "heat battery charge control",
 			"number_of_units": 1
 		}
 	},

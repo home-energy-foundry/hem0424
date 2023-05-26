@@ -122,10 +122,14 @@
 			"volume": 80.0,
 			"daily_losses": 1.68,
 			"ColdWaterSource": "mains water",
+			"setpoint_temp": 60.0,
+			"min_temp": 52.0,
 			"HeatSource": {
 				"immersion": {
 					"type": "ImmersionHeater",
 					"power": 3.0,
+					"thermostat_position": 0.0,
+					"heater_position": 0.0,
 					"EnergySupply": "mains elec",
 					"Control": "hw timer"
 				}
@@ -202,6 +206,7 @@
 	"SpaceHeatSystem": {
 		"main": {
 			"type": "ElecStorageHeater",
+			"temp_charge_cut": 13.0,
 			"rated_power": 3.7,
 			"rated_power_instant": 1.5,
 			"air_flow_type": "fan-assisted",
