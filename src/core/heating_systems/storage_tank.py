@@ -670,7 +670,7 @@ class StorageTank:
 
     def __primary_pipework_losses(self, input_energy_adj):
         primary_pipework_losses_kWh = 0.0
-        primary_gains = 0.0
+        primary_gains_W = 0.0
         #TODO multiple heat source for primary pipework
 
         # Start of heating event
@@ -680,15 +680,19 @@ class StorageTank:
         # During heating event
         if input_energy_adj > 0.0:
             # primary losses for the timestep calculated from  temperature difference
-            primary_pipework_losses = self.__primary_pipework.heat_loss(self.__temp_set_on, self.__temp_amb)
-            primary_gains += primary_pipework_losses
-            primary_pipework_losses_kWh += primary_pipework_losses * self.__simulation_time.timestep() / units.W_per_kW
+            primary_pipework_losses_W \
+                = self.__primary_pipework.heat_loss(self.__temp_set_on, self.__temp_amb)
+            primary_gains_W += primary_pipework_losses_W
+            primary_pipework_losses_kWh \
+                += primary_pipework_losses_W * self.__simulation_time.timestep() / units.W_per_kW
 
         # End of heating event
         if input_energy_adj == 0.0 and self.__input_energy_adj_prev_timestep > 0.0:
-            primary_gains += self.__primary_pipework.cool_down_loss(self.__temp_set_on, self.__temp_amb)
+            primary_gains_W \
+                += self.__primary_pipework.cool_down_loss(self.__temp_set_on, self.__temp_amb) \
+                 * units.W_per_kW / self.__simulation_time.timestep()
 
-        return primary_pipework_losses_kWh, primary_gains
+        return primary_pipework_losses_kWh, primary_gains_W
 
     def heat_source_output(self, heat_source, input_energy_adj):
         # function that also calculates pipework loss before sending on the demand energy 
