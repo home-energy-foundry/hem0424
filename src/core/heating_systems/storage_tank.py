@@ -308,6 +308,12 @@ class StorageTank:
             else:
                 energy_potential = heat_source.energy_output_max()
 
+                # TODO Consolidate checks for systems with/without primary pipework
+                if type(heat_source) not in (ImmersionHeater,):
+                    primary_pipework_losses_kWh, _ \
+                        = self.__primary_pipework_losses(energy_potential)
+                    energy_potential -= primary_pipework_losses_kWh
+
         Q_x_in_n[heater_layer] += energy_potential
 
         return Q_x_in_n
