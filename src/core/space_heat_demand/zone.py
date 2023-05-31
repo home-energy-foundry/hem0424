@@ -148,13 +148,21 @@ class Zone:
         # BS EN ISO 52016-1:2017 Table B.11
         frac_convective = 0.4
 
-        # Set starting point for temperatures (self.__temp_prev) as average of
-        # external air temp and setpoint
+        # Set starting point for all node temperatures (elements of
+        # self.__temp_prev) as average of external air temp and setpoint. This
+        # is somewhat arbitrary, but of all options for a uniform initial
+        # temperature, this should lead to relatively fast stabilisation of
+        # fabric temperatures, which are expected to be close to the external
+        # air temperature towards the external surface nodes and close to the
+        # setpoint temperature towards the internal surface nodes, and therefore
+        # node temperatures on average should be close to the average of the
+        # external air and setpoint temperatures.
         temp_start = (temp_ext_air_init + temp_setpnt_init) / 2.0
         self.__temp_prev = np.array([temp_start] * self.__no_of_temps)
 
         # Iterate over space heating calculation and meet all space heating
-        # demand until temperatures stabilise
+        # demand until temperatures stabilise, under steady-state conditions
+        # using specified constant setpoint and external air temperatures.
         while True:
             space_heat_demand, space_cool_demand, _ = self.space_heat_cool_demand(
                 delta_t_h,
@@ -167,6 +175,9 @@ class Zone:
                 temp_setpnt_init,
                 )
 
+            # Note: space_cool_demand returned by function above is negative,
+            # and only one of space_heat_demand and space_cool_demand will be
+            # non-zero.
             gains_heat_cool = (space_heat_demand + space_cool_demand) * units.W_per_kW / delta_t_h
 
             temps_updated, _ = self.__calc_temperatures(
