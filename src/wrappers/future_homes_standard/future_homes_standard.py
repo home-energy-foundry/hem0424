@@ -215,10 +215,16 @@ def calc_nbeds(project_dict):
     return nbeds
 
 def calc_N_occupants(TFA, nbeds):
-    #in number of occupants + m^2
-    param1 = -0.07275 * (nbeds - 1) ** 2 + 0.753 * (nbeds - 1) + 0.4996
-    param2 = -0.00003888 * (nbeds - 1) ** 2 - 0.00002379 * (nbeds - 1) - 0.00042
-    N = 1 + param1 * (1 - math.exp(param2 * (TFA)**2))
+    #in number of occupants + m^2]
+    
+    sigmoid_params =   {1 :{'j': 0.4373, 'k': -0.001902} ,
+                        2 :{'j': 1.2472, 'k': -0.018511} ,
+                        3 :{'j': 1.9796, 'k': -0.031784} ,
+                        4 :{'j': 2.3715, 'k': -0.001866} ,
+                        5 :{'j': 2.8997, 'k': -0.013386} ,
+                        }
+
+    N = 1 + sigmoid_params[nbeds]['j'] * (1 - math.exp(sigmoid_params[nbeds]['k'] * (TFA)**2))
     
     return N
 
