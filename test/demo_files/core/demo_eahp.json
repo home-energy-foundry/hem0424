@@ -458,6 +458,7 @@
 			"volume": 250.0,
 			"temp_setpnt_heat": 21.0,
 			"temp_setpnt_cool": 25.0,
+			"temp_setpnt_init": 21.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
@@ -572,6 +573,7 @@
 			"volume": 250.0,
 			"temp_setpnt_heat": 21.0,
 			"temp_setpnt_cool": 25.0,
+			"temp_setpnt_init": 21.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",

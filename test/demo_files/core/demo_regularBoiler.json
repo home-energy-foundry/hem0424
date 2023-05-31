@@ -241,6 +241,7 @@
 			"SpaceHeatSystem": "zone 1 radiators",
 			"area": 80.0,
 			"volume": 250.0,
+			"temp_setpnt_init": 21.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
@@ -353,6 +354,7 @@
 			"SpaceHeatSystem": "zone 2 radiators",
 			"area": 80.0,
 			"volume": 250.0,
+			"temp_setpnt_init": 21.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
