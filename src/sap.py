@@ -388,11 +388,13 @@ if __name__ == '__main__':
         help='output heat balance for each zone',
         )
     parser.add_argument(
-        '--use-fast-solver',
+        '--no-fast-solver',
         action='store_true',
         default=False,
-        help=('use optimised solver (results may differ slightly due to reordering '
-              'of floating-point ops)')
+        help=('disable optimised solver (results may differ slightly due '
+              'to reordering of floating-point ops); this option is '
+              'provided to facilitate verification and debugging of the '
+              'optimised version')
         )
     cli_args = parser.parse_args()
 
@@ -403,7 +405,7 @@ if __name__ == '__main__':
     fhs_FEE_assumptions = cli_args.future_homes_standard_FEE
     preproc_only = cli_args.preprocess_only
     heat_balance = cli_args.heat_balance
-    use_fast_solver = cli_args.use_fast_solver
+    use_fast_solver = not cli_args.no_fast_solver
 
     if epw_filename is not None:
         external_conditions_dict = weather_data_to_dict(epw_filename)

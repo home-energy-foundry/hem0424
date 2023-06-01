@@ -302,6 +302,8 @@ class BoilerServiceSpace(BoilerService):
 
     def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the boiler """
+        if not self.is_on():
+            return 0.0
 
         return self._boiler._Boiler__demand_energy(
             self.__service_name,
@@ -312,6 +314,9 @@ class BoilerServiceSpace(BoilerService):
 
     def energy_output_max(self, temp_output, temp_return_feed):
         """ Calculate the maximum energy output of the boiler"""
+        if not self.is_on():
+            return 0.0
+
         return self._boiler._Boiler__energy_output_max(temp_output)
 
 

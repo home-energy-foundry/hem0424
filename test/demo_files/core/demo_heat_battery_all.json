@@ -105,6 +105,15 @@
 				"main": [true, false, false, {"value": true, "repeat": 21}]
 			}
 		},
+		"hb_charge_control": {
+			"type": "ToUChargeControl",
+			"start_day": 0,
+			"time_series_step": 1,
+			"charge_level": 0.2,
+			"schedule": {
+				"main": [{"value": true, "repeat": 7}, {"value": false, "repeat": 7}, {"value": false, "repeat": 3}, {"value": true, "repeat": 7}]
+			}
+		},
 		"zone 1 radiators__space heat timer__converted_from_OnOffTimeControl": {
 			"type": "SetpointTimeControl",
 			"start_day": 0,
@@ -119,15 +128,31 @@
             "type": "StorageTank",
             "volume": 80.0,
             "daily_losses": 1.68,
+            "min_temp": 52.0,
+            "setpoint_temp": 55.0,
             "ColdWaterSource": "mains water",
-            "HeatSource": {
-                "immersion": {
-                    "type": "ImmersionHeater",
-                    "power": 3.0,
-                    "EnergySupply": "mains elec",
-                    "Control": "hw timer"
-                }
-            }
+			"HeatSource": {
+				"heatBattery0": {
+					"type": "HeatSourceWet",
+					"name": "heatBattery1",
+					"temp_flow_limit_upper": 65,
+					"ColdWaterSource": "mains water",
+					"EnergySupply": "mains elec",
+					"Control": "hw timer",
+					"temp_return": 60,
+                    "heater_position": 0.1,
+                    "thermostat_position": 0.33
+				}
+			},
+			"primary_pipework": {
+				"internal_diameter": 0.025,
+				"external_diameter": 0.027,
+				"length": 2.0,
+				"insulation_thermal_conductivity": 0.035,
+				"insulation_thickness": 0.038,
+				"surface_reflectivity": false,
+				"pipe_contents": "water"
+			}
         }
     },
 	"Shower": {
@@ -178,17 +203,18 @@
 		}
 	},
 	"HeatSourceWet": {
-		"heatBattery": {
+		"heatBattery1": {
 			"type": "HeatBattery",
 			"EnergySupply": "mains elec",
 			"heat_battery_location": "internal",
             "electricity_circ_pump": 0.0600,
             "electricity_standby" : 0.0244,
-			"rated_charge_power": 15.0,
+			"rated_charge_power": 20.0,
 			"heat_storage_capacity": 80.0,
 			"max_rated_heat_output": 15.0,
 			"max_rated_losses": 0.22,
-			"number_of_units": 1
+			"number_of_units": 1,
+			"ControlCharge": "hb_charge_control"
 		}
 	},
 	"SpaceHeatSystem": {
@@ -200,11 +226,12 @@
 			"temp_diff_emit_dsgn": 10.0,
 			"frac_convective": 0.4,
 			"HeatSource": {
-				"name": "heatBattery",
+				"name": "heatBattery1",
 				"temp_flow_limit_upper": 65.0
 			},
 			"Control": "zone 1 radiators__space heat timer__converted_from_OnOffTimeControl",
-			"ecodesign_control_class": 1,
+			"ecodesign_controller": {
+				"ecodesign_control_class": 1},
 			"design_flow_temp": 55,
 			"Zone": "zone 1"
 		},
@@ -216,11 +243,12 @@
 			"temp_diff_emit_dsgn": 10.0,
 			"frac_convective": 0.4,
 			"HeatSource": {
-				"name": "heatBattery",
+				"name": "heatBattery1",
 				"temp_flow_limit_upper": 65.0
 			},
 			"Control": "zone 1 radiators__space heat timer__converted_from_OnOffTimeControl",
-			"ecodesign_control_class": 1,
+			"ecodesign_controller": {
+				"ecodesign_control_class": 1},
 			"design_flow_temp": 55,
 			"Zone": "zone 1"
 		}
