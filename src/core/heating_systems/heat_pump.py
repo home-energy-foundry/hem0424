@@ -884,7 +884,10 @@ class HeatPumpServiceWater(HeatPumpService):
         """ Calculate the maximum energy output of the HP, accounting for time
             spent on higher-priority services
         """
-        return self._HeatPumpService__hp._HeatPump__energy_output_max(self.__temp_hot_water)
+        return self._HeatPumpService__hp._HeatPump__energy_output_max(
+            self.__temp_hot_water,
+            self.__temp_return_feed,
+            )
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat pump """
@@ -944,12 +947,15 @@ class HeatPumpServiceSpace(HeatPumpService):
     def temp_setpnt(self):
         return self._HeatPumpService__control.setpnt()
 
-    def energy_output_max(self, temp_output):
+    def energy_output_max(self, temp_output, temp_return_feed):
         """ Calculate the maximum energy output of the HP, accounting for time
             spent on higher-priority services
         """
         temp_output = Celcius2Kelvin(temp_output)
-        return self._HeatPumpService__hp._HeatPump__energy_output_max(temp_output)
+        return self._HeatPumpService__hp._HeatPump__energy_output_max(
+            temp_output,
+            temp_return_feed,
+            )
 
     def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the heat pump
@@ -1442,7 +1448,7 @@ class HeatPump:
 
         return thermal_capacity_op_cond
 
-    def __energy_output_max(self, temp_output):
+    def __energy_output_max(self, temp_output, temp_return_feed):
         """ Calculate the maximum energy output of the HP, accounting for time
             spent on higher-priority services
 
@@ -1451,7 +1457,20 @@ class HeatPump:
         timestep = self.__simulation_time.timestep()
         time_available = timestep - self.__total_time_running_current_timestep
         temp_source = self.__get_temp_source()
-        power_max = self.__thermal_capacity_op_cond(temp_output, temp_source)
+
+        if self.__outside_operating_limits(temp_return_feed):
+            power_max_HP = 0.0
+        else:
+            power_max_HP = self.__thermal_capacity_op_cond(temp_output, temp_source)
+
+        if self.__backup_ctrl == BackupCtrlType.NONE \
+        or not self.__backup_heater_delay_time_elapsed():
+            power_max = power_max_HP
+        elif self.__backup_ctrl == BackupCtrlType.TOPUP:
+            power_max = power_max_HP + self.__power_max_backup
+        elif self.__backup_ctrl == BackupCtrlType.SUBSTITUTE:
+            power_max = max(power_max_HP, self.__power_max_backup)
+
         return power_max * time_available
 
     def __cop_deg_coeff_op_cond(

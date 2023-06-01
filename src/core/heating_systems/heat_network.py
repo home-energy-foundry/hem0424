@@ -147,7 +147,7 @@ class HeatNetworkServiceSpace(HeatNetworkService):
             return_temperature
             )
 
-    def energy_output_max(self, temp_output):
+    def energy_output_max(self, temp_output, temp_return_feed):
         """ Calculate the maximum energy output of the heat network"""
         return self._heat_network._HeatNetwork__energy_output_max(temp_output)
 

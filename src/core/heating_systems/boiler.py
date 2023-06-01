@@ -310,7 +310,7 @@ class BoilerServiceSpace(BoilerService):
             temp_return
             )
 
-    def energy_output_max(self, temp_output):
+    def energy_output_max(self, temp_output, temp_return_feed):
         """ Calculate the maximum energy output of the boiler"""
         return self._boiler._Boiler__energy_output_max(temp_output)
 
