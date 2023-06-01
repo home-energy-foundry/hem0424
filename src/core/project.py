@@ -626,6 +626,8 @@ class Project:
                 building_elements,
                 thermal_bridging,
                 vent_elements,
+                self.__external_conditions.air_temp(),
+                data['temp_setpnt_init'],
                 vent_cool_extra = vent_cool_extra,
                 print_heat_balance = print_heat_balance,
                 use_fast_solver = use_fast_solver,

@@ -342,6 +342,8 @@ def create_heating_pattern(project_dict):
     for zone in project_dict['Zone']:
         if "SpaceHeatControl" in project_dict["Zone"][zone].keys():
             if project_dict['Zone'][zone]["SpaceHeatControl"] == "livingroom":
+                project_dict['Zone'][zone]['temp_setpnt_init'] = livingroom_setpoint_fhs
+
                 project_dict['Control']['HeatingPattern_LivingRoom'] = {
                     "type": "SetpointTimeControl",
                     "start_day" : 0,
@@ -367,6 +369,8 @@ def create_heating_pattern(project_dict):
             
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" \
             and controltype == 2:
+                project_dict['Zone'][zone]['temp_setpnt_init'] = restofdwelling_setpoint_fhs
+
                 project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
                     "type": "SetpointTimeControl",
                     "start_day" : 0,
@@ -392,6 +396,8 @@ def create_heating_pattern(project_dict):
             
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" \
             and controltype == 3:
+                project_dict['Zone'][zone]['temp_setpnt_init'] = restofdwelling_setpoint_fhs
+
                 project_dict['Control']['HeatingPattern_RestOfDwelling'] =  {
                     "type": "SetpointTimeControl",
                     "start_day" : 0,

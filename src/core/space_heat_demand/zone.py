@@ -46,6 +46,8 @@ class Zone:
             building_elements,
             thermal_bridging,
             vent_elements,
+            temp_ext_air_init,
+            temp_setpnt_init,
             vent_cool_extra = None,
             print_heat_balance = False,
             use_fast_solver=False,
@@ -63,6 +65,8 @@ class Zone:
         vent_elements     -- list of ventilation elements (infiltration, mech vent etc.)
         vent_cool_extra   -- element providing additional ventilation in response to high
                              internal temperature
+        temp_ext_air_init -- external air temperature to use during initialisation, in Celsius
+        temp_setpnt_init -- setpoint temperature to use during initialisation, in Celsius
         print_heat_balance-- flag to indicate whether to print the heat balance breakdown
         use_fast_solver -- flag to indicate whether to use the optimised solver (results
                            may differ slightly due to reordering of floating-point ops)
@@ -124,12 +128,72 @@ class Zone:
         self.__zone_idx = n
         self.__no_of_temps = n + 1
 
-        # Set starting point for temperatures (self.__temp_prev)
-        # TODO Currently hard-coded to 10.0 deg C - make this configurable?
-        self.__temp_prev = [10.0] * self.__no_of_temps
-
         self.__print_heat_balance = print_heat_balance
         self.__use_fast_solver = use_fast_solver
+
+        self.__init_node_temps(temp_ext_air_init, temp_setpnt_init)
+
+    def __init_node_temps(self, temp_ext_air_init, temp_setpnt_init):
+        """ Initialise temperatures of heat balance nodes
+
+        Arguments:
+        temp_ext_air_init -- external air temperature to use during initialisation, in Celsius
+        temp_setpnt_init -- setpoint temperature to use during initialisation, in Celsius
+        """
+        # Use hourly timestep for warm-up period
+        delta_t_h = 1.0
+        delta_t = delta_t_h * units.seconds_per_hour
+
+        # Assume default convective fraction for heating/cooling suggested in
+        # BS EN ISO 52016-1:2017 Table B.11
+        frac_convective = 0.4
+
+        # Set starting point for all node temperatures (elements of
+        # self.__temp_prev) as average of external air temp and setpoint. This
+        # is somewhat arbitrary, but of all options for a uniform initial
+        # temperature, this should lead to relatively fast stabilisation of
+        # fabric temperatures, which are expected to be close to the external
+        # air temperature towards the external surface nodes and close to the
+        # setpoint temperature towards the internal surface nodes, and therefore
+        # node temperatures on average should be close to the average of the
+        # external air and setpoint temperatures.
+        temp_start = (temp_ext_air_init + temp_setpnt_init) / 2.0
+        self.__temp_prev = np.array([temp_start] * self.__no_of_temps)
+
+        # Iterate over space heating calculation and meet all space heating
+        # demand until temperatures stabilise, under steady-state conditions
+        # using specified constant setpoint and external air temperatures.
+        while True:
+            space_heat_demand, space_cool_demand, _ = self.space_heat_cool_demand(
+                delta_t_h,
+                temp_ext_air_init,
+                0.0, # Internal gains
+                0.0, # Solar gains
+                frac_convective,
+                frac_convective,
+                temp_setpnt_init,
+                temp_setpnt_init,
+                )
+
+            # Note: space_cool_demand returned by function above is negative,
+            # and only one of space_heat_demand and space_cool_demand will be
+            # non-zero.
+            gains_heat_cool = (space_heat_demand + space_cool_demand) * units.W_per_kW / delta_t_h
+
+            temps_updated, _ = self.__calc_temperatures(
+                delta_t, 
+                self.__temp_prev, 
+                temp_ext_air_init, 
+                0.0, # Internal gains
+                0.0, # Solar gains
+                gains_heat_cool,
+                frac_convective,
+                )
+
+            if not np.isclose(temps_updated, self.__temp_prev, rtol=1e-08).all():
+                self.__temp_prev = temps_updated
+            else:
+                break
 
     def area(self):
         return self.__useful_area

@@ -8982,6 +8982,7 @@
 			"volume":35.1,
 			"temp_setpnt_heat": 21.0,
 			"temp_setpnt_cool": 21.1,
+			"temp_setpnt_init": 21.0,
 			"BuildingElement": {
 				"living external wall": {
 					"type": "BuildingElementOpaque",
@@ -9110,6 +9111,7 @@
 			"volume":36.06,
 			"temp_setpnt_heat": 21.0,
 			"temp_setpnt_cool": 21.1,
+			"temp_setpnt_init": 21.0,
 			"BuildingElement": {
 				"bath external wall": {
 					"type": "BuildingElementOpaque",

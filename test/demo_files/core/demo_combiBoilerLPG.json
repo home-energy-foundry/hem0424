@@ -195,6 +195,7 @@
 			"SpaceHeatSystem": "main",
 			"area": 80.0,
 			"volume": 250.0,
+			"temp_setpnt_init": 21.0,
 			"BuildingElement": {
 				"wall 0": {
 					"type": "BuildingElementOpaque",
