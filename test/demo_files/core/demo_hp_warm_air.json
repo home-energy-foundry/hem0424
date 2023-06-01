@@ -154,6 +154,7 @@
 			"source_type": "OutsideAir",
 			"sink_type": "Air",
 			"backup_ctrl_type": "TopUp",
+			"time_delay_backup": 1.0,
 			"modulating_control": true,
 			"min_modulation_rate_20": 0.35,
 			"min_modulation_rate_55": 0.4,

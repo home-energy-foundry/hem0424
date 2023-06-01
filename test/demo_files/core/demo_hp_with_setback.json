@@ -164,6 +164,7 @@
 			"source_type": "OutsideAir",
 			"sink_type": "Water",
 			"backup_ctrl_type": "TopUp",
+			"time_delay_backup": 2.0,
 			"modulating_control": true,
 			"min_modulation_rate_35": 0.35,
 			"min_modulation_rate_55": 0.4,

@@ -244,6 +244,7 @@ class Emitters:
             timestep,
             temp_rm_prev,
             temp_emitter_max,
+            temp_return,
             ):
         # When there is some demand, calculate max. emitter temperature
         # achievable and emitter temperature required, and base calculation
@@ -297,6 +298,7 @@ class Emitters:
             # which depends on the maximum energy output from the heat source
             energy_provided_by_heat_source_max_min = self.__heat_source.energy_output_max(
                 temp_emitter_max,
+                temp_return
                 )
 
         # Calculate time to reach max. emitter temp at max heat source output
@@ -369,6 +371,7 @@ class Emitters:
                     timestep,
                     temp_rm_prev,
                     temp_emitter_max,
+                    temp_return_target,
                     )
             # Get energy output of heat source (i.e. energy input to emitters)
             # TODO Instead of passing temp_flow_req into heating system module,
@@ -436,6 +439,7 @@ class Emitters:
                     timestep,
                     temp_rm_prev,
                     temp_emitter_max,
+                    temp_return_target,
                     )
             return self.__heat_source.running_time_throughput_factor(
                 space_heat_running_time_cumulative,
