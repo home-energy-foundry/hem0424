@@ -439,6 +439,7 @@ class Emitters:
                     timestep,
                     temp_rm_prev,
                     temp_emitter_max,
+                    temp_return_target,
                     )
             return self.__heat_source.running_time_throughput_factor(
                 space_heat_running_time_cumulative,
