@@ -1563,6 +1563,49 @@ class HeatPump:
         """ Check if backup heater is available or still in delay period """
         return self.__time_running_continuous >= self.__time_delay_backup
 
+    def __outside_operating_limits(self, temp_return_feed):
+        """ Check if heat pump is outside operating limits """
+        temp_source = self.__get_temp_source()
+        below_min_ext_temp = temp_source <= self.__temp_lower_op_limit
+
+        if self.__sink_type == SinkType.WATER:
+            above_temp_return_feed_max = temp_return_feed > self.__temp_return_feed_max
+        elif self.__sink_type == SinkType.AIR:
+            above_temp_return_feed_max = False
+        else:
+            sys.exit('Return feed temp check not defined for sink type')
+
+        return below_min_ext_temp or above_temp_return_feed_max
+
+    def __inadequate_capacity(self, energy_output_required, thermal_capacity_op_cond):
+        """ Check if heat pump has adequate capacity to meet demand """
+        timestep = self.__simulation_time.timestep()
+
+        if self.__backup_ctrl != BackupCtrlType.NONE and self.__backup_heater_delay_time_elapsed():
+            inadequate_capacity = energy_output_required > thermal_capacity_op_cond * timestep
+        else:
+            inadequate_capacity = False
+
+        return inadequate_capacity
+
+    def __use_backup_heater_only(
+            self,
+            energy_output_required,
+            temp_return_feed,
+            thermal_capacity_op_cond,
+            ):
+        """ Evaluate boolean conditions that may trigger backup heater """
+        outside_operating_limits = self.__outside_operating_limits(temp_return_feed)
+        inadequate_capacity \
+            = self.__inadequate_capacity(energy_output_required, thermal_capacity_op_cond)
+
+        # TODO For hybrid HPs: Replace inadequate_capacity in use_backup_heater_only
+        #      condition with (inadequate_capacity or HP not cost effective)
+        return  self.__backup_ctrl != BackupCtrlType.NONE \
+            and (  outside_operating_limits \
+                or (inadequate_capacity and self.__backup_ctrl == BackupCtrlType.SUBSTITUTE) \
+                )
+
     def __run_demand_energy_calc(
             self,
             service_name,
@@ -1672,28 +1715,14 @@ class HeatPump:
                 * (1.0 - load_ratio) \
                 / time_constant_for_service
 
-        # Evaluate boolean conditions that may trigger backup heater
         # TODO Consider moving some of these checks earlier or to HeatPumpService
         #      classes. May be able to skip a lot of the calculation.
-        below_min_ext_temp = (temp_source <= self.__temp_lower_op_limit)
-        if self.__backup_ctrl != BackupCtrlType.NONE \
-        and self.__backup_heater_delay_time_elapsed():
-            inadequate_capacity = (energy_output_required > thermal_capacity_op_cond * timestep)
-        else:
-            inadequate_capacity = False
-        if self.__sink_type == SinkType.WATER:
-            above_temp_return_feed_max = (temp_return_feed > self.__temp_return_feed_max)
-        elif self.__sink_type == SinkType.AIR:
-            above_temp_return_feed_max = False
-        else:
-            sys.exit('Return feed temp check not defined for sink type')
 
-        use_backup_heater_only \
-            = self.__backup_ctrl != BackupCtrlType.NONE \
-              and ( below_min_ext_temp or above_temp_return_feed_max
-                 or (inadequate_capacity and self.__backup_ctrl == BackupCtrlType.SUBSTITUTE))
-        # TODO For hybrid HPs: Replace inadequate_capacity in use_backup_heater_only
-        #      condition with (inadequate_capacity or HP not cost effective)
+        use_backup_heater_only = self.__use_backup_heater_only(
+            energy_output_required,
+            temp_return_feed,
+            thermal_capacity_op_cond,
+            )
 
         # Calculate energy delivered by HP and energy input
         if use_backup_heater_only or not service_on:
