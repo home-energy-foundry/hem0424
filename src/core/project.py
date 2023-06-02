@@ -811,10 +811,6 @@ class Project:
                     )
                 
             elif heat_source_type == 'HeatSourceWet':
-                energy_supply = self.__energy_supplies[data['EnergySupply']]
-                # TODO Need to handle error if EnergySupply name is invalid.
-                energy_supply_conn = energy_supply.connection(name)
-
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
 
                 heat_source_wet = self.__heat_sources_wet[data['name']]
