@@ -98,6 +98,9 @@ class StorageTank:
         self.__Cp = contents.specific_heat_capacity_kWh()
         #volumic mass in kg/litre
         self.__rho = contents.density()
+        # heating on or off
+        self.__heating_active = False
+        
         #6.4.3.2 STEP 0 Initialization
         """for initial conditions all temperatures in the thermal storage unit(s)
          are equal to the set point temperature in degrees.
@@ -303,9 +306,12 @@ class StorageTank:
         else:
             #No demand from heat source if the temperature of the tank at the 
             #thermostat position is below the set point
-            if temp_s3_n[thermostat_layer] >= self.__temp_out_W_min:
-                energy_potential = 0.0
-            else:
+
+            #Trigger heating to start when temperature falls below the minimum
+            if temp_s3_n[thermostat_layer] < self.__temp_out_W_min:
+                self.__heating_active = True
+
+            if self.__heating_active:
                 energy_potential = heat_source.energy_output_max()
 
                 # TODO Consolidate checks for systems with/without primary pipework
@@ -314,8 +320,10 @@ class StorageTank:
                         = self.__primary_pipework_losses(energy_potential)
                     energy_potential -= primary_pipework_losses_kWh
 
-        Q_x_in_n[heater_layer] += energy_potential
+            else:
+                energy_potential = 0.0
 
+        Q_x_in_n[heater_layer] += energy_potential
         return Q_x_in_n
 
     # Function added into Storage tank to be called by the Solar Thermal object.
@@ -629,6 +637,10 @@ class StorageTank:
         self.__temp_n = deepcopy(temp_s8_n)
 
         #TODOrecoverable heat losses for heating should impact heating
+
+        #Trigger heating to stop when setpoint is reached
+        if temp_s8_n[thermostat_layer] == self.__temp_set_on:
+            self.__heating_active = False
 
         #print interim steps to output file for investigation
         """self.testoutput(
