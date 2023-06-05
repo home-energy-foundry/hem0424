@@ -639,7 +639,7 @@ class StorageTank:
         #TODOrecoverable heat losses for heating should impact heating
 
         #Trigger heating to stop when setpoint is reached
-        if temp_s8_n[thermostat_layer] == self.__temp_set_on:
+        if temp_s8_n[thermostat_layer] >= self.__temp_set_on:
             self.__heating_active = False
 
         #print interim steps to output file for investigation
