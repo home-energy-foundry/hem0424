@@ -71,7 +71,6 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
 
     def demand_hot_water(self, volume_demanded):
         """ Demand energy for hot water (in kWh) from the heat network """
-        return_temperature = 60
         # Calculate energy needed to meet hot water demand
         energy_content_kWh_per_litre = WATER.volumetric_energy_content_kWh_per_litre(
             self.__temp_hot_water,
@@ -82,7 +81,6 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
         return self._heat_network._HeatNetwork__demand_energy(
             self.__service_name,
             energy_demand,
-            return_temperature
             )
 
 
@@ -111,11 +109,9 @@ class HeatNetworkServiceWaterStorage(HeatNetworkService):
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat network """
         # Calculate energy needed to cover losses
-        return_temperature = 60
         return self._heat_network._HeatNetwork__demand_energy(
             self.__service_name,
             energy_demand,
-            return_temperature
             )
 
 
@@ -140,11 +136,9 @@ class HeatNetworkServiceSpace(HeatNetworkService):
 
     def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the heat network """
-        return_temperature = 60
         return self._heat_network._HeatNetwork__demand_energy(
             self.__service_name,
             energy_demand,
-            return_temperature
             )
 
     def energy_output_max(self, temp_output, temp_return_feed):
@@ -158,21 +152,18 @@ class HeatNetworkServiceSpace(HeatNetworkService):
 class HeatNetwork:
     """ An object to represent a heat network """
 
-    def __init__(self, 
-                heat_network_dict,
-                energy_supply,
-                energy_supply_conn_name_auxiliary,
-                simulation_time,
-                ext_cond, 
-                ):
+    def __init__(
+            self, 
+            energy_supply,
+            energy_supply_conn_name_auxiliary,
+            simulation_time,
+            ):
         """ Construct a HeatNetwork object
 
         Arguments:
-        heat_network_dict   -- dictionary of heat network characteristics, with the following elements:
-                            -- TODO List elements and their definitions
         energy_supply       -- reference to EnergySupply object
+        energy_supply_conn_name_auxiliary -- name to use for reporting auxiliary energy use
         simulation_time     -- reference to SimulationTime object
-        external_conditions -- reference to ExternalConditions object
 
         Other variables:
         energy_supply_connections -- dictionary with service name strings as keys and corresponding
@@ -248,7 +239,6 @@ class HeatNetwork:
             self,
             service_name,
             energy_output_required,
-            temp_return_feed
             ):
         """ Calculate energy required by heat network to satisfy demand for the service indicated."""
         self.__energy_supply_connections[service_name].demand_energy(energy_output_required)

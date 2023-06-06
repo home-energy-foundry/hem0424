@@ -719,11 +719,9 @@ class Project:
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 energy_supply_conn_name_auxiliary = 'HeatNetwork_auxiliary: ' + name
                 heat_source = HeatNetwork(
-                    data,
                     energy_supply,
                     energy_supply_conn_name_auxiliary,
                     self.__simtime,
-                    self.__external_conditions,
                     )
                 # Create list of internal gains for each hour of the year, in W / m2
                 internal_gains_HIU = [heat_source.HIU_loss(data['HIU_daily_loss']) \
