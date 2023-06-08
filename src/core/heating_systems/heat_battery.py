@@ -405,6 +405,34 @@ class HeatBattery:
         y: list = [row[1] for row in self.labs_tests_losses]
         return ( np.interp(charge_level, x, y) * self.__max_rated_losses )
 
+    def __first_call(self):
+        timestep: float = self.__simulation_time.timestep()
+        current_hour: int = self.__simulation_time.current_hour()
+        time_range = (current_hour)*self.__time_unit
+        charge_level: float = self.__charge_level
+        charge_level_qin: float = charge_level
+        target_charge: float = self.__charge_control.target_charge()
+
+        # TODO: The following code is very similar in three different sections of the
+        # Heat Battery implementation. Consider creating function with relevant arguments
+        # and simplify the three instances to just one call
+        self.__Q_in_ts = self.__electric_charge(time_range)
+
+        # Calculate max charge level possible in next timestep
+        if charge_level_qin < target_charge:
+            delta_charge_level = (self.__Q_in_ts) * timestep / self.__heat_storage_capacity
+            charge_level_qin += delta_charge_level
+            if charge_level_qin > target_charge:
+                charge_level_qin = target_charge
+
+        # Estimating output rate at average of capacity in timestep
+        max_output = self.__lab_test_rated_output(charge_level_qin)
+        delta_charge_level = (max_output) * timestep / self.__heat_storage_capacity
+        self.__Q_out_ts = self.__lab_test_rated_output(charge_level_qin - delta_charge_level / 2)
+        self.__Q_loss_ts = self.__lab_test_losses(charge_level_qin - delta_charge_level / 2)
+        # self.__max_output = max_output
+        self.__flag_first_call = False
+
     def __demand_energy(
             self,
             service_name,
@@ -417,11 +445,8 @@ class HeatBattery:
         #outside_temp = self.__external_conditions.air_temp()
         #self.temp_air = self.__zone.temp_internal_air()
         timestep: float = self.__simulation_time.timestep()
-        current_hour: int = self.__simulation_time.current_hour()
         # TODO verify use of day and hour in multi-day runs
-        time_range = (current_hour)*self.__time_unit
         charge_level: float = self.__charge_level
-        charge_level_qin: float = charge_level
 
         # Picking target charge level from control
         target_charge: float = self.__charge_control.target_charge()
@@ -430,24 +455,7 @@ class HeatBattery:
         # For example the amount of charge added to the system
         # Perform these calculations here
         if self.__flag_first_call:
-            # TODO: The following code is very similar in three different sections of the
-            # Heat Battery implementation. Consider creating function with relevant arguments
-            # and simplify the three instances to just one call 
-            self.__Q_in_ts = self.__electric_charge(time_range)
-            # Calculate max charge level possible in next timestep
-            if charge_level_qin < target_charge:
-                delta_charge_level = ( self.__Q_in_ts ) * timestep / self.__heat_storage_capacity
-                charge_level_qin += delta_charge_level
-                if charge_level_qin > target_charge:
-                    charge_level_qin = target_charge
-
-            # Estimating output rate at average of capacity in timestep
-            max_output = self.__lab_test_rated_output(charge_level_qin)
-            delta_charge_level = ( max_output ) * timestep / self.__heat_storage_capacity
-            self.__Q_out_ts = self.__lab_test_rated_output(charge_level_qin - delta_charge_level / 2)
-            self.__Q_loss_ts = self.__lab_test_losses(charge_level_qin - delta_charge_level / 2)
-#            self.__max_output = max_output
-            self.__flag_first_call = False
+            self.__first_call()
 
         # Distributing energy demand through all units
         energy_demand: float = energy_output_required / self.__n_units
@@ -510,6 +518,9 @@ class HeatBattery:
         """" Calculations to be done at the end of each timestep"""
         timestep: float = self.__simulation_time.timestep()
         time_remaining_current_timestep = timestep - self.__total_time_running_current_timestep
+
+        if self.__flag_first_call:
+            self.__first_call()
 
         # Calculatin auxiliary energy to provide services during timestep
         self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
