@@ -15,6 +15,7 @@ test_setup()
 # Local imports
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
+from core.controls.time_control import SetpointTimeControl
 from core.heating_systems.boiler import Boiler, BoilerServiceWaterCombi, BoilerServiceWaterRegular, BoilerServiceSpace, ServiceType
 from core.water_heat_demand.cold_water_source import ColdWaterSource
 from core.energy_supply.energy_supply import EnergySupply
@@ -392,11 +393,11 @@ class TestBoilerServiceSpace(unittest.TestCase):
                        "electricity_full_load" : 0.0388,
                        "electricity_standby" : 0.0244,
                       }
-        self.simtime = SimulationTime(0, 2, 1)
+        self.simtime = SimulationTime(0, 3, 1)
         self.energysupply = EnergySupply("mains_gas", self.simtime)
-        self.energy_demanded = [10.0, 2.0]
-        self.temp_flow = [55.0, 65.0]
-        self.temp_return_feed = [50.0, 60.0]
+        self.energy_demanded = [10.0, 2.0, 2.0]
+        self.temp_flow = [55.0, 65.0, 65.0]
+        self.temp_return_feed = [50.0, 60.0, 60.0]
         self.airtemp = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
 
         self.windspeed = [3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4]
@@ -452,7 +453,13 @@ class TestBoilerServiceSpace(unittest.TestCase):
             extcond
             )
         self.boiler._Boiler__create_service_connection("boiler_test")
-        self.boiler_service_space = BoilerServiceSpace(self.boiler, "boiler_test", False)
+        ctrl = SetpointTimeControl(
+            [21.0, 21.0, None],
+            self.simtime,
+            0, # start_day
+            1.0, # time_series_step
+            )
+        self.boiler_service_space = BoilerServiceSpace(self.boiler, "boiler_test", ctrl)
 
     def test_boiler_service_space(self):
         """ Test that Boiler object returns correct space heating energy demand """
@@ -464,6 +471,6 @@ class TestBoilerServiceSpace(unittest.TestCase):
                         self.temp_flow[t_idx],
                         self.temp_return_feed[t_idx]
                     ),
-                    [10.0, 2.0][t_idx],
+                    [10.0, 2.0, 0.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )
