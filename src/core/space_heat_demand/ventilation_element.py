@@ -101,7 +101,7 @@ class VentilationElementInfiltration:
     # Values for "Exposed" based on CIBSE Guida A: "on severely exposed sites, a
     # 50% increase to the tabulated values should be allowed.
     # Values for "Sheltered" based on CIBSE Guide A: "on sheltered sites, the
-    # infiltration rate may be reduced by 30%".
+    # infiltration rate may be reduced by 33%".
     # Values for "Very sheltered" assume a reduction of 50%.
     # Values for Flat storeys 11+ are extrapolated based on profiles of wind
     # speed vs. height, assuming storey height of 3.5 metres.
