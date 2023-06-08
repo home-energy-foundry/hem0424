@@ -24,11 +24,19 @@ class PhotovoltaicSystem:
           Solar Energy Conference and Exhibition, September 2015, assuming this
           applies to moderately ventilated case.
     """
+    # Note: BS EN 15316-4-3:2017 section 6.2.4.7.2 states that the performance
+    #       factor for "rear surface free" should be 1.0. However, this would
+    #       seem to imply that there are no inverter or other system losses,
+    #       despite the fact that section 6.2.4.7.5 states that this factor
+    #       accounts for these losses. Also, no factor for "rear surface free"
+    #       has been given in Table C.4. Therefore, it was decided to use the
+    #       same factor for "rear surface free" as for "strongly or forced
+    #       ventilated".
     __f_perf_lookup = {
         'unventilated': 0.81,
         'moderately_ventilated': 0.85,
         'strongly_or_forced_ventilated': 0.87,
-        'rear_surface_free': 1.00,
+        'rear_surface_free': 0.87,
     }
 
     def __init__(self, peak_power, ventilation_strategy, pitch, orientation,
