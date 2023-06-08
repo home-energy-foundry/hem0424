@@ -188,9 +188,8 @@ class StorageTank:
         Q_out_W_dis_req_rem = Q_out_W_dis_req
 
         """TODO A few checks to make
-        1. Check condition used to compare to cold feed temperature in two places below
-        #seems odd to check against cold water temp for all layers.
-        if self.__temp_n[i] >= self.__cold_feed.temperature():
+        1. Check condition used to compare minimum temperature in two places below.
+        if self.__temp_n[i] >= self.__temp_out_W_min:
         2. Also not sure if temperature self.__temp_out_W_min is right temperature to use in deltaT.
            Using cold temp instead as per spreadsheet"""
 
