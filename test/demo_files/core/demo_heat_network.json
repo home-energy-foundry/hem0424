@@ -141,6 +141,7 @@
 		"HeatNetwork": {
 			"type": "HIU",
 			"EnergySupply": "heat network",
+			"power_max": 3.0,
 			"HIU_daily_loss": 0.8
 		}
 	},

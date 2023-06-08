@@ -154,6 +154,7 @@ class HeatNetwork:
 
     def __init__(
             self, 
+            power_max,
             energy_supply,
             energy_supply_conn_name_auxiliary,
             simulation_time,
@@ -161,6 +162,7 @@ class HeatNetwork:
         """ Construct a HeatNetwork object
 
         Arguments:
+        power_max -- maximum power output of HIU, in kW
         energy_supply       -- reference to EnergySupply object
         energy_supply_conn_name_auxiliary -- name to use for reporting auxiliary energy use
         simulation_time     -- reference to SimulationTime object
@@ -171,12 +173,13 @@ class HeatNetwork:
         temp_hot_water            -- temperature of the hot water to be provided, in deg C
         cold_feed                 -- reference to ColdWaterSource object
         """
-
+        self.__power_max = power_max
         self.__energy_supply = energy_supply
         self.__simulation_time = simulation_time
         self.__energy_supply_connections = {}
         self.__energy_supply_connection_aux \
             = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
+        self.__total_time_running_current_timestep = 0.0
 
     def __create_service_connection(self, service_name):
         """ Create an EnergySupplyConnection for the service name given """
@@ -235,15 +238,39 @@ class HeatNetwork:
 
         return HeatNetworkServiceSpace(self, service_name, control)
 
+    def __energy_output_max(self, temp_output):
+        """ Calculate the maximum energy output of the heat network, accounting
+            for time spent on higher-priority services.
+
+        Note: Call via a HeatNetworkService object, not directly.
+        """
+        timestep = self.__simulation_time.timestep()
+        time_available = timestep - self.__total_time_running_current_timestep
+        return self.__power_max * time_available
+
     def __demand_energy(
             self,
             service_name,
             energy_output_required,
             ):
         """ Calculate energy required by heat network to satisfy demand for the service indicated."""
-        self.__energy_supply_connections[service_name].demand_energy(energy_output_required)
+        energy_output_max = self.__energy_output_max(None)
+        if energy_output_max == 0.0:
+            return 0.0
+        energy_output_provided = max(0.0, min(energy_output_required, energy_output_max))
+        self.__energy_supply_connections[service_name].demand_energy(energy_output_provided)
 
-        return energy_output_required
+        time_available \
+            = self.__simulation_time.timestep() - self.__total_time_running_current_timestep
+        self.__total_time_running_current_timestep \
+            += (energy_output_provided / energy_output_max) * time_available
+
+        return energy_output_provided
+
+    def timestep_end(self):
+        """ Calculations to be done at the end of each timestep """
+        #Variables below need to be reset at the end of each timestep
+        self.__total_time_running_current_timestep = 0.0
 
     def HIU_loss(self, daily_loss):
         """ Standing heat loss from the HIU (heat interface unit) in kWh """
