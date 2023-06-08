@@ -51,8 +51,8 @@
 			"factor":{
 				"Emissions Factor kgCO2e/kWh": 0.041,
 				"Emissions Factor kgCO2e/kWh including out-of-scope emissions": 0.041,
-				"Primary Energy Factor kWh/kWh delivered": 0.850},
-			"HIU_daily_losses": 0.8
+				"Primary Energy Factor kWh/kWh delivered": 0.850
+			}
 		}
 	},
 	"Control": {

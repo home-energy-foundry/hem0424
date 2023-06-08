@@ -951,7 +951,6 @@ class Project:
                     data['HeatSourceWet'] + '_water_heating',
                     60, # TODO Remove hard-coding of HW temp
                     cold_water_source,
-                    data['HIU_daily_loss']
                     )
             elif hw_source_type == 'HeatBattery':
                 # TODO MC - add PCM heat battery in here

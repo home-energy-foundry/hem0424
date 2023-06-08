@@ -204,7 +204,6 @@ class HeatNetwork:
             service_name,
             temp_hot_water,
             cold_feed,
-            daily_loss
             ):
         """ Return a HeatNetworkSeriviceWaterDirect object and create an EnergySupplyConnection for it
         
@@ -212,7 +211,6 @@ class HeatNetwork:
         service_name      -- name of the service demanding energy from the heat network
         temp_hot_water    -- temperature of the hot water to be provided, in deg C
         cold_feed         -- reference to ColdWaterSource object
-        daily_loss        -- daily loss from the HIU, in kW
         """
         self.__create_service_connection(service_name)
 
