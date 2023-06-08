@@ -18,7 +18,7 @@ from cmath import log
 from wrappers.future_homes_standard.FHS_HW_events import HW_event_adjust_allocate, HW_events_generator
 
 this_directory = os.path.dirname(os.path.relpath(__file__))
-FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_04-11-2022.csv")
+FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_07-06-2023.csv")
 
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
