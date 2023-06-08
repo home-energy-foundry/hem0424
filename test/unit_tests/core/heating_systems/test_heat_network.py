@@ -183,7 +183,7 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
 
     def setUp(self):
         """ Create HeatNetworkServiceSpace object to be tested """
-        self.simtime = SimulationTime(0, 2, 1)
+        self.simtime = SimulationTime(0, 3, 1)
         self.energysupply = EnergySupply("mains_gas", self.simtime)
         energy_supply_conn_name_auxiliary = 'Boiler_auxiliary'
 
@@ -200,7 +200,7 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
 
         # Set up HeatNetworkServiceSpace
         ctrl = SetpointTimeControl(
-            [True, True],
+            [21.0, 21.0, None],
             self.simtime,
             0, #start_day
             1.0, #time_series_step
@@ -213,9 +213,9 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
 
     def test_heat_network_service_space(self):
         """ Test that HeatNetworkServiceSpace object returns correct space heating energy demand """
-        energy_demanded = [10.0, 2.0]
-        temp_flow = [55.0, 65.0]
-        temp_return = [50.0, 60.0]
+        energy_demanded = [10.0, 2.0, 2.0]
+        temp_flow = [55.0, 65.0, 65.0]
+        temp_return = [50.0, 60.0, 60.0]
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
@@ -223,7 +223,7 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
                         energy_demanded[t_idx],
                         temp_flow[t_idx],
                         temp_return[t_idx]),
-                    [5.0, 2.0][t_idx],
+                    [5.0, 2.0, 0.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )
             self.heat_network.timestep_end()
