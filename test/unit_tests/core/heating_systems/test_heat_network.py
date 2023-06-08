@@ -34,6 +34,7 @@ class TestHeatNetwork(unittest.TestCase):
         # Set up HeatNetwork object
         self.heat_network = HeatNetwork(
             6.0, # power_max
+            0.24, # HIU daily loss
             self.energysupply,
             energy_supply_conn_name_auxiliary,
             self.simtime,
@@ -56,20 +57,25 @@ class TestHeatNetwork(unittest.TestCase):
                     [2.0, 6.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )
+                self.heat_network.timestep_end()
+
                 self.assertAlmostEqual(
                     self.energysupply.results_by_end_user()["heat_network_test"][t_idx],
                     [2.0, 6.0][t_idx],
                     msg="incorrect fuel demand"
                     )
-            self.heat_network.timestep_end()
+                self.assertAlmostEqual(
+                    self.energysupply.results_by_end_user()["heat_network_auxiliary"][t_idx],
+                    [0.01, 0.01][t_idx],
+                    msg="incorrect fuel demand"
+                    )
 
     def test_HIU_loss(self):
         """ Test that HeatNetwork object returns correct HIU loss """
-        daily_loss = 0.24
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
-                    self.heat_network.HIU_loss(daily_loss),
+                    self.heat_network.HIU_loss(),
                     0.01,
                     msg="incorrect HIU loss returned"
                     )
@@ -92,6 +98,7 @@ class TestHeatNetworkServiceWaterDirect(unittest.TestCase):
         # Set up HeatNetwork
         self.heat_network = HeatNetwork(
             18.0, # power_max
+            1.0, # HIU daily loss
             self.energysupply,
             energy_supply_conn_name_auxiliary,
             self.simtime,
@@ -139,6 +146,7 @@ class TestHeatNetworkServiceWaterStorage(unittest.TestCase):
         # Set up HeatNetwork
         self.heat_network = HeatNetwork(
             7.0, # power_max
+            1.0, # HIU daily loss
             self.energysupply,
             energy_supply_conn_name_auxiliary,
             self.simtime,
@@ -181,6 +189,7 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
         # Set up HeatNetwork
         self.heat_network = HeatNetwork(
             5.0, # power_max
+            1.0, # HIU daily loss
             self.energysupply,
             energy_supply_conn_name_auxiliary,
             self.simtime,

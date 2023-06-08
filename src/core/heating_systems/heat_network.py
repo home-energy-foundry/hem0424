@@ -162,6 +162,7 @@ class HeatNetwork:
     def __init__(
             self, 
             power_max,
+            daily_loss,
             energy_supply,
             energy_supply_conn_name_auxiliary,
             simulation_time,
@@ -170,6 +171,7 @@ class HeatNetwork:
 
         Arguments:
         power_max -- maximum power output of HIU, in kW
+        daily_loss -- daily loss from the HIU, in kWh
         energy_supply       -- reference to EnergySupply object
         energy_supply_conn_name_auxiliary -- name to use for reporting auxiliary energy use
         simulation_time     -- reference to SimulationTime object
@@ -181,6 +183,7 @@ class HeatNetwork:
         cold_feed                 -- reference to ColdWaterSource object
         """
         self.__power_max = power_max
+        self.__daily_loss = daily_loss
         self.__energy_supply = energy_supply
         self.__simulation_time = simulation_time
         self.__energy_supply_connections = {}
@@ -275,12 +278,14 @@ class HeatNetwork:
 
     def timestep_end(self):
         """ Calculations to be done at the end of each timestep """
+        # Energy required to overcome losses
+        self.__energy_supply_connection_aux.demand_energy(self.HIU_loss())
+
         #Variables below need to be reset at the end of each timestep
         self.__total_time_running_current_timestep = 0.0
 
-    def HIU_loss(self, daily_loss):
+    def HIU_loss(self):
         """ Standing heat loss from the HIU (heat interface unit) in kWh """
         # daily_loss to be sourced from the PCDB, in kW
-        HIU_loss = daily_loss / hours_per_day * self.__simulation_time.timestep()
+        return self.__daily_loss / hours_per_day * self.__simulation_time.timestep()
 
-        return HIU_loss
