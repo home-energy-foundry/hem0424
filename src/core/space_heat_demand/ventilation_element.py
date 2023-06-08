@@ -107,11 +107,11 @@ class VentilationElementInfiltration:
     # speed vs. height, assuming storey height of 3.5 metres.
     __DIVISORS = [
         # Very sheltered | Sheltered | Normal | Exposed |
-        [           39.2 ,      29.4 ,   20.6 ,    13.1 ], # House 1-storey
-        [           32.5 ,      24.3 ,   17.0 ,    10.9 ], # House 2-storey
-        [           33.6 ,      25.2 ,   17.3 ,    11.2 ], # Flat storeys 1-5
-        [           29.4 ,      22.0 ,   15.1 ,     9.8 ], # Flat storeys 6-10
-        [           28.5 ,      19.4 ,   13.4 ,     9.0 ], # Flat storeys 11+
+        [           41.2 ,      30.7 ,   20.6 ,    13.7 ], # House 1-storey
+        [           34.0 ,      25.4 ,   17.0 ,    11.3 ], # House 2-storey
+        [           34.6 ,      25.8 ,   17.3 ,    11.5 ], # Flat storeys 1-5
+        [           30.2 ,      22.5 ,   15.1 ,    10.1 ], # Flat storeys 6-10
+        [           29.3 ,      19.9 ,   13.7 ,     9.3 ], # Flat storeys 11+
         ]
 
     def __init__(self,
