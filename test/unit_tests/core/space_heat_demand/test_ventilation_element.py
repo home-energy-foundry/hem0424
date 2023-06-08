@@ -78,7 +78,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
         """ Test that correct Q50 divisor is returned when queried """
         self.assertEqual(
             self.ve_inf._VentilationElementInfiltration__divisor,
-            29.4,
+            30.7,
             "incorrect Q50 divisor returned"
             )
 
@@ -94,7 +94,7 @@ class TestVentilationElementInfiltration(unittest.TestCase):
         """ Test that correct infiltration rate is returned when queried """
         self.assertAlmostEqual(
             self.ve_inf._VentilationElementInfiltration__infiltration,
-            3.553061,
+            3.5465798045602606,
             6,
             "incorrect infiltration rate returned"
             )
@@ -105,8 +105,8 @@ class TestVentilationElementInfiltration(unittest.TestCase):
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.ve_inf.h_ve(75.0),
-                    [82.9330531547619, 85.17448702380952, 87.41592089285714, 89.65735476190476,
-                     91.89878863095237, 94.14022249999998, 96.3816563690476, 98.62309023809523][t_idx],
+                    [82.78176841476655, 85.01911350705754, 87.25645859934853, 89.49380369163951,
+                     91.7311487839305, 93.9684938762215, 96.20583896851247, 98.4431840608035][t_idx],
                     7,
                     "incorrect heat transfer coeffient (h_ve) returned"
                     )
