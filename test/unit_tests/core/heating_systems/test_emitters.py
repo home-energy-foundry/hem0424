@@ -26,7 +26,7 @@ class TestEmitters(unittest.TestCase):
 
         # Create simple HeatSource object implementing required interface to run tests
         class HeatSource:
-            def energy_output_max(self, temp_flow):
+            def energy_output_max(self, temp_flow, temp_return):
                 return 10.0
             def demand_energy(self, energy_req_from_heating_system, temp_flow, temp_return):
                 return max(0, min(2.5, energy_req_from_heating_system))
