@@ -293,7 +293,7 @@ class BoilerServiceSpace(BoilerService):
         service_name -- name of the service demanding energy from the boiler
         control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
-        super().__init__(boiler, service_name)
+        super().__init__(boiler, service_name, control)
         self.__service_name = service_name
         self.__control = control
 
