@@ -92,7 +92,7 @@ class TestZone(unittest.TestCase):
                                 self.windspeed,
                                 [0.0] * 4, # Diffuse horizontal radiation
                                 [0.0] * 4, # Direct beam radiation
-                                None,
+                                [0.2] * 4,
                                 55.0, # Latitude
                                 0.0, # Longitude
                                 0.0, # Timezone
@@ -148,12 +148,17 @@ class TestZone(unittest.TestCase):
 
         # Put thermal ventilation objects in a list that can be iterated over
         ve_objs = [ve]
-
+        
+        temp_ext_air_init = 17
+        temp_setpnt_init = 21
+        
         self.zone = Zone(50.0,
                          125.0,
                          be_objs,
                          tb_objs,
-                         ve_objs)
+                         ve_objs,
+                         temp_ext_air_init,
+                         temp_setpnt_init)
 
     def test_volume(self):
         """ Test that the correct volume is returned when queried """
@@ -189,6 +194,6 @@ class TestZone(unittest.TestCase):
     def test_total_vent_heat_loss(self):
         """ Test that the correct total for ventilation heat loss is returned when queried """
         self.assertAlmostEqual(self.zone.total_vent_heat_loss(),
-                               158.2,
+                               157.9,
                                1,
                                "incorrect total ventilation heat loss returned")
