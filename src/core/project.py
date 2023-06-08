@@ -838,13 +838,9 @@ class Project:
                         )
                 elif isinstance(heat_source_wet, HeatNetwork):
                     # Add heat network hot water service for feeding hot water cylinder
-                    heat_source = heat_source_wet.create_service_hot_water(
+                    heat_source = heat_source_wet.create_service_hot_water_storage(
                         data['name'] + '_water_heating',
                         temp_setpoint,
-                        55, # TODO Remove hard-coding of return temp
-                        data['temp_flow_limit_upper'],
-                        cold_water_source,
-                        ctrl,
                         )
                 elif isinstance(heat_source_wet, HeatBattery):
                     heat_source = heat_source_wet.create_service_hot_water_regular(

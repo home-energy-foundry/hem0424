@@ -94,15 +94,18 @@ class HeatNetworkServiceWaterStorage(HeatNetworkService):
     def __init__(
             self,
             heat_network,
-            service_name
+            service_name,
+            temp_hot_water,
             ):
         """ Construct a HeatNetworkWaterStorage object
 
         Arguments:
         heat_network -- reference to the HeatNetwork object providing the service
         service_name -- name of the service demanding energy from the heat network
+        temp_hot_water -- temperature of the hot water to be provided, in deg C
         """
         super().__init__(heat_network, service_name)
+        self.__temp_hot_water = temp_hot_water
 
         self.__service_name = service_name
 
@@ -113,6 +116,10 @@ class HeatNetworkServiceWaterStorage(HeatNetworkService):
             self.__service_name,
             energy_demand,
             )
+
+    def energy_output_max(self):
+        """ Calculate the maximum energy output of the heat network"""
+        return self._heat_network._HeatNetwork__energy_output_max(self.__temp_hot_water)
 
 
 class HeatNetworkServiceSpace(HeatNetworkService):
@@ -217,15 +224,16 @@ class HeatNetwork:
             self.__simulation_time
             )
 
-    def create_service_hot_water_storage(self, service_name):
+    def create_service_hot_water_storage(self, service_name, temp_hot_water):
         """ Return a HeatNetworkSeriviceWaterStorage object and create an EnergySupplyConnection for it
 
         Arguments:
         service_name -- name of the service demanding energy from the heat network
+        temp_hot_water -- temperature of the hot water to be provided, in deg C
         """
         self.__create_service_connection(service_name)
 
-        return HeatNetworkServiceWaterStorage(self, service_name)
+        return HeatNetworkServiceWaterStorage(self, service_name, temp_hot_water)
 
     def create_service_space_heating(self, service_name, control):
         """ Return a HeatNetworkServiceSpace object and create an EnergySupplyConnection for it
