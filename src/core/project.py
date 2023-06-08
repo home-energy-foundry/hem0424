@@ -842,6 +842,7 @@ class Project:
                     heat_source = heat_source_wet.create_service_hot_water_storage(
                         data['name'] + '_water_heating',
                         temp_setpoint,
+                        ctrl,
                         )
                 elif isinstance(heat_source_wet, HeatBattery):
                     heat_source = heat_source_wet.create_service_hot_water_regular(

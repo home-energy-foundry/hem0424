@@ -28,15 +28,24 @@ class HeatNetworkService:
     - demand_energy(self, energy_demand)
     """
 
-    def __init__(self, heat_network, service_name):
+    def __init__(self, heat_network, service_name, control=None):
         """ Construct a HeatNetworkService object
 
         Arguments:
         heat_network -- reference to the HeatNetwork object providing the service
         service_name -- name of the service demanding energy from the boiler
+        control -- reference to a control object which must implement is_on() func
         """
         self._heat_network = heat_network
         self._service_name = service_name
+        self.__control = control
+
+    def is_on(self):
+        if self.__control is not None:
+            service_on = self.__control.is_on()
+        else:
+            service_on = True
+        return service_on
 
 
 class HeatNetworkServiceWaterDirect(HeatNetworkService):
@@ -96,6 +105,7 @@ class HeatNetworkServiceWaterStorage(HeatNetworkService):
             heat_network,
             service_name,
             temp_hot_water,
+            control = None,
             ):
         """ Construct a HeatNetworkWaterStorage object
 
@@ -103,14 +113,18 @@ class HeatNetworkServiceWaterStorage(HeatNetworkService):
         heat_network -- reference to the HeatNetwork object providing the service
         service_name -- name of the service demanding energy from the heat network
         temp_hot_water -- temperature of the hot water to be provided, in deg C
+        control -- reference to a control object which must implement is_on() func
         """
-        super().__init__(heat_network, service_name)
+        super().__init__(heat_network, service_name, control)
         self.__temp_hot_water = temp_hot_water
 
         self.__service_name = service_name
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat network """
+        if not self.is_on():
+            return 0.0
+
         # Calculate energy needed to cover losses
         return self._heat_network._HeatNetwork__demand_energy(
             self.__service_name,
@@ -119,6 +133,9 @@ class HeatNetworkServiceWaterStorage(HeatNetworkService):
 
     def energy_output_max(self):
         """ Calculate the maximum energy output of the heat network"""
+        if not self.is_on():
+            return 0.0
+
         return self._heat_network._HeatNetwork__energy_output_max(self.__temp_hot_water)
 
 
@@ -136,13 +153,16 @@ class HeatNetworkServiceSpace(HeatNetworkService):
         service_name -- name of the service demanding energy from the heat network
         control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
-        super().__init__(heat_network, service_name)
+        super().__init__(heat_network, service_name, control)
 
         self.__service_name = service_name
         self.__control = control
 
     def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the heat network """
+        if not self.is_on():
+            return 0.0
+
         return self._heat_network._HeatNetwork__demand_energy(
             self.__service_name,
             energy_demand,
@@ -150,6 +170,9 @@ class HeatNetworkServiceSpace(HeatNetworkService):
 
     def energy_output_max(self, temp_output, temp_return_feed):
         """ Calculate the maximum energy output of the heat network"""
+        if not self.is_on():
+            return 0.0
+
         return self._heat_network._HeatNetwork__energy_output_max(temp_output)
 
     def temp_setpnt(self):
@@ -225,16 +248,17 @@ class HeatNetwork:
             self.__simulation_time
             )
 
-    def create_service_hot_water_storage(self, service_name, temp_hot_water):
+    def create_service_hot_water_storage(self, service_name, temp_hot_water, control=None):
         """ Return a HeatNetworkSeriviceWaterStorage object and create an EnergySupplyConnection for it
 
         Arguments:
         service_name -- name of the service demanding energy from the heat network
         temp_hot_water -- temperature of the hot water to be provided, in deg C
+        control -- reference to a control object which must implement is_on() func
         """
         self.__create_service_connection(service_name)
 
-        return HeatNetworkServiceWaterStorage(self, service_name, temp_hot_water)
+        return HeatNetworkServiceWaterStorage(self, service_name, temp_hot_water, control)
 
     def create_service_space_heating(self, service_name, control):
         """ Return a HeatNetworkServiceSpace object and create an EnergySupplyConnection for it

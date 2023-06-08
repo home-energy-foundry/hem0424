@@ -15,6 +15,7 @@ test_setup()
 # Local imports
 from core.simulation_time import SimulationTime
 from core.external_conditions import ExternalConditions
+from core.controls.time_control import SetpointTimeControl
 from core.heating_systems.heat_network import HeatNetwork, HeatNetworkServiceWaterDirect, \
 HeatNetworkServiceWaterStorage, HeatNetworkServiceSpace
 from core.water_heat_demand.cold_water_source import ColdWaterSource
@@ -198,10 +199,16 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
         self.heat_network._HeatNetwork__create_service_connection("heat_network_test")
 
         # Set up HeatNetworkServiceSpace
+        ctrl = SetpointTimeControl(
+            [True, True],
+            self.simtime,
+            0, #start_day
+            1.0, #time_series_step
+            )
         self.heat_network_service_space = HeatNetworkServiceSpace(
             self.heat_network,
             "heat_network_test",
-            False
+            ctrl,
             )
 
     def test_heat_network_service_space(self):
