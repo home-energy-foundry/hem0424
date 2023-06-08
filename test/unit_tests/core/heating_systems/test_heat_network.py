@@ -27,66 +27,16 @@ class TestHeatNetwork(unittest.TestCase):
 
     def setUp(self):
         """ Create HeatNetwork object to be tested """
-        heat_network_dict = {"type": "HeatNetwork",
-                             "EnergySupply": "custom"
-                             }
         self.simtime = SimulationTime(0, 2, 1)
         self.energysupply = EnergySupply("custom", self.simtime)
         energy_supply_conn_name_auxiliary = 'heat_network_auxiliary'
 
-        # Set up ExternalConditions object
-        windspeed = [3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4]
-        airtemp = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
-        diffuse_horizontal_radiation = [333, 610, 572, 420, 0, 10, 90, 275]
-        direct_beam_radiation = [420, 750, 425, 500, 0, 40, 0, 388]
-        solar_reflectivity_of_ground = [0.2] * 8760
-        latitude = 51.42
-        longitude = -0.75
-        timezone = 0
-        start_day = 0
-        end_day = 0
-        time_series_step = 1
-        january_first = 1
-        daylight_savings = "not applicable"
-        leap_day_included = False
-        direct_beam_conversion_needed = False
-        shading_segments = [
-            {"number": 1, "start": 180, "end": 135},
-            {"number": 2, "start": 135, "end": 90},
-            {"number": 3, "start": 90, "end": 45},
-            {"number": 4, "start": 45, "end": 0},
-            {"number": 5, "start": 0, "end": -45},
-            {"number": 6, "start": -45, "end": -90},
-            {"number": 7, "start": -90, "end": -135},
-            {"number": 8, "start": -135, "end": -180}
-        ]
-        extcond = ExternalConditions(
-            self.simtime,
-            airtemp,
-            windspeed,
-            diffuse_horizontal_radiation,
-            direct_beam_radiation,
-            solar_reflectivity_of_ground,
-            latitude,
-            longitude,
-            timezone,
-            start_day,
-            end_day,
-            time_series_step,
-            january_first,
-            daylight_savings,
-            leap_day_included,
-            direct_beam_conversion_needed,
-            shading_segments
-            )
-
         # Set up HeatNetwork object
         self.heat_network = HeatNetwork(
-            heat_network_dict,
+            6.0, # power_max
             self.energysupply,
             energy_supply_conn_name_auxiliary,
             self.simtime,
-            extcond
             )
 
         # Create a service connection
@@ -102,15 +52,16 @@ class TestHeatNetwork(unittest.TestCase):
                     self.heat_network._HeatNetwork__demand_energy(
                                         "heat_network_test",
                                         energy_output_required[t_idx],
-                                        temp_return),
-                    [2.0, 10.0][t_idx],
+                                        ),
+                    [2.0, 6.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )
                 self.assertAlmostEqual(
                     self.energysupply.results_by_end_user()["heat_network_test"][t_idx],
-                    [2.0, 10.0][t_idx],
+                    [2.0, 6.0][t_idx],
                     msg="incorrect fuel demand"
                     )
+            self.heat_network.timestep_end()
 
     def test_HIU_loss(self):
         """ Test that HeatNetwork object returns correct HIU loss """
@@ -138,59 +89,12 @@ class TestHeatNetworkServiceWaterDirect(unittest.TestCase):
         self.temp_return_feed = [51.05, 60.00]
         energy_supply_conn_name_auxiliary = 'heat_network_auxiliary'
 
-        # Set up external conditions
-        self.windspeed = [3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4]
-        self.airtemp = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
-        self.diffuse_horizontal_radiation = [333, 610, 572, 420, 0, 10, 90, 275]
-        self.direct_beam_radiation = [420, 750, 425, 500, 0, 40, 0, 388]
-        self.solar_reflectivity_of_ground = [0.2] * 8760
-        self.latitude = 51.42
-        self.longitude = -0.75
-        self.timezone = 0
-        self.start_day = 0
-        self.end_day = 0
-        self.time_series_step = 1
-        self.january_first = 1
-        self.daylight_savings = "not applicable"
-        self.leap_day_included = False
-        self.direct_beam_conversion_needed = False
-        self.shading_segments = [
-            {"number": 1, "start": 180, "end": 135},
-            {"number": 2, "start": 135, "end": 90},
-            {"number": 3, "start": 90, "end": 45},
-            {"number": 4, "start": 45, "end": 0},
-            {"number": 5, "start": 0, "end": -45},
-            {"number": 6, "start": -45, "end": -90},
-            {"number": 7, "start": -90, "end": -135},
-            {"number": 8, "start": -135, "end": -180}
-        ]
-        extcond = ExternalConditions(
-            self.simtime,
-            self.airtemp,
-            self.windspeed,
-            self.diffuse_horizontal_radiation,
-            self.direct_beam_radiation,
-            self.solar_reflectivity_of_ground,
-            self.latitude,
-            self.longitude,
-            self.timezone,
-            self.start_day,
-            self.end_day,
-            self.time_series_step,
-            self.january_first,
-            self.daylight_savings,
-            self.leap_day_included,
-            self.direct_beam_conversion_needed,
-            self.shading_segments
-            )
-
         # Set up HeatNetwork
         self.heat_network = HeatNetwork(
-            heat_network_dict,
+            18.0, # power_max
             self.energysupply,
             energy_supply_conn_name_auxiliary,
             self.simtime,
-            extcond
             )
 
         self.heat_network._HeatNetwork__create_service_connection("heat_network_test")
@@ -218,6 +122,7 @@ class TestHeatNetworkServiceWaterDirect(unittest.TestCase):
                     3,
                     msg="incorrect energy_output_provided"
                     )
+            self.heat_network.timestep_end()
 
 
 class TestHeatNetworkServiceWaterStorage(unittest.TestCase):
@@ -225,68 +130,18 @@ class TestHeatNetworkServiceWaterStorage(unittest.TestCase):
 
     def setUp(self):
         """ Create HeatNetworkServiceWaterStorage object to be tested """
-        heat_network_dict = {"type": "HeatNetwork",
-                             "EnergySupply": "custom"
-                             }
         self.simtime = SimulationTime(0, 2, 1)
         self.energysupply = EnergySupply("custom", self.simtime)
         self.energy_output_required = [2.0, 10.0]
         self.temp_return_feed = [51.05, 60.00]
         energy_supply_conn_name_auxiliary = 'heat_network_auxiliary'
 
-        # Set up external conditions
-        self.windspeed = [3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4]
-        self.airtemp = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
-        self.diffuse_horizontal_radiation = [333, 610, 572, 420, 0, 10, 90, 275]
-        self.direct_beam_radiation = [420, 750, 425, 500, 0, 40, 0, 388]
-        self.solar_reflectivity_of_ground = [0.2] * 8760
-        self.latitude = 51.42
-        self.longitude = -0.75
-        self.timezone = 0
-        self.start_day = 0
-        self.end_day = 0
-        self.time_series_step = 1
-        self.january_first = 1
-        self.daylight_savings = "not applicable"
-        self.leap_day_included = False
-        self.direct_beam_conversion_needed = False
-        self.shading_segments = [
-            {"number": 1, "start": 180, "end": 135},
-            {"number": 2, "start": 135, "end": 90},
-            {"number": 3, "start": 90, "end": 45},
-            {"number": 4, "start": 45, "end": 0},
-            {"number": 5, "start": 0, "end": -45},
-            {"number": 6, "start": -45, "end": -90},
-            {"number": 7, "start": -90, "end": -135},
-            {"number": 8, "start": -135, "end": -180}
-        ]
-        extcond = ExternalConditions(
-            self.simtime,
-            self.airtemp,
-            self.windspeed,
-            self.diffuse_horizontal_radiation,
-            self.direct_beam_radiation,
-            self.solar_reflectivity_of_ground,
-            self.latitude,
-            self.longitude,
-            self.timezone,
-            self.start_day,
-            self.end_day,
-            self.time_series_step,
-            self.january_first,
-            self.daylight_savings,
-            self.leap_day_included,
-            self.direct_beam_conversion_needed,
-            self.shading_segments
-            )
-
         # Set up HeatNetwork
         self.heat_network = HeatNetwork(
-            heat_network_dict,
+            7.0, # power_max
             self.energysupply,
             energy_supply_conn_name_auxiliary,
             self.simtime,
-            extcond
             )
 
         self.heat_network._HeatNetwork__create_service_connection("heat_network_test")
@@ -294,10 +149,10 @@ class TestHeatNetworkServiceWaterStorage(unittest.TestCase):
         # Set up HeatNetworkServiceWaterStorage
         coldwatertemps = [1.0, 1.2]
         coldfeed = ColdWaterSource(coldwatertemps, self.simtime, 0, 1)
-        return_temp = 60
         self.heat_network_service_water_storage= HeatNetworkServiceWaterStorage(
             self.heat_network,
-            "heat_network_test"
+            "heat_network_test",
+            60, # temp_hot_water
             )
 
     def test_heat_network_service_water_storage(self):
@@ -308,9 +163,10 @@ class TestHeatNetworkServiceWaterStorage(unittest.TestCase):
             with self.subTest(i=t_idx):
                 self.assertAlmostEqual(
                     self.heat_network_service_water_storage.demand_energy(energy_demanded[t_idx]),
-                    [10.0, 2.0][t_idx],
+                    [7.0, 2.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )
+            self.heat_network.timestep_end()
 
 
 class TestHeatNetworkServiceSpace(unittest.TestCase):
@@ -318,67 +174,16 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
 
     def setUp(self):
         """ Create HeatNetworkServiceSpace object to be tested """
-        heat_network_dict = {"type": "HeatNetwork",
-                             "EnergySupply": "custom"
-                             }
         self.simtime = SimulationTime(0, 2, 1)
         self.energysupply = EnergySupply("mains_gas", self.simtime)
         energy_supply_conn_name_auxiliary = 'Boiler_auxiliary'
 
-        # Set up ExternalConditions
-        self.airtemp = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
-        self.windspeed = [3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4]
-        self.airtemp = [0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 20.0]
-        self.diffuse_horizontal_radiation = [333, 610, 572, 420, 0, 10, 90, 275]
-        self.direct_beam_radiation = [420, 750, 425, 500, 0, 40, 0, 388]
-        self.solar_reflectivity_of_ground = [0.2] * 8760
-        self.latitude = 51.42
-        self.longitude = -0.75
-        self.timezone = 0
-        self.start_day = 0
-        self.end_day = 0
-        self.time_series_step = 1
-        self.january_first = 1
-        self.daylight_savings = "not applicable"
-        self.leap_day_included = False
-        self.direct_beam_conversion_needed = False
-        self.shading_segments = [
-            {"number": 1, "start": 180, "end": 135},
-            {"number": 2, "start": 135, "end": 90},
-            {"number": 3, "start": 90, "end": 45},
-            {"number": 4, "start": 45, "end": 0},
-            {"number": 5, "start": 0, "end": -45},
-            {"number": 6, "start": -45, "end": -90},
-            {"number": 7, "start": -90, "end": -135},
-            {"number": 8, "start": -135, "end": -180}
-        ]
-        extcond = ExternalConditions(
-            self.simtime,
-            self.airtemp,
-            self.windspeed,
-            self.diffuse_horizontal_radiation,
-            self.direct_beam_radiation,
-            self.solar_reflectivity_of_ground,
-            self.latitude,
-            self.longitude,
-            self.timezone,
-            self.start_day,
-            self.end_day,
-            self.time_series_step,
-            self.january_first,
-            self.daylight_savings,
-            self.leap_day_included,
-            self.direct_beam_conversion_needed,
-            self.shading_segments
-            )
-
         # Set up HeatNetwork
         self.heat_network = HeatNetwork(
-            heat_network_dict,
+            5.0, # power_max
             self.energysupply,
             energy_supply_conn_name_auxiliary,
             self.simtime,
-            extcond
             )
 
         self.heat_network._HeatNetwork__create_service_connection("heat_network_test")
@@ -402,6 +207,8 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
                         energy_demanded[t_idx],
                         temp_flow[t_idx],
                         temp_return[t_idx]),
-                    [10.0, 2.0][t_idx],
+                    [5.0, 2.0][t_idx],
                     msg="incorrect energy_output_provided"
                     )
+            self.heat_network.timestep_end()
+
