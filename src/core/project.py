@@ -719,14 +719,15 @@ class Project:
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 energy_supply_conn_name_auxiliary = 'HeatNetwork_auxiliary: ' + name
                 heat_source = HeatNetwork(
-                    data,
+                    data['power_max'],
+                    data['HIU_daily_loss'],
                     energy_supply,
                     energy_supply_conn_name_auxiliary,
                     self.__simtime,
-                    self.__external_conditions,
                     )
+                self.__timestep_end_calcs.append(heat_source)
                 # Create list of internal gains for each hour of the year, in W / m2
-                internal_gains_HIU = [heat_source.HIU_loss(data['HIU_daily_loss']) \
+                internal_gains_HIU = [heat_source.HIU_loss() \
                                         * units.W_per_kW \
                                         / self.__total_floor_area]
                 total_internal_gains_HIU = internal_gains_HIU * units.days_per_year * units.hours_per_day
@@ -834,12 +835,9 @@ class Project:
                         )
                 elif isinstance(heat_source_wet, HeatNetwork):
                     # Add heat network hot water service for feeding hot water cylinder
-                    heat_source = heat_source_wet.create_service_hot_water(
+                    heat_source = heat_source_wet.create_service_hot_water_storage(
                         data['name'] + '_water_heating',
                         temp_setpoint,
-                        55, # TODO Remove hard-coding of return temp
-                        data['temp_flow_limit_upper'],
-                        cold_water_source,
                         ctrl,
                         )
                 elif isinstance(heat_source_wet, HeatBattery):
@@ -951,7 +949,6 @@ class Project:
                     data['HeatSourceWet'] + '_water_heating',
                     60, # TODO Remove hard-coding of HW temp
                     cold_water_source,
-                    data['HIU_daily_loss']
                     )
             elif hw_source_type == 'HeatBattery':
                 # TODO MC - add PCM heat battery in here

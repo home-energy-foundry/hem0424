@@ -28,15 +28,24 @@ class HeatNetworkService:
     - demand_energy(self, energy_demand)
     """
 
-    def __init__(self, heat_network, service_name):
+    def __init__(self, heat_network, service_name, control=None):
         """ Construct a HeatNetworkService object
 
         Arguments:
         heat_network -- reference to the HeatNetwork object providing the service
         service_name -- name of the service demanding energy from the boiler
+        control -- reference to a control object which must implement is_on() func
         """
         self._heat_network = heat_network
         self._service_name = service_name
+        self.__control = control
+
+    def is_on(self):
+        if self.__control is not None:
+            service_on = self.__control.is_on()
+        else:
+            service_on = True
+        return service_on
 
 
 class HeatNetworkServiceWaterDirect(HeatNetworkService):
@@ -71,7 +80,6 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
 
     def demand_hot_water(self, volume_demanded):
         """ Demand energy for hot water (in kWh) from the heat network """
-        return_temperature = 60
         # Calculate energy needed to meet hot water demand
         energy_content_kWh_per_litre = WATER.volumetric_energy_content_kWh_per_litre(
             self.__temp_hot_water,
@@ -82,7 +90,6 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
         return self._heat_network._HeatNetwork__demand_energy(
             self.__service_name,
             energy_demand,
-            return_temperature
             )
 
 
@@ -96,27 +103,40 @@ class HeatNetworkServiceWaterStorage(HeatNetworkService):
     def __init__(
             self,
             heat_network,
-            service_name
+            service_name,
+            temp_hot_water,
+            control = None,
             ):
         """ Construct a HeatNetworkWaterStorage object
 
         Arguments:
         heat_network -- reference to the HeatNetwork object providing the service
         service_name -- name of the service demanding energy from the heat network
+        temp_hot_water -- temperature of the hot water to be provided, in deg C
+        control -- reference to a control object which must implement is_on() func
         """
-        super().__init__(heat_network, service_name)
+        super().__init__(heat_network, service_name, control)
+        self.__temp_hot_water = temp_hot_water
 
         self.__service_name = service_name
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heat network """
+        if not self.is_on():
+            return 0.0
+
         # Calculate energy needed to cover losses
-        return_temperature = 60
         return self._heat_network._HeatNetwork__demand_energy(
             self.__service_name,
             energy_demand,
-            return_temperature
             )
+
+    def energy_output_max(self):
+        """ Calculate the maximum energy output of the heat network"""
+        if not self.is_on():
+            return 0.0
+
+        return self._heat_network._HeatNetwork__energy_output_max(self.__temp_hot_water)
 
 
 class HeatNetworkServiceSpace(HeatNetworkService):
@@ -133,22 +153,26 @@ class HeatNetworkServiceSpace(HeatNetworkService):
         service_name -- name of the service demanding energy from the heat network
         control -- reference to a control object which must implement is_on() and setpnt() funcs
         """
-        super().__init__(heat_network, service_name)
+        super().__init__(heat_network, service_name, control)
 
         self.__service_name = service_name
         self.__control = control
 
     def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the heat network """
-        return_temperature = 60
+        if not self.is_on():
+            return 0.0
+
         return self._heat_network._HeatNetwork__demand_energy(
             self.__service_name,
             energy_demand,
-            return_temperature
             )
 
     def energy_output_max(self, temp_output, temp_return_feed):
         """ Calculate the maximum energy output of the heat network"""
+        if not self.is_on():
+            return 0.0
+
         return self._heat_network._HeatNetwork__energy_output_max(temp_output)
 
     def temp_setpnt(self):
@@ -158,21 +182,22 @@ class HeatNetworkServiceSpace(HeatNetworkService):
 class HeatNetwork:
     """ An object to represent a heat network """
 
-    def __init__(self, 
-                heat_network_dict,
-                energy_supply,
-                energy_supply_conn_name_auxiliary,
-                simulation_time,
-                ext_cond, 
-                ):
+    def __init__(
+            self, 
+            power_max,
+            daily_loss,
+            energy_supply,
+            energy_supply_conn_name_auxiliary,
+            simulation_time,
+            ):
         """ Construct a HeatNetwork object
 
         Arguments:
-        heat_network_dict   -- dictionary of heat network characteristics, with the following elements:
-                            -- TODO List elements and their definitions
+        power_max -- maximum power output of HIU, in kW
+        daily_loss -- daily loss from the HIU, in kWh
         energy_supply       -- reference to EnergySupply object
+        energy_supply_conn_name_auxiliary -- name to use for reporting auxiliary energy use
         simulation_time     -- reference to SimulationTime object
-        external_conditions -- reference to ExternalConditions object
 
         Other variables:
         energy_supply_connections -- dictionary with service name strings as keys and corresponding
@@ -180,12 +205,14 @@ class HeatNetwork:
         temp_hot_water            -- temperature of the hot water to be provided, in deg C
         cold_feed                 -- reference to ColdWaterSource object
         """
-
+        self.__power_max = power_max
+        self.__daily_loss = daily_loss
         self.__energy_supply = energy_supply
         self.__simulation_time = simulation_time
         self.__energy_supply_connections = {}
         self.__energy_supply_connection_aux \
             = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
+        self.__total_time_running_current_timestep = 0.0
 
     def __create_service_connection(self, service_name):
         """ Create an EnergySupplyConnection for the service name given """
@@ -203,7 +230,6 @@ class HeatNetwork:
             service_name,
             temp_hot_water,
             cold_feed,
-            daily_loss
             ):
         """ Return a HeatNetworkSeriviceWaterDirect object and create an EnergySupplyConnection for it
         
@@ -211,7 +237,6 @@ class HeatNetwork:
         service_name      -- name of the service demanding energy from the heat network
         temp_hot_water    -- temperature of the hot water to be provided, in deg C
         cold_feed         -- reference to ColdWaterSource object
-        daily_loss        -- daily loss from the HIU, in kW
         """
         self.__create_service_connection(service_name)
 
@@ -223,15 +248,17 @@ class HeatNetwork:
             self.__simulation_time
             )
 
-    def create_service_hot_water_storage(self, service_name):
+    def create_service_hot_water_storage(self, service_name, temp_hot_water, control=None):
         """ Return a HeatNetworkSeriviceWaterStorage object and create an EnergySupplyConnection for it
 
         Arguments:
         service_name -- name of the service demanding energy from the heat network
+        temp_hot_water -- temperature of the hot water to be provided, in deg C
+        control -- reference to a control object which must implement is_on() func
         """
         self.__create_service_connection(service_name)
 
-        return HeatNetworkServiceWaterStorage(self, service_name)
+        return HeatNetworkServiceWaterStorage(self, service_name, temp_hot_water, control)
 
     def create_service_space_heating(self, service_name, control):
         """ Return a HeatNetworkServiceSpace object and create an EnergySupplyConnection for it
@@ -244,20 +271,45 @@ class HeatNetwork:
 
         return HeatNetworkServiceSpace(self, service_name, control)
 
+    def __energy_output_max(self, temp_output):
+        """ Calculate the maximum energy output of the heat network, accounting
+            for time spent on higher-priority services.
+
+        Note: Call via a HeatNetworkService object, not directly.
+        """
+        timestep = self.__simulation_time.timestep()
+        time_available = timestep - self.__total_time_running_current_timestep
+        return self.__power_max * time_available
+
     def __demand_energy(
             self,
             service_name,
             energy_output_required,
-            temp_return_feed
             ):
         """ Calculate energy required by heat network to satisfy demand for the service indicated."""
-        self.__energy_supply_connections[service_name].demand_energy(energy_output_required)
+        energy_output_max = self.__energy_output_max(None)
+        if energy_output_max == 0.0:
+            return 0.0
+        energy_output_provided = max(0.0, min(energy_output_required, energy_output_max))
+        self.__energy_supply_connections[service_name].demand_energy(energy_output_provided)
 
-        return energy_output_required
+        time_available \
+            = self.__simulation_time.timestep() - self.__total_time_running_current_timestep
+        self.__total_time_running_current_timestep \
+            += (energy_output_provided / energy_output_max) * time_available
 
-    def HIU_loss(self, daily_loss):
+        return energy_output_provided
+
+    def timestep_end(self):
+        """ Calculations to be done at the end of each timestep """
+        # Energy required to overcome losses
+        self.__energy_supply_connection_aux.demand_energy(self.HIU_loss())
+
+        #Variables below need to be reset at the end of each timestep
+        self.__total_time_running_current_timestep = 0.0
+
+    def HIU_loss(self):
         """ Standing heat loss from the HIU (heat interface unit) in kWh """
         # daily_loss to be sourced from the PCDB, in kW
-        HIU_loss = daily_loss / hours_per_day * self.__simulation_time.timestep()
+        return self.__daily_loss / hours_per_day * self.__simulation_time.timestep()
 
-        return HIU_loss
