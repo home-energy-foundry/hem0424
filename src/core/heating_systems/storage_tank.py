@@ -188,9 +188,8 @@ class StorageTank:
         Q_out_W_dis_req_rem = Q_out_W_dis_req
 
         """TODO A few checks to make
-        1. Check condition used to compare to cold feed temperature in two places below
-        #seems odd to check against cold water temp for all layers.
-        if self.__temp_n[i] >= self.__cold_feed.temperature():
+        1. Check condition used to compare minimum temperature in two places below.
+        if self.__temp_n[i] >= self.__temp_out_W_min:
         2. Also not sure if temperature self.__temp_out_W_min is right temperature to use in deltaT.
            Using cold temp instead as per spreadsheet"""
 
@@ -199,7 +198,7 @@ class StorageTank:
             #special condition for first layer considered (the top layer)
             if i == self.__NB_VOL-1:
                 #threshold minimum temperature
-                if self.__temp_n[i] >= self.__cold_feed.temperature():
+                if self.__temp_n[i] >= self.__temp_out_W_min:
                     #total energy to be delivered can be met by top layer
                     if Q_out_W_dis_req <= Q_out_W_n[i]:
                         Vol_use_W_n[i] \
@@ -223,7 +222,7 @@ class StorageTank:
                     break
             #now iterate over lower layers in turn
             #threshold minimum temperature
-            elif self.__temp_n[i] >= self.__cold_feed.temperature():
+            elif self.__temp_n[i] >= self.__temp_out_W_min:
                 #this layer can meet and/or exceed remainder energy required for distribution
                 if Q_out_W_dis_req_rem <= Q_out_W_n[i]:
                     Vol_use_W_n[i] \
