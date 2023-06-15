@@ -34,7 +34,8 @@ from core.heating_systems.heat_network import HeatNetwork
 from core.space_heat_demand.zone import Zone
 from core.space_heat_demand.building_element import \
     BuildingElementOpaque, BuildingElementTransparent, BuildingElementGround, \
-    BuildingElementAdjacentZTC, BuildingElementAdjacentZTU_Simple
+    BuildingElementAdjacentZTC, BuildingElementAdjacentZTU_Simple, \
+    BuildingElement
 from core.space_heat_demand.ventilation_element import \
     VentilationElementInfiltration, WholeHouseExtractVentilation, \
     MechnicalVentilationHeatRecovery, NaturalVentilation,\
@@ -400,6 +401,10 @@ class Project:
  
         def dict_to_building_element(name, data):
             building_element_type = data['type']
+
+            # Calculate r_c from u_value if only the latter has been provided
+            data['r_c'] = self.__init_resistance_or_uvalue(name, data)
+
             if building_element_type == 'BuildingElementOpaque':
                 building_element = BuildingElementOpaque(
                     data['area'],
@@ -1154,6 +1159,29 @@ class Project:
         if 'OnSiteGeneration' in proj_dict:
             for name, data in proj_dict['OnSiteGeneration'].items():
                 self.__on_site_generation[name] = dict_to_on_site_generation(name, data)
+
+    def __init_resistance_or_uvalue(self, name, data):
+        """ Return thermal resistance of construction (r_c) based on alternative inputs
+
+        User will either provide r_c directly or provide u_value which needs to be converted
+        """
+        # If r_c has been provided directly, then use it, and print warning if
+        # u_value has been provided in addition
+        if 'r_c' in data.keys():
+            if 'u_value' in data.keys():
+                print( 'Warning: For BuildingElement input object "' \
+                     + name + '" both r_c and u_value have been provided. ' \
+                     + 'The value for r_c will be used.' \
+                     )
+            return data['r_c']
+        # If only u_value has been provided, use it to calculate r_c
+        else:
+            if 'u_value' in data.keys():
+                return BuildingElement.convert_uvalue_to_resistance(data['u_value'], data['pitch'])
+            else:
+                sys.exit( 'Error: For BuildingElement input object "' \
+                        + name + '" neither r_c nor u_value have been provided.' \
+                        )
 
     def total_floor_area(self):
         return self.__total_floor_area

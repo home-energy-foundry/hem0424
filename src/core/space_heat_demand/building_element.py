@@ -139,16 +139,28 @@ class BuildingElement:
             else:
                 return HeatFlowDirection.DOWNWARDS
 
+    @classmethod
+    def convert_uvalue_to_resistance(cls, u_value, pitch):
+        """ Convert U-value from input data to thermal resistance of construction only
+        (not incl. surface resistances)
+        """
+        return (1.0 / u_value) - cls.__r_si(pitch) - cls.__R_SE
+
     def r_si(self):
         """ Return internal surface resistance, in m2 K / W """
+        return self.__r_si(self._pitch)
+
+    @classmethod
+    def __r_si(cls, pitch):
+        """ Return internal surface resistance, in m2 K / W """
         # TODO use is floor and is ceiling functions so determine R SI values
-        if self._pitch >= self.__PITCH_LIMIT_HORIZ_CEILING \
-        and self._pitch <= self.__PITCH_LIMIT_HORIZ_FLOOR:
-            return self.__R_SI_HORIZONTAL
-        elif self._pitch < self.__PITCH_LIMIT_HORIZ_CEILING:
-            return self.__R_SI_UPWARDS
-        elif self._pitch > self.__PITCH_LIMIT_HORIZ_FLOOR:
-            return self.__R_SI_DOWNWARDS
+        if pitch >= cls.__PITCH_LIMIT_HORIZ_CEILING \
+        and pitch <= cls.__PITCH_LIMIT_HORIZ_FLOOR:
+            return cls.__R_SI_HORIZONTAL
+        elif pitch < cls.__PITCH_LIMIT_HORIZ_CEILING:
+            return cls.__R_SI_UPWARDS
+        elif pitch > cls.__PITCH_LIMIT_HORIZ_FLOOR:
+            return cls.__R_SI_DOWNWARDS
         else:
             sys.exit('Pitch class not recognised')
 
