@@ -141,6 +141,7 @@ class SetpointTimeControl:
             setpoint_min=None,
             setpoint_max=None,
             default_to_max=None,
+            duration_advanced_start=0.0,
             ):
         """ Construct a SetpointTimeControl object
 
@@ -153,6 +154,8 @@ class SetpointTimeControl:
         setpoint_max -- max setpoint allowed
         default_to_max -- if both min and max limits are set but setpoint isn't,
                           whether to default to min (False) or max (True) 
+        duration_advanced_start -- how long before heating period the system
+                                   should switch on, in hours
         """
         self.__schedule        = schedule
         self.__simulation_time = simulation_time
@@ -161,6 +164,8 @@ class SetpointTimeControl:
         self.__setpoint_min = setpoint_min
         self.__setpoint_max = setpoint_max
         self.__default_to_max = default_to_max
+        self.__timesteps_advstart \
+            = round(duration_advanced_start / self.__simulation_time.timestep())
 
     def is_on(self):
         """ Return true if control will allow system to run """
@@ -169,6 +174,19 @@ class SetpointTimeControl:
             self.__time_series_step,
             )
         setpnt = self.__schedule[schedule_idx]
+
+        if setpnt is None:
+            # Look ahead for duration of warmup period: system is on if setpoint
+            # is not None heating period if found
+            for timesteps_ahead in range(1, 1 + self.__timesteps_advstart):
+                if len(self.__schedule) <= schedule_idx + timesteps_ahead:
+                    # Stop looking ahead if we have reached the end of the schedule
+                    break
+                if self.__schedule[schedule_idx + timesteps_ahead] is not None:
+                    # If heating period starts within duration of warmup period
+                    # from now, system is on
+                    return True
+
         # For this type of control, system is always on if min or max are set
         if setpnt is None and self.__setpoint_min is None and self.__setpoint_max is None:
             return False
@@ -182,6 +200,19 @@ class SetpointTimeControl:
             self.__time_series_step,
             )
         setpnt = self.__schedule[schedule_idx]
+
+        if setpnt is None:
+            # Look ahead for duration of warmup period and use setpoint from
+            # start of heating period if found
+            for timesteps_ahead in range(1, 1 + self.__timesteps_advstart):
+                if len(self.__schedule) <= schedule_idx + timesteps_ahead:
+                    # Stop looking ahead if we have reached the end of the schedule
+                    break
+                if self.__schedule[schedule_idx + timesteps_ahead] is not None:
+                    # If heating period starts within duration of warmup period
+                    # from now, use setpoint from start of heating period
+                    setpnt = self.__schedule[schedule_idx + timesteps_ahead]
+                    break
 
         if setpnt is None:
             # If no setpoint value is in the schedule, use the min/max if set

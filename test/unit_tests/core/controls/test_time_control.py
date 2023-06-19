@@ -68,7 +68,7 @@ class Test_SetpointTimeControl(unittest.TestCase):
     def setUp(self):
         """ Create TimeControl object to be tested """
         self.simtime     = SimulationTime(0, 8, 1)
-        self.schedule    = [21.0, None, 21.0, 21.0, None, 21.0, 25.0, 15.0]
+        self.schedule    = [21.0, None, None, 21.0, None, 21.0, 25.0, 15.0]
         self.timecontrol = SetpointTimeControl(self.schedule, self.simtime, 0, 1)
         self.timecontrol_min \
             = SetpointTimeControl(self.schedule, self.simtime, 0, 1, 16.0, None)
@@ -76,6 +76,10 @@ class Test_SetpointTimeControl(unittest.TestCase):
             = SetpointTimeControl(self.schedule, self.simtime, 0, 1, None, 24.0)
         self.timecontrol_minmax \
             = SetpointTimeControl(self.schedule, self.simtime, 0, 1, 16.0, 24.0, False)
+        self.timecontrol_advstart \
+            = SetpointTimeControl(self.schedule, self.simtime, 0, 1, None, None, False, 1.0)
+        self.timecontrol_advstart_minmax \
+            = SetpointTimeControl(self.schedule, self.simtime, 0, 1, 16.0, 24.0, False, 1.0)
 
     def test_is_on(self):
         """ Test that SetpointTimeControl object is always on """
@@ -83,7 +87,7 @@ class Test_SetpointTimeControl(unittest.TestCase):
             with self.subTest(i=t_idx):
                 self.assertEqual(
                     self.timecontrol.is_on(),
-                    [True, False, True, True, False, True, True, True][t_idx],
+                    [True, False, False, True, False, True, True, True][t_idx],
                     "incorrect is_on value returned for control with no min or max set",
                     )
                 self.assertEqual(
@@ -101,12 +105,24 @@ class Test_SetpointTimeControl(unittest.TestCase):
                     True, # Should always be True for this type of control
                     "incorrect is_on value returned for control with min and max set",
                     )
+                self.assertEqual(
+                    self.timecontrol_advstart.is_on(),
+                    [True, False, True, True, True, True, True, True][t_idx],
+                    "incorrect is_on value returned for control with advanced start"
+                    )
+                self.assertEqual(
+                    self.timecontrol_advstart_minmax.is_on(),
+                    True,
+                    "incorrect is_on value returned for control with advanced start"
+                    )
 
     def test_setpnt(self):
         """ Test that SetpointTimeControl object returns correct schedule"""
-        results_min    = [21.0, 16.0, 21.0, 21.0, 16.0, 21.0, 25.0, 16.0]
-        results_max    = [21.0, 24.0, 21.0, 21.0, 24.0, 21.0, 24.0, 15.0]
-        results_minmax = [21.0, 16.0, 21.0, 21.0, 16.0, 21.0, 24.0, 16.0]
+        results_min             = [21.0, 16.0, 16.0, 21.0, 16.0, 21.0, 25.0, 16.0]
+        results_max             = [21.0, 24.0, 24.0, 21.0, 24.0, 21.0, 24.0, 15.0]
+        results_minmax          = [21.0, 16.0, 16.0, 21.0, 16.0, 21.0, 24.0, 16.0]
+        results_advstart        = [21.0, None, 21.0, 21.0, 21.0, 21.0, 25.0, 15.0]
+        results_advstart_minmax = [21.0, 16.0, 21.0, 21.0, 21.0, 21.0, 24.0, 16.0]
 
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
@@ -129,4 +145,14 @@ class Test_SetpointTimeControl(unittest.TestCase):
                     self.timecontrol_minmax.setpnt(),
                     results_minmax[t_idx],
                     "incorrect schedule returned for control with min and max set",
+                    )
+                self.assertEqual(
+                    self.timecontrol_advstart.setpnt(),
+                    results_advstart[t_idx],
+                    "incorrect schedule returned for control with advanced start",
+                    )
+                self.assertEqual(
+                    self.timecontrol_advstart_minmax.setpnt(),
+                    results_advstart_minmax[t_idx],
+                    "incorrect schedule returned for control with advanced start and min and max set",
                     )
