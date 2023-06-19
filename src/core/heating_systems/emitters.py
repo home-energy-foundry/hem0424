@@ -103,12 +103,22 @@ class Emitters:
             # use weather temperature at the timestep
             outside_temp = self.__external_conditions.air_temp()
 
-            # set outdoor and flow temp limits for weather compensation curve
-            outdoor_temp_limits = [self.__min_outdoor_temp, self.__max_outdoor_temp ]
-            flow_temp_limits = [self.__min_flow_temp, self.__max_flow_temp]
-
-            # Uses numpy interp
-            flow_temp = interp(outside_temp, outdoor_temp_limits, flow_temp_limits)
+            # Set outdoor and flow temp limits for weather compensation curve
+            if outside_temp < self.__min_outdoor_temp:
+                flow_temp = self.__max_flow_temp
+            elif outside_temp > self.__max_outdoor_temp:
+                flow_temp = self.__min_flow_temp
+            else:
+                # Interpolate
+                # Note: A previous version used numpy interpolate, but this
+                #       seemed to be giving incorrect results, so interpolation
+                #       is implemented manually here.
+                flow_temp \
+                    = self.__min_flow_temp \
+                    + (outside_temp - self.__max_outdoor_temp ) \
+                    * ( (self.__max_flow_temp - self.__min_flow_temp) \
+                      / (self.__min_outdoor_temp - self.__max_outdoor_temp) \
+                      )
 
         elif self.__ecodesign_control_class == Ecodesign_control_class.class_I \
             or self.__ecodesign_control_class == Ecodesign_control_class.class_IV \
