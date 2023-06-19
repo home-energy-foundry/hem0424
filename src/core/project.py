@@ -195,12 +195,15 @@ class Project:
                 setpoint_min = None
                 setpoint_max = None
                 default_to_max = None
+                advanced_start = 0.0
                 if 'setpoint_min' in data:
                     setpoint_min = data['setpoint_min']
                 if 'setpoint_max' in data:
                     setpoint_max = data['setpoint_max']
                 if 'default_to_max' in data:
                     default_to_max = data['default_to_max']
+                if 'advanced_start' in data:
+                    advanced_start = data['advanced_start']
 
                 ctrl = SetpointTimeControl(
                     schedule=sched,
@@ -210,6 +213,7 @@ class Project:
                     setpoint_min=setpoint_min,
                     setpoint_max=setpoint_max,
                     default_to_max=default_to_max,
+                    duration_advanced_start=advanced_start,
                 )
             elif ctrl_type == 'ToUChargeControl':
                 sched = expand_schedule(bool, data['schedule'], "main", False)
