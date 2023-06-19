@@ -27,7 +27,7 @@ class TestEmitters(unittest.TestCase):
         # Create simple HeatSource object implementing required interface to run tests
         class HeatSource:
             def energy_output_max(self, temp_flow, temp_return):
-                return 10.0
+                return 2.5
             def demand_energy(self, energy_req_from_heating_system, temp_flow, temp_return):
                 return max(0, min(2.5, energy_req_from_heating_system))
         heat_source = HeatSource()
@@ -104,15 +104,15 @@ class TestEmitters(unittest.TestCase):
                 energy_demand -= energy_provided
                 self.assertEqual(
                     energy_provided,
-                    [0.34897521144655874, 0.3837234398345157, 0.3837234398345157, 0.3837234398345157,
-                     0.4788200381574288, 0.48053985548703587, 0.48053985548703587, 0.48053985548703587]
+                    [0.26481930394248643, 0.8287480680413242, 1.053315069769369, 1.053315069769369,
+                     0.9604801440326911, 0.9419772896929609, 0.915353814620655, 0.7639281136418886]
                     [t_idx],
                     'incorrect energy provided by emitters',
                     )
                 self.assertEqual(
                     self.emitters._Emitters__temp_emitter_prev,
-                    [31.726190476190474, 31.726190476190474, 31.726190476190474, 31.726190476190474,
-                     34.14434523809524, 34.14434523809524, 34.14434523809524, 34.14434523809524]
+                    [35.96557640041081, 47.20238095238095, 47.20238095238095, 47.20238095238095,
+                     44.78422619047619, 44.78422619047619, 43.67306169524251, 38.21643231208616]
                     [t_idx],
                     'incorrect emitter temperature calculated'
                     )
