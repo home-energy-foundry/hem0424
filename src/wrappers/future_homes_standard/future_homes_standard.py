@@ -763,7 +763,11 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         "EnergySupply": "mains elec",
         "start_day": 0,
         "time_series_step": 1,
-        "gains_fraction": 1,
+        # Internal gains are reduced from washer/dryers and dishwasher waste heat losses. 
+        # Assume 70% of their heat is lost as waste heat in waste water or vented hot air, 
+        # or 15% of total appliance energy, leaving 85% appliance gains fraction
+        # See Table 2 "Relative contribution from the different load", page 28, UK Govt Household electricity survey
+        "gains_fraction": 0.85,
         "schedule": {
             #watts
             "main": [{"value": "jan", "repeat": 31},
