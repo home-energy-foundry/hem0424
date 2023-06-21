@@ -140,8 +140,10 @@ class Zone:
         temp_ext_air_init -- external air temperature to use during initialisation, in Celsius
         temp_setpnt_init -- setpoint temperature to use during initialisation, in Celsius
         """
-        # Use hourly timestep for warm-up period
-        delta_t_h = 1.0
+        # Use yearly timestep for warm-up period
+        # - solution converges significantly faster with larger timestep
+        # - solution is the same to ~5 significant figures for hourly vs. yearly timestep
+        delta_t_h = 8760
         delta_t = delta_t_h * units.seconds_per_hour
 
         # Assume default convective fraction for heating/cooling suggested in
