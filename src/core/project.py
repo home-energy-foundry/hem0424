@@ -910,6 +910,11 @@ class Project:
                     heat_source_dict[heat_source] = heat_source_data['heater_position'], \
                                                     heat_source_data['thermostat_position']
 
+                if 'ctrl_hold_at_setpnt' in data:
+                    ctrl_hold_at_setpnt = self.__controls[data['ctrl_hold_at_setpnt']]
+                else:
+                    ctrl_hold_at_setpnt = None
+
                 hw_source = StorageTank(
                     data['volume'],
                     data['daily_losses'],
@@ -919,7 +924,8 @@ class Project:
                     self.__simtime,
                     heat_source_dict,
                     primary_pipework,
-                    energy_supply_unmet_demand.connection(name)
+                    energy_supply_unmet_demand.connection(name),
+                    ctrl_hold_at_setpnt,
                     )
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
                     energy_supply_name = heat_source_data['EnergySupply']

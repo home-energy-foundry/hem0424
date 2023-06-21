@@ -60,6 +60,7 @@ class StorageTank:
             heat_source_dict,
             primary_pipework=None,
             energy_supply_conn_unmet_demand=None,
+            ctrl_hold_at_setpnt=None,
             contents=WATER,
             ):
         """ Construct a StorageTank object
@@ -77,6 +78,10 @@ class StorageTank:
                                 position
         energy_supply_conn_unmet_demand 
             -- reference to EnergySupplyConnection object to be used to record unmet energy demand
+        ctrl_hold_at_setpnt -- reference to Control object with Boolean schedule
+                               defining when the StorageTank should be held at
+                               the setpoint temperature and not allowed to fall
+                               to the minimum before recharging
         contents             -- reference to MaterialProperties object
 
         Other variables:
@@ -88,6 +93,7 @@ class StorageTank:
         self.__cold_feed      = cold_feed
         self.__contents       = contents
         self.__energy_supply_conn_unmet_demand = energy_supply_conn_unmet_demand
+        self.__control_hold_at_setpnt = ctrl_hold_at_setpnt
         self.__simulation_time = simulation_time
 
         #total volume in litres
@@ -124,6 +130,13 @@ class StorageTank:
 
         # sort heat source data in order from the bottom of the tank based on heater position
         self.__heat_source_data = sorted(heat_source_dict.items(), key=lambda x:x[1])
+
+    def __get_setpnt_min(self):
+        """ Return temp_out_W_min unless tank is being held at setpnt, in which case return that """
+        if self.__control_hold_at_setpnt is not None and self.__control_hold_at_setpnt.is_on():
+            return self.__temp_set_on
+        else:
+            return self.__temp_out_W_min
 
     def stand_by_losses_coefficient(self):
         """Appendix B B.2.8 Stand-by losses are usually determined in terms of energy losses during
@@ -307,7 +320,7 @@ class StorageTank:
             #thermostat position is below the set point
 
             #Trigger heating to start when temperature falls below the minimum
-            if temp_s3_n[thermostat_layer] < self.__temp_out_W_min:
+            if temp_s3_n[thermostat_layer] < self.__get_setpnt_min():
                 self.__heating_active = True
 
             if self.__heating_active:
