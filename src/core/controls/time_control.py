@@ -167,6 +167,19 @@ class SetpointTimeControl:
         self.__timesteps_advstart \
             = round(duration_advanced_start / self.__simulation_time.timestep())
 
+    def in_required_period(self):
+        """ Return true if current time is inside specified time for heating/cooling
+        
+        (not including timesteps where system is only on due to min or max
+        setpoint or advanced start)
+        """
+        schedule_idx = self.__simulation_time.time_series_idx(
+            self.__start_day,
+            self.__time_series_step,
+            )
+        setpnt = self.__schedule[schedule_idx]
+        return (setpnt is not None)
+
     def is_on(self):
         """ Return true if control will allow system to run """
         schedule_idx = self.__simulation_time.time_series_idx(

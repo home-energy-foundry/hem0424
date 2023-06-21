@@ -81,6 +81,42 @@ class Test_SetpointTimeControl(unittest.TestCase):
         self.timecontrol_advstart_minmax \
             = SetpointTimeControl(self.schedule, self.simtime, 0, 1, 16.0, 24.0, False, 1.0)
 
+    def test_in_required_period(self):
+        """ Test that SetpointTimeControl objects return correct status for required period """
+        results = [True, False, False, True, False, True, True, True]
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertEqual(
+                    self.timecontrol.in_required_period(),
+                    results[t_idx],
+                    "incorrect in_required_period value returned for control with no min or max set",
+                    )
+                self.assertEqual(
+                    self.timecontrol_min.in_required_period(),
+                    results[t_idx],
+                    "incorrect in_required_period value returned for control with min set",
+                    )
+                self.assertEqual(
+                    self.timecontrol_max.in_required_period(),
+                    results[t_idx],
+                    "incorrect in_required_period value returned for control with max set",
+                    )
+                self.assertEqual(
+                    self.timecontrol_minmax.in_required_period(),
+                    results[t_idx],
+                    "incorrect in_required_period value returned for control with min and max set",
+                    )
+                self.assertEqual(
+                    self.timecontrol_advstart.in_required_period(),
+                    results[t_idx],
+                    "incorrect in_required_period value returned for control with advanced start"
+                    )
+                self.assertEqual(
+                    self.timecontrol_advstart_minmax.in_required_period(),
+                    results[t_idx],
+                    "incorrect in_required_period value returned for control with advanced start"
+                    )
+
     def test_is_on(self):
         """ Test that SetpointTimeControl object is always on """
         for t_idx, _, _ in self.simtime:

@@ -300,6 +300,9 @@ class BoilerServiceSpace(BoilerService):
     def temp_setpnt(self):
         return self.__control.setpnt()
 
+    def in_required_period(self):
+        return self.__control.in_required_period()
+
     def demand_energy(self, energy_demand, temp_flow, temp_return):
         """ Demand energy (in kWh) from the boiler """
         if not self.is_on():

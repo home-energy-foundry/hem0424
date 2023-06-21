@@ -38,6 +38,9 @@ class AirConditioning:
     def temp_setpnt(self):
         return self.__control.setpnt()
 
+    def in_required_period(self):
+        return self.__control.in_required_period()
+
     def frac_convective(self):
         return self.__frac_convective
 
