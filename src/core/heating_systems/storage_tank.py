@@ -320,7 +320,7 @@ class StorageTank:
             #thermostat position is below the set point
 
             #Trigger heating to start when temperature falls below the minimum
-            if temp_s3_n[thermostat_layer] < self.__get_setpnt_min():
+            if temp_s3_n[thermostat_layer] <= self.__get_setpnt_min():
                 self.__heating_active = True
 
             if self.__heating_active:

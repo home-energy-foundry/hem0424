@@ -910,8 +910,8 @@ class Project:
                     heat_source_dict[heat_source] = heat_source_data['heater_position'], \
                                                     heat_source_data['thermostat_position']
 
-                if 'ctrl_hold_at_setpnt' in data:
-                    ctrl_hold_at_setpnt = self.__controls[data['ctrl_hold_at_setpnt']]
+                if 'Control_hold_at_setpnt' in data:
+                    ctrl_hold_at_setpnt = self.__controls[data['Control_hold_at_setpnt']]
                 else:
                     ctrl_hold_at_setpnt = None
 
