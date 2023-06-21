@@ -178,6 +178,9 @@ class HeatNetworkServiceSpace(HeatNetworkService):
     def temp_setpnt(self):
         return self.__control.setpnt()
 
+    def in_required_period(self):
+        return self.__control.in_required_period()
+
 
 class HeatNetwork:
     """ An object to represent a heat network """

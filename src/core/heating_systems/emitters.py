@@ -79,6 +79,9 @@ class Emitters:
     def temp_setpnt(self):
         return self.__heat_source.temp_setpnt()
 
+    def in_required_period(self):
+        return self.__heat_source.in_required_period()
+
     def frac_convective(self):
         return self.__frac_convective
 

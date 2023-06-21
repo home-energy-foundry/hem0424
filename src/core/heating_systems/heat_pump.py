@@ -950,6 +950,9 @@ class HeatPumpServiceSpace(HeatPumpService):
     def temp_setpnt(self):
         return self._HeatPumpService__control.setpnt()
 
+    def in_required_period(self):
+        return self._HeatPumpService__control.in_required_period()
+
     def energy_output_max(self, temp_output, temp_return_feed):
         """ Calculate the maximum energy output of the HP, accounting for time
             spent on higher-priority services
