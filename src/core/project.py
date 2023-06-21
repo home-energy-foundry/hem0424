@@ -1633,15 +1633,25 @@ class Project:
                 gains_heat_cool = (gains_heat + gains_cool) * units.W_per_kW / delta_t_h
 
                 # Calculate how much space heating / cooling demand is unmet
+                # Note: Demand is not considered unmet if it is outside the
+                #       required heating/cooling period (which does not include
+                #       times when the system is on due to setback or advanced
+                #       start)
                 # Note: Need to check that demand is non-zero, to avoid
                 #       reporting unmet demand when heating system is absorbing
                 #       energy from zone or cooling system is releasing energy
                 #       to zone, which may be the case in some timesteps for
                 #       systems with significant thermal mass.
-                if space_heat_demand_zone[z_name] > 0:
+                in_req_heat_period \
+                    = False if h_name is None \
+                      else self.__space_heat_systems[h_name].in_required_period()
+                if in_req_heat_period and space_heat_demand_zone[z_name] > 0:
                     energy_shortfall_heat = max(0, space_heat_demand_zone[z_name] - gains_heat)
                     self.__energy_supply_conn_unmet_demand_zone[z_name].demand_energy(energy_shortfall_heat)
-                if space_cool_demand_zone[z_name] < 0:
+                in_req_cool_period \
+                    = False if c_name is None \
+                      else self.__space_cool_systems[c_name].in_required_period()
+                if in_req_cool_period and space_cool_demand_zone[z_name] < 0:
                     energy_shortfall_cool = max(0, - (space_cool_demand_zone[z_name] - gains_cool))
                     self.__energy_supply_conn_unmet_demand_zone[z_name].demand_energy(energy_shortfall_cool)
 
