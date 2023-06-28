@@ -643,6 +643,7 @@ class StorageTank:
         #TODO - 6.4.3.7 STEP 5 Temperature of the storage after volume withdrawn (for Heating)
         
         # Run over multiple heat sources
+        temp_after_prev_heat_source = temp_s3_n
         Q_ls = 0.0
         Q_ls_n_prev_heat_source = [0.0] * self.__NB_VOL
         for heat_source,  heat_source_data in self.__heat_source_data:
@@ -652,13 +653,14 @@ class StorageTank:
             temp_s8_n, Q_x_in_n, Q_s6, temp_s6_n, temp_s7_n, Q_in_H_W, \
                 Q_ls_this_heat_source, Q_ls_n_this_heat_source \
                 = self.run_heat_sources(
-                    temp_s3_n,
+                    temp_after_prev_heat_source,
                     heat_source,
                     heater_layer,
                     thermostat_layer,
                     Q_ls_n_prev_heat_source,
                     )
 
+            temp_after_prev_heat_source = temp_s8_n
             Q_ls += Q_ls_this_heat_source
             for i, Q_ls_n in enumerate(Q_ls_n_this_heat_source):
                 Q_ls_n_prev_heat_source[i] += Q_ls_n
