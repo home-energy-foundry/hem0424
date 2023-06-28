@@ -586,21 +586,6 @@ class StorageTank:
 
         #TODO 6.4.3.11 Heat exchanger
 
-        #Additional calculations
-        #6.4.6 Calculation of the auxiliary energy
-        #accounted for elsewhere so not included here
-        W_sto_aux = 0
-
-        #6.4.7 Recoverable, recovered thermal losses
-        #recovered auxiliary energy to the heating medium - kWh
-        Q_sto_h_aux_rvd = W_sto_aux * self.__f_rvd_aux
-        #recoverable auxiliary energy transmitted to the heated space - kWh
-        Q_sto_h_rbl_aux = W_sto_aux * self.__f_sto_m * (1 - self.__f_rvd_aux)
-        #recoverable heat losses (storage) - kWh
-        Q_sto_h_rbl_env = Q_ls * self.__f_sto_m
-        #total recoverable heat losses  for heating - kWh
-        self.__Q_sto_h_ls_rbl = Q_sto_h_rbl_env + Q_sto_h_rbl_aux
-        
         #demand adjusted energy from heat source (before was just using potential without taking it)
         input_energy_adj = deepcopy(Q_in_H_W)
 
@@ -679,6 +664,21 @@ class StorageTank:
                 temp_s7_n, Q_in_H_W, Q_ls_this_heat_source, temp_s8_n,
                 )
             """
+
+        #Additional calculations
+        #6.4.6 Calculation of the auxiliary energy
+        #accounted for elsewhere so not included here
+        W_sto_aux = 0
+
+        #6.4.7 Recoverable, recovered thermal losses
+        #recovered auxiliary energy to the heating medium - kWh
+        Q_sto_h_aux_rvd = W_sto_aux * self.__f_rvd_aux
+        #recoverable auxiliary energy transmitted to the heated space - kWh
+        Q_sto_h_rbl_aux = W_sto_aux * self.__f_sto_m * (1 - self.__f_rvd_aux)
+        #recoverable heat losses (storage) - kWh
+        Q_sto_h_rbl_env = Q_ls * self.__f_sto_m
+        #total recoverable heat losses  for heating - kWh
+        self.__Q_sto_h_ls_rbl = Q_sto_h_rbl_env + Q_sto_h_rbl_aux
 
         #set temperatures calculated to be initial temperatures of volumes for the next timestep
         self.__temp_n = deepcopy(temp_s8_n)
