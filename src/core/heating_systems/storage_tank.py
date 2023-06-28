@@ -104,9 +104,7 @@ class StorageTank:
         self.__Cp = contents.specific_heat_capacity_kWh()
         #volumic mass in kg/litre
         self.__rho = contents.density()
-        # heating on or off
-        self.__heating_active = False
-        
+
         #6.4.3.2 STEP 0 Initialization
         """for initial conditions all temperatures in the thermal storage unit(s)
          are equal to the set point temperature in degrees.
@@ -130,6 +128,11 @@ class StorageTank:
 
         # sort heat source data in order from the bottom of the tank based on heater position
         self.__heat_source_data = sorted(heat_source_dict.items(), key=lambda x:x[1])
+
+        self.__heating_active = {}
+        for heat_source_data in self.__heat_source_data:
+            # heating on or off
+            self.__heating_active[heat_source_data[0]] = False
 
     def __get_setpnt_min(self):
         """ Return temp_out_W_min unless tank is being held at setpnt, in which case return that """
@@ -321,9 +324,9 @@ class StorageTank:
 
             #Trigger heating to start when temperature falls below the minimum
             if temp_s3_n[thermostat_layer] <= self.__get_setpnt_min():
-                self.__heating_active = True
+                self.__heating_active[heat_source] = True
 
-            if self.__heating_active:
+            if self.__heating_active[heat_source]:
                 energy_potential = heat_source.energy_output_max()
 
                 # TODO Consolidate checks for systems with/without primary pipework
@@ -665,14 +668,14 @@ class StorageTank:
             for i, Q_ls_n in enumerate(Q_ls_n_this_heat_source):
                 Q_ls_n_prev_heat_source[i] += Q_ls_n
 
+            #Trigger heating to stop when setpoint is reached
+            if temp_s8_n[thermostat_layer] >= self.__temp_set_on:
+                self.__heating_active[heat_source] = False
+
         #set temperatures calculated to be initial temperatures of volumes for the next timestep
         self.__temp_n = deepcopy(temp_s8_n)
 
         #TODOrecoverable heat losses for heating should impact heating
-
-        #Trigger heating to stop when setpoint is reached
-        if temp_s8_n[thermostat_layer] >= self.__temp_set_on:
-            self.__heating_active = False
 
         #print interim steps to output file for investigation
         """self.testoutput(
