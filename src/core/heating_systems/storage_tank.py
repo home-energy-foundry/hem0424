@@ -421,7 +421,7 @@ class StorageTank:
 
         return Q_h_sto_end, temp_s7_n
 
-    def thermal_losses(self, temp_s7_n, Q_x_in_n, Q_h_sto_s7, thermostat_layer):
+    def thermal_losses(self, temp_s7_n, Q_x_in_n, Q_h_sto_s7, thermostat_layer, Q_ls_n_prev_heat_source):
         """Thermal losses are calculated with respect to the impact of the temperature set point"""
         #standby losses coefficient - kW/K
         H_sto_ls = self.stand_by_losses_coefficient()
@@ -444,6 +444,8 @@ class StorageTank:
                         * (self.__Vol_n[i] / self.__V_total) \
                         * (min(temp_s7_n[i], self.__temp_set_on) - self.__temp_amb) \
                         * self.__simulation_time.timestep()
+            # Prevent double-counting of losses with multiple heat sources
+            Q_ls_n[i] = max(0.0, Q_ls_n[i] - Q_ls_n_prev_heat_source[i])
 
         #total thermal losses kWh
         Q_ls = sum(Q_ls_n)
@@ -487,7 +489,7 @@ class StorageTank:
         STO_BU_ON = 1
         Q_in_H_W = min((Q_x_in_adj - energy_surplus), Q_x_in_adj * STO_BU_ON)
 
-        return Q_in_H_W, Q_ls, temp_s8_n
+        return Q_in_H_W, Q_ls, temp_s8_n, Q_ls_n
 
     def testoutput(self, volume_demanded, Q_out_W_n, Q_out_W_dis_req, Q_use_W_n,
                    Q_out_W_dis_req_rem, Vol_use_W_n, temp_s3_n, Q_x_in_n,
@@ -558,20 +560,26 @@ class StorageTank:
             o.write(str(temp_s8_n))
             o.write(",")
 
-    def run_heat_sources(self, temp_s3_n, heat_source, heater_layer, thermostat_layer):
+    def run_heat_sources(self, temp_s3_n, heat_source, heater_layer, thermostat_layer, Q_ls_prev_heat_source):
         #6.4.3.8 STEP 6 Energy input into the storage
         #input energy delivered to the storage in kWh - timestep dependent
         Q_x_in_n = self.potential_energy_input(temp_s3_n, heat_source, heater_layer, thermostat_layer)
-        return self.__calculate_temperatures(temp_s3_n, heat_source, Q_x_in_n, thermostat_layer)
+        return self.__calculate_temperatures(temp_s3_n, heat_source, Q_x_in_n, thermostat_layer, Q_ls_prev_heat_source)
 
-    def __calculate_temperatures(self, temp_s3_n, heat_source, Q_x_in_n, thermostat_layer):
+    def __calculate_temperatures(self, temp_s3_n, heat_source, Q_x_in_n, thermostat_layer, Q_ls_n_prev_heat_source):
         Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
 
         #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
         Q_h_sto_s7, temp_s7_n = self.rearrange_temperatures(temp_s6_n)
 
         #STEP 8 Thermal losses and final temperature
-        Q_in_H_W, Q_ls, temp_s8_n = self.thermal_losses(temp_s7_n, Q_x_in_n, Q_h_sto_s7, thermostat_layer)
+        Q_in_H_W, Q_ls, temp_s8_n, Q_ls_n = self.thermal_losses(
+            temp_s7_n,
+            Q_x_in_n,
+            Q_h_sto_s7,
+            thermostat_layer,
+            Q_ls_n_prev_heat_source,
+            )
 
         #TODO 6.4.3.11 Heat exchanger
 
@@ -599,7 +607,7 @@ class StorageTank:
         heat_source_output = self.heat_source_output(heat_source, input_energy_adj)
         input_energy_adj = input_energy_adj - heat_source_output
 
-        return temp_s8_n, Q_x_in_n, Q_s6, temp_s6_n, temp_s7_n, Q_in_H_W, Q_ls
+        return temp_s8_n, Q_x_in_n, Q_s6, temp_s6_n, temp_s7_n, Q_in_H_W, Q_ls, Q_ls_n
 
     def demand_hot_water(self, volume_demanded):
         """ Draw off hot water from the tank
@@ -635,15 +643,25 @@ class StorageTank:
         #TODO - 6.4.3.7 STEP 5 Temperature of the storage after volume withdrawn (for Heating)
         
         # Run over multiple heat sources
+        Q_ls = 0.0
+        Q_ls_n_prev_heat_source = [0.0] * self.__NB_VOL
         for heat_source,  heat_source_data in self.__heat_source_data:
             heater_layer = int(heat_source_data[0] *self.__NB_VOL)
             thermostat_layer = int(heat_source_data[1] *self.__NB_VOL)
-            temp_s8_n, Q_x_in_n, Q_s6, temp_s6_n, temp_s7_n, Q_in_H_W, Q_ls = self.run_heat_sources(
-                temp_s3_n,
-                heat_source,
-                heater_layer,
-                thermostat_layer
-                )
+
+            temp_s8_n, Q_x_in_n, Q_s6, temp_s6_n, temp_s7_n, Q_in_H_W, \
+                Q_ls_this_heat_source, Q_ls_n_this_heat_source \
+                = self.run_heat_sources(
+                    temp_s3_n,
+                    heat_source,
+                    heater_layer,
+                    thermostat_layer,
+                    Q_ls_n_prev_heat_source,
+                    )
+
+            Q_ls += Q_ls_this_heat_source
+            for i, Q_ls_n in enumerate(Q_ls_n_this_heat_source):
+                Q_ls_n_prev_heat_source[i] += Q_ls_n
 
         #set temperatures calculated to be initial temperatures of volumes for the next timestep
         self.__temp_n = deepcopy(temp_s8_n)
