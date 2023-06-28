@@ -672,17 +672,19 @@ class StorageTank:
             if temp_s8_n[thermostat_layer] >= self.__temp_set_on:
                 self.__heating_active[heat_source] = False
 
+            """#print interim steps to output file for investigation
+            self.testoutput(
+                volume_demanded, Q_out_W_n, Q_out_W_dis_req, Q_use_W_n, Q_out_W_dis_req_rem,
+                Vol_use_W_n, temp_s3_n, Q_x_in_n, Q_s6, temp_s6_n,
+                temp_s7_n, Q_in_H_W, Q_ls_this_heat_source, temp_s8_n,
+                )
+            """
+
         #set temperatures calculated to be initial temperatures of volumes for the next timestep
         self.__temp_n = deepcopy(temp_s8_n)
 
         #TODOrecoverable heat losses for heating should impact heating
 
-        #print interim steps to output file for investigation
-        """self.testoutput(
-            volume_demanded, Q_out_W_n, Q_out_W_dis_req, Q_use_W_n, Q_out_W_dis_req_rem,
-            Vol_use_W_n, temp_s3_n, Q_x_in_n, Q_s6, temp_s6_n,
-            temp_s7_n, Q_in_H_W, Q_ls, temp_s8_n,
-            )"""
 
     def additional_energy_input(self, heat_source, energy_input):
         if energy_input == 0.0:
