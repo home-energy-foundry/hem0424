@@ -372,6 +372,9 @@ def create_heating_pattern(project_dict):
                     if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
                         project_dict['Control']['HeatingPattern_LivingRoom']['setpoint_min'] \
                             = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
+                    if 'advanced_start' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
+                        project_dict['Control']['HeatingPattern_LivingRoom']['advanced_start'] \
+                            = project_dict["SpaceHeatSystem"][spaceheatsystem]['advanced_start']
             
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" \
             and controltype == 2:
@@ -399,6 +402,9 @@ def create_heating_pattern(project_dict):
                     if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
                         project_dict['Control']['HeatingPattern_RestOfDwelling']['setpoint_min'] \
                             = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
+                    if 'advanced_start' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
+                        project_dict['Control']['HeatingPattern_RestOfDwelling']['advanced_start'] \
+                            = project_dict["SpaceHeatSystem"][spaceheatsystem]['advanced_start']
             
             elif project_dict['Zone'][zone]["SpaceHeatControl"] == "restofdwelling" \
             and controltype == 3:
@@ -426,6 +432,9 @@ def create_heating_pattern(project_dict):
                     if 'temp_setback' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
                         project_dict['Control']['HeatingPattern_RestOfDwelling']['setpoint_min'] \
                             = project_dict["SpaceHeatSystem"][spaceheatsystem]['temp_setback']
+                    if 'advanced_start' in project_dict["SpaceHeatSystem"][spaceheatsystem].keys():
+                        project_dict['Control']['HeatingPattern_RestOfDwelling']['advanced_start'] \
+                            = project_dict["SpaceHeatSystem"][spaceheatsystem]['advanced_start']
         #todo: else condition to deal with zone that doesnt have specified livingroom/rest of dwelling
     '''
     water heating pattern - same as space heating if not otherwise specified and
