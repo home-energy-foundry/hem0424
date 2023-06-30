@@ -121,6 +121,7 @@ def run_project(
             results_totals,
             energy_import,
             energy_export,
+            results_end_user,
             timestep_array,
             file_path[0],
             )

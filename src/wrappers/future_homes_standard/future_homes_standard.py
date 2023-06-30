@@ -20,6 +20,10 @@ from wrappers.future_homes_standard.FHS_HW_events import HW_event_adjust_allocat
 this_directory = os.path.dirname(os.path.relpath(__file__))
 FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_07-06-2023.csv")
 
+appl_obj_name = 'appliances'
+elec_cook_obj_name = 'Eleccooking'
+gas_cook_obj_name = 'Gascooking'
+
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
     
@@ -66,6 +70,7 @@ def apply_fhs_postprocessing(
         results_totals,
         energy_import,
         energy_export,
+        results_end_user,
         timestep_array,
         file_path,
         ):
@@ -73,6 +78,15 @@ def apply_fhs_postprocessing(
     
     emissionfactors = {}
     results = {}
+    
+    #remove appliance and cooking energy from results_totals
+    for t_idx, timestep in enumerate(timestep_array):
+        for key, value in results_end_user.items():
+            unregulated = 0
+            for obj_name in [appl_obj_name,elec_cook_obj_name,gas_cook_obj_name]:
+                if obj_name in value.keys():
+                    unregulated += value[obj_name][t_idx]
+            results_totals[key][t_idx]-=unregulated
     
     unprocessed_result_dict = {'total': results_totals,
                                'import': energy_import,
@@ -708,7 +722,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
     
     #add back gas and electric cooking gains if they are present 
     if "mains_gas" in cookingfuels:
-        project_dict['ApplianceGains']['Gascooking'] = {
+        project_dict['ApplianceGains'][gas_cook_obj_name] = {
             "type":"cooking",
             "EnergySupply": "mains gas",
             "start_day" : 0,
@@ -720,7 +734,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             }
         }
     if "electricity" in cookingfuels:
-        project_dict['ApplianceGains']['Eleccooking'] = {
+        project_dict['ApplianceGains'][elec_cook_obj_name] = {
             "type":"cooking",
             "EnergySupply": "mains elec",
             "start_day" : 0,
@@ -758,7 +772,7 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         appliance_gains_W.append([1000 * EA_annual_kWh * frac / 365
                                   for frac in monthly_profile])
         
-    project_dict['ApplianceGains']['appliances'] = {
+    project_dict['ApplianceGains'][appl_obj_name] = {
         "type": "appliances",
         "EnergySupply": "mains elec",
         "start_day": 0,
