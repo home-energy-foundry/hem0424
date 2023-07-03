@@ -9,6 +9,7 @@ This module contains objects that represent photovoltaic systems.
 
 # Local imports
 import core.units as units
+from core.space_heat_demand.building_element import projected_height
 
 
 class PhotovoltaicSystem:
@@ -40,6 +41,7 @@ class PhotovoltaicSystem:
     }
 
     def __init__(self, peak_power, ventilation_strategy, pitch, orientation,
+                 base_height, height, width,
                  ext_cond, energy_supply_conn, simulation_time):
         """ Construct a PhotovoltaicSystem object
 
@@ -63,6 +65,9 @@ class PhotovoltaicSystem:
                             Assumed N 180 or -180, E 90, S 0, W -90
                             TODO - PV standard refers to angle as between 0 to 360?
                             Needed to calculate solar irradiation at the panel surface.
+        base_height      -- is the distance between the ground and the lowest edge of the PV panel, in m
+        height           -- is the height of the PV panel, in m
+        width            -- is the width of the PV panel, in m
         ext_cond         -- reference to ExternalConditions object
         energy_supply_conn    -- reference to EnergySupplyConnection object
         simulation_time  -- reference to SimulationTime object
@@ -72,6 +77,9 @@ class PhotovoltaicSystem:
         self.__f_perf = self.__f_perf_lookup[ventilation_strategy]
         self.__pitch = pitch
         self.__orientation = orientation
+        self.__base_height = base_height
+        self.__width = width
+        self.__projected_height = projected_height(pitch, height)
         self.__external_conditions = ext_cond
         self.__energy_supply_conn = energy_supply_conn
         self.__simulation_time = simulation_time
@@ -81,12 +89,15 @@ class PhotovoltaicSystem:
             according to BS EN 15316-4-3:2017 """
 
         #solar_irradiance in W/m2
-        _, _, solar_irradiance = self.__external_conditions.calculated_direct_diffuse_total_irradiance(
+        i_sol_dir, i_sol_dif, _ = self.__external_conditions.calculated_direct_diffuse_total_irradiance(
             self.__pitch,
             self.__orientation
             )
+        #shading factors
+        f_sh_dir, f_sh_dif = self.shading_factors_direct_diffuse()
         #solar_irradiation in kWh/m2
-        solar_irradiation = solar_irradiance * self.__simulation_time.timestep() / units.W_per_kW
+        solar_irradiation = (i_sol_dir * f_sh_dir + i_sol_dif * f_sh_dif) \
+                            * self.__simulation_time.timestep() / units.W_per_kW
         #reference_solar_irradiance kW/m2
         ref_solar_irradiance = 1
 
@@ -99,3 +110,9 @@ class PhotovoltaicSystem:
             = solar_irradiation * self.__peak_power * self.__f_perf / ref_solar_irradiance
         #add energy produced to the applicable energy supply connection (this will reduce demand)
         self.__energy_supply_conn.supply_energy(energy_produced)
+
+    def shading_factors_direct_diffuse(self):
+        """ return calculated shading factor """
+        return self.__external_conditions.shading_reduction_factor_direct_diffuse( \
+                self.__base_height, self.__projected_height, self.__width, \
+                self.__pitch, self.__orientation, False)

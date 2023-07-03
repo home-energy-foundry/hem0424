@@ -376,6 +376,9 @@
 			"ventilation_strategy": "moderately_ventilated",
 			"pitch": 30,
 			"orientation": 0,
+			"base_height":10,
+			"height":1,
+			"width":1,
 			"EnergySupply": "mains elec"
 		}
 	}
