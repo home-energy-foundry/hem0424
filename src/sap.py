@@ -107,11 +107,14 @@ def run_project(
     # Sum per-timestep figures as needed
     space_heat_demand_total = sum(sum(h_dem) for h_dem in zone_dict['Space heat demand'].values())
     space_cool_demand_total = sum(sum(c_dem) for c_dem in zone_dict['Space cool demand'].values())
-
+    total_floor_area = project.total_floor_area()
+    
     write_core_output_file_summary(
         output_file_summary,
+        results_end_user,
         space_heat_demand_total,
         space_cool_demand_total,
+        total_floor_area
         )
 
     # Apply required postprocessing steps, if any
@@ -323,9 +326,45 @@ def write_core_output_file(
 
 def write_core_output_file_summary(
         output_file_summary,
+        results_end_user,
         space_heat_demand_total,
         space_cool_demand_total,
+        total_floor_area
         ):
+    # Delivered energy by end-use and by fuel
+    delivered_energy_dict = {'total':{'total':0}}
+    for fuel,end_uses in results_end_user.items():
+        if fuel not in ['_unmet_demand','hw cylinder']:
+            delivered_energy_dict[fuel]={}
+            delivered_energy_dict[fuel]['total'] = 0
+            for end_use,delivered_energy in end_uses.items():
+                if sum(delivered_energy)>=0:
+                    delivered_energy_dict[fuel][end_use]=sum(delivered_energy)
+                    delivered_energy_dict[fuel]['total'] +=sum(delivered_energy)
+                    if end_use not in delivered_energy_dict['total'].keys():
+                        delivered_energy_dict['total'][end_use] = sum(delivered_energy)
+                    else:
+                        delivered_energy_dict['total'][end_use] += sum(delivered_energy)
+                    delivered_energy_dict['total']['total'] +=sum(delivered_energy)
+    
+    delivered_energy_rows_title = ['Delivered energy by end-use (below) and fuel (right) [kWh/m2]']
+    delivered_energy_rows = [['total']]
+    for fuel, end_uses in delivered_energy_dict.items():
+        delivered_energy_rows_title.append(fuel)
+        for row in delivered_energy_rows:
+            row.append(0)
+        for end_use,value in end_uses.items():
+            end_use_found = False
+            for row in delivered_energy_rows:
+                if end_use in row:
+                    end_use_found = True
+                    row[delivered_energy_rows_title.index(fuel)] = value/total_floor_area
+            if not end_use_found:
+                new_row = [0]*len(delivered_energy_rows_title)
+                new_row[0] = end_use
+                new_row[delivered_energy_rows_title.index(fuel)] = value/total_floor_area
+                delivered_energy_rows.append(new_row)
+    
     # Note: need to specify newline='' below, otherwise an extra carriage return
     # character is written when running on Windows
     with open(output_file_summary, 'w', newline='') as f:
@@ -333,6 +372,10 @@ def write_core_output_file_summary(
         writer.writerow(['', '', 'Total'])
         writer.writerow(['Space heat demand', 'kWh', space_heat_demand_total])
         writer.writerow(['Space cool demand', 'kWh', space_cool_demand_total])
+        writer.writerow([])
+        writer.writerow(['Delivered Energy Summary'])
+        writer.writerow(delivered_energy_rows_title)
+        writer.writerows(delivered_energy_rows)
 
 
 if __name__ == '__main__':
