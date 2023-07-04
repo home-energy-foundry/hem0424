@@ -11,6 +11,7 @@ import json
 import csv
 import os
 import argparse
+from math import floor
 
 # Local imports
 from core.project import Project
@@ -109,11 +110,20 @@ def run_project(
     # Sum per-timestep figures as needed
     space_heat_demand_total = sum(sum(h_dem) for h_dem in zone_dict['Space heat demand'].values())
     space_cool_demand_total = sum(sum(c_dem) for c_dem in zone_dict['Space cool demand'].values())
-
+    total_floor_area = project.total_floor_area()
+    
     write_core_output_file_summary(
         output_file_summary,
+        project_dict,
+        timestep_array,
+        results_totals,
+        results_end_user,
+        energy_generated_consumed,
+        energy_import,
+        energy_export,
         space_heat_demand_total,
         space_cool_demand_total,
+        total_floor_area
         )
 
     # Apply required postprocessing steps, if any
@@ -129,7 +139,6 @@ def run_project(
             )
     elif fhs_FEE_assumptions:
         postprocfile = file_path[0] + '_postproc.csv'
-        total_floor_area = project.total_floor_area()
         apply_fhs_FEE_postprocessing(
             postprocfile,
             total_floor_area,
@@ -327,16 +336,80 @@ def write_core_output_file(
 
 def write_core_output_file_summary(
         output_file_summary,
+        project_dict,
+        timestep_array,
+        results_totals,
+        results_end_user,
+        energy_generated_consumed,
+        energy_import,
+        energy_export,
         space_heat_demand_total,
         space_cool_demand_total,
+        total_floor_area
         ):
+   # Electricity breakdown
+    elec_generated = 0
+    elec_consumed = 0
+    for end_use, arr in results_end_user['mains elec'].items():
+        if sum(arr)<0:
+            elec_generated+=abs(sum(arr))
+        else:
+            elec_consumed+=sum(arr)
+    
+    gen_to_consumption = sum(energy_generated_consumed['mains elec'])
+    grid_to_consumption = sum(energy_import['mains elec'])
+    generation_to_grid = abs(sum(energy_export['mains elec']))
+    net_import = grid_to_consumption - generation_to_grid
+    #TODO report generation to battery, battery to consumption, battery efficiency
+    #TODO report energy diverted
+    
+    #get peak electrcitiy consumption, and when it happens
+    start_timestep=project_dict['SimulationTime']['start']
+    stepping = project_dict['SimulationTime']['step']
+    peak_elec_consumption = max(results_totals['mains elec'])
+    index_peak_elec_consumption = results_totals['mains elec'].index(peak_elec_consumption)
+    step_peak_elec_consumption = index_peak_elec_consumption + start_timestep
+    
+    months_start_end_timesteps = {'JAN':(0,743/stepping),'FEB':(744/stepping,1415/stepping),
+                                  'MAR':(1416/stepping,2159/stepping),'APR':(2160/stepping,2879/stepping),
+                                  'MAY':(2880/stepping,3623/stepping),'JUN':(3624/stepping,4343/stepping),
+                                  'JUL':(4344/stepping,5087/stepping),'AUG':(5088/stepping,5831/stepping),
+                                  'SEP':(5832/stepping,6551/stepping),'OCT':(6552/stepping,7295/stepping),
+                                  'NOV':(7296/stepping,8015/stepping),'DEC':(8016/stepping,8759/stepping)}
+    timestep_to_date = {}
+    for step in timestep_array:
+        step = int(step)
+        for month,start_end in months_start_end_timesteps.items():
+            if step<=start_end[1] and step>=start_end[0]:
+                day_of_month = floor((step-start_end[0])/(24/stepping))+1
+                hour_of_day = step-(start_end[0]+(day_of_month-1)*24/stepping)+1
+                timestep_to_date[step]={'month':month,'day':day_of_month,'hour':hour_of_day}
+    
     # Note: need to specify newline='' below, otherwise an extra carriage return
     # character is written when running on Windows
     with open(output_file_summary, 'w', newline='') as f:
         writer = csv.writer(f)
+        writer.writerow(['Energy Demand Summary'])
         writer.writerow(['', '', 'Total'])
-        writer.writerow(['Space heat demand', 'kWh', space_heat_demand_total])
-        writer.writerow(['Space cool demand', 'kWh', space_cool_demand_total])
+        writer.writerow(['Space heat demand', 'kWh/m2', space_heat_demand_total/total_floor_area])
+        writer.writerow(['Space cool demand', 'kWh/m2', space_cool_demand_total/total_floor_area])
+        writer.writerow([])
+        writer.writerow(['Electricity Summary'])
+        writer.writerow(['','kWh','timestep','month','day','hour of day'])
+        writer.writerow(['Peak half-hour consumption',
+                         peak_elec_consumption,
+                         index_peak_elec_consumption,
+                         timestep_to_date[step_peak_elec_consumption]['month'],
+                         timestep_to_date[step_peak_elec_consumption]['day'],
+                         timestep_to_date[step_peak_elec_consumption]['hour']
+                         ])
+        writer.writerow(['','','Total'])
+        writer.writerow(['Consumption','kWh',elec_consumed])
+        writer.writerow(['Generation','kWh',elec_generated])
+        writer.writerow(['Generation to consumption (immediate)','kWh',gen_to_consumption])
+        writer.writerow(['Grid to consumption (import)','kWh',grid_to_consumption])
+        writer.writerow(['Generation to grid (export)','kWh',generation_to_grid])
+        writer.writerow(['Net import','kWh',net_import])
 
 
 if __name__ == '__main__':
