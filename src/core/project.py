@@ -1237,6 +1237,15 @@ class Project:
 
         return TMP
 
+    def calc_HLFF(self):
+        "Calculate the heat loss form factor, defined as exposed area / floor area"
+
+        total_heat_loss_area = 0
+        for z_name, zone in self.__zones.items():
+            total_heat_loss_area += zone.total_heat_loss_area()
+        HLFF = total_heat_loss_area / self.__total_floor_area
+        return HLFF
+
     def temp_internal_air(self):
         # Initialise internal air temperature and total area of all zones
         internal_air_temperature = 0
