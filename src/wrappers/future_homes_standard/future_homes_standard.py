@@ -77,7 +77,7 @@ def apply_fhs_postprocessing(
     """ Post-process core simulation outputs as required for Future Homes Standard """
     
     emissionfactors = {}
-    results = {}
+    results = {'Timestep':timestep_array}
     
     #remove appliance and cooking energy from results_totals
     for t_idx, timestep in enumerate(timestep_array):
@@ -209,6 +209,26 @@ def apply_fhs_postprocessing(
         for t_idx, timestep in enumerate(timestep_array):
             row = results_transposed[t_idx]
             writer.writerow(row)
+    
+    #create summary file for annual totals
+    TFA = calc_TFA(project_dict)
+    total_emissions_rate = 0
+    total_primary_energy_rate = 0
+    for key, value in results.items():
+        if "total Emissions kgCO2e" in key and \
+        not "including out-of-scope emissions" in key:
+            total_emissions_rate += sum(value)
+        elif "total Primary Energy kWh " in key:
+            total_primary_energy_rate += sum(value)
+    
+    total_emissions_rate /= TFA
+    total_primary_energy_rate /= TFA
+    
+    with open(file_path + '_postproc_summary.csv', 'w', newline='') as postproc_file:
+        writer = csv.writer(postproc_file)
+        writer.writerow(['','','Total'])
+        writer.writerow(['DER','kgCO2/m2',total_emissions_rate])
+        writer.writerow(['DPER','kWh/m2',total_primary_energy_rate])
 
 def calc_TFA(project_dict):
      
