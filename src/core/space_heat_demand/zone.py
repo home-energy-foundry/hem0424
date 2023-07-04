@@ -1002,6 +1002,11 @@ class Zone:
             if type(be) in (BuildingElementOpaque, BuildingElementTransparent,
              BuildingElementGround, BuildingElementAdjacentZTU_Simple):
                 total_heat_loss_area += be.area
+            elif type(be) in (BuildingElementAdjacentZTC):
+                continue
+            else:
+                sys.exit(f"Building element {type(be)} is not recognised. \
+                    Please update zone.py function total_heat_loss_area.")
         return total_heat_loss_area
 
     def total_heat_capacity(self):
