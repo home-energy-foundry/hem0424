@@ -713,7 +713,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             "EnergySupply": "mains gas",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 0.75, 
+            "gains_fraction": 0.5, 
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
                 "day": cooking_gas_profile_W
@@ -725,7 +725,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
             "EnergySupply": "mains elec",
             "start_day" : 0,
             "time_series_step": 0.5,
-            "gains_fraction": 0.9,
+            "gains_fraction": 0.5,
             "schedule": {
                 "main": [{"repeat": 365, "value": "day"}],
                 "day": cooking_elec_profile_W
