@@ -207,8 +207,8 @@ def apply_fhs_postprocessing(
         elif "total Primary Energy kWh " in key:
             total_primary_energy_rate += sum(value)
     
-        total_emissions_rate /= TFA
-        total_primary_energy_rate /= TFA
+    total_emissions_rate /= TFA
+    total_primary_energy_rate /= TFA
     
     with open(file_path + '_postproc_summary.csv', 'w', newline='') as postproc_file:
         writer = csv.writer(postproc_file)
