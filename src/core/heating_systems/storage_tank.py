@@ -633,7 +633,7 @@ class StorageTank:
         # Run over multiple heat sources
         temp_after_prev_heat_source = temp_s3_n
         Q_ls = 0.0
-        Q_ls_n_prev_heat_source = [0.0] * self.__NB_VOL
+        self.__Q_ls_n_prev_heat_source = [0.0] * self.__NB_VOL
         for heat_source,  heat_source_data in self.__heat_source_data:
             heater_layer = int(heat_source_data[0] *self.__NB_VOL)
             thermostat_layer = int(heat_source_data[1] *self.__NB_VOL)
@@ -645,13 +645,13 @@ class StorageTank:
                     heat_source,
                     heater_layer,
                     thermostat_layer,
-                    Q_ls_n_prev_heat_source,
+                    self.__Q_ls_n_prev_heat_source,
                     )
 
             temp_after_prev_heat_source = temp_s8_n
             Q_ls += Q_ls_this_heat_source
             for i, Q_ls_n in enumerate(Q_ls_n_this_heat_source):
-                Q_ls_n_prev_heat_source[i] += Q_ls_n
+                self.__Q_ls_n_prev_heat_source[i] += Q_ls_n
 
             #Trigger heating to stop when setpoint is reached
             if temp_s8_n[thermostat_layer] >= self.__temp_set_on:
@@ -699,12 +699,15 @@ class StorageTank:
 
         Q_x_in_n = [0] * self.__NB_VOL
         Q_x_in_n[heater_layer] = energy_input
-        temp_s8_n, _, _, _, _, Q_in_H_W, _ = self.__calculate_temperatures(
+        temp_s8_n, _, _, _, _, Q_in_H_W, _, Q_ls_n_this_heat_source = self.__calculate_temperatures(
                 self.__temp_n,
                 heat_source,
                 Q_x_in_n,
                 thermostat_layer,
+                self.__Q_ls_n_prev_heat_source,
                 )
+        for i, Q_ls_n in enumerate(Q_ls_n_this_heat_source):
+            self.__Q_ls_n_prev_heat_source[i] += Q_ls_n
 
         #set temperatures calculated to be initial temperatures of volumes for the next timestep
         self.__temp_n = deepcopy(temp_s8_n)
