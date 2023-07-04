@@ -253,13 +253,12 @@ def create_metabolic_gains(project_dict,
                            schedule_occupancy_weekday, 
                            schedule_occupancy_weekend):
     #Profile below is in Watts/m^2 body surface area, average adult has 1.8m^2 surface area
+    # Nighttime metabolic rate based on figure for sleeping from CIBSE Guide A
+    # Daytime metabolic rate based on figures for "seated quiet" from CIBSE Guide A
     body_area_average = 1.8
-    metabolic_gains_fhs = [
-        41.0, 41.0, 41.0, 41.0, 41.0, 41.0, 
-        41.0, 89.0, 89.0, 89.0, 89.0, 89.0,
-        89.0, 89.0, 89.0, 89.0, 89.0, 89.0, 
-        89.0, 89.0, 58.0, 58.0, 58.0, 58.0
-    ]
+    night = 41.0
+    daytm = 58.0
+    metabolic_gains_fhs = [night] * 7 + [daytm] * 17
     #note divide by TFA. units are Wm^-2
     schedule_metabolic_gains_weekday = [
         occupancy * body_area_average * gains / TFA for occupancy, gains
