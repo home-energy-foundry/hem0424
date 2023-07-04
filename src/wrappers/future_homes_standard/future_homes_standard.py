@@ -25,7 +25,7 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     
     project_dict['SimulationTime']["start"] = 0
     project_dict['SimulationTime']["end"] = 8760
-    #TODO set step to 1 unless given debug flag
+    project_dict['SimulationTime']["step"] = 0.5
 
     project_dict['InternalGains']={}
     
