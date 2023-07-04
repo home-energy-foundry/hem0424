@@ -995,6 +995,15 @@ class Zone:
             total_fabric_heat_loss += be.fabric_heat_loss()
         return total_fabric_heat_loss
 
+    def total_heat_loss_area(self):
+        """ return the total heat loss area, in m2"""
+        total_heat_loss_area = 0
+        for be in self.__building_elements:
+            if type(be) in (BuildingElementOpaque, BuildingElementTransparent,
+             BuildingElementGround, BuildingElementAdjacentZTU_Simple):
+                total_heat_loss_area += be.area
+        return total_heat_loss_area
+
     def total_heat_capacity(self):
         """ Return the total heat capacity from all building elements in a zone
         excluding ground and transparent elements, in kJ / K """

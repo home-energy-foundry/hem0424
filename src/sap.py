@@ -63,11 +63,13 @@ def run_project(
     # Calculate static parameters and output
     heat_trans_coeff, heat_loss_param = project.calc_HTC_HLP()
     thermal_mass_param = project.calc_TMP()
+    heat_loss_form_factor = project.calc_HLFF()
     write_static_output_file(
         output_file_static,
         heat_trans_coeff,
         heat_loss_param,
         thermal_mass_param,
+        heat_loss_form_factor,
         )
 
     # Run main simulation
