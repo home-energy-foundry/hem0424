@@ -108,7 +108,8 @@ def run_project(
     # Sum per-timestep figures as needed
     space_heat_demand_total = sum(sum(h_dem) for h_dem in zone_dict['Space heat demand'].values())
     space_cool_demand_total = sum(sum(c_dem) for c_dem in zone_dict['Space cool demand'].values())
-
+    total_floor_area = project.total_floor_area()
+    
     write_core_output_file_summary(
         output_file_summary,
         project_dict,
@@ -120,6 +121,7 @@ def run_project(
         energy_export,
         space_heat_demand_total,
         space_cool_demand_total,
+        total_floor_area
         )
 
     # Apply required postprocessing steps, if any
@@ -134,7 +136,6 @@ def run_project(
             )
     elif fhs_FEE_assumptions:
         postprocfile = file_path[0] + '_postproc.csv'
-        total_floor_area = project.total_floor_area()
         apply_fhs_FEE_postprocessing(
             postprocfile,
             total_floor_area,
@@ -340,6 +341,7 @@ def write_core_output_file_summary(
         energy_export,
         space_heat_demand_total,
         space_cool_demand_total,
+        total_floor_area
         ):
    # Electricity breakdown
     elec_generated = 0
@@ -385,8 +387,8 @@ def write_core_output_file_summary(
         writer = csv.writer(f)
         writer.writerow(['Energy Demand Summary'])
         writer.writerow(['', '', 'Total'])
-        writer.writerow(['Space heat demand', 'kWh', space_heat_demand_total])
-        writer.writerow(['Space cool demand', 'kWh', space_cool_demand_total])
+        writer.writerow(['Space heat demand', 'kWh/m2', space_heat_demand_total/total_floor_area])
+        writer.writerow(['Space cool demand', 'kWh/m2', space_cool_demand_total/total_floor_area])
         writer.writerow([])
         writer.writerow(['Electricity Summary'])
         writer.writerow(['','kWh','timestep','month','day','hour of day'])
