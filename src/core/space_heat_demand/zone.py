@@ -1002,7 +1002,7 @@ class Zone:
             if type(be) in (BuildingElementOpaque, BuildingElementTransparent,
              BuildingElementGround, BuildingElementAdjacentZTU_Simple):
                 total_heat_loss_area += be.area
-            elif type(be) in (BuildingElementAdjacentZTC):
+            elif type(be) in (BuildingElementAdjacentZTC,):
                 continue
             else:
                 sys.exit(f"Building element {type(be)} is not recognised. \
