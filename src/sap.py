@@ -370,17 +370,36 @@ def write_core_output_file_summary(
     index_peak_elec_consumption = results_totals['mains elec'].index(peak_elec_consumption)
     step_peak_elec_consumption = index_peak_elec_consumption + start_timestep
     
-    months_start_end_timesteps = {'JAN':(0,743/stepping),'FEB':(744/stepping,1415/stepping),
-                                  'MAR':(1416/stepping,2159/stepping),'APR':(2160/stepping,2879/stepping),
-                                  'MAY':(2880/stepping,3623/stepping),'JUN':(3624/stepping,4343/stepping),
-                                  'JUL':(4344/stepping,5087/stepping),'AUG':(5088/stepping,5831/stepping),
-                                  'SEP':(5832/stepping,6551/stepping),'OCT':(6552/stepping,7295/stepping),
-                                  'NOV':(7296/stepping,8015/stepping),'DEC':(8016/stepping,8759/stepping)}
+    HOURS_TO_END_JAN = 744
+    HOURS_TO_END_FEB = 1416
+    HOURS_TO_END_MAR = 2160
+    HOURS_TO_END_APR = 2880
+    HOURS_TO_END_MAY = 3624
+    HOURS_TO_END_JUN = 4344
+    HOURS_TO_END_JUL = 5088
+    HOURS_TO_END_AUG = 5832
+    HOURS_TO_END_SEP = 6552
+    HOURS_TO_END_OCT = 7296
+    HOURS_TO_END_NOV = 8016
+    HOURS_TO_END_DEC = 8760
+    months_start_end_timesteps = {'JAN':(0,HOURS_TO_END_JAN/stepping-1),
+                                  'FEB':(HOURS_TO_END_JAN/stepping,HOURS_TO_END_FEB/stepping-1),
+                                  'MAR':(HOURS_TO_END_FEB/stepping,HOURS_TO_END_MAR/stepping-1),
+                                  'APR':(HOURS_TO_END_MAR/stepping,HOURS_TO_END_APR/stepping-1),
+                                  'MAY':(HOURS_TO_END_APR/stepping,HOURS_TO_END_MAY/stepping-1),
+                                  'JUN':(HOURS_TO_END_MAY/stepping,HOURS_TO_END_JUN/stepping-1),
+                                  'JUL':(HOURS_TO_END_JUN/stepping,HOURS_TO_END_JUL/stepping-1),
+                                  'AUG':(HOURS_TO_END_JUL/stepping,HOURS_TO_END_AUG/stepping-1),
+                                  'SEP':(HOURS_TO_END_AUG/stepping,HOURS_TO_END_SEP/stepping-1),
+                                  'OCT':(HOURS_TO_END_SEP/stepping,HOURS_TO_END_OCT/stepping-1),
+                                  'NOV':(HOURS_TO_END_OCT/stepping,HOURS_TO_END_NOV/stepping-1),
+                                  'DEC':(HOURS_TO_END_NOV/stepping,HOURS_TO_END_DEC/stepping-1)}
     timestep_to_date = {}
-    for step in timestep_array:
-        step = int(step)
+    step =0
+    for hour_of_year in timestep_array:
+        step +=1
         for month,start_end in months_start_end_timesteps.items():
-            if step<=start_end[1] and step>=start_end[0]:
+            if step<=int(start_end[1]) and step>=int(start_end[0]):
                 day_of_month = floor((step-start_end[0])/(24/stepping))+1
                 hour_of_day = step-(start_end[0]+(day_of_month-1)*24/stepping)+1
                 timestep_to_date[step]={'month':month,'day':day_of_month,'hour':hour_of_day}
