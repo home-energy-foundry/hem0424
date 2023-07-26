@@ -347,7 +347,7 @@ def write_core_output_file_summary(
         space_cool_demand_total,
         total_floor_area
         ):
-   # Electricity breakdown
+    # Electricity breakdown
     elec_generated = 0
     elec_consumed = 0
     for end_use, arr in results_end_user['mains elec'].items():
@@ -403,6 +403,40 @@ def write_core_output_file_summary(
                 day_of_month = floor((step-start_end[0])/(24/stepping))+1
                 hour_of_day = step-(start_end[0]+(day_of_month-1)*24/stepping)+1
                 timestep_to_date[step]={'month':month,'day':day_of_month,'hour':hour_of_day}
+
+    # Delivered energy by end-use and by fuel
+    delivered_energy_dict = {'total':{'total':0}}
+    for fuel,end_uses in results_end_user.items():
+        if fuel not in ['_unmet_demand','hw cylinder']:
+            delivered_energy_dict[fuel]={}
+            delivered_energy_dict[fuel]['total'] = 0
+            for end_use,delivered_energy in end_uses.items():
+                if sum(delivered_energy)>=0:
+                    delivered_energy_dict[fuel][end_use]=sum(delivered_energy)
+                    delivered_energy_dict[fuel]['total'] +=sum(delivered_energy)
+                    if end_use not in delivered_energy_dict['total'].keys():
+                        delivered_energy_dict['total'][end_use] = sum(delivered_energy)
+                    else:
+                        delivered_energy_dict['total'][end_use] += sum(delivered_energy)
+                    delivered_energy_dict['total']['total'] +=sum(delivered_energy)
+    
+    delivered_energy_rows_title = ['Delivered energy by end-use (below) and fuel (right) [kWh/m2]']
+    delivered_energy_rows = [['total']]
+    for fuel, end_uses in delivered_energy_dict.items():
+        delivered_energy_rows_title.append(fuel)
+        for row in delivered_energy_rows:
+            row.append(0)
+        for end_use,value in end_uses.items():
+            end_use_found = False
+            for row in delivered_energy_rows:
+                if end_use in row:
+                    end_use_found = True
+                    row[delivered_energy_rows_title.index(fuel)] = value/total_floor_area
+            if not end_use_found:
+                new_row = [0]*len(delivered_energy_rows_title)
+                new_row[0] = end_use
+                new_row[delivered_energy_rows_title.index(fuel)] = value/total_floor_area
+                delivered_energy_rows.append(new_row)
     
     # Note: need to specify newline='' below, otherwise an extra carriage return
     # character is written when running on Windows
@@ -429,6 +463,10 @@ def write_core_output_file_summary(
         writer.writerow(['Grid to consumption (import)','kWh',grid_to_consumption])
         writer.writerow(['Generation to grid (export)','kWh',generation_to_grid])
         writer.writerow(['Net import','kWh',net_import])
+        writer.writerow([])
+        writer.writerow(['Delivered Energy Summary'])
+        writer.writerow(delivered_energy_rows_title)
+        writer.writerows(delivered_energy_rows)
 
 
 if __name__ == '__main__':
