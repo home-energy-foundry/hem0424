@@ -417,7 +417,7 @@ class Project:
                     data['r_c'],
                     data['k_m'],
                     data['mass_distribution_class'],
-                    data['orientation'],
+                    self.__init_orientation(data['orientation360']),
                     data['base_height'],
                     data['height'],
                     data['width'],
@@ -427,7 +427,7 @@ class Project:
                 building_element = BuildingElementTransparent(
                     data['pitch'],
                     data['r_c'],
-                    data['orientation'],
+                    self.__init_orientation(data['orientation360']),
                     data['g_value'],
                     data['frame_area_fraction'],
                     data['base_height'],
@@ -814,7 +814,7 @@ class Project:
                     data['power_pump_control'],
                     energy_supply_conn,
                     data['tilt'],
-                    data['orientation'],
+                    self.__init_orientation(data['orientation360']),
                     data['solar_loop_piping_hlc'],
                     self.__external_conditions,
                     self.__simtime,
@@ -1153,7 +1153,7 @@ class Project:
                     data['peak_power'],
                     data['ventilation_strategy'],
                     data['pitch'],
-                    data['orientation'],
+                    self.__init_orientation(data['orientation360']),
                     data['base_height'], 
                     data['height'],
                     data['width'],
@@ -1195,6 +1195,10 @@ class Project:
                 sys.exit( 'Error: For BuildingElement input object "' \
                         + name + '" neither r_c nor u_value have been provided.' \
                         )
+
+    def __init_orientation(self, orientation360):
+        """ Convert orientation from 0-360 (clockwise) to -180 to +180 (anticlockwise) """
+        return 180 - orientation360
 
     def total_floor_area(self):
         return self.__total_floor_area
