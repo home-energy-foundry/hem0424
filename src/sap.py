@@ -368,7 +368,7 @@ def write_core_output_file_summary(
     stepping = project_dict['SimulationTime']['step']
     peak_elec_consumption = max(results_totals['mains elec'])
     index_peak_elec_consumption = results_totals['mains elec'].index(peak_elec_consumption)
-    #must reflect hour or half hour in the year (hour 0 to hour 8760)
+    #must reflect hour or half hour in the year (hour 0 to hour 8759)
     #to work with the dictionary below timestep_to_date
     #hence + start_timestep
     step_peak_elec_consumption = index_peak_elec_consumption + start_timestep
@@ -398,14 +398,19 @@ def write_core_output_file_summary(
                                   'NOV':(HOURS_TO_END_OCT/stepping,HOURS_TO_END_NOV/stepping-1),
                                   'DEC':(HOURS_TO_END_NOV/stepping,HOURS_TO_END_DEC/stepping-1)}
     timestep_to_date = {}
-    #the step must reflect hour or half hour in the year (hour 0 to hour 8760)
+    #the step must reflect hour or half hour in the year (hour 0 to hour 8759)
     #step starts on the start_timestep 
     step = start_timestep
     for hour_of_year in timestep_array:
         for month,start_end in months_start_end_timesteps.items():
             if step<=int(start_end[1]) and step>=int(start_end[0]):
-                day_of_month = floor((step-start_end[0])/(24/stepping))+1
-                hour_of_day = (step-(start_end[0]+(day_of_month-1)*24/stepping)+1)*stepping
+                hour_of_year = step * stepping
+                hour_start_month = start_end[0] * stepping
+                hour_of_month = hour_of_year - hour_start_month
+                #add +1 to day_of_month for first day to be day 1 (not day 0)
+                day_of_month = floor(hour_of_month/24) + 1
+                #add +1 to hour_of_month for first hour to be hour 1 (not hour 0)
+                hour_of_day = (step % (24 / stepping)) * stepping + 1
                 timestep_to_date[step]={'month':month,'day':day_of_month,'hour':hour_of_day}
         step +=1
     
