@@ -31,6 +31,10 @@ def run_project(
         preproc_only=False,
         fhs_assumptions=False,
         fhs_FEE_assumptions=False,
+        fhs_notA_assumptions=False,
+        fhs_notB_assumptions=False,
+        fhs_FEE_notA_assumptions=False,
+        fhs_FEE_notB_assumptions=False,
         heat_balance=False,
         use_fast_solver=False,
         ):
@@ -42,6 +46,14 @@ def run_project(
         output_file_run_name = 'FHS'
     elif fhs_FEE_assumptions:
         output_file_run_name = 'FHS_FEE'
+    elif fhs_notA_assumptions:
+        output_file_run_name = 'FHS_notA'
+    elif fhs_notB_assumptions:
+        output_file_run_name = 'FHS_notB'
+    elif fhs_FEE_notA_assumptions:
+        output_file_run_name = 'FHS_FEE_notA'
+    elif fhs_FEE_notB_assumptions:
+        output_file_run_name = 'FHS_FEE_notB'
     else:
         output_file_run_name = 'core'
     output_file_name_stub = results_folder + file_name + '__' + output_file_run_name + '__'
@@ -60,9 +72,11 @@ def run_project(
         project_dict["ExternalConditions"]["shading_segments"] = shading_segments
 
     # Apply required preprocessing steps, if any
-    if fhs_assumptions:
+    # TODO Implement notional runs (the below treats them the same as the
+    #      equivalent non-notional runs)
+    if fhs_assumptions or fhs_notA_assumptions or fhs_notB_assumptions:
         project_dict = apply_fhs_preprocessing(project_dict)
-    elif fhs_FEE_assumptions:
+    elif fhs_FEE_assumptions or fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
         project_dict = apply_fhs_FEE_preprocessing(project_dict)
 
     if preproc_only:
@@ -140,7 +154,9 @@ def run_project(
         )
 
     # Apply required postprocessing steps, if any
-    if fhs_assumptions:
+    if fhs_assumptions or fhs_notA_assumptions or fhs_notB_assumptions:
+        if fhs_notA_assumptions or fhs_notB_assumptions:
+            notional = True
         apply_fhs_postprocessing(
             project_dict,
             results_totals,
@@ -149,8 +165,9 @@ def run_project(
             results_end_user,
             timestep_array,
             output_file_name_stub,
+            notional,
             )
-    elif fhs_FEE_assumptions:
+    elif fhs_FEE_assumptions or fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
         postprocfile = output_file_name_stub + 'postproc.csv'
         apply_fhs_FEE_postprocessing(
             postprocfile,
@@ -540,6 +557,30 @@ if __name__ == '__main__':
         default=False,
         help='use Future Homes Standard Fabric Energy Efficiency assumptions',
         )
+    wrapper_options.add_argument(
+        '--future-homes-standard-notA',
+        action='store_true',
+        default=False,
+        help='use Future Homes Standard calculation assumptions for notional option A',
+        )
+    wrapper_options.add_argument(
+        '--future-homes-standard-notB',
+        action='store_true',
+        default=False,
+        help='use Future Homes Standard calculation assumptions for notional option B',
+        )
+    wrapper_options.add_argument(
+        '--future-homes-standard-FEE-notA',
+        action='store_true',
+        default=False,
+        help='use Future Homes Standard Fabric Energy Efficiency assumptions for notional option A',
+        )
+    wrapper_options.add_argument(
+        '--future-homes-standard-FEE-notB',
+        action='store_true',
+        default=False,
+        help='use Future Homes Standard Fabric Energy Efficiency assumptions for notional option B',
+        )
     parser.add_argument(
         '--heat-balance',
         action='store_true',
@@ -562,6 +603,10 @@ if __name__ == '__main__':
     cibse_weather_filename = cli_args.CIBSE_weather_file
     fhs_assumptions = cli_args.future_homes_standard
     fhs_FEE_assumptions = cli_args.future_homes_standard_FEE
+    fhs_notA_assumptions = cli_args.future_homes_standard_notA
+    fhs_notB_assumptions = cli_args.future_homes_standard_notB
+    fhs_FEE_notA_assumptions = cli_args.future_homes_standard_FEE_notA
+    fhs_FEE_notB_assumptions = cli_args.future_homes_standard_FEE_notB
     preproc_only = cli_args.preprocess_only
     heat_balance = cli_args.heat_balance
     use_fast_solver = not cli_args.no_fast_solver
@@ -583,6 +628,10 @@ if __name__ == '__main__':
                 preproc_only,
                 fhs_assumptions,
                 fhs_FEE_assumptions,
+                fhs_notA_assumptions,
+                fhs_notB_assumptions,
+                fhs_FEE_notA_assumptions,
+                fhs_FEE_notB_assumptions,
                 heat_balance,
                 use_fast_solver,
                 )

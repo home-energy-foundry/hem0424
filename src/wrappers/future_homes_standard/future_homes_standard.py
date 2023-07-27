@@ -73,6 +73,7 @@ def apply_fhs_postprocessing(
         results_end_user,
         timestep_array,
         file_path,
+        notional,
         ):
     """ Post-process core simulation outputs as required for Future Homes Standard """
     
@@ -225,10 +226,16 @@ def apply_fhs_postprocessing(
     total_primary_energy_rate /= TFA
     
     with open(file_path + 'postproc_summary.csv', 'w', newline='') as postproc_file:
+        if notional:
+            emissions_rate_name = 'TER'
+            pe_rate_name = 'TPER'
+        else:
+            emissions_rate_name = 'DER'
+            pe_rate_name = 'DPER'
         writer = csv.writer(postproc_file)
         writer.writerow(['','','Total'])
-        writer.writerow(['DER','kgCO2/m2',total_emissions_rate])
-        writer.writerow(['DPER','kWh/m2',total_primary_energy_rate])
+        writer.writerow([emissions_rate_name, 'kgCO2/m2', total_emissions_rate])
+        writer.writerow([pe_rate_name,'kWh/m2',total_primary_energy_rate])
 
 def calc_TFA(project_dict):
      
