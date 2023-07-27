@@ -10,6 +10,7 @@ import sys
 import json
 import csv
 import os
+import shutil
 import argparse
 from math import floor
 
@@ -33,10 +34,20 @@ def run_project(
         heat_balance=False,
         use_fast_solver=False,
         ):
-    file_path = os.path.splitext(inp_filename)
-    output_file = file_path[0] + '_results.csv'
-    output_file_static = file_path[0] + '_results_static.csv'
-    output_file_summary = file_path[0] + '_results_summary.csv'
+    file_name = os.path.splitext(os.path.basename(inp_filename))[0]
+    file_path = os.path.splitext(os.path.abspath(inp_filename))[0]
+    results_folder = os.path.join(file_path + '__results', '')
+    os.makedirs(results_folder, exist_ok=True)
+    if fhs_assumptions:
+        output_file_run_name = 'FHS'
+    elif fhs_FEE_assumptions:
+        output_file_run_name = 'FHS_FEE'
+    else:
+        output_file_run_name = 'core'
+    output_file_name_stub = results_folder + file_name + '__' + output_file_run_name + '__'
+    output_file_detailed = output_file_name_stub + 'results.csv'
+    output_file_static = output_file_name_stub + 'results_static.csv'
+    output_file_summary = output_file_name_stub + 'results_summary.csv'
 
     with open(inp_filename) as json_file:
         project_dict = json.load(json_file)
@@ -55,8 +66,10 @@ def run_project(
         project_dict = apply_fhs_FEE_preprocessing(project_dict)
 
     if preproc_only:
-        with open(file_path[0] + '_preproc.json', 'w') as preproc_file:
+        preproc_file_name = output_file_name_stub + 'preproc.json'
+        with open(preproc_file_name, 'w') as preproc_file:
             json.dump(project_dict, preproc_file, sort_keys=True, indent=4)
+        shutil.copy2(inp_filename, results_folder)
         return # Skip actual calculation if preproc only option has been selected
 
     project = Project(project_dict, heat_balance, use_fast_solver)
@@ -81,7 +94,7 @@ def run_project(
         = project.run()
 
     write_core_output_file(
-        output_file,
+        output_file_detailed,
         timestep_array,
         results_totals,
         results_end_user,
@@ -99,7 +112,7 @@ def run_project(
     if heat_balance:
         hour_per_step = project_dict['SimulationTime']['step']
         for hb_name, hb_dict in heat_balance_dict.items():
-            heat_balance_output_file = file_path[0] + '_results_heat_balance_' + hb_name + '.csv'
+            heat_balance_output_file = output_file_name_stub + 'results_heat_balance_' + hb_name + '.csv'
             write_heat_balance_output_file(
                 heat_balance_output_file,
                 timestep_array,
@@ -135,16 +148,18 @@ def run_project(
             energy_export,
             results_end_user,
             timestep_array,
-            file_path[0],
+            output_file_name_stub,
             )
     elif fhs_FEE_assumptions:
-        postprocfile = file_path[0] + '_postproc.csv'
+        postprocfile = output_file_name_stub + 'postproc.csv'
         apply_fhs_FEE_postprocessing(
             postprocfile,
             total_floor_area,
             space_heat_demand_total,
             space_cool_demand_total,
             )
+
+    shutil.copy2(inp_filename, results_folder)
 
 def write_static_output_file(output_file, heat_trans_coeff, heat_loss_param, thermal_mass_param,heat_loss_form_factor):
     # Note: need to specify newline='' below, otherwise an extra carriage return

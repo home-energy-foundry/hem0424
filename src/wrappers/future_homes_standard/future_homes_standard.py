@@ -199,7 +199,7 @@ def apply_fhs_postprocessing(
 
     # Note: need to specify newline='' below, otherwise an extra carriage return
     # character is written when running on Windows
-    with open(file_path + '_postproc.csv', 'w', newline='') as postproc_file:
+    with open(file_path + 'postproc.csv', 'w', newline='') as postproc_file:
         writer = csv.writer(postproc_file)
         #write header row
         writer.writerow(results.keys())
@@ -224,7 +224,7 @@ def apply_fhs_postprocessing(
     total_emissions_rate /= TFA
     total_primary_energy_rate /= TFA
     
-    with open(file_path + '_postproc_summary.csv', 'w', newline='') as postproc_file:
+    with open(file_path + 'postproc_summary.csv', 'w', newline='') as postproc_file:
         writer = csv.writer(postproc_file)
         writer.writerow(['','','Total'])
         writer.writerow(['DER','kgCO2/m2',total_emissions_rate])
