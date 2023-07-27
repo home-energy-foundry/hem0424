@@ -120,9 +120,9 @@ class SimulationTime:
         # TODO: (Potential) Decide from which hour of the day the system should be targeting next day charge level
         # Currently 9pm
         if self.current_hour() >= 21:
-            return math.floor((self.current_day() + 1 - start_day) / time_series_step)
+            return math.floor(self.current_day() + 1 - start_day)
         else:
-            return math.floor((self.current_day() - start_day) / time_series_step)
+            return math.floor(self.current_day() - start_day)
 
     def total_steps(self):
         """ Return the total number of timesteps in simulation """
