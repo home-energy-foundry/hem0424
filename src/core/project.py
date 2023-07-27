@@ -376,11 +376,11 @@ class Project:
             length_average = data["length"] / total_no_of_hot_water_tapping_points
 
             pipework = Pipework(
-                data["internal_diameter"],
-                data["external_diameter"],
+                data["internal_diameter_mm"] / units.mm_per_m,
+                data["external_diameter_mm"] / units.mm_per_m,
                 length_average,
                 data["insulation_thermal_conductivity"],
-                data["insulation_thickness"],
+                data["insulation_thickness_mm"] / units.mm_per_m,
                 data["surface_reflectivity"],
                 data["pipe_contents"])
                 
@@ -507,12 +507,12 @@ class Project:
                     )
                     
                 ductwork = Ductwork(
-                    data['ductwork']['internal_diameter'],
-                    data['ductwork']['external_diameter'],
+                    data['ductwork']['internal_diameter_mm'] / units.mm_per_m,
+                    data['ductwork']['external_diameter_mm'] / units.mm_per_m,
                     data['ductwork']['length_in'],
                     data['ductwork']['length_out'],
                     data['ductwork']['insulation_thermal_conductivity'],
-                    data['ductwork']['insulation_thickness'],
+                    data['ductwork']['insulation_thickness_mm'] / units.mm_per_m,
                     data['ductwork']['reflective'],
                     data['ductwork']['MVHR_location']
                     )
@@ -897,6 +897,12 @@ class Project:
 
                 if 'primary_pipework' in data:
                     primary_pipework = data['primary_pipework']
+                    primary_pipework['internal_diameter'] \
+                        = primary_pipework['internal_diameter_mm'] / units.mm_per_m
+                    primary_pipework['external_diameter'] \
+                        = primary_pipework['external_diameter_mm'] / units.mm_per_m
+                    primary_pipework['insulation_thickness'] \
+                        = primary_pipework['insulation_thickness_mm'] / units.mm_per_m
                 else:
                     primary_pipework = None
 

@@ -92,11 +92,11 @@
 				}
 			},
 			"primary_pipework": {
-				"internal_diameter": 0.025,
-				"external_diameter": 0.027,
+				"internal_diameter_mm": 25,
+				"external_diameter_mm": 27,
 				"length": 2.0,
 				"insulation_thermal_conductivity": 0.035,
-				"insulation_thickness": 0.038,
+				"insulation_thickness_mm": 38,
 				"surface_reflectivity": false,
 				"pipe_contents": "water"
 			}
@@ -119,20 +119,20 @@
 	"Other": {},
 	"Distribution": {
 		"internal": {
-			"internal_diameter": 0.025,
-			"external_diameter": 0.027,
+			"internal_diameter_mm": 25,
+			"external_diameter_mm": 27,
 			"length": 8.0,
 			"insulation_thermal_conductivity": 0.035,
-			"insulation_thickness": 0.038,
+			"insulation_thickness_mm": 38,
 			"surface_reflectivity": false,
 			"pipe_contents": "water"
 		},
 		"external": {
-			"internal_diameter": 0.025,
-			"external_diameter": 0.027,
+			"internal_diameter_mm": 25,
+			"external_diameter_mm": 27,
 			"length": 8.0,
 			"insulation_thermal_conductivity": 0.035,
-			"insulation_thickness": 0.038,
+			"insulation_thickness_mm": 38,
 			"surface_reflectivity": false,
 			"pipe_contents": "water"
 		}
