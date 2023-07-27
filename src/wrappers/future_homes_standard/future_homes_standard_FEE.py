@@ -86,11 +86,11 @@ def apply_fhs_FEE_preprocessing(project_dict):
         }
     # No hot water distribution pipework for point of use water heaters
     pipework_none = {
-        'internal_diameter': 0.01,
-        'external_diameter': 0.02,
+        'internal_diameter_mm': 0.01,
+        'external_diameter_mm': 0.02,
         'length': 0.0,
         'insulation_thermal_conductivity': 0.01,
-        'insulation_thickness': 0.0,
+        'insulation_thickness_mm': 0.0,
         'surface_reflectivity': False,
         'pipe_contents': 'water'
         }
