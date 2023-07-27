@@ -157,6 +157,8 @@ def run_project(
     if fhs_assumptions or fhs_notA_assumptions or fhs_notB_assumptions:
         if fhs_notA_assumptions or fhs_notB_assumptions:
             notional = True
+        else:
+            notional = False
         apply_fhs_postprocessing(
             project_dict,
             results_totals,
