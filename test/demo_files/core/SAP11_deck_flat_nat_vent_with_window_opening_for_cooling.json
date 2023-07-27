@@ -8954,7 +8954,7 @@
 	},
 	"Window_Opening_For_Cooling": {
 		"equivalent_area": 3.0,
-		"control": "window opening"
+		"Control": "window opening"
 	},
 	"Infiltration": {
 		"storey": 2,
