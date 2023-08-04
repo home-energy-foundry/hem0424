@@ -86,9 +86,18 @@ class TestPhotovoltaicSystem(unittest.TestCase):
             )
         self.energysupply = EnergySupply("electricity", self.simtime)
         energysupplyconn = self.energysupply.connection("pv generation")
-        self.pv_system \
-         = PhotovoltaicSystem(2.5, "moderately_ventilated", 30, 0, self.__external_conditions,
-                              energysupplyconn, self.simtime)
+        self.pv_system = PhotovoltaicSystem(
+                2.5,
+                "moderately_ventilated",
+                30,
+                0,
+                10,
+                2,
+                3,
+                self.__external_conditions,
+                energysupplyconn,
+                self.simtime,
+                )
 
     def test_produce_energy(self):
         """ Test that PhotovoltaicSystem object returns correct electricty generated kWh
