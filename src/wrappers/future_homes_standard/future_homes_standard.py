@@ -19,6 +19,9 @@ from wrappers.future_homes_standard.FHS_HW_events import HW_event_adjust_allocat
 
 this_directory = os.path.dirname(os.path.relpath(__file__))
 FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_07-06-2023.csv")
+emis_factor_name = 'Emissions Factor kgCO2e/kWh'
+emis_oos_factor_name = 'Emissions Factor kgCO2e/kWh including out-of-scope emissions'
+PE_factor_name = 'Primary Energy Factor kWh/kWh delivered'
 
 appl_obj_name = 'appliances'
 elec_cook_obj_name = 'Eleccooking'
@@ -65,6 +68,22 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     
     return project_dict
 
+def load_emisPE_factors():
+    """ Load emissions factors and primary energy factors from data file """
+    emisPE_factors = {}
+    with open(FHSEMISFACTORS, 'r') as emisPE_factors_csv:
+        emisPE_factors_reader = csv.DictReader(emisPE_factors_csv, delimiter=',')
+
+        for row in emisPE_factors_reader:
+            if row["Fuel Code"]!= "":
+                fuel_code = row["Fuel Code"]
+                emisPE_factors[fuel_code] = row
+                # Remove keys that aren't factors to be applied to results
+                emisPE_factors[fuel_code].pop("Fuel Code")
+                emisPE_factors[fuel_code].pop("Fuel")
+
+    return emisPE_factors
+
 def apply_fhs_postprocessing(
         project_dict,
         results_totals,
@@ -76,166 +95,169 @@ def apply_fhs_postprocessing(
         notional,
         ):
     """ Post-process core simulation outputs as required for Future Homes Standard """
-    
-    emissionfactors = {}
-    results = {'Timestep':timestep_array}
-    
-    #remove appliance and cooking energy from results_totals
-    for t_idx, timestep in enumerate(timestep_array):
-        for key, value in results_end_user.items():
-            unregulated = 0
-            for obj_name in [appl_obj_name,elec_cook_obj_name,gas_cook_obj_name]:
-                if obj_name in value.keys():
-                    unregulated += value[obj_name][t_idx]
-            results_totals[key][t_idx]-=unregulated
-    
-    unprocessed_result_dict = {'total': results_totals,
-                               'import': energy_import,
-                               'export': energy_export}
-    
-    #replace parts of the headers from the emission factors csv when creating output file
-    header_replacements = [
-        (" Factor", ""),
-        ("/kWh", ""),
-        ("delivered", "")
-    ]
+    no_of_timesteps = len(timestep_array)
 
-    '''
-    first read in factors from csv. not all rows have a code yet
-    so only read in rows with a fuel code
-    '''
-    with open(FHSEMISFACTORS,'r') as emissionfactorscsv:
-        emissionfactorsreader = csv.DictReader(emissionfactorscsv, delimiter=',')
-        for row in emissionfactorsreader:
-            if row["Fuel Code"]!= "":
-                this_fuel_code = row["Fuel Code"]
-                emissionfactors[this_fuel_code] = row
-                #getting rid of keys that aren't factors to be applied to results for ease of looping
-                emissionfactors[this_fuel_code].pop("Fuel Code")
-                emissionfactors[this_fuel_code].pop("Fuel")
+    # Read factors from csv
+    emisPE_factors = load_emisPE_factors()
 
+    # Add unmet demand to list of EnergySupply objects
     project_dict["EnergySupply"]['_unmet_demand'] = {"fuel": "unmet_demand"}
 
-    '''
-    loop over all energy supplies in the project dict.
-    find all factors for relevant fuel and apply them
-    '''
-    for Energysupply in project_dict["EnergySupply"]: 
-        this_fuel_code = project_dict["EnergySupply"][Energysupply]["fuel"]
+    # For each EnergySupply object:
+    # - look up relevant factors for import and export from csv or custom
+    #   factors from input file
+    # - apply relevant factors for import and export
+    emis_results = {}
+    emis_oos_results = {}
+    PE_results = {}
+    for energy_supply in project_dict["EnergySupply"]:
+        emis_results[energy_supply] = {}
+        emis_oos_results[energy_supply] = {}
+        PE_results[energy_supply] = {}
 
-        if this_fuel_code == "custom":
-            """ Find all relevant factors for heat networks, apply them, and add to results dictionary. Note that
-            heat networks are treated differently as the PE and CO2 factors are in the input file, not the csv file """
-            for factor in project_dict["EnergySupply"][Energysupply]["factor"]:
+        fuel_code = project_dict["EnergySupply"][energy_supply]["fuel"]
 
-                factor_header_part = str(factor)
-                for replacement in header_replacements:
-                    factor_header_part = factor_header_part.replace(*replacement)
+        # Calculate energy imported and associated emissions/PE
+        if fuel_code == "custom":
+            emis_factor_import \
+                = float(project_dict["EnergySupply"][energy_supply]["factor"][emis_factor_name])
+            emis_oos_factor_import \
+                = float(project_dict["EnergySupply"][energy_supply]["factor"][emis_oos_factor_name])
+            PE_factor_import \
+                = float(project_dict["EnergySupply"][energy_supply]["factor"][PE_factor_name])
+        else:
+            emis_factor_import = float(emisPE_factors[fuel_code][emis_factor_name])
+            emis_oos_factor_import = float(emisPE_factors[fuel_code][emis_oos_factor_name])
+            PE_factor_import = float(emisPE_factors[fuel_code][PE_factor_name])
 
-                this_header = (str(Energysupply) + 
-                            ' total ' +
-                            factor_header_part
-                            )
+        emis_results[energy_supply]['import'] = [
+            x * emis_factor_import for x in energy_import[energy_supply]
+            ]
+        emis_oos_results[energy_supply]['import'] = [
+            x * emis_oos_factor_import for x in energy_import[energy_supply]
+            ]
+        PE_results[energy_supply]['import'] = [
+            x * PE_factor_import for x in energy_import[energy_supply]
+            ]
 
-                results[this_header] = [
-                    x * float(project_dict["EnergySupply"][Energysupply]["factor"][factor])
-                    for x in results_totals[Energysupply]
-                    ]
-                
-        elif sum(energy_export[Energysupply]) != 0:
-            #only apply factors to import/export if there is any export
-            for factor in emissionfactors[this_fuel_code]:
-                
-                factor_header_part = str(factor)
-                for replacement in header_replacements:
-                    factor_header_part = factor_header_part.replace(*replacement)
+        # If there is any export, Calculate energy exported and associated emissions/PE
+        # Note that by convention, exported energy is negative
+        if sum(energy_export[energy_supply]) < 0:
+            # TODO Allow custom (user-defined) export factors?
 
-                # Apply relevant factors to energy imported
-                import_header = (str(Energysupply) + 
-                               ' import ' +
-                               factor_header_part
-                )
-                results[import_header] = [
-                    x * float(emissionfactors[this_fuel_code][factor])
-                    for x in energy_import[Energysupply]
+            fuel_code_export = fuel_code + '_export'
+            # TODO Calc net export factors
+            emis_factor_export = float(emisPE_factors[fuel_code_export][emis_factor_name])
+            emis_oos_factor_export = float(emisPE_factors[fuel_code_export][emis_oos_factor_name])
+            PE_factor_export = float(emisPE_factors[fuel_code_export][PE_factor_name])
+
+            emis_factor_export_net = emis_factor_import - emis_factor_export
+            emis_oos_factor_export_net = emis_oos_factor_import - emis_oos_factor_export
+            PE_factor_export_net = PE_factor_import - PE_factor_export
+
+            emis_results[energy_supply]['export'] = [
+                x * emis_factor_export_net for x in energy_export[energy_supply]
                 ]
-
-                # Apply relevant factors to energy exported
-                this_fuel_code_export = this_fuel_code + "_export"
-                export_header = (str(Energysupply) + 
-                               ' export ' +
-                               factor_header_part
-                )
-                net_export_factor = float(emissionfactors[this_fuel_code][factor]) \
-                                  - float(emissionfactors[this_fuel_code_export][factor])
-                results[export_header] = [
-                    x * net_export_factor
-                    for x in energy_export[Energysupply]
+            emis_oos_results[energy_supply]['export'] = [
+                x * emis_oos_factor_export_net for x in energy_export[energy_supply]
                 ]
-
-                # Calculate net CO2/PE from import and export figures
-                total_header = (str(Energysupply) + 
-                               ' total ' +
-                               factor_header_part
-                )
-                results[total_header] = [
-                    results[import_header][i] + results[export_header][i]
-                    for i, x in enumerate(results_totals[Energysupply])
+            PE_results[energy_supply]['export'] = [
+                x * PE_factor_export_net for x in energy_export[energy_supply]
                 ]
         else:
-            for factor in emissionfactors[this_fuel_code]:
-                
-                factor_header_part = str(factor)
-                for replacement in header_replacements:
-                    factor_header_part = factor_header_part.replace(*replacement)
-                    
-                this_header = (str(Energysupply) + 
-                               ' total ' +
-                               factor_header_part
-                )
-                results[this_header] = [
-                    x * float(emissionfactors[this_fuel_code][factor])
-                    for x in results_totals[Energysupply]
-                ]
+            emis_results[energy_supply]['export'] = [0.0] * no_of_timesteps
+            emis_oos_results[energy_supply]['export'] = [0.0] * no_of_timesteps
+            PE_results[energy_supply]['export'] = [0.0] * no_of_timesteps
+
+        # Calculate unregulated energy demand and associated emissions/PE
+        energy_unregulated = [0.0] * no_of_timesteps
+        for end_user_name, end_user_energy in results_end_user[energy_supply].items():
+            if end_user_name in (appl_obj_name, elec_cook_obj_name, gas_cook_obj_name):
+                for t_idx in range(0, no_of_timesteps):
+                    energy_unregulated[t_idx] += end_user_energy[t_idx]
+
+        emis_results[energy_supply]['unregulated'] = [
+            x * emis_factor_import for x in energy_unregulated
+            ]
+        emis_oos_results[energy_supply]['unregulated'] = [
+            x * emis_oos_factor_import for x in energy_unregulated
+            ]
+        PE_results[energy_supply]['unregulated'] = [
+            x * PE_factor_import for x in energy_unregulated
+            ]
+
+        # Calculate total CO2/PE for each EnergySupply based on import and export,
+        # subtracting unregulated
+        emis_results[energy_supply]['total'] = [0.0] * no_of_timesteps
+        emis_oos_results[energy_supply]['total'] = [0.0] * no_of_timesteps
+        PE_results[energy_supply]['total'] = [0.0] * no_of_timesteps
+        for t_idx in range(0, no_of_timesteps):
+            emis_results[energy_supply]['total'][t_idx] \
+                = emis_results[energy_supply]['import'][t_idx] \
+                + emis_results[energy_supply]['export'][t_idx] \
+                - emis_results[energy_supply]['unregulated'][t_idx]
+            emis_oos_results[energy_supply]['total'][t_idx] \
+                = emis_oos_results[energy_supply]['import'][t_idx] \
+                + emis_oos_results[energy_supply]['export'][t_idx] \
+                - emis_oos_results[energy_supply]['unregulated'][t_idx]
+            PE_results[energy_supply]['total'][t_idx] \
+                = PE_results[energy_supply]['import'][t_idx] \
+                + PE_results[energy_supply]['export'][t_idx] \
+                - PE_results[energy_supply]['unregulated'][t_idx]
+
+    # Calculate summary results
+    TFA = calc_TFA(project_dict)
+    total_emissions_rate = sum([sum(emis['total']) for emis in emis_results.values()]) / TFA
+    total_PE_rate = sum([sum(PE['total']) for PE in PE_results.values()]) / TFA
+
+    # Write results to output files
+    write_postproc_file(file_path, "emissions", emis_results, no_of_timesteps)
+    write_postproc_file(file_path, "emissions_incl_out_of_scope", emis_oos_results, no_of_timesteps)
+    write_postproc_file(file_path, "primary_energy", PE_results, no_of_timesteps)
+    write_postproc_summary_file(file_path, total_emissions_rate, total_PE_rate, notional)
+
+def write_postproc_file(file_path, results_type, results, no_of_timesteps):
+    file_name = file_path + 'postproc' + '_'+ results_type + '.csv'
+
+    row_headers = []
+    rows_results = []
+
+    # Loop over each EnergySupply object and add headers and results to rows
+    for energy_supply, energy_supply_results in results.items():
+        for result_name in energy_supply_results.keys():
+            # Create header row
+            row_headers.append(energy_supply + ' ' + result_name)
+
+    # Create results rows
+    for t_idx in range(0, no_of_timesteps):
+        row = []
+        for energy_supply, energy_supply_results in results.items():
+            for result_name, result_values in energy_supply_results.items():
+                row.append(result_values[t_idx])
+        rows_results.append(row)
 
     # Note: need to specify newline='' below, otherwise an extra carriage return
     # character is written when running on Windows
-    with open(file_path + 'postproc.csv', 'w', newline='') as postproc_file:
+    with open(file_name, 'w', newline='') as postproc_file:
         writer = csv.writer(postproc_file)
-        #write header row
-        writer.writerow(results.keys())
-        #results dict is arranged by column, we want to write rows so transpose via zip
-        results_transposed = list(zip(*results.values()))
-        
-        for t_idx, timestep in enumerate(timestep_array):
-            row = results_transposed[t_idx]
-            writer.writerow(row)
-    
-    #create summary file for annual totals
-    TFA = calc_TFA(project_dict)
-    total_emissions_rate = 0
-    total_primary_energy_rate = 0
-    for key, value in results.items():
-        if "total Emissions kgCO2e" in key and \
-        not "including out-of-scope emissions" in key:
-            total_emissions_rate += sum(value)
-        elif "total Primary Energy kWh " in key:
-            total_primary_energy_rate += sum(value)
-    
-    total_emissions_rate /= TFA
-    total_primary_energy_rate /= TFA
-    
+        writer.writerow(row_headers)
+        writer.writerows(rows_results)
+
+def write_postproc_summary_file(file_path, total_emissions_rate, total_PE_rate, notional):
+    if notional:
+        emissions_rate_name = 'TER'
+        pe_rate_name = 'TPER'
+    else:
+        emissions_rate_name = 'DER'
+        pe_rate_name = 'DPER'
+
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
     with open(file_path + 'postproc_summary.csv', 'w', newline='') as postproc_file:
-        if notional:
-            emissions_rate_name = 'TER'
-            pe_rate_name = 'TPER'
-        else:
-            emissions_rate_name = 'DER'
-            pe_rate_name = 'DPER'
         writer = csv.writer(postproc_file)
         writer.writerow(['','','Total'])
         writer.writerow([emissions_rate_name, 'kgCO2/m2', total_emissions_rate])
-        writer.writerow([pe_rate_name,'kWh/m2',total_primary_energy_rate])
+        writer.writerow([pe_rate_name,'kWh/m2',total_PE_rate])
 
 def calc_TFA(project_dict):
      
