@@ -931,6 +931,13 @@ class Zone:
         temp_operative_upper = self.__temp_operative(temp_vector_upper_heat_cool)
 
         # Calculate heating (positive) or cooling (negative) required to reach setpoint
+        if (temp_operative_upper - temp_operative_free) == 0.0:
+            sys.exit(
+                "ERROR: Divide-by-zero in calculation of heating/cooling demand. "
+                "This may be caused by the specification of very low overall "
+                "areal heat capacity of BuildingElements and/or very high thermal "
+                "mass of WetDistribution."
+                )
         heat_cool_load_unrestricted = heat_cool_load_upper * (temp_setpnt - temp_operative_free) \
                                     / (temp_operative_upper - temp_operative_free)
 
