@@ -27,6 +27,20 @@ appl_obj_name = 'appliances'
 elec_cook_obj_name = 'Eleccooking'
 gas_cook_obj_name = 'Gascooking'
 
+def apply_fhs_not_preprocessing(project_dict, is_notA = False):
+    """ Apply assumptions and pre-processing steps for the Future Homes Standard Notional building """
+    edit_lighting_efficacy(project_dict)
+    return project_dict
+
+def edit_lighting_efficacy(project_dict):
+    lighting_efficacy = 120
+    for zone in project_dict["Zone"]:
+        if "Lighting"  not in project_dict["Zone"][zone].keys():
+            sys.exit("missing lighting in zone "+ zone)
+        if "efficacy" not in project_dict["Zone"][zone]["Lighting"].keys():
+            sys.exit("missing lighting efficacy in zone "+ zone)
+        project_dict["Zone"][zone]["Lighting"]["efficacy"] = lighting_efficacy
+        
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
     

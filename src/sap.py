@@ -20,7 +20,8 @@ import core.units as units
 from read_weather_file import weather_data_to_dict
 from read_CIBSE_weather_file import CIBSE_weather_data_to_dict
 from wrappers.future_homes_standard.future_homes_standard import \
-    apply_fhs_preprocessing, apply_fhs_postprocessing
+    apply_fhs_preprocessing, apply_fhs_postprocessing, \
+    apply_fhs_not_preprocessing
 from wrappers.future_homes_standard.future_homes_standard_FEE import \
     apply_fhs_FEE_preprocessing, apply_fhs_FEE_postprocessing
 
@@ -74,6 +75,8 @@ def run_project(
     # Apply required preprocessing steps, if any
     # TODO Implement notional runs (the below treats them the same as the
     #      equivalent non-notional runs)
+    if fhs_notA_assumptions or fhs_notB_assumptions:
+        project_dict = apply_fhs_not_preprocessing(project_dict, fhs_notA_assumptions)
     if fhs_assumptions or fhs_notA_assumptions or fhs_notB_assumptions:
         project_dict = apply_fhs_preprocessing(project_dict)
     elif fhs_FEE_assumptions or fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
