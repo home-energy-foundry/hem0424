@@ -30,6 +30,8 @@ gas_cook_obj_name = 'Gascooking'
 def apply_fhs_not_preprocessing(project_dict, is_notA = False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard Notional building """
     edit_lighting_efficacy(project_dict)
+    edit_infiltration(project_dict,is_notA)
+    
     return project_dict
 
 def edit_lighting_efficacy(project_dict):
@@ -40,7 +42,33 @@ def edit_lighting_efficacy(project_dict):
         if "efficacy" not in project_dict["Zone"][zone]["Lighting"].keys():
             sys.exit("missing lighting efficacy in zone "+ zone)
         project_dict["Zone"][zone]["Lighting"]["efficacy"] = lighting_efficacy
-        
+
+def edit_infiltration(project_dict,is_notA):
+    if is_notA:
+        test_result = 4
+    else:
+        test_result = 5
+    
+    project_dict['Infiltration']['test_type'] = '50Pa'
+    project_dict['Infiltration']['test_result'] = test_result
+    
+    openings = ['open_chimneys','open_flues','closed_fire','flues_d',
+                'flues_e','blocked_chimneys','passive_vents','gas_fires']
+    for opening in openings:
+        project_dict['Infiltration'][opening] = 0
+    
+    #extract_fans follow the same as the actual dwelling
+    #but there must be a minimum of one extract fan
+    #per wet room, as per ADF guidance
+    if "NumberOfWetRooms" not in project_dict.keys():
+        sys.exit("missing NumberOfWetRooms - required for FHS notional building")
+    else:
+        wet_rooms_count = project_dict["NumberOfWetRooms"]
+    if wet_rooms_count == 0:
+        sys.exit('invalid/missing NumberOfWetRooms')
+    if project_dict['Infiltration']['extract_fans'] < wet_rooms_count:
+        project_dict['Infiltration']['extract_fans'] = wet_rooms_count
+
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
     

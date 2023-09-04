@@ -1,6 +1,7 @@
 {
 	"PartGcompliance":true,
 	"NumberOfBedrooms": 2,
+	"NumberOfWetRooms": 2,
 	"HeatingControlType": "SeparateTempControl",
 	"WaterHeatSchedDefault": "HeatingHours",
 	"SimulationTime": {
