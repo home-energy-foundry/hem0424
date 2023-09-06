@@ -16,6 +16,7 @@ from core import project, schedule, units
 from core.water_heat_demand.misc import frac_hot_water
 from cmath import log
 from wrappers.future_homes_standard.FHS_HW_events import HW_event_adjust_allocate, HW_events_generator
+from core.space_heat_demand.building_element import BuildingElement, HeatFlowDirection
 
 this_directory = os.path.dirname(os.path.relpath(__file__))
 FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_07-06-2023.csv")
@@ -39,7 +40,7 @@ def apply_fhs_not_preprocessing(project_dict,
         is_notA = True
     edit_lighting_efficacy(project_dict)
     edit_infiltration(project_dict,is_notA)
-    
+    edit_opaque_ajdZTU_elements(project_dict)
     return project_dict
 
 def edit_lighting_efficacy(project_dict):
@@ -93,6 +94,40 @@ def edit_infiltration(project_dict,is_notA):
         sys.exit('invalid/missing NumberOfWetRooms')
     if project_dict['Infiltration']['extract_fans'] < wet_rooms_count:
         project_dict['Infiltration']['extract_fans'] = wet_rooms_count
+
+def edit_opaque_ajdZTU_elements(project_dict):
+    """ Apply notional u-value (W/m2K) to: 
+            external elements: walls (0.18), doors (1.0), roofs (0.11), exposed floors (0.13)
+            elements adjacent to unheated space: walls (0.18), ceilings (0.11), floors (0.13)
+        
+        to differenciate external doors from walls, user input: is_external_door
+    """
+    for zone in project_dict['Zone'].values():
+        for building_element in zone['BuildingElement'].values():
+            if building_element['type'] in \
+            ('BuildingElementOpaque', 'BuildingElementAdjacentZTU_Simple'):
+                if BuildingElement.pitch_class(building_element['pitch']) == \
+                    HeatFlowDirection.DOWNWARDS:
+                    #exposed floor or floor adjacent to unheated space
+                    building_element['u_value'] = 0.13
+                elif BuildingElement.pitch_class(building_element['pitch']) == \
+                    HeatFlowDirection.UPWARDS:
+                    #roof or ceiling adjacent to unheated space
+                    building_element['u_value'] = 0.11
+                elif BuildingElement.pitch_class(building_element['pitch']) == \
+                    HeatFlowDirection.HORIZONTAL:
+                    #external walls and walls adjacent to unheated space
+                    building_element['u_value'] = 0.18
+                    #exception if external door
+                    if building_element['type'] == 'BuildingElementOpaque':
+                        if 'is_external_door' not in building_element.keys():
+                            sys.exit('Missing is_external_door - needed distinguish between external walls and doors')
+                        if building_element['is_external_door'] == True:
+                            building_element['u_value'] = 1.0
+                else:
+                    sys.exit('missing or unrecognised pitch in opaque element')
+                #remove the r_c input if it was there, as engine would prioritise r_c over u_value
+                building_element.pop('r_c', None)
 
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
