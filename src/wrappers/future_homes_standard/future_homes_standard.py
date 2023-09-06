@@ -41,6 +41,7 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_lighting_efficacy(project_dict)
     edit_infiltration(project_dict,is_notA)
     edit_opaque_ajdZTU_elements(project_dict)
+    edit_transparent_element(project_dict)
     return project_dict
 
 def edit_lighting_efficacy(project_dict):
@@ -128,6 +129,98 @@ def edit_opaque_ajdZTU_elements(project_dict):
                     sys.exit('missing or unrecognised pitch in opaque element')
                 #remove the r_c input if it was there, as engine would prioritise r_c over u_value
                 building_element.pop('r_c', None)
+
+def edit_transparent_element(project_dict):
+    '''
+    Apply notional u-value to windows & glazed doors and rooflights
+    
+    for windows and glazed doors
+    u-value is 1.2
+    there is a max area of windows of 25% of TFA
+    
+    for rooflights
+    u-value is 1.7
+    the max rooflight area is exactly defined as:
+    Max area of glazing if rooflight, as a % of TFA = 25% of TFA - % reduction
+    where % reduction = area of actual rooflight as a % of TFA * ((actual u-value of rooflight - 1.2)/1.2)
+    
+    interpret the instruction for max rooflight area as:
+    max_area_reduction_factor = total_rooflight_area / TFA * ((average_uvalue - 1.2)/1.2)
+    where
+        total_rooflight_area = total area of all rooflights combined
+        average_uvalue = area weighted average actual rooflight u-value
+    
+    max_rooflight_area = maximum allowed total area of all rooflights combined
+    max_rooflight_area = TFA*0.25*max_area_reduction_factor
+    
+    TODO - awaiting confirmation from DLUHC/DESNZ that interpretation is correct
+    '''
+    
+    TFA = calc_TFA(project_dict)
+    
+    total_window_area = 0
+    total_rooflight_area = 0
+    average_roof_light_u_value = 0
+    for zone in project_dict['Zone'].values():
+        for building_element_name, building_element in zone['BuildingElement'].items():
+            if building_element['type'] == 'BuildingElementTransparent': 
+                if not 'is_roof_light' in building_element.keys():
+                    sys.exit('Missing input /"is_roof_light/" in transparent element: {building_element_name}')
+                if building_element['is_roof_light'] == False:
+                    #if it is not a roof light, it is a glazed door or window
+                    total_window_area += building_element['height'] * building_element['width']
+                    building_element['u_value'] = 1.2
+                    building_element.pop('r_c', None)
+                elif building_element['is_roof_light'] == True:
+                    #rooflight
+                    rooflight_area = building_element['height'] * building_element['width']
+                    total_rooflight_area += rooflight_area
+                    average_roof_light_u_value += building_element['u_value'] * rooflight_area
+                    building_element['u_value'] = 1.7
+                    building_element.pop('r_c', None)
+    
+    if total_rooflight_area != 0:
+        #avoid divided by 0 if there are no rooflights
+        average_roof_light_u_value /= total_rooflight_area
+        max_rooflight_area_red_factor = total_rooflight_area / TFA * ((average_roof_light_u_value - 1.2)/1.2)
+        max_rooflight_area = TFA*0.25*max_rooflight_area_red_factor
+        if total_rooflight_area > max_rooflight_area:
+            correct_transparent_area(project_dict, total_rooflight_area, max_rooflight_area, is_rooflight = True)
+    
+    max_window_area = 0.25 * TFA
+    if total_window_area > max_window_area:
+        correct_transparent_area(project_dict, total_window_area, max_window_area, is_rooflight = False)
+
+def correct_transparent_area(project_dict, total_area, max_area, is_rooflight = False):
+    '''
+    Applies correction to transparent elements area and their supporting opaque elements 
+    
+    TODO - the correction is applied to curtain walls too, awaiting confirmation that this is correct
+    '''
+    #window_reduction_factor is applied to both height and width (hence sqrt)
+    #to preserve similar geometry as in the actual dwelling
+    if is_rooflight == False:
+        area_reduction_factor = math.sqrt(max_area / total_area)
+        for zone in project_dict['Zone'].values():
+            for building_element_name, building_element in \
+            zone['BuildingElement'].items():
+                if building_element['type'] == 'BuildingElementTransparent':
+                    old_area = building_element['height'] * building_element['width']
+                    building_element['height'] = area_reduction_factor * building_element['height']
+                    building_element['width'] = area_reduction_factor * building_element['width']
+                    new_area = building_element['height'] * building_element['width']
+                    
+                    #add the window area difference to the external wall it belongs to
+                    #TODO confirm how to deal with curtain walls
+                    area_diff = old_area - new_area
+                    if 'opaque_support' not in building_element.keys():
+                        sys.exit(f'missing element opaque_support in transparent element {building_element_name}')
+                    wall_name = building_element['opaque_support']
+                    if wall_name in zone['BuildingElement'].keys():
+                        zone['BuildingElement'][wall_name]['area'] += area_diff
+                    elif wall_name != 'curtain wall':
+                        sys.exit(f'Unrecognised opaque_support: \"{wall_name}\". ' +\
+                                 'Options are: an existing opaque element name or \"curtain wall\"')
 
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
