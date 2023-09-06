@@ -43,6 +43,8 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_opaque_ajdZTU_elements(project_dict)
     edit_transparent_element(project_dict)
     edit_ground_floors(project_dict)
+    edit_thermal_bridging(project_dict)
+    
     return project_dict
 
 def edit_lighting_efficacy(project_dict):
@@ -238,6 +240,71 @@ def edit_ground_floors(project_dict):
                 building_element['u_value'] = 0.13
                 building_element['r_f'] = 6.12
                 building_element['psi_wall_floor_junc'] = 0.16
+
+def edit_thermal_bridging(project_dict):
+    '''
+    The notional building must follow the same thermal bridges as specified in
+    SAP10.2 Table R2
+    
+    TODO - how to deal with ThermalBridging when lengths are not specified?
+    '''
+    table_R2 = {
+        'E1' : 0.05,
+        'E2' : 0.05,
+        'E3' : 0.05,
+        'E4' : 0.05,
+        'E5' : 0.16,
+        'E19' : 0.07,
+        'E20' : 0.32,
+        'E21' : 0.32,
+        'E22' : 0.07,
+        'E6' : 0,
+        'E7' : 0.07,
+        'E8' : 0,
+        'E9' : 0.02,
+        'E23' : 0.02,
+        'E10' : 0.06,
+        'E24' : 0.24,
+        'E11' : 0.04,
+        'E12' : 0.06,
+        'E13' : 0.08,
+        'E14' : 0.08,
+        'E15' : 0.56,
+        'E16' : 0.09,
+        'E17' : -0.09,
+        'E18' : 0.06,
+        'E25' : 0.06,
+        'P1' : 0.08,
+        'P6' : 0.07,
+        'P2' : 0,
+        'P3' : 0,
+        'P7' : 0.16,
+        'P8' : 0.24,
+        'P4' : 0.12,
+        'P5' : 0.08 ,
+        'R1' : 0.08,
+        'R2' : 0.06,
+        'R3' : 0.08,
+        'R4' : 0.08,
+        'R5' : 0.04,
+        'R6' : 0.06,
+        'R7' : 0.04,
+        'R8' : 0.06,
+        'R9' : 0.04,
+        'R10' : 0.08,
+        'R11' : 0.08
+        }
+    for zone in project_dict['Zone'].values():
+        if type(zone['ThermalBridging']) is dict:
+            for thermal_bridge in zone['ThermalBridging'].values():
+                if thermal_bridge['type'] == 'ThermalBridgePoint':
+                    thermal_bridge['heat_transfer_coeff'] = 0.0
+                elif thermal_bridge['type'] == 'ThermalBridgeLinear':
+                    junction_type = thermal_bridge['junction_type']
+                    if not junction_type in table_R2.keys():
+                        sys.exit(f'Invalid linear thermal bridge \"junction_type\": {junction_type}. \
+                        Option must be one available in SAP10.2 Table R2')
+                    thermal_bridge['linear_thermal_transmittance'] = table_R2[junction_type]
 
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
