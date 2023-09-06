@@ -27,14 +27,27 @@ appl_obj_name = 'appliances'
 elec_cook_obj_name = 'Eleccooking'
 gas_cook_obj_name = 'Gascooking'
 
-def apply_fhs_not_preprocessing(project_dict, is_notA = False):
+def apply_fhs_not_preprocessing(project_dict,
+                                fhs_notA_assumptions,
+                                fhs_notB_assumptions,
+                                fhs_FEE_notA_assumptions,
+                                fhs_FEE_notB_assumptions):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard Notional building """
+    
+    is_notA = False
+    if fhs_notA_assumptions or fhs_FEE_notA_assumptions:
+        is_notA = True
     edit_lighting_efficacy(project_dict)
     edit_infiltration(project_dict,is_notA)
     
     return project_dict
 
 def edit_lighting_efficacy(project_dict):
+    '''
+    Apply notional lighting efficacy
+    
+    efficacy = 120 lm/W
+    '''
     lighting_efficacy = 120
     for zone in project_dict["Zone"]:
         if "Lighting"  not in project_dict["Zone"][zone].keys():
@@ -44,6 +57,17 @@ def edit_lighting_efficacy(project_dict):
         project_dict["Zone"][zone]["Lighting"]["efficacy"] = lighting_efficacy
 
 def edit_infiltration(project_dict,is_notA):
+    '''
+    Apply Notional infiltration specifications
+    
+    Notional option A pressure test result at 50Pa = 4 ACH
+    Notional option B pressure test result at 50Pa = 5 ACH
+    All passive openings count are set to zero
+    Mechanical extract fans count follows the Actual dwelling,
+    with the exception that there must be at least one per wet room
+    '''
+    
+    #pressure test results dependent on Notional option A or B
     if is_notA:
         test_result = 4
     else:
@@ -52,6 +76,7 @@ def edit_infiltration(project_dict,is_notA):
     project_dict['Infiltration']['test_type'] = '50Pa'
     project_dict['Infiltration']['test_result'] = test_result
     
+    #all openings set to 0
     openings = ['open_chimneys','open_flues','closed_fire','flues_d',
                 'flues_e','blocked_chimneys','passive_vents','gas_fires']
     for opening in openings:

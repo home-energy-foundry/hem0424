@@ -75,8 +75,13 @@ def run_project(
     # Apply required preprocessing steps, if any
     # TODO Implement notional runs (the below treats them the same as the
     #      equivalent non-notional runs)
-    if fhs_notA_assumptions or fhs_notB_assumptions:
-        project_dict = apply_fhs_not_preprocessing(project_dict, fhs_notA_assumptions)
+    if fhs_notA_assumptions or fhs_notB_assumptions \
+    or fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
+        project_dict = apply_fhs_not_preprocessing(project_dict, 
+                                                   fhs_notA_assumptions, 
+                                                   fhs_notB_assumptions,
+                                                   fhs_FEE_notA_assumptions,
+                                                   fhs_FEE_notB_assumptions)
     if fhs_assumptions or fhs_notA_assumptions or fhs_notB_assumptions:
         project_dict = apply_fhs_preprocessing(project_dict)
     elif fhs_FEE_assumptions or fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
