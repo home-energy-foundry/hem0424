@@ -42,6 +42,7 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_infiltration(project_dict,is_notA)
     edit_opaque_ajdZTU_elements(project_dict)
     edit_transparent_element(project_dict)
+    edit_ground_floors(project_dict)
     return project_dict
 
 def edit_lighting_efficacy(project_dict):
@@ -221,6 +222,22 @@ def correct_transparent_area(project_dict, total_area, max_area, is_rooflight = 
                     elif wall_name != 'curtain wall':
                         sys.exit(f'Unrecognised opaque_support: \"{wall_name}\". ' +\
                                  'Options are: an existing opaque element name or \"curtain wall\"')
+
+def edit_ground_floors(project_dict):
+    '''
+    Apply notional building ground specifications
+    u-value = 0.13 W/m2.K
+    ground thermal resistance, r_f = 6.12 m2.K/W
+    linear thermal transmittance, psi_wall_floor_junc = 0.16 W/m.K
+    
+    TODO - waiting from DELUHC/DESNZ for clarification if basement floors and basement walls are treated the same
+    '''
+    for zone in project_dict['Zone'].values():
+        for building_element_name, building_element in zone['BuildingElement'].items():
+            if building_element['type'] == 'BuildingElementGround':
+                building_element['u_value'] = 0.13
+                building_element['r_f'] = 6.12
+                building_element['psi_wall_floor_junc'] = 0.16
 
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
