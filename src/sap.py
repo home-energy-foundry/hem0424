@@ -85,6 +85,9 @@ def run_project(
     if fhs_assumptions or fhs_notA_assumptions or fhs_notB_assumptions:
         project_dict = apply_fhs_preprocessing(project_dict)
     elif fhs_FEE_assumptions or fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
+        #TODO - the FEE preprocessing corrects inputs in much the same way the notional does
+        #calling  apply_fhs_FEE_preprocessing will overwrite the not_FEE preprocessing 
+        #that happened before?
         project_dict = apply_fhs_FEE_preprocessing(project_dict)
 
     if preproc_only:

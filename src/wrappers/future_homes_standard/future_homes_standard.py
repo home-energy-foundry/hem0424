@@ -40,10 +40,34 @@ def apply_fhs_not_preprocessing(project_dict,
         is_notA = True
     edit_lighting_efficacy(project_dict)
     edit_infiltration(project_dict,is_notA)
+    #TODO edit_ventilation function
     edit_opaque_ajdZTU_elements(project_dict)
     edit_transparent_element(project_dict)
     edit_ground_floors(project_dict)
     edit_thermal_bridging(project_dict)
+    
+    #check if a heat network is present
+    is_heat_network = False
+    if "HeatSourceWet" in project_dict.keys():
+        for heat_source_dict in project_dict["HeatSourceWet"].values():
+            if heat_source_dict['type'] == 'HIU':
+                is_heat_network = True
+                break
+            elif 'source_type' in heat_source_dict.keys():
+                if heat_source_dict['source_type'] == 'HeatNetwork':
+                    is_heat_network = True
+                    break
+    
+    #FEE calculations - Notional heated with direct electric heaters
+    #if Actual dwelling is heated with heat networks - Notional heated with HIU
+    #otherwise, Notional heated with a air to water heat pump
+    if fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
+        edit_not_FEE_space_heating(project_dict)
+    #TODO - create functions below
+    #elif is_heat_network:
+    #    edit_not_heatnetwork_space_heating(project_dict)
+    #else:
+    #    edit_not_default_space_heating(project_dict)
     
     return project_dict
 
@@ -305,6 +329,27 @@ def edit_thermal_bridging(project_dict):
                         sys.exit(f'Invalid linear thermal bridge \"junction_type\": {junction_type}. \
                         Option must be one available in SAP10.2 Table R2')
                     thermal_bridge['linear_thermal_transmittance'] = table_R2[junction_type]
+
+def edit_not_FEE_space_heating(project_dict):
+    '''
+    Apply space heating system to notional building for FEE caluclation
+    
+    TODO - the specifications spreadsheet mentions a control class 2,
+    but it's not applicable for non-wet ditribution systems.
+    the spreadsheet also specifies a set back temp, which is odd with direct electric 
+    Awaiting clarifications from DELUHC/DESNZ
+    '''
+    
+    for space_heating_name, space_heating in project_dict['SpaceHeatSystem'].items():
+        project_dict['SpaceHeatSystem'].pop(space_heating_name)
+        project_dict['SpaceHeatSystem'][space_heating_name] = {
+            "type": "InstantElecHeater",
+            "rated_power": 10000.0,
+            "frac_convective": 0.95,
+            "temp_setback": 18.0,
+            "EnergySupply": "mains elec"
+            }
+    print(project_dict['SpaceHeatSystem'])
 
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
