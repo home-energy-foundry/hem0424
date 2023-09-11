@@ -54,7 +54,9 @@ def apply_fhs_not_preprocessing(project_dict,
     else:
         edit_add_default_space_heating_system(project_dict)
         edit_not_default_space_heating_distribution_system(project_dict)
-    
+
+    edit_hot_water_source(project_dict)
+
     return project_dict
 
 def edit_lighting_efficacy(project_dict):
@@ -508,5 +510,67 @@ def edit_not_default_space_heating_distribution_system(project_dict):
                 "thermal_mass": 0.05832055732391241,
                 "type": "WetDistribution"
             }
-    
+
+
+def edit_hot_water_source(project_dict):
+    # TODO what if there is no cylinder in the actual dwelling
+
+    # Calculate daily losses
+    cylinder_vol = project_dict['HotWaterSource']['hw cylinder']['volume']
+    thickness = 120  # mm
+    cylinder_factory_insulated = 0.005 + 0.55 / (thickness + 4.0)
+    vol_factor = (120 / cylinder_vol) ** (1 / 3)
+    # Temperature factor of 0.6, multiplied by 0.9 due to separate time control of domestic hot water
+    temp_factor = 0.6 * 0.9
+    daily_losses = cylinder_factory_insulated * vol_factor * temp_factor
+    project_dict['HotWaterSource']['hw cylinder']['daily_losses'] = daily_losses
+
+    # Determine cold water source
+    for cold_water_type, cold_water_temperatures in project_dict['ColdWaterSource'].items():
+        cold_water_source = cold_water_type
+
+    # Define Bath, Shower, and Other DHW outlet
+    project_dict['Bath'] = {
+        "medium": {
+            "ColdWaterSource": cold_water_source,
+            "flowrate": 5,
+            "size": 170
+        }
+    }
+
+    project_dict['Shower'] = {
+        "mixer": {
+            "ColdWaterSource": cold_water_source,
+            "flowrate": 8,
+            "type": "MixerShower"
+        }
+    }
+
+    project_dict['Other'] = {
+        "other": {
+            "ColdWaterSource": cold_water_source,
+            "flowrate": 6
+        }
+    }
+
+    # Include WWHRS if there is more than 1 storey
+    if project_dict['Infiltration']['storey'] > 1:
+        project_dict['Shower'] = {
+            "mixer": {
+                "ColdWaterSource": cold_water_source,
+                "flowrate": 8,
+                "type": "MixerShower",
+                "WWHRS": "Notional_Inst_WWHRS"
+            }
+        }
+
+        project_dict['WWHHR'] = {
+            "Notional_Inst_WWHRS": {
+                "ColdWaterSource": cold_water_source,
+                "efficiencies": [50, 50, 50, 50, 50],
+                "flow_rates": [5, 7, 8, 11, 13],
+                "type": "WWHRS_InstantaneousSystemB",
+                "utilisation_factor": 0.98
+            }
+        }
     
