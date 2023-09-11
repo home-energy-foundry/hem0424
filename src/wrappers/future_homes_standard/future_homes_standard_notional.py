@@ -51,8 +51,9 @@ def apply_fhs_not_preprocessing(project_dict,
     #TODO - create functions below
     #elif is_heat_network:
     #    edit_not_heatnetwork_space_heating(project_dict)
-    #else:
-    #    edit_not_default_space_heating(project_dict)
+    else:
+        edit_add_default_space_heating_system(project_dict)
+        edit_not_default_space_heating_distribution_system(project_dict)
     
     return project_dict
 
@@ -336,3 +337,176 @@ def edit_not_FEE_space_heating(project_dict):
             }
     print(project_dict['SpaceHeatSystem'])
 
+def edit_add_default_space_heating_system(project_dict):
+    '''
+    Apply default space heating system to notional building calculation
+    
+    '''
+    # remove current heating systems
+    if "HeatSourceWet" in project_dict.keys():
+        project_dict['HeatSourceWet'].pop(heat_source_dict)
+    
+    # TODO HP notional performance curve
+    project_dict['HeatSourceWet'] = {
+        "hp": {
+            "EnergySupply": "mains elec",
+            "backup_ctrl_type": "TopUp",
+            "min_modulation_rate_35": 0.4,
+            "min_modulation_rate_55": 0.4,
+            "min_temp_diff_flow_return_for_hp_to_operate": 0,
+            "modulating_control": True,
+            "power_crankcase_heater": 0.01,
+            "power_heating_circ_pump": 0.015,
+            "power_max_backup": 3,
+            "power_off": 0,
+            "power_source_circ_pump": 0,
+            "power_standby": 0.01,
+            "sink_type": "Water",
+            "source_type": "OutsideAir",
+            "temp_lower_operating_limit": -15,
+            "temp_return_feed_max": 60,
+            "test_data": [
+                {
+                    "capacity": 4.067582718,
+                    "cop": 2.788,
+                    "degradation_coeff": 0.9,
+                    "design_flow_temp": 35,
+                    "temp_outlet": 34,
+                    "temp_source": -7,
+                    "temp_test": -7,
+                    "test_letter": "A"
+                },
+                {
+                    "capacity": 2.528509315,
+                    "cop": 4.292,
+                    "degradation_coeff": 0.9,
+                    "design_flow_temp": 35,
+                    "temp_outlet": 30,
+                    "temp_source": 2,
+                    "temp_test": 2,
+                    "test_letter": "B"
+                },
+                {
+                    "capacity": 2.238305518,
+                    "cop": 5.906,
+                    "degradation_coeff": 0.9,
+                    "design_flow_temp": 35,
+                    "temp_outlet": 27,
+                    "temp_source": 7,
+                    "temp_test": 7,
+                    "test_letter": "C"
+                },
+                {
+                    "capacity": 1.91029697,
+                    "cop": 8.016,
+                    "degradation_coeff": 0.9,
+                    "design_flow_temp": 35,
+                    "temp_outlet": 24,
+                    "temp_source": 12,
+                    "temp_test": 12,
+                    "test_letter": "D"
+                },
+                {
+                    "capacity": 4.076141232,
+                    "cop": 2.492,
+                    "degradation_coeff": 0.9,
+                    "design_flow_temp": 35,
+                    "temp_outlet": 35,
+                    "temp_source": -10,
+                    "temp_test": -10,
+                    "test_letter": "F"
+                },
+                {
+                    "capacity": 4.043398101,
+                    "cop": 2.034,
+                    "degradation_coeff": 0.9,
+                    "design_flow_temp": 55,
+                    "temp_outlet": 52,
+                    "temp_source": -7,
+                    "temp_test": -7,
+                    "test_letter": "A"
+                },
+                {
+                    "capacity": 2.462869183,
+                    "cop": 3.118,
+                    "degradation_coeff": 0.9,
+                    "design_flow_temp": 55,
+                    "temp_outlet": 42,
+                    "temp_source": 3,
+                    "temp_test": 2,
+                    "test_letter": "B"
+                },
+                {
+                    "capacity": 1.987311886,
+                    "cop": 4.406,
+                    "degradation_coeff": 0.9,
+                    "design_flow_temp": 55,
+                    "temp_outlet": 36,
+                    "temp_source": 7,
+                    "temp_test": 7,
+                    "test_letter": "C"
+                },
+                {
+                    "capacity": 2.074754639,
+                    "cop": 6.298,
+                    "degradation_coeff": 0.9,
+                    "design_flow_temp": 55,
+                    "temp_outlet": 30,
+                    "temp_source": 12,
+                    "temp_test": 12,
+                    "test_letter": "D"
+                },
+                {
+                    "capacity": 4.147492916,
+                    "cop": 1.868,
+                    "degradation_coeff": 0.9,
+                    "design_flow_temp": 55,
+                    "temp_outlet": 55,
+                    "temp_source": -10,
+                    "temp_test": -10,
+                    "test_letter": "F"
+                }
+            ],
+            "time_constant_onoff_operation": 120,
+            "time_delay_backup": 1,
+            "type": "HeatPump",
+            "var_flow_temp_ctrl_during_test": True
+        }
+    }
+
+
+def edit_not_default_space_heating_distribution_system(project_dict):
+    '''
+    Apply distribution system details to notional building calculation
+    
+    '''
+
+    for zone_name, zone in project_dict['Zone'].items():
+        #TODO currently repeats the same radiator characteristics for both zones
+        space_heating_name = zone['SpaceHeatSystem']
+        project_dict['SpaceHeatSystem'][space_heating_name] = {
+                "Control": "HeatingPattern_LivingRoom",
+                "HeatSource": {
+                    "name": "hp",
+                    "temp_flow_limit_upper": 65
+                },
+                "Zone": zone_name,
+                "advanced_start": 1,
+                "c": 0.04148754907959335,
+                "design_flow_temp": 45,
+                "ecodesign_controller": {
+                    "ecodesign_control_class": 2,
+                    "max_flow_temp": 45,
+                    "max_outdoor_temp": 0,
+                    "min_flow_temp": 25,
+                    "min_outdoor_temp": 20
+                },
+                "frac_convective": 0.8,
+                "n": 1.34,
+                "temp_diff_emit_dsgn": 5,
+                "temp_setback": 18,
+                "thermal_mass": 0.05832055732391241,
+                "type": "WetDistribution"
+            }
+    
+    
