@@ -20,7 +20,8 @@ import core.units as units
 from read_weather_file import weather_data_to_dict
 from read_CIBSE_weather_file import CIBSE_weather_data_to_dict
 from wrappers.future_homes_standard.future_homes_standard import \
-    apply_fhs_preprocessing, apply_fhs_postprocessing, \
+    apply_fhs_preprocessing, apply_fhs_postprocessing
+from wrappers.future_homes_standard.future_homes_standard_notional import \
     apply_fhs_not_preprocessing
 from wrappers.future_homes_standard.future_homes_standard_FEE import \
     apply_fhs_FEE_preprocessing, apply_fhs_FEE_postprocessing
