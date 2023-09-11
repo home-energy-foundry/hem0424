@@ -337,16 +337,12 @@ def edit_not_FEE_space_heating(project_dict):
             "temp_setback": 18.0,
             "EnergySupply": "mains elec"
             }
-    print(project_dict['SpaceHeatSystem'])
 
 def edit_add_default_space_heating_system(project_dict):
     '''
     Apply default space heating system to notional building calculation
     
     '''
-    # remove current heating systems
-    if "HeatSourceWet" in project_dict.keys():
-        project_dict['HeatSourceWet'].pop(heat_source_dict)
     
     # TODO HP notional performance curve
     project_dict['HeatSourceWet'] = {
