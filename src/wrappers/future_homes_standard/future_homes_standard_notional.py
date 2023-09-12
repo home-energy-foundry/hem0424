@@ -63,8 +63,8 @@ def apply_fhs_not_preprocessing(project_dict,
     # modify bath, shower and other dhw characteristics
     edit_bath_shower_other(project_dict, cold_water_source)
 
-    # add WWHRS if more than 1 storey
-    if project_dict['Infiltration']['storey'] > 1:
+    # add WWHRS if more than 1 storey and notional A
+    if project_dict['Infiltration']['storey'] > 1 and is_notA:
         add_wwhrs(project_dict, cold_water_source)
 
     #modify daily losses in cylinder
