@@ -53,12 +53,14 @@ def apply_fhs_not_preprocessing(project_dict,
     #otherwise, Notional heated with a air to water heat pump
     if fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
         edit_not_FEE_space_heating(project_dict)
-    #TODO - create functions below
-    #elif is_heat_network:
-    #    edit_not_heatnetwork_space_heating(project_dict)
+    elif is_heat_network:
+        edit_add_heatnetwork_space_heating(project_dict, cold_water_source)
+        edit_heatnetwork_space_heating_distribution_system(project_dict)
+        project_dict['HotWaterSource']['hw cylinder']['daily_losses'] = 0.8
     else:
         edit_add_default_space_heating_system(project_dict)
         edit_not_default_space_heating_distribution_system(project_dict)
+        edit_daily_losses(project_dict)
 
     # modify bath, shower and other dhw characteristics
     edit_bath_shower_other(project_dict, cold_water_source)
@@ -67,11 +69,6 @@ def apply_fhs_not_preprocessing(project_dict,
     if project_dict['Infiltration']['storey'] > 1 and is_notA:
         add_wwhrs(project_dict, cold_water_source)
 
-    #modify daily losses in cylinder
-    #TODO what if there is no cylinder
-    #TODO heatnetwork has a fixed daily loss
-    edit_daily_losses(project_dict)
-    
     #modify primary pipework chracteristics
     if 'primary_pipework' in project_dict['HotWaterSource']['hw cylinder']:
         edit_primary_pipework(project_dict)
