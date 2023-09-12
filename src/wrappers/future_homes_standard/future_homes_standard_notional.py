@@ -80,6 +80,10 @@ def apply_fhs_not_preprocessing(project_dict,
     if 'diverter' in project_dict['EnergySupply']['mains elec'].keys():
         remove_pv_diverter(project_dict)
 
+    # Remove Electric battery if present
+    if 'ElectricBattery' in project_dict['EnergySupply']['mains elec'].keys():
+        remove_electric_batterty(project_dict)
+
     return project_dict
 
 def edit_lighting_efficacy(project_dict):
@@ -606,3 +610,5 @@ def edit_primary_pipework(project_dict, cold_water_source):
 def remove_pv_diverter(project_dict):
     del project_dict['EnergySupply']['mains elec']['diverter']
 
+def remove_electric_battery(project_dict):
+    del project_dict['EnergySupply']['mains elec']['ElectricBattery']
