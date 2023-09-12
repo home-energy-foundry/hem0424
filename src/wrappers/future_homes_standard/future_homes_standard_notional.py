@@ -585,16 +585,16 @@ def edit_daily_losses(project_dict):
     project_dict['HotWaterSource']['hw cylinder']['daily_losses'] = daily_losses
 
 def edit_primary_pipework(project_dict, cold_water_source):
-    if 'primary_pipework' in project_dict['HotWaterSource']['hw cylinder']:
-        primary_pipework_dict = project_dict['HotWaterSource']['hw cylinder']['primary_pipework']
-        TFA = calc_TFA(project_dict)
-        length = primary_pipework_dict['length']
-        length =  min(length, 0.05 * (TFA / 2))
-        primary_pipework_dict['length'] = length
-        primary_pipework_dict['insulation_thermal_conductivity'] = 0.035
-        primary_pipework_dict['surface_reflectivity'] = False
-        
-        insulation_thickness = 0.025
-        if primary_pipework_dict['insulation_thickness_mm'] > 0.025:
-             insulation_thickness = 0.032
-        primary_pipework_dict['insulation_thickness_mm'] = insulation_thickness
+    primary_pipework_dict = project_dict['HotWaterSource']['hw cylinder']['primary_pipework']
+    TFA = calc_TFA(project_dict)
+    length = primary_pipework_dict['length']
+    length =  min(length, 0.05 * (TFA / 2))
+    primary_pipework_dict['length'] = length
+    primary_pipework_dict['insulation_thermal_conductivity'] = 0.035
+    primary_pipework_dict['surface_reflectivity'] = False
+    
+    insulation_thickness = 0.025
+    if primary_pipework_dict['insulation_thickness_mm'] > 0.025:
+         insulation_thickness = 0.032
+    primary_pipework_dict['insulation_thickness_mm'] = insulation_thickness
+
