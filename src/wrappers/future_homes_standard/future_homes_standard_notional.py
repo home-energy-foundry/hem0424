@@ -76,6 +76,10 @@ def apply_fhs_not_preprocessing(project_dict,
     if 'primary_pipework' in project_dict['HotWaterSource']['hw cylinder']:
         edit_primary_pipework(project_dict, cold_water_source)
 
+    # Remove PV diverter if present
+    if 'diverter' in project_dict['EnergySupply']['mains elec'].keys():
+        remove_pv_diverter(project_dict)
+
     return project_dict
 
 def edit_lighting_efficacy(project_dict):
@@ -597,4 +601,8 @@ def edit_primary_pipework(project_dict, cold_water_source):
     if primary_pipework_dict['insulation_thickness_mm'] > 0.025:
          insulation_thickness = 0.032
     primary_pipework_dict['insulation_thickness_mm'] = insulation_thickness
+
+
+def remove_pv_diverter(project_dict):
+    del project_dict['EnergySupply']['mains elec']['diverter']
 
