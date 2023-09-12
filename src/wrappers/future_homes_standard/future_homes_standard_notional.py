@@ -84,6 +84,13 @@ def apply_fhs_not_preprocessing(project_dict,
     if 'ElectricBattery' in project_dict['EnergySupply']['mains elec'].keys():
         remove_electric_batterty(project_dict)
 
+    # modify ventilation
+    TFA = calc_TFA(project_dict)
+    bedroom_number = project_dict['NumberOfBedrooms']
+    total_volume = project_dict['Infiltration']['volume']
+    minimum_ach = minimum_air_change_rate(TFA, bedroom_number, total_volume) 
+    edit_ventilation(project_dict, is_notA, minimum_ach)
+
     return project_dict
 
 def edit_lighting_efficacy(project_dict):
@@ -612,3 +619,48 @@ def remove_pv_diverter(project_dict):
 
 def remove_electric_battery(project_dict):
     del project_dict['EnergySupply']['mains elec']['ElectricBattery']
+
+def minimum_air_change_rate(TFA, bedroom_number, total_volume):
+    """ Calculate effective air change rate accoring to according to Part F 1.24 a """
+
+    #Calculate minimum whole dwelling ventilation rate l/s method A
+    min_ventilation_rate_a = TFA * 0.3
+
+    #Calculate minimum whole dwelling ventilation rate l/s method B
+    if bedroom_number == 1:
+        min_ventilation_rate_b = 19
+    elif bedroom_number == 2:
+        min_ventilation_rate_b = 25
+    elif bedroom_number == 3:
+        min_ventilation_rate_b = 31
+    elif bedroom_number == 4:
+        min_ventilation_rate_b = 37
+    elif bedroom_number == 5:
+        min_ventilation_rate_b = 43
+    elif bedroom_number > 6:
+        min_ventilation_rate_b = 43 + (bedroom_number - 5) * 6
+
+    # Calculate air change rate (l/s)/m3
+    minimum_ach = max(min_ventilation_rate_a, min_ventilation_rate_b) / total_volume
+
+    return minimum_ach
+
+def edit_ventilation(project_dict, isnotA, minimum_ach):
+    current_ach = project_dict['Ventilation']['req_ach']
+    req_ach = max(current_ach, minimum_ach)
+    if  isnotA:
+        # Continous decentralised mechanical extract ventilation
+        project_dict['Ventilation'] = {
+            'type': 'WHEV',
+            'req_ach': req_ach,
+            'SFP': 0.15,
+            "EnergySupply": "mains elec"
+            }
+    else:
+        # Natural ventilation
+        project_dict['Ventilation'] = {
+            'type': 'NatVent',
+            'req_ach': req_ach,
+            "EnergySupply": "mains elec"
+            }
+
