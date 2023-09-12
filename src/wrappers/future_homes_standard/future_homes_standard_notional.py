@@ -560,7 +560,7 @@ def edit_hot_water_source(project_dict):
             }
         }
 
-        project_dict['WWHHR'] = {
+        project_dict['WWHRS'] = {
             "Notional_Inst_WWHRS": {
                 "ColdWaterSource": cold_water_source,
                 "efficiencies": [50, 50, 50, 50, 50],
