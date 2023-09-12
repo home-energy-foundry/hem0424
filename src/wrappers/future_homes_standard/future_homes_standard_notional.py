@@ -23,6 +23,11 @@ def apply_fhs_not_preprocessing(project_dict,
     is_notA = False
     if fhs_notA_assumptions or fhs_FEE_notA_assumptions:
         is_notA = True
+
+    # Determine cold water source
+    for cold_water_type in project_dict['ColdWaterSource'].keys():
+        cold_water_source = cold_water_type
+
     edit_lighting_efficacy(project_dict)
     edit_infiltration(project_dict,is_notA)
     #TODO edit_ventilation function
@@ -55,7 +60,21 @@ def apply_fhs_not_preprocessing(project_dict,
         edit_add_default_space_heating_system(project_dict)
         edit_not_default_space_heating_distribution_system(project_dict)
 
-    edit_hot_water_source(project_dict)
+    # modify bath, shower and other dhw characteristics
+    edit_bath_shower_other(project_dict, cold_water_source)
+
+    # add WWHRS if more than 1 storey
+    if project_dict['Infiltration']['storey'] > 1:
+        add_wwhrs(project_dict, cold_water_source)
+
+    #modify daily losses in cylinder
+    #TODO what if there is no cylinder
+    #TODO heatnetwork has a fixed daily loss
+    edit_daily_losses(project_dict)
+    
+    #modify primary pipework chracteristics
+    if 'primary_pipework' in project_dict['HotWaterSource']['hw cylinder']:
+        edit_primary_pipework(project_dict, cold_water_source)
 
     return project_dict
 
@@ -508,22 +527,8 @@ def edit_not_default_space_heating_distribution_system(project_dict):
             }
 
 
-def edit_hot_water_source(project_dict):
-    # TODO what if there is no cylinder in the actual dwelling
 
-    # Calculate daily losses
-    cylinder_vol = project_dict['HotWaterSource']['hw cylinder']['volume']
-    thickness = 120  # mm
-    cylinder_factory_insulated = 0.005 + 0.55 / (thickness + 4.0)
-    vol_factor = (120 / cylinder_vol) ** (1 / 3)
-    # Temperature factor of 0.6, multiplied by 0.9 due to separate time control of domestic hot water
-    temp_factor = 0.6 * 0.9
-    daily_losses = cylinder_factory_insulated * vol_factor * temp_factor
-    project_dict['HotWaterSource']['hw cylinder']['daily_losses'] = daily_losses
-
-    # Determine cold water source
-    for cold_water_type, cold_water_temperatures in project_dict['ColdWaterSource'].items():
-        cold_water_source = cold_water_type
+def edit_bath_shower_other(project_dict, cold_water_source):
 
     # Define Bath, Shower, and Other DHW outlet
     project_dict['Bath'] = {
@@ -549,28 +554,37 @@ def edit_hot_water_source(project_dict):
         }
     }
 
-    # Include WWHRS if there is more than 1 storey
-    if project_dict['Infiltration']['storey'] > 1:
-        project_dict['Shower'] = {
-            "mixer": {
-                "ColdWaterSource": cold_water_source,
-                "flowrate": 8,
-                "type": "MixerShower",
-                "WWHRS": "Notional_Inst_WWHRS"
-            }
+def add_wwhrs(project_dict, cold_water_source):
+    # TODO storey input now changed
+    shower_dict = project_dict['Shower']['mixer']
+    shower_dict["WWHRS"] = "Notional_Inst_WWHRS"
+ 
+    project_dict['WWHRS'] = {
+        "Notional_Inst_WWHRS": {
+            "ColdWaterSource": cold_water_source,
+            "efficiencies": [50, 50, 50, 50, 50],
+            "flow_rates": [5, 7, 8, 11, 13],
+            "type": "WWHRS_InstantaneousSystemB",
+            "utilisation_factor": 0.98
         }
+    }
 
-        project_dict['WWHRS'] = {
-            "Notional_Inst_WWHRS": {
-                "ColdWaterSource": cold_water_source,
-                "efficiencies": [50, 50, 50, 50, 50],
-                "flow_rates": [5, 7, 8, 11, 13],
-                "type": "WWHRS_InstantaneousSystemB",
-                "utilisation_factor": 0.98
-            }
-        }
 
-    #Primary pipework
+
+
+def edit_daily_losses(project_dict):
+    # TODO what if there is no cylinder in the actual dwelling
+    # Calculate daily losses
+    cylinder_vol = project_dict['HotWaterSource']['hw cylinder']['volume']
+    thickness = 120  # mm
+    cylinder_factory_insulated = 0.005 + 0.55 / (thickness + 4.0)
+    vol_factor = (120 / cylinder_vol) ** (1 / 3)
+    # Temperature factor of 0.6, multiplied by 0.9 due to separate time control of domestic hot water
+    temp_factor = 0.6 * 0.9
+    daily_losses = cylinder_factory_insulated * vol_factor * temp_factor
+    project_dict['HotWaterSource']['hw cylinder']['daily_losses'] = daily_losses
+
+def edit_primary_pipework(project_dict, cold_water_source):
     if 'primary_pipework' in project_dict['HotWaterSource']['hw cylinder']:
         primary_pipework_dict = project_dict['HotWaterSource']['hw cylinder']['primary_pipework']
         TFA = calc_TFA(project_dict)
