@@ -74,7 +74,11 @@ def apply_fhs_not_preprocessing(project_dict,
     
     #modify primary pipework chracteristics
     if 'primary_pipework' in project_dict['HotWaterSource']['hw cylinder']:
-        edit_primary_pipework(project_dict, cold_water_source)
+        edit_primary_pipework(project_dict)
+    
+    #modify hot water distribution
+    edit_hot_water_distribution_inner(project_dict)
+    remove_hot_water_distribution_external(project_dict)
 
     # Remove PV diverter if present
     if 'diverter' in project_dict['EnergySupply']['mains elec'].keys():
@@ -599,7 +603,7 @@ def edit_daily_losses(project_dict):
     daily_losses = cylinder_factory_insulated * vol_factor * temp_factor
     project_dict['HotWaterSource']['hw cylinder']['daily_losses'] = daily_losses
 
-def edit_primary_pipework(project_dict, cold_water_source):
+def edit_primary_pipework(project_dict):
     primary_pipework_dict = project_dict['HotWaterSource']['hw cylinder']['primary_pipework']
     TFA = calc_TFA(project_dict)
     length = primary_pipework_dict['length']
@@ -608,10 +612,26 @@ def edit_primary_pipework(project_dict, cold_water_source):
     primary_pipework_dict['insulation_thermal_conductivity'] = 0.035
     primary_pipework_dict['surface_reflectivity'] = False
     
-    insulation_thickness = 0.025
-    if primary_pipework_dict['insulation_thickness_mm'] > 0.025:
-         insulation_thickness = 0.032
-    primary_pipework_dict['insulation_thickness_mm'] = insulation_thickness
+    primary_pipework_dict['insulation_thickness_mm'] = 0.025
+    if primary_pipework_dict['internal_diameter_mm'] > 0.025:
+         primary_pipework_dict['insulation_thickness_mm'] = 0.032
+
+def edit_hot_water_distribution_inner(project_dict):
+    hot_water_distribution_inner_dict = project_dict['Distribution']['internal']
+    TFA = calc_TFA(project_dict)
+    length = hot_water_distribution_inner_dict['length']
+    length =  min(length, 0.2 * TFA)
+    hot_water_distribution_inner_dict['length'] = length
+    hot_water_distribution_inner_dict['insulation_thermal_conductivity'] = 0.035
+    hot_water_distribution_inner_dict['surface_reflectivity'] = False
+
+    hot_water_distribution_inner_dict['insulation_thickness_mm'] = 0.020
+    if hot_water_distribution_inner_dict['internal_diameter_mm'] > 0.025:
+        hot_water_distribution_inner_dict['insulation_thickness_mm'] = 0.024
+
+def remove_hot_water_distribution_external(project_dict):
+    # setting the length to 0 to effectively remove external pipework
+    project_dict['Distribution']['external']['length'] = 0.0
 
 
 def remove_pv_diverter(project_dict):
