@@ -10,8 +10,8 @@ import math
 import sys
 import os
 from core import project 
-from wrappers.future_homes_standard.future_homes_standard import calc_TFA
 from core.space_heat_demand.building_element import BuildingElement, HeatFlowDirection
+from wrappers.future_homes_standard.future_homes_standard import calc_TFA
 
 def apply_fhs_not_preprocessing(project_dict,
                                 fhs_notA_assumptions,
@@ -20,23 +20,52 @@ def apply_fhs_not_preprocessing(project_dict,
                                 fhs_FEE_notB_assumptions):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard Notional building """
     
-    is_notA = False
-    if fhs_notA_assumptions or fhs_FEE_notA_assumptions:
-        is_notA = True
+    is_notA = fhs_notA_assumptions or fhs_FEE_notA_assumptions
 
     # Determine cold water source
     for cold_water_type in project_dict['ColdWaterSource'].keys():
         cold_water_source = cold_water_type
 
+    # Determine the TFA
+    TFA = calc_TFA(project_dict)
+
     edit_lighting_efficacy(project_dict)
     edit_infiltration(project_dict,is_notA)
-    #TODO edit_ventilation function
     edit_opaque_ajdZTU_elements(project_dict)
-    edit_transparent_element(project_dict)
+    edit_transparent_element(project_dict, TFA)
     edit_ground_floors(project_dict)
     edit_thermal_bridging(project_dict)
     
-    #check if a heat network is present
+    edit_space_heating_system(project_dict,
+                              fhs_FEE_notA_assumptions,
+                              fhs_FEE_notB_assumptions,
+                              cold_water_source
+                              )
+
+    # modify bath, shower and other dhw characteristics
+    edit_bath_shower_other(project_dict, cold_water_source)
+
+    # add WWHRS if needed
+    add_wwhrs(project_dict, cold_water_source, is_notA)
+
+    #modify primary pipework chracteristics
+    edit_primary_pipework(project_dict, TFA)
+    
+    #modify hot water distribution
+    edit_hot_water_distribution_inner(project_dict, TFA)
+    remove_hot_water_distribution_external(project_dict)
+    
+    #remove pv diverter or electric battery if present
+    remove_pv_diverter_if_present(project_dict)
+    remove_electric_battery_if_present(project_dict)
+
+    # modify ventilation
+    minimum_ach = minimum_air_change_rate(project_dict, TFA) 
+    edit_ventilation(project_dict, is_notA, minimum_ach)
+
+    return project_dict
+
+def check_heatnetwork_present(project_dict):
     is_heat_network = False
     if "HeatSourceWet" in project_dict.keys():
         for heat_source_dict in project_dict["HeatSourceWet"].values():
@@ -47,52 +76,7 @@ def apply_fhs_not_preprocessing(project_dict,
                 if heat_source_dict['source_type'] == 'HeatNetwork':
                     is_heat_network = True
                     break
-    
-    #FEE calculations - Notional heated with direct electric heaters
-    #if Actual dwelling is heated with heat networks - Notional heated with HIU
-    #otherwise, Notional heated with a air to water heat pump
-    if fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
-        edit_not_FEE_space_heating(project_dict)
-    elif is_heat_network:
-        edit_add_heatnetwork_space_heating(project_dict, cold_water_source)
-        edit_heatnetwork_space_heating_distribution_system(project_dict)
-        project_dict['HotWaterSource']['hw cylinder']['daily_losses'] = 0.8
-    else:
-        edit_add_default_space_heating_system(project_dict)
-        edit_not_default_space_heating_distribution_system(project_dict)
-        edit_daily_losses(project_dict)
-
-    # modify bath, shower and other dhw characteristics
-    edit_bath_shower_other(project_dict, cold_water_source)
-
-    # add WWHRS if more than 1 storey and notional A
-    if project_dict['Infiltration']['storey'] > 1 and is_notA:
-        add_wwhrs(project_dict, cold_water_source)
-
-    #modify primary pipework chracteristics
-    if 'primary_pipework' in project_dict['HotWaterSource']['hw cylinder']:
-        edit_primary_pipework(project_dict)
-    
-    #modify hot water distribution
-    edit_hot_water_distribution_inner(project_dict)
-    remove_hot_water_distribution_external(project_dict)
-
-    # Remove PV diverter if present
-    if 'diverter' in project_dict['EnergySupply']['mains elec'].keys():
-        remove_pv_diverter(project_dict)
-
-    # Remove Electric battery if present
-    if 'ElectricBattery' in project_dict['EnergySupply']['mains elec'].keys():
-        remove_electric_batterty(project_dict)
-
-    # modify ventilation
-    TFA = calc_TFA(project_dict)
-    bedroom_number = project_dict['NumberOfBedrooms']
-    total_volume = project_dict['Infiltration']['volume']
-    minimum_ach = minimum_air_change_rate(TFA, bedroom_number, total_volume) 
-    edit_ventilation(project_dict, is_notA, minimum_ach)
-
-    return project_dict
+    return is_heat_network
 
 def edit_lighting_efficacy(project_dict):
     '''
@@ -180,7 +164,7 @@ def edit_opaque_ajdZTU_elements(project_dict):
                 #remove the r_c input if it was there, as engine would prioritise r_c over u_value
                 building_element.pop('r_c', None)
 
-def edit_transparent_element(project_dict):
+def edit_transparent_element(project_dict, TFA):
     '''
     Apply notional u-value to windows & glazed doors and rooflights
     
@@ -205,8 +189,6 @@ def edit_transparent_element(project_dict):
     
     TODO - awaiting confirmation from DLUHC/DESNZ that interpretation is correct
     '''
-    
-    TFA = calc_TFA(project_dict)
     
     total_window_area = 0
     total_rooflight_area = 0
@@ -353,7 +335,7 @@ def edit_thermal_bridging(project_dict):
                         Option must be one available in SAP10.2 Table R2')
                     thermal_bridge['linear_thermal_transmittance'] = table_R2[junction_type]
 
-def edit_not_FEE_space_heating(project_dict):
+def edit_FEE_space_heating(project_dict):
     '''
     Apply space heating system to notional building for FEE caluclation
     
@@ -441,7 +423,7 @@ def edit_add_default_space_heating_system(project_dict):
     '''
     
     # TODO HP notional performance curve
-    project_dict['HeatSourceWet'] = {
+    space_heating_system = {
         "hp": {
             "EnergySupply": "mains elec",
             "backup_ctrl_type": "TopUp",
@@ -567,18 +549,18 @@ def edit_add_default_space_heating_system(project_dict):
             "var_flow_temp_ctrl_during_test": True
         }
     }
+    project_dict['HeatSourceWet'] = space_heating_system
 
 
-def edit_not_default_space_heating_distribution_system(project_dict):
+def edit_default_space_heating_distribution_system(project_dict):
     '''
     Apply distribution system details to notional building calculation
     
     '''
-
     for zone_name, zone in project_dict['Zone'].items():
         #TODO currently repeats the same radiator characteristics for both zones
         space_heating_name = zone['SpaceHeatSystem']
-        project_dict['SpaceHeatSystem'][space_heating_name] = {
+        space_heating_distribution_system = {
                 "Control": "HeatingPattern_LivingRoom",
                 "HeatSource": {
                     "name": "hp",
@@ -602,11 +584,9 @@ def edit_not_default_space_heating_distribution_system(project_dict):
                 "thermal_mass": 0.05832055732391241,
                 "type": "WetDistribution"
             }
-
-
+        project_dict['SpaceHeatSystem'][space_heating_name] = space_heating_distribution_system
 
 def edit_bath_shower_other(project_dict, cold_water_source):
-
     # Define Bath, Shower, and Other DHW outlet
     project_dict['Bath'] = {
         "medium": {
@@ -631,58 +611,92 @@ def edit_bath_shower_other(project_dict, cold_water_source):
         }
     }
 
-def add_wwhrs(project_dict, cold_water_source):
-    # TODO storey input now changed
-    shower_dict = project_dict['Shower']['mixer']
-    shower_dict["WWHRS"] = "Notional_Inst_WWHRS"
- 
-    project_dict['WWHRS'] = {
-        "Notional_Inst_WWHRS": {
-            "ColdWaterSource": cold_water_source,
-            "efficiencies": [50, 50, 50, 50, 50],
-            "flow_rates": [5, 7, 8, 11, 13],
-            "type": "WWHRS_InstantaneousSystemB",
-            "utilisation_factor": 0.98
+def add_wwhrs(project_dict, cold_water_source, is_notA):
+    # add WWHRS if more than 1 storey and notional A
+    if project_dict['Infiltration']['storey'] > 1 and is_notA:
+        # TODO storey input now changed
+        shower_dict = project_dict['Shower']['mixer']
+        shower_dict["WWHRS"] = "Notional_Inst_WWHRS"
+     
+        project_dict['WWHRS'] = {
+            "Notional_Inst_WWHRS": {
+                "ColdWaterSource": cold_water_source,
+                "efficiencies": [50, 50, 50, 50, 50],
+                "flow_rates": [5, 7, 8, 11, 13],
+                "type": "WWHRS_InstantaneousSystemB",
+                "utilisation_factor": 0.98
+            }
         }
-    }
 
+def calculate_daily_losses(cylinder_vol, thickness):
+    
+    factory_insulated_coeff = 0.005
+    thickness_coeff = 0.55
+    
+    #calculate cylinder factor insulated factor
+    cylinder_factory_insulated = factory_insulated_coeff + thickness_coeff / (thickness + 4.0)
 
+    # calculate volume factor
+    vol_factor = (120 / cylinder_vol) ** (1 / 3)
+    
+    # Temperature factor
+    temp_factor = 0.6 * 0.9
 
+    # Calculate daily losses
+    daily_losses = cylinder_factory_insulated * vol_factor * temp_factor
+    
+    return daily_losses
 
 def edit_daily_losses(project_dict):
-    # TODO what if there is no cylinder in the actual dwelling
-    # Calculate daily losses
+    # check if cylinder in project_dict
+    if 'hw cylinder' not in project_dict['HotWaterSource']:
+        print(' Warning: hot water cylinder not found in project_dict')
+        return
+
+    # look up cylinder volume
     cylinder_vol = project_dict['HotWaterSource']['hw cylinder']['volume']
     thickness = 120  # mm
-    cylinder_factory_insulated = 0.005 + 0.55 / (thickness + 4.0)
-    vol_factor = (120 / cylinder_vol) ** (1 / 3)
-    # Temperature factor of 0.6, multiplied by 0.9 due to separate time control of domestic hot water
-    temp_factor = 0.6 * 0.9
-    daily_losses = cylinder_factory_insulated * vol_factor * temp_factor
+
+    # Calculate daily losses and update daily losses in project_dict
+    daily_losses = calculate_daily_losses(cylinder_vol, thickness)
     project_dict['HotWaterSource']['hw cylinder']['daily_losses'] = daily_losses
 
-def edit_primary_pipework(project_dict):
+def edit_primary_pipework(project_dict, TFA):
+    if 'primary_pipework' not in project_dict['HotWaterSource']['hw cylinder']:
+        print(' Warning: no primary pipework not found in project_dict')
+        return
+
+    # primary pipework dictionary
     primary_pipework_dict = project_dict['HotWaterSource']['hw cylinder']['primary_pipework']
-    TFA = calc_TFA(project_dict)
+
+    # update length
     length = primary_pipework_dict['length']
     length =  min(length, 0.05 * (TFA / 2))
     primary_pipework_dict['length'] = length
+
+    # update other properties
     primary_pipework_dict['insulation_thermal_conductivity'] = 0.035
     primary_pipework_dict['surface_reflectivity'] = False
-    
+
+    # update insulation thickness based on internal diameter
     primary_pipework_dict['insulation_thickness_mm'] = 0.025
     if primary_pipework_dict['internal_diameter_mm'] > 0.025:
          primary_pipework_dict['insulation_thickness_mm'] = 0.032
 
-def edit_hot_water_distribution_inner(project_dict):
+def edit_hot_water_distribution_inner(project_dict, TFA):
+    # hot water dictionary
     hot_water_distribution_inner_dict = project_dict['Distribution']['internal']
-    TFA = calc_TFA(project_dict)
+
+    # Update length
     length = hot_water_distribution_inner_dict['length']
     length =  min(length, 0.2 * TFA)
     hot_water_distribution_inner_dict['length'] = length
+
+    # update other properties
     hot_water_distribution_inner_dict['insulation_thermal_conductivity'] = 0.035
     hot_water_distribution_inner_dict['surface_reflectivity'] = False
 
+    # update insulation thickness based on internal diamter
     hot_water_distribution_inner_dict['insulation_thickness_mm'] = 0.020
     if hot_water_distribution_inner_dict['internal_diameter_mm'] > 0.025:
         hot_water_distribution_inner_dict['insulation_thickness_mm'] = 0.024
@@ -691,32 +705,32 @@ def remove_hot_water_distribution_external(project_dict):
     # setting the length to 0 to effectively remove external pipework
     project_dict['Distribution']['external']['length'] = 0.0
 
+def remove_pv_diverter_if_present(project_dict):
+    if 'diverter' in project_dict['EnergySupply']['mains elec'].keys():
+        del project_dict['EnergySupply']['mains elec']['diverter']
 
-def remove_pv_diverter(project_dict):
-    del project_dict['EnergySupply']['mains elec']['diverter']
+def remove_electric_battery_if_present(project_dict):
+    if 'ElectricBattery' in project_dict['EnergySupply']['mains elec'].keys():
+        del project_dict['EnergySupply']['mains elec']['ElectricBattery']
 
-def remove_electric_battery(project_dict):
-    del project_dict['EnergySupply']['mains elec']['ElectricBattery']
-
-def minimum_air_change_rate(TFA, bedroom_number, total_volume):
+def minimum_air_change_rate(project_dict, TFA):
     """ Calculate effective air change rate accoring to according to Part F 1.24 a """
+    
+    # Retrieve the number of bedrooms and total volume
+    bedroom_number = project_dict['NumberOfBedrooms']
+    total_volume = project_dict['Infiltration']['volume']
 
+    # minimum ventilation rates method B
+    min_ventilation_rates_b = [19, 25, 31, 37, 43]
+    
     #Calculate minimum whole dwelling ventilation rate l/s method A
     min_ventilation_rate_a = TFA * 0.3
 
     #Calculate minimum whole dwelling ventilation rate l/s method B
-    if bedroom_number == 1:
-        min_ventilation_rate_b = 19
-    elif bedroom_number == 2:
-        min_ventilation_rate_b = 25
-    elif bedroom_number == 3:
-        min_ventilation_rate_b = 31
-    elif bedroom_number == 4:
-        min_ventilation_rate_b = 37
-    elif bedroom_number == 5:
-        min_ventilation_rate_b = 43
+    if bedroom_number <= 5:
+        min_ventilation_rate_b = min_ventilation_rates_b[bedroom_number -1]
     elif bedroom_number > 6:
-        min_ventilation_rate_b = 43 + (bedroom_number - 5) * 6
+        min_ventilation_rate_b = min_ventilation_rates_b[-1] + (bedroom_number - 5) * 6
 
     # Calculate air change rate (l/s)/m3
     minimum_ach = max(min_ventilation_rate_a, min_ventilation_rate_b) / total_volume
@@ -724,8 +738,12 @@ def minimum_air_change_rate(TFA, bedroom_number, total_volume):
     return minimum_ach
 
 def edit_ventilation(project_dict, isnotA, minimum_ach):
-    current_ach = project_dict['Ventilation']['req_ach']
-    req_ach = max(current_ach, minimum_ach)
+    # Retrieve ventilation dictionary
+    ventilation = project_dict['Ventilation']
+
+    # Calculate the required air changes per hour
+    req_ach = max(ventilation['req_ach'], minimum_ach)
+
     if  isnotA:
         # Continous decentralised mechanical extract ventilation
         project_dict['Ventilation'] = {
@@ -742,3 +760,24 @@ def edit_ventilation(project_dict, isnotA, minimum_ach):
             "EnergySupply": "mains elec"
             }
 
+def edit_space_heating_system(project_dict,
+                              fhs_FEE_notA_assumptions,
+                              fhs_FEE_notB_assumptions,
+                              cold_water_source):
+    
+    #check if a heat network is present
+    is_heat_network = check_heatnetwork_present(project_dict)
+
+    #FEE calculations - Notional heated with direct electric heaters
+    #if Actual dwelling is heated with heat networks - Notional heated with HIU
+    #otherwise, Notional heated with a air to water heat pump
+    if fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
+        edit_FEE_space_heating(project_dict)
+    elif is_heat_network:
+        edit_add_heatnetwork_space_heating(project_dict, cold_water_source)
+        edit_heatnetwork_space_heating_distribution_system(project_dict)
+        project_dict['HotWaterSource']['hw cylinder']['daily_losses'] = 0.8
+    else:
+        edit_add_default_space_heating_system(project_dict)
+        edit_default_space_heating_distribution_system(project_dict)
+        edit_daily_losses(project_dict)
