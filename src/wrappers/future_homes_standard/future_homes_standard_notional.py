@@ -46,7 +46,7 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_bath_shower_other(project_dict, cold_water_source)
 
     # add WWHRS if needed
-    add_wwhrs(project_dict, cold_water_source, is_notA)
+    add_wwhrs(project_dict, cold_water_source, is_notA, is_FEE)
 
     #modify primary pipework chracteristics
     edit_primary_pipework(project_dict, TFA)
@@ -611,7 +611,7 @@ def edit_bath_shower_other(project_dict, cold_water_source):
         }
     }
 
-def add_wwhrs(project_dict, cold_water_source, is_notA):
+def add_wwhrs(project_dict, cold_water_source, is_notA, is_FEE):
     # add WWHRS if more than 1 storey, notional A and not FEE
     if project_dict['Infiltration']['storey'] > 1 and is_notA and not is_FEE:
         # TODO storey input now changed
