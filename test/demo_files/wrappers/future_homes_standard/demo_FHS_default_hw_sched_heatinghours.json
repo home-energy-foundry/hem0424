@@ -1,5 +1,6 @@
 {
 	"PartGcompliance":true,
+	"PartO_air_conditioning_needed":false,
 	"NumberOfBedrooms": 2,
 	"NumberOfWetRooms": 2,
 	"HeatingControlType": "SeparateTempControl",

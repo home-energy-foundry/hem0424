@@ -63,6 +63,9 @@ def apply_fhs_not_preprocessing(project_dict,
     minimum_ach = minimum_air_change_rate(project_dict, TFA) 
     edit_ventilation(project_dict, is_notA, minimum_ach)
 
+    # Modify air conditioning
+    edit_air_conditioning(project_dict)
+
     return project_dict
 
 def check_heatnetwork_present(project_dict):
@@ -779,3 +782,10 @@ def edit_space_heating_system(project_dict,
         edit_add_default_space_heating_system(project_dict)
         edit_default_space_heating_distribution_system(project_dict)
         edit_daily_losses(project_dict)
+
+
+def edit_air_conditioning(project_dict):
+    if project_dict['PartO_air_conditioning_needed']:
+        for space_cooling_name in project_dict['SpaceCoolSystem'].keys():
+            project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 5.1
+            project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 0.95

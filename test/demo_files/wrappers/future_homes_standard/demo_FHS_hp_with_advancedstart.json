@@ -1,5 +1,6 @@
 {
 	"PartGcompliance":true,
+	"PartO_air_conditioning_needed":true,
 	"NumberOfBedrooms": 2,
 	"NumberOfWetRooms": 2,
 	"HeatingControlType": "SeparateTempControl",
@@ -357,6 +358,22 @@
 			"Zone": "zone 2"
 		}
 	},
+	"SpaceCoolSystem": {
+		"cooling system 1": {
+			"type": "AirConditioning",
+			"cooling_capacity": 3.0,
+			"efficiency": 4.3,
+			"frac_convective": 0.95,
+			"EnergySupply": "mains elec"
+		},
+		"cooling system 2": {
+			"type": "AirConditioning",
+			"cooling_capacity": 3.0,
+			"efficiency": 4.3,
+			"frac_convective": 0.95,
+			"EnergySupply": "mains elec"
+		}
+	},
 	"Ventilation": {
 		"type": "WHEV",
 		"req_ach": 0.5,
@@ -385,6 +402,7 @@
 	"Zone": {
 		"zone 1": {
 			"SpaceHeatSystem": "zone 1 radiators",
+			"SpaceCoolSystem": "cooling system 1",
 			"SpaceHeatControl":"livingroom",
 			"area": 80.0,
 			"volume": 250.0,
@@ -509,6 +527,7 @@
 		},
 		"zone 2": {
 			"SpaceHeatSystem": "zone 2 radiators",
+			"SpaceCoolSystem": "cooling system 2",
 			"SpaceHeatControl":"restofdwelling",
 			"area": 80.0,
 			"volume": 250.0,
