@@ -373,6 +373,67 @@ def edit_not_FEE_space_heating(project_dict):
             "EnergySupply": "mains elec"
             }
 
+def edit_add_heatnetwork_space_heating(project_dict, cold_water_source):
+    '''
+    Apply heat network settings to notional building calculation in project_dict.
+    '''
+
+    # TODO: Specify the details for HeatSourceWet
+    project_dict['HeatSourceWet'] = {
+        "HeatNetwork": {
+            "type": "HIU",
+            "EnergySupply": "heat network",
+            "power_max": 30.0,
+            "HIU_daily_loss": 1.44
+        }
+    }
+
+    project_dict['HotWaterSource'] = {
+        "hw cylinder": {
+            "type": "HIU",
+            "ColdWaterSource": cold_water_source,
+            "HeatSourceWet": "HeatNetwork",
+            "Control": "hw timer"
+            }
+        }
+
+    heat_network_fuel_data = {
+        "heat network": {
+            "fuel": "custom",
+            "factor":{
+                "Emissions Factor kgCO2e/kWh": 0.041,
+                "Emissions Factor kgCO2e/kWh including out-of-scope emissions": 0.041,
+                "Primary Energy Factor kWh/kWh delivered": 0.850
+                }
+            }
+        }
+    project_dict['EnergySupply'].update(heat_network_fuel_data)
+
+def edit_heatnetwork_space_heating_distribution_system(project_dict):
+    '''
+    Apply heat network distribution system details to notional building calculation
+    
+    '''
+
+    for zone_name, zone in project_dict['Zone'].items():
+        #TODO currently repeats the same radiator characteristics for both zones
+        space_heating_name = zone['SpaceHeatSystem']
+        heat_network_distribution_details = {
+                "HeatSource": {
+                    "name": "HeatNetwork"
+                },
+                "ecodesign_controller": {
+                    "ecodesign_control_class": 2,
+                    "max_flow_temp": 45,
+                    "max_outdoor_temp": 0,
+                    "min_flow_temp": 25,
+                    "min_outdoor_temp": 20
+                },
+                "temp_setback": 18,
+                "type": "WetDistribution"
+            }
+        project_dict['SpaceHeatSystem'][space_heating_name].update(heat_network_distribution_details)
+
 def edit_add_default_space_heating_system(project_dict):
     '''
     Apply default space heating system to notional building calculation
