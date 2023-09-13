@@ -21,6 +21,7 @@ def apply_fhs_not_preprocessing(project_dict,
     """ Apply assumptions and pre-processing steps for the Future Homes Standard Notional building """
     
     is_notA = fhs_notA_assumptions or fhs_FEE_notA_assumptions
+    is_FEE  = fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions
 
     # Determine cold water source
     for cold_water_type in project_dict['ColdWaterSource'].keys():
@@ -37,8 +38,7 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_thermal_bridging(project_dict)
     
     edit_space_heating_system(project_dict,
-                              fhs_FEE_notA_assumptions,
-                              fhs_FEE_notB_assumptions,
+                              is_FEE,
                               cold_water_source
                               )
 
@@ -612,8 +612,8 @@ def edit_bath_shower_other(project_dict, cold_water_source):
     }
 
 def add_wwhrs(project_dict, cold_water_source, is_notA):
-    # add WWHRS if more than 1 storey and notional A
-    if project_dict['Infiltration']['storey'] > 1 and is_notA:
+    # add WWHRS if more than 1 storey, notional A and not FEE
+    if project_dict['Infiltration']['storey'] > 1 and is_notA and not is_FEE:
         # TODO storey input now changed
         shower_dict = project_dict['Shower']['mixer']
         shower_dict["WWHRS"] = "Notional_Inst_WWHRS"
@@ -761,8 +761,7 @@ def edit_ventilation(project_dict, isnotA, minimum_ach):
             }
 
 def edit_space_heating_system(project_dict,
-                              fhs_FEE_notA_assumptions,
-                              fhs_FEE_notB_assumptions,
+                              is_FEE,
                               cold_water_source):
     
     #check if a heat network is present
@@ -771,7 +770,7 @@ def edit_space_heating_system(project_dict,
     #FEE calculations - Notional heated with direct electric heaters
     #if Actual dwelling is heated with heat networks - Notional heated with HIU
     #otherwise, Notional heated with a air to water heat pump
-    if fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
+    if is_FEE:
         edit_FEE_space_heating(project_dict)
     elif is_heat_network:
         edit_add_heatnetwork_space_heating(project_dict, cold_water_source)
