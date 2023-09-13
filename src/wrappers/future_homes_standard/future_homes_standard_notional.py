@@ -359,14 +359,14 @@ def edit_add_heatnetwork_space_heating(project_dict, cold_water_source):
     '''
     Apply heat network settings to notional building calculation in project_dict.
     '''
-
+    power_max = project_dict['HeatSourceWet']['HeatNetwork']['power_max']
     # TODO: Specify the details for HeatSourceWet
     project_dict['HeatSourceWet'] = {
         "HeatNetwork": {
             "type": "HIU",
             "EnergySupply": "heat network",
-            "power_max": 30.0,
-            "HIU_daily_loss": 1.44
+            "power_max": power_max,
+            "HIU_daily_loss": 0.8
         }
     }
 
@@ -776,7 +776,6 @@ def edit_space_heating_system(project_dict,
     elif is_heat_network:
         edit_add_heatnetwork_space_heating(project_dict, cold_water_source)
         edit_heatnetwork_space_heating_distribution_system(project_dict)
-        project_dict['HotWaterSource']['hw cylinder']['daily_losses'] = 0.8
     else:
         edit_add_default_space_heating_system(project_dict)
         edit_default_space_heating_distribution_system(project_dict)
