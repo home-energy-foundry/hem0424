@@ -354,7 +354,7 @@ def create_heating_pattern(project_dict):
     '''
     
     livingroom_setpoint_fhs = 21.0
-    restofdwelling_setpoint_fhs = 18.0
+    restofdwelling_setpoint_fhs = 20.0
 
     #07:30-09:30 and then 16:30-22:00
     heating_fhs_weekday = (
