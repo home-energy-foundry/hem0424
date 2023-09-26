@@ -1743,8 +1743,10 @@ class Project:
                 
                 if h_name is None:
                     space_heat_demand_system[h_name] = 'n/a'
+                    space_heat_provided[h_name] = 'n/a'
                 if c_name is None:
                     space_cool_demand_system[c_name] = 'n/a'
+                    space_cool_provided[c_name] = 'n/a'
 
                 internal_air_temp[z_name] = zone.temp_internal_air()
                 operative_temp[z_name] = zone.temp_operative()
@@ -1753,6 +1755,7 @@ class Project:
                    operative_temp, internal_air_temp, \
                    space_heat_demand_zone, space_cool_demand_zone, \
                    space_heat_demand_system, space_cool_demand_system, \
+                   space_heat_provided, space_cool_provided, \
                    ductwork_losses, heat_balance_dict
 
         timestep_array = []
@@ -1764,6 +1767,8 @@ class Project:
         space_cool_demand_dict = {}
         space_heat_demand_system_dict = {}
         space_cool_demand_system_dict = {}
+        space_heat_provided_dict = {}
+        space_cool_provided_dict = {}
         zone_list = []
         hot_water_demand_dict = {}
         hot_water_energy_demand_dict = {}
@@ -1786,9 +1791,11 @@ class Project:
 
         for z_name, h_name in self.__heat_system_name_for_zone.items():
             space_heat_demand_system_dict[h_name] = []
+            space_heat_provided_dict[h_name] = []
 
         for z_name, c_name in self.__cool_system_name_for_zone.items():
             space_cool_demand_system_dict[c_name] = []
+            space_cool_provided_dict[c_name] = []
 
         hot_water_demand_dict['demand'] = []
         hot_water_energy_demand_dict['energy_demand'] = []
@@ -1818,6 +1825,7 @@ class Project:
                 operative_temp, internal_air_temp, \
                 space_heat_demand_zone, space_cool_demand_zone, \
                 space_heat_demand_system, space_cool_demand_system, \
+                space_heat_provided, space_cool_provided, \
                 ductwork_gains, heat_balance_dict \
                 = calc_space_heating(delta_t_h, gains_internal_dhw)
 
@@ -1849,6 +1857,12 @@ class Project:
 
             for c_name, demand in space_cool_demand_system.items():
                 space_cool_demand_system_dict[c_name].append(demand)
+
+            for h_name, output in space_heat_provided.items():
+                space_heat_provided_dict[h_name].append(output)
+
+            for c_name, output in space_cool_provided.items():
+                space_cool_provided_dict[c_name].append(output)
 
             for z_name, hb_dict in heat_balance_dict.items():
                 if hb_dict is not None:
@@ -1885,7 +1899,12 @@ class Project:
             'Space heat demand': space_heat_demand_dict,
             'Space cool demand': space_cool_demand_dict,
             }
-        hc_system_dict = {'Heating system': space_heat_demand_system_dict, 'Cooling system': space_cool_demand_system_dict}
+        hc_system_dict = {
+            'Heating system': space_heat_demand_system_dict,
+            'Cooling system': space_cool_demand_system_dict,
+            'Heating system output': space_heat_provided_dict,
+            'Cooling system output': space_cool_provided_dict,
+            }
         hot_water_dict = {'Hot water demand': hot_water_demand_dict, 'Hot water energy demand': hot_water_energy_demand_dict, 'Hot water duration': hot_water_duration_dict, 'Hot Water Events': hot_water_no_events_dict, 'Pipework losses': hot_water_pipework_dict}
 
         # Return results from all energy supplies
