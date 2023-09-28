@@ -1148,6 +1148,7 @@ class HeatPump:
             external_conditions,
             throughput_exhaust_air=None,
             heat_network=None,
+            output_detailed_results=False,
             ):
         """ Construct a HeatPump object
 
@@ -1212,6 +1213,8 @@ class HeatPump:
         throughput_exhaust_air -- throughput (litres / second) of exhaust air
         heat_network -- reference to EnergySupply object representing heat network
                         (for HPs that use heat network as heat source)
+        output_detailed_results -- if true, save detailed results from each timestep
+                                   for later reporting
 
         Other variables:
         energy_supply_connections
@@ -1301,6 +1304,12 @@ class HeatPump:
             if 55.0 in self.__test_data._HeatPumpTestData__dsgn_flow_temps:
                 self.__temp_min_modulation_rate_high = 55.0
                 self.__min_modulation_rate_55 = float(hp_dict['min_modulation_rate_55'])
+
+        # If detailed results are to be output, initialise list
+        if output_detailed_results:
+            self.__detailed_results = []
+        else:
+            self.__detailed_results = None
 
     def source_is_exhaust_air(self):
         return SourceType.is_exhaust_air(self.__source_type)
@@ -2049,9 +2058,38 @@ class HeatPump:
         if self.__source_type == SourceType.HEAT_NETWORK:
             self.__extract_energy_from_source()
 
+        # If detailed results are to be output, save the results from the current timestep
+        if self.__detailed_results is not None:
+            self.__detailed_results.append(self.__service_results)
+
         # Variables below need to be reset at the end of each timestep.
         self.__total_time_running_current_timestep = 0.0
         self.__service_results = []
+
+    def output_detailed_results(self):
+        """ Output detailed results of heat pump calculation """
+
+        # Define parameters to output
+        output_parameters = [
+            'service_name',
+            'service_type',
+            'service_on',
+            'time_running',
+            ]
+
+        results = {}
+        # For each service, report required output parameters
+        for service_idx, service_name in enumerate(self.__energy_supply_connections.keys()):
+            results[service_name] = {}
+            # Look up each required parameter
+            for parameter in output_parameters:
+                results[service_name][parameter] = []
+                # Look up value of required parameter in each timestep
+                for t_idx, service_results in enumerate(self.__detailed_results):
+                    result = service_results[service_idx][parameter]
+                    results[service_name][parameter].append(result)
+
+        return results
 
 
 class HeatPump_HWOnly:
