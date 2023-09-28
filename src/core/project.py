@@ -58,7 +58,13 @@ from core.units import Kelvin2Celcius
 class Project:
     """ An object to represent the overall model to be simulated """
 
-    def __init__(self, proj_dict, print_heat_balance, use_fast_solver):
+    def __init__(
+            self,
+            proj_dict,
+            print_heat_balance,
+            detailed_output_heating_cooling,
+            use_fast_solver,
+            ):
         """ Construct a Project object and the various components of the simulation
 
         Arguments:
@@ -66,6 +72,8 @@ class Project:
                      and lists of input data for system components, external
                      conditions, occupancy etc.
         print_heat_balance -- flag to idindicate whether to print the heat balance outputs
+        detailed_output_heating_cooling -- flag to indicate whether detailed output should be
+                                           provided for heating and cooling (where possible)
         use_fast_solver -- flag to indicate whether to use the optimised solver (results
                            may differ slightly due to reordering of floating-point ops)
 
@@ -82,6 +90,7 @@ class Project:
                               types) with names as keys
         zones              -- dictionary of Zone objects with names as keys
         """
+        self.__detailed_output_heating_cooling = detailed_output_heating_cooling
 
         self.__simtime = SimulationTime(
             proj_dict['SimulationTime']['start'],
@@ -710,6 +719,7 @@ class Project:
                     self.__external_conditions,
                     throughput_exhaust_air,
                     energy_supply_HN,
+                    self.__detailed_output_heating_cooling
                     )
                 self.__timestep_end_calcs.append(heat_source)
             elif heat_source_type == 'Boiler':
@@ -1777,6 +1787,7 @@ class Project:
         hot_water_pipework_dict = {}
         ductwork_gains_dict = {}
         heat_balance_all_dict = {'air_node': {}, 'internal_boundary': {},'external_boundary': {}}
+        heat_source_wet_results_dict = {}
 
         for z_name in self.__zones.keys():
             gains_internal_dict[z_name] = []
@@ -1907,6 +1918,13 @@ class Project:
             }
         hot_water_dict = {'Hot water demand': hot_water_demand_dict, 'Hot water energy demand': hot_water_energy_demand_dict, 'Hot water duration': hot_water_duration_dict, 'Hot Water Events': hot_water_no_events_dict, 'Pipework losses': hot_water_pipework_dict}
 
+        # Report detailed outputs from heat source wet objects, if requested and available
+        if self.__detailed_output_heating_cooling:
+            for name, heat_source_wet in self.__heat_sources_wet.items():
+                if  hasattr(heat_source_wet, "output_detailed_results") \
+                and callable(heat_source_wet.output_detailed_results):
+                    heat_source_wet_results_dict[name] = heat_source_wet.output_detailed_results()
+
         # Return results from all energy supplies
         results_totals = {}
         results_end_user = {}
@@ -1925,7 +1943,7 @@ class Project:
             timestep_array, results_totals, results_end_user, \
             energy_import, energy_export, energy_generated_consumed, betafactor, \
             zone_dict, zone_list, hc_system_dict, hot_water_dict, \
-            ductwork_gains_dict, heat_balance_all_dict
+            ductwork_gains_dict, heat_balance_all_dict, heat_source_wet_results_dict
 
     def __space_heat_cool_demand_by_system_and_zone(
             self,
