@@ -2007,9 +2007,10 @@ class HeatPump:
         # Energy used by pumps
         # TODO This could be calculated separately for each service and included
         #      in those totals, rather than auxiliary
-        energy_aux \
-            = self.__total_time_running_current_timestep \
-            * (self.__power_heating_circ_pump + self.__power_source_circ_pump)
+        energy_heating_circ_pump \
+            = self.__total_time_running_current_timestep * self.__power_heating_circ_pump
+        energy_source_circ_pump \
+            = self.__total_time_running_current_timestep * self.__power_source_circ_pump
 
         # Retrieve control settings for this timestep
         heating_profile_on = False
@@ -2029,19 +2030,27 @@ class HeatPump:
         # TODO Standby power is only relevant when at least one service is
         #      available. Therefore, it could be split between the available
         #      services rather than treated as auxiliary
+        energy_off_mode = 0.0
+        energy_standby = 0.0
+        energy_crankcase_heater_mode = 0.0
         if heating_profile_on:
-            energy_aux \
-               += time_remaining_current_timestep \
-                * (self.__power_standby + self.__power_crankcase_heater_mode)
+            energy_standby = time_remaining_current_timestep * self.__power_standby
+            energy_crankcase_heater_mode \
+                = time_remaining_current_timestep * self.__power_crankcase_heater_mode
         elif not heating_profile_on and water_profile_on:
-            energy_aux += time_remaining_current_timestep * self.__power_standby
+            energy_standby = time_remaining_current_timestep * self.__power_standby
         # Energy used in off mode
         elif not heating_profile_on and not water_profile_on:
-            energy_aux += timestep * self.__power_off_mode
+            energy_off_mode = timestep * self.__power_off_mode
         else:
             sys.exit() # Should never get here.
 
+        energy_aux \
+            = energy_heating_circ_pump + energy_source_circ_pump \
+            + energy_standby + energy_crankcase_heater_mode + energy_off_mode
         self.__energy_supply_connection_aux.demand_energy(energy_aux)
+        return energy_heating_circ_pump, energy_source_circ_pump, \
+               energy_standby, energy_crankcase_heater_mode, energy_off_mode
 
     def __extract_energy_from_source(self):
         """ If HP uses heat network as source, calculate energy extracted from heat network """
@@ -2063,13 +2072,22 @@ class HeatPump:
             self.__time_running_continuous = 0.0
 
         self.__calc_ancillary_energy(timestep, time_remaining_current_timestep)
-        self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
+        energy_heating_circ_pump, energy_source_circ_pump, \
+               energy_standby, energy_crankcase_heater_mode, energy_off_mode \
+               = self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
 
         if self.__source_type == SourceType.HEAT_NETWORK:
             self.__extract_energy_from_source()
 
         # If detailed results are to be output, save the results from the current timestep
         if self.__detailed_results is not None:
+            self.__service_results.append({
+                'energy_heating_circ_pump': energy_heating_circ_pump,
+                'energy_source_circ_pump': energy_source_circ_pump,
+                'energy_standby': energy_standby,
+                'energy_crankcase_heater_mode': energy_crankcase_heater_mode,
+                'energy_off_mode': energy_off_mode,
+                })
             self.__detailed_results.append(self.__service_results)
 
         # Variables below need to be reset at the end of each timestep.
@@ -2099,8 +2117,21 @@ class HeatPump:
             'energy_input_backup',
             'energy_input_total',
             ]
+        aux_parameters = [
+            'energy_heating_circ_pump',
+            'energy_source_circ_pump',
+            'energy_standby',
+            'energy_crankcase_heater_mode',
+            'energy_off_mode',
+            ]
 
-        results = {}
+        results = {'auxiliary': {}}
+        # Report auxiliary parameters (not specific to a service)
+        for parameter in aux_parameters:
+            results['auxiliary'][parameter] = []
+            for t_idx, service_results in enumerate(self.__detailed_results):
+                result = service_results[-1][parameter]
+                results['auxiliary'][parameter].append(result)
         # For each service, report required output parameters
         for service_idx, service_name in enumerate(self.__energy_supply_connections.keys()):
             results[service_name] = {}
