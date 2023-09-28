@@ -254,9 +254,10 @@ def write_heat_source_wet_output_file(output_file, timestep_array, heat_source_w
 
     # Repeat column headings for each service
     col_headings = ['Timestep count']
+    columns = {}
     for service_name, service_results in heat_source_wet_results.items():
-        columns = [col for col in service_results.keys()]
-        col_headings += columns
+        columns[service_name] = [col for col in service_results.keys()]
+        col_headings += columns[service_name]
 
     with open(output_file, 'w') as f:
         writer = csv.writer(f)
@@ -268,7 +269,7 @@ def write_heat_source_wet_output_file(output_file, timestep_array, heat_source_w
         for t_idx in range(0, len(timestep_array)):
             row = [t_idx]
             for service_name, service_results in heat_source_wet_results.items():
-                row += [service_results[col][t_idx] for col in columns]
+                row += [service_results[col][t_idx] for col in columns[service_name]]
             writer.writerow(row)
 
 def write_core_output_file(
