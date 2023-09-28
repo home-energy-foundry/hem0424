@@ -1843,6 +1843,11 @@ class HeatPump:
             'service_name': service_name,
             'service_type': service_type,
             'service_on': service_on,
+            'energy_output_required': energy_output_required,
+            'temp_output': temp_output,
+            'temp_source': temp_source,
+            'cop_op_cond': cop_op_cond,
+            'thermal_capacity_op_cond': thermal_capacity_op_cond,
             'time_running': time_running_current_service,
             'deg_coeff_op_cond': deg_coeff_op_cond,
             'compressor_power_min_load': compressor_power_min_load,
@@ -1853,6 +1858,8 @@ class HeatPump:
             'energy_input_HP_divisor': energy_input_HP_divisor,
             'energy_input_HP': energy_input_HP,
             'energy_delivered_HP': energy_delivered_HP,
+            'energy_input_backup': energy_input_backup,
+            'energy_delivered_backup': energy_delivered_backup,
             'energy_input_total': energy_input_total,
             'energy_delivered_total': energy_delivered_total,
             }
@@ -1993,6 +2000,7 @@ class HeatPump:
 
             self.__energy_supply_connections[service_name].demand_energy(energy_input_HP)
             self.__service_results[service_no]['energy_input_HP'] += energy_input_HP
+            self.__service_results[service_no]['energy_input_total'] += energy_input_HP
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
         """ Calculate auxiliary energy according to CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.7 """
@@ -2076,8 +2084,19 @@ class HeatPump:
             'service_name',
             'service_type',
             'service_on',
+            'energy_output_required',
+            'temp_output',
+            'temp_source',
+            'thermal_capacity_op_cond',
+            'cop_op_cond',
             'time_running',
+            'load_ratio',
+            'hp_operating_in_onoff_mode',
+            'energy_delivered_HP',
+            'energy_delivered_backup',
             'energy_delivered_total',
+            'energy_input_HP',
+            'energy_input_backup',
             'energy_input_total',
             ]
 
