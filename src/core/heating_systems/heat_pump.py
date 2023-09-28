@@ -1839,7 +1839,7 @@ class HeatPump:
         energy_delivered_total = energy_delivered_HP + energy_delivered_backup
         energy_input_total = energy_input_HP + energy_input_backup
 
-        return energy_delivered_total, energy_input_total, {
+        return {
             'service_name': service_name,
             'service_type': service_type,
             'service_on': service_on,
@@ -1853,6 +1853,8 @@ class HeatPump:
             'energy_input_HP_divisor': energy_input_HP_divisor,
             'energy_input_HP': energy_input_HP,
             'energy_delivered_HP': energy_delivered_HP,
+            'energy_input_total': energy_input_total,
+            'energy_delivered_total': energy_delivered_total,
             }
 
     def __demand_energy(
@@ -1872,8 +1874,7 @@ class HeatPump:
 
         Note: Call via a HeatPumpService object, not directly.
         """
-        energy_delivered_total, energy_input_total, service_results \
-            = self.__run_demand_energy_calc(
+        service_results = self.__run_demand_energy_calc(
                 service_name,
                 service_type,
                 energy_output_required,
@@ -1892,8 +1893,10 @@ class HeatPump:
             += service_results['time_running']
 
         # Feed/return results to other modules
-        self.__energy_supply_connections[service_name].demand_energy(energy_input_total)
-        return energy_delivered_total
+        self.__energy_supply_connections[service_name].demand_energy(
+            service_results['energy_input_total']
+            )
+        return service_results['energy_delivered_total']
 
     def __running_time_throughput_factor(
             self,
@@ -1914,8 +1917,7 @@ class HeatPump:
 
         # TODO Run HP calculation to get total running time incl space heating,
         #      but do not save space heating running time
-        energy_delivered_total, energy_input_total, service_results \
-            = self.__run_demand_energy_calc(
+        service_results = self.__run_demand_energy_calc(
                 service_name,
                 service_type,
                 energy_output_required,
@@ -2075,6 +2077,8 @@ class HeatPump:
             'service_type',
             'service_on',
             'time_running',
+            'energy_delivered_total',
+            'energy_input_total',
             ]
 
         results = {}
