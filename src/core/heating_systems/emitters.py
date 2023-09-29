@@ -374,7 +374,7 @@ class Emitters:
 
         if energy_demand <= 0:
             # Emitters cooling down or at steady-state with heating off
-            energy_provided_by_heat_source = 0.0
+            energy_req_from_heat_source = 0.0
             temp_emitter_max_is_final_temp = False
         else:
             # Emitters warming up or cooling down to a target temperature
@@ -386,14 +386,15 @@ class Emitters:
                     temp_emitter_max,
                     temp_return_target,
                     )
-            # Get energy output of heat source (i.e. energy input to emitters)
-            # TODO Instead of passing temp_flow_req into heating system module,
-            #      calculate average flow temp achieved across timestep?
-            energy_provided_by_heat_source = self.__heat_source.demand_energy(
-                energy_req_from_heat_source,
-                temp_flow_target,
-                temp_return_target,
-                )
+
+        # Get energy output of heat source (i.e. energy input to emitters)
+        # TODO Instead of passing temp_flow_req into heating system module,
+        #      calculate average flow temp achieved across timestep?
+        energy_provided_by_heat_source = self.__heat_source.demand_energy(
+            energy_req_from_heat_source,
+            temp_flow_target,
+            temp_return_target,
+            )
 
         # Calculate emitter temperature achieved at end of timestep.
         # Do not allow emitter temp to rise above maximum
