@@ -2098,52 +2098,67 @@ class HeatPump:
         """ Output detailed results of heat pump calculation """
 
         # Define parameters to output
+        # Second element of each tuple controls whether item is summed for annual total
         output_parameters = [
-            'service_name',
-            'service_type',
-            'service_on',
-            'energy_output_required',
-            'temp_output',
-            'temp_source',
-            'thermal_capacity_op_cond',
-            'cop_op_cond',
-            'time_running',
-            'load_ratio',
-            'hp_operating_in_onoff_mode',
-            'energy_delivered_HP',
-            'energy_delivered_backup',
-            'energy_delivered_total',
-            'energy_input_HP',
-            'energy_input_backup',
-            'energy_input_total',
+            ('service_name', False),
+            ('service_type', False),
+            ('service_on', False),
+            ('energy_output_required', True),
+            ('temp_output', False),
+            ('temp_source', False),
+            ('thermal_capacity_op_cond', False),
+            ('cop_op_cond', False),
+            ('time_running', True),
+            ('load_ratio', False),
+            ('hp_operating_in_onoff_mode', False),
+            ('energy_delivered_HP', True),
+            ('energy_delivered_backup', True),
+            ('energy_delivered_total', True),
+            ('energy_input_HP', True),
+            ('energy_input_backup', True),
+            ('energy_input_total', True),
             ]
         aux_parameters = [
-            'energy_heating_circ_pump',
-            'energy_source_circ_pump',
-            'energy_standby',
-            'energy_crankcase_heater_mode',
-            'energy_off_mode',
+            ('energy_heating_circ_pump', True),
+            ('energy_source_circ_pump', True),
+            ('energy_standby', True),
+            ('energy_crankcase_heater_mode', True),
+            ('energy_off_mode', True),
             ]
 
-        results = {'auxiliary': {}}
+        results_per_timestep = {'auxiliary': {}}
         # Report auxiliary parameters (not specific to a service)
-        for parameter in aux_parameters:
-            results['auxiliary'][parameter] = []
+        for parameter, _ in aux_parameters:
+            results_per_timestep['auxiliary'][parameter] = []
             for t_idx, service_results in enumerate(self.__detailed_results):
                 result = service_results[-1][parameter]
-                results['auxiliary'][parameter].append(result)
+                results_per_timestep['auxiliary'][parameter].append(result)
         # For each service, report required output parameters
         for service_idx, service_name in enumerate(self.__energy_supply_connections.keys()):
-            results[service_name] = {}
+            results_per_timestep[service_name] = {}
             # Look up each required parameter
-            for parameter in output_parameters:
-                results[service_name][parameter] = []
+            for parameter, _ in output_parameters:
+                results_per_timestep[service_name][parameter] = []
                 # Look up value of required parameter in each timestep
                 for t_idx, service_results in enumerate(self.__detailed_results):
                     result = service_results[service_idx][parameter]
-                    results[service_name][parameter].append(result)
+                    results_per_timestep[service_name][parameter].append(result)
 
-        return results
+        results_annual = {'auxiliary': {}}
+        # Report auxiliary parameters (not specific to a service)
+        for parameter, incl_in_annual in aux_parameters:
+            if incl_in_annual:
+                results_annual['auxiliary'][parameter] \
+                    = sum(results_per_timestep['auxiliary'][parameter])
+        # For each service, report required output parameters
+        for service_idx, service_name in enumerate(self.__energy_supply_connections.keys()):
+            results_annual[service_name] = {}
+            for parameter, incl_in_annual in output_parameters:
+                if incl_in_annual:
+                    results_annual[service_name][parameter] \
+                        = sum(results_per_timestep[service_name][parameter])
+
+        return results_per_timestep, results_annual
 
 
 class HeatPump_HWOnly:

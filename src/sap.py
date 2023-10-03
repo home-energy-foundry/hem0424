@@ -105,7 +105,8 @@ def run_project(
     timestep_array, results_totals, results_end_user, \
         energy_import, energy_export, energy_generated_consumed, betafactor, \
         zone_dict, zone_list, hc_system_dict, hot_water_dict,\
-        ductwork_gains, heat_balance_dict, heat_source_wet_results_dict \
+        ductwork_gains, heat_balance_dict, heat_source_wet_results_dict, \
+        heat_source_wet_results_annual_dict \
         = project.run()
 
     write_core_output_file(
@@ -144,6 +145,15 @@ def run_project(
                 heat_source_wet_output_file,
                 timestep_array,
                 heat_source_wet_results,
+                )
+        for heat_source_wet_name, heat_source_wet_results_annual \
+            in heat_source_wet_results_annual_dict.items():
+            heat_source_wet_output_file \
+                = output_file_name_stub + 'results_heat_source_wet_summary__' \
+                + heat_source_wet_name + '.csv'
+            write_heat_source_wet_summary_output_file(
+                heat_source_wet_output_file,
+                heat_source_wet_results_annual,
                 )
 
     # Sum per-timestep figures as needed
@@ -271,6 +281,16 @@ def write_heat_source_wet_output_file(output_file, timestep_array, heat_source_w
             for service_name, service_results in heat_source_wet_results.items():
                 row += [service_results[col][t_idx] for col in columns[service_name]]
             writer.writerow(row)
+
+def write_heat_source_wet_summary_output_file(output_file, heat_source_wet_results_annual):
+    with open(output_file, 'w') as f:
+        writer = csv.writer(f)
+
+        for service_name, service_results in heat_source_wet_results_annual.items():
+            writer.writerow((service_name,))
+            for name, value in service_results.items():
+                writer.writerow((name, value))
+            writer.writerow('')
 
 def write_core_output_file(
         output_file,

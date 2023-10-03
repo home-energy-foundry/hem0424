@@ -1788,6 +1788,7 @@ class Project:
         ductwork_gains_dict = {}
         heat_balance_all_dict = {'air_node': {}, 'internal_boundary': {},'external_boundary': {}}
         heat_source_wet_results_dict = {}
+        heat_source_wet_results_annual_dict = {}
 
         for z_name in self.__zones.keys():
             gains_internal_dict[z_name] = []
@@ -1923,7 +1924,8 @@ class Project:
             for name, heat_source_wet in self.__heat_sources_wet.items():
                 if  hasattr(heat_source_wet, "output_detailed_results") \
                 and callable(heat_source_wet.output_detailed_results):
-                    heat_source_wet_results_dict[name] = heat_source_wet.output_detailed_results()
+                    heat_source_wet_results_dict[name], heat_source_wet_results_annual_dict[name] \
+                        = heat_source_wet.output_detailed_results()
 
         # Return results from all energy supplies
         results_totals = {}
@@ -1943,7 +1945,8 @@ class Project:
             timestep_array, results_totals, results_end_user, \
             energy_import, energy_export, energy_generated_consumed, betafactor, \
             zone_dict, zone_list, hc_system_dict, hot_water_dict, \
-            ductwork_gains_dict, heat_balance_all_dict, heat_source_wet_results_dict
+            ductwork_gains_dict, heat_balance_all_dict, \
+            heat_source_wet_results_dict, heat_source_wet_results_annual_dict
 
     def __space_heat_cool_demand_by_system_and_zone(
             self,
