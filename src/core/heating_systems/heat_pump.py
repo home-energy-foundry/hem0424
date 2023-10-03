@@ -1835,9 +1835,17 @@ class HeatPump:
         #      system object. For now, assume 100% efficiency
         energy_input_backup = energy_delivered_backup
 
+        # Energy used by pumps
+        energy_heating_circ_pump \
+            = time_running_current_service * self.__power_heating_circ_pump
+        energy_source_circ_pump \
+            = time_running_current_service * self.__power_source_circ_pump
+
         # Calculate total energy delivered and input
         energy_delivered_total = energy_delivered_HP + energy_delivered_backup
-        energy_input_total = energy_input_HP + energy_input_backup
+        energy_input_total \
+            = energy_input_HP + energy_input_backup \
+            + energy_heating_circ_pump + energy_source_circ_pump
 
         return {
             'service_name': service_name,
@@ -1862,6 +1870,8 @@ class HeatPump:
             'energy_delivered_backup': energy_delivered_backup,
             'energy_input_total': energy_input_total,
             'energy_delivered_total': energy_delivered_total,
+            'energy_heating_circ_pump': energy_heating_circ_pump,
+            'energy_source_circ_pump': energy_source_circ_pump,
             }
 
     def __demand_energy(
@@ -2004,13 +2014,6 @@ class HeatPump:
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
         """ Calculate auxiliary energy according to CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.7 """
-        # Energy used by pumps
-        # TODO This could be calculated separately for each service and included
-        #      in those totals, rather than auxiliary
-        energy_heating_circ_pump \
-            = self.__total_time_running_current_timestep * self.__power_heating_circ_pump
-        energy_source_circ_pump \
-            = self.__total_time_running_current_timestep * self.__power_source_circ_pump
 
         # Retrieve control settings for this timestep
         heating_profile_on = False
@@ -2045,12 +2048,9 @@ class HeatPump:
         else:
             sys.exit() # Should never get here.
 
-        energy_aux \
-            = energy_heating_circ_pump + energy_source_circ_pump \
-            + energy_standby + energy_crankcase_heater_mode + energy_off_mode
+        energy_aux = energy_standby + energy_crankcase_heater_mode + energy_off_mode
         self.__energy_supply_connection_aux.demand_energy(energy_aux)
-        return energy_heating_circ_pump, energy_source_circ_pump, \
-               energy_standby, energy_crankcase_heater_mode, energy_off_mode
+        return energy_standby, energy_crankcase_heater_mode, energy_off_mode
 
     def __extract_energy_from_source(self):
         """ If HP uses heat network as source, calculate energy extracted from heat network """
@@ -2072,8 +2072,7 @@ class HeatPump:
             self.__time_running_continuous = 0.0
 
         self.__calc_ancillary_energy(timestep, time_remaining_current_timestep)
-        energy_heating_circ_pump, energy_source_circ_pump, \
-               energy_standby, energy_crankcase_heater_mode, energy_off_mode \
+        energy_standby, energy_crankcase_heater_mode, energy_off_mode \
                = self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
 
         if self.__source_type == SourceType.HEAT_NETWORK:
@@ -2082,8 +2081,6 @@ class HeatPump:
         # If detailed results are to be output, save the results from the current timestep
         if self.__detailed_results is not None:
             self.__service_results.append({
-                'energy_heating_circ_pump': energy_heating_circ_pump,
-                'energy_source_circ_pump': energy_source_circ_pump,
                 'energy_standby': energy_standby,
                 'energy_crankcase_heater_mode': energy_crankcase_heater_mode,
                 'energy_off_mode': energy_off_mode,
@@ -2116,11 +2113,11 @@ class HeatPump:
             ('energy_delivered_total', True),
             ('energy_input_HP', True),
             ('energy_input_backup', True),
+            ('energy_heating_circ_pump', True),
+            ('energy_source_circ_pump', True),
             ('energy_input_total', True),
             ]
         aux_parameters = [
-            ('energy_heating_circ_pump', True),
-            ('energy_source_circ_pump', True),
             ('energy_standby', True),
             ('energy_crankcase_heater_mode', True),
             ('energy_off_mode', True),
