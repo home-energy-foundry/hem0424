@@ -641,7 +641,7 @@ def edit_bath_shower_other(project_dict, cold_water_source):
     project_dict['Bath'] = {
         "medium": {
             "ColdWaterSource": cold_water_source,
-            "flowrate": 5,
+            "flowrate": 12,
             "size": 170
         }
     }
