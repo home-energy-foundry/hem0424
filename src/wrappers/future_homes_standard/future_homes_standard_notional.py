@@ -9,9 +9,12 @@ for the Future Homes Standard.
 import math
 import sys
 import os
-from core import project 
+from copy import deepcopy
+from core.project import Project
 from core.space_heat_demand.building_element import BuildingElement, HeatFlowDirection
-from wrappers.future_homes_standard.future_homes_standard import calc_TFA
+import core.units as units
+from wrappers.future_homes_standard.future_homes_standard import calc_TFA, livingroom_setpoint_fhs, restofdwelling_setpoint_fhs
+
 
 def apply_fhs_not_preprocessing(project_dict,
                                 fhs_notA_assumptions,
@@ -36,11 +39,27 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_transparent_element(project_dict, TFA)
     edit_ground_floors(project_dict)
     edit_thermal_bridging(project_dict)
-    
-    edit_space_heating_system(project_dict,
-                              is_FEE,
-                              cold_water_source
-                              )
+
+    # Set initial temperature set point for all zones
+    initialise_temperature_setpoints(project_dict)
+
+    # Create a Project instance
+    project = Project(deepcopy(project_dict), False, False)
+
+    # Calculate heat transfer coefficients and heat loss parameters
+    heat_trans_coeff, heat_loss_param, HTC_dict, HLP_dict  = project.calc_HTC_HLP()
+
+    # Calculate design capacity
+    design_capacity_dict, design_capacity_overall = calc_design_capacity(project_dict, HTC_dict)
+
+    # Edit space heating system
+    edit_space_heating_system(
+        project_dict,
+        is_FEE,
+        cold_water_source,
+        design_capacity_dict,
+        design_capacity_overall,
+        )
 
     # modify bath, shower and other dhw characteristics
     edit_bath_shower_other(project_dict, cold_water_source)
@@ -362,13 +381,13 @@ def edit_add_heatnetwork_space_heating(project_dict, cold_water_source):
     '''
     Apply heat network settings to notional building calculation in project_dict.
     '''
-    power_max = project_dict['HeatSourceWet']['HeatNetwork']['power_max']
+
     # TODO: Specify the details for HeatSourceWet
     project_dict['HeatSourceWet'] = {
         "HeatNetwork": {
             "type": "HIU",
             "EnergySupply": "heat network",
-            "power_max": power_max,
+            "power_max": 45,
             "HIU_daily_loss": 0.8
         }
     }
@@ -419,13 +438,25 @@ def edit_heatnetwork_space_heating_distribution_system(project_dict):
             }
         project_dict['SpaceHeatSystem'][space_heating_name].update(heat_network_distribution_details)
 
-def edit_add_default_space_heating_system(project_dict):
+def edit_add_default_space_heating_system(project_dict, design_capacity_overall):
     '''
     Apply default space heating system to notional building calculation
     
     '''
+    factors_35 = {'A':1.00, 'B':0.62, 'C':0.55, 'D':0.47, 'F':1.05}
+    factors_55 = {'A':0.99, 'B':0.60, 'C':0.49, 'D':0.51, 'F':1.03}
     
-    # TODO HP notional performance curve
+    capacity_results_dict_35 = {}
+    for record, factor in factors_35.items():
+        result = round(design_capacity_overall * factor, 3)
+        capacity_results_dict_35[record] = result
+    
+    capacity_results_dict_55 = {}
+    for record, factor in factors_55.items():
+        result = round(design_capacity_overall * factor, 3)
+        capacity_results_dict_55[record] = result
+
+    project_dict['HeatSourceWet'] = {}
     space_heating_system = {
         "hp": {
             "EnergySupply": "mains elec",
@@ -446,7 +477,7 @@ def edit_add_default_space_heating_system(project_dict):
             "temp_return_feed_max": 60,
             "test_data": [
                 {
-                    "capacity": 4.067582718,
+                    "capacity": capacity_results_dict_35['A'],
                     "cop": 2.788,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
@@ -456,7 +487,7 @@ def edit_add_default_space_heating_system(project_dict):
                     "test_letter": "A"
                 },
                 {
-                    "capacity": 2.528509315,
+                    "capacity": capacity_results_dict_35['B'],
                     "cop": 4.292,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
@@ -466,7 +497,7 @@ def edit_add_default_space_heating_system(project_dict):
                     "test_letter": "B"
                 },
                 {
-                    "capacity": 2.238305518,
+                    "capacity": capacity_results_dict_35['C'],
                     "cop": 5.906,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
@@ -476,7 +507,7 @@ def edit_add_default_space_heating_system(project_dict):
                     "test_letter": "C"
                 },
                 {
-                    "capacity": 1.91029697,
+                    "capacity": capacity_results_dict_35['D'],
                     "cop": 8.016,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
@@ -486,7 +517,7 @@ def edit_add_default_space_heating_system(project_dict):
                     "test_letter": "D"
                 },
                 {
-                    "capacity": 4.076141232,
+                    "capacity": capacity_results_dict_35['F'],
                     "cop": 2.492,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
@@ -496,7 +527,7 @@ def edit_add_default_space_heating_system(project_dict):
                     "test_letter": "F"
                 },
                 {
-                    "capacity": 4.043398101,
+                    "capacity": capacity_results_dict_55['A'],
                     "cop": 2.034,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
@@ -506,7 +537,7 @@ def edit_add_default_space_heating_system(project_dict):
                     "test_letter": "A"
                 },
                 {
-                    "capacity": 2.462869183,
+                    "capacity": capacity_results_dict_55['B'],
                     "cop": 3.118,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
@@ -516,7 +547,7 @@ def edit_add_default_space_heating_system(project_dict):
                     "test_letter": "B"
                 },
                 {
-                    "capacity": 1.987311886,
+                    "capacity": capacity_results_dict_55['C'],
                     "cop": 4.406,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
@@ -526,7 +557,7 @@ def edit_add_default_space_heating_system(project_dict):
                     "test_letter": "C"
                 },
                 {
-                    "capacity": 2.074754639,
+                    "capacity": capacity_results_dict_55['D'],
                     "cop": 6.298,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
@@ -536,7 +567,7 @@ def edit_add_default_space_heating_system(project_dict):
                     "test_letter": "D"
                 },
                 {
-                    "capacity": 4.147492916,
+                    "capacity": capacity_results_dict_55['F'],
                     "cop": 1.868,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
@@ -555,39 +586,55 @@ def edit_add_default_space_heating_system(project_dict):
     project_dict['HeatSourceWet'] = space_heating_system
 
 
-def edit_default_space_heating_distribution_system(project_dict):
-    '''
-    Apply distribution system details to notional building calculation
-    
-    '''
+def edit_default_space_heating_distribution_system(project_dict, design_capacity_dict):
+    '''Apply distribution system details to notional building calculation '''
+
+    design_flow_temp = 45 
+    c_per_rad = 0.01
+    n = 1.34
+    thermal_mass_per_rad = 51.8 / units.J_per_kWh
+
+    # Initialise space heating system in project dict
+    project_dict['SpaceHeatSystem'] = {}
+
     for zone_name, zone in project_dict['Zone'].items():
-        #TODO currently repeats the same radiator characteristics for both zones
-        space_heating_name = zone['SpaceHeatSystem']
-        space_heating_distribution_system = {
-                "Control": "HeatingPattern_LivingRoom",
-                "HeatSource": {
-                    "name": "hp",
-                    "temp_flow_limit_upper": 65
-                },
-                "Zone": zone_name,
-                "advanced_start": 1,
-                "c": 0.04148754907959335,
-                "design_flow_temp": 45,
-                "ecodesign_controller": {
+        project_dict['Zone'][zone_name]['SpaceHeatSystem'] = zone_name + '_SpaceHeatSystem_Notional'
+        heatsourcewet_name = list(project_dict['HeatSourceWet'].keys())
+        
+        # Calculate number of radiators
+        emitter_cap = design_capacity_dict[zone_name]
+        power_output_per_rad = c_per_rad * (design_flow_temp - set_point_per_zone(zone)) ** n
+        number_of_rads = math.ceil(emitter_cap / power_output_per_rad)
+
+        # Calculate c and thermal mass
+        c = number_of_rads * c_per_rad
+        thermal_mass = number_of_rads * thermal_mass_per_rad
+
+        # Create radiator dict for zone
+        space_distribution_system = {
+            "type": "WetDistribution",
+            "advanced_start": 1,
+            "thermal_mass": thermal_mass,
+            "c": c,
+            "n": n,
+            "temp_diff_emit_dsgn": 5,
+            "frac_convective": 0.7,
+            "HeatSource": {
+                "name": heatsourcewet_name[0],
+                "temp_flow_limit_upper": 65.0
+            },
+            "ecodesign_controller": {
                     "ecodesign_control_class": 2,
-                    "max_flow_temp": 45,
-                    "max_outdoor_temp": 0,
+                    "max_outdoor_temp": 20,
                     "min_flow_temp": 25,
-                    "min_outdoor_temp": 20
-                },
-                "frac_convective": 0.8,
-                "n": 1.34,
-                "temp_diff_emit_dsgn": 5,
-                "temp_setback": 18,
-                "thermal_mass": 0.05832055732391241,
-                "type": "WetDistribution"
+                    "min_outdoor_temp": 0
+                    },
+            "design_flow_temp": design_flow_temp,
+            "Zone": zone_name,
+            "temp_setback" : 18
             }
-        project_dict['SpaceHeatSystem'][space_heating_name] = space_heating_distribution_system
+
+        project_dict['SpaceHeatSystem'][zone_name + '_SpaceHeatSystem_Notional'] = space_distribution_system
 
 def edit_bath_shower_other(project_dict, cold_water_source):
     # Define Bath, Shower, and Other DHW outlet
@@ -765,7 +812,10 @@ def edit_ventilation(project_dict, isnotA, minimum_ach):
 
 def edit_space_heating_system(project_dict,
                               is_FEE,
-                              cold_water_source):
+                              cold_water_source,
+                              design_capacity_dict,
+                              design_capacity_overall,
+                              ):
     
     #check if a heat network is present
     is_heat_network = check_heatnetwork_present(project_dict)
@@ -779,8 +829,8 @@ def edit_space_heating_system(project_dict,
         edit_add_heatnetwork_space_heating(project_dict, cold_water_source)
         edit_heatnetwork_space_heating_distribution_system(project_dict)
     else:
-        edit_add_default_space_heating_system(project_dict)
-        edit_default_space_heating_distribution_system(project_dict)
+        edit_add_default_space_heating_system(project_dict, design_capacity_overall)
+        edit_default_space_heating_distribution_system(project_dict, design_capacity_dict)
         edit_daily_losses(project_dict)
 
 
@@ -789,3 +839,36 @@ def edit_air_conditioning(project_dict):
         for space_cooling_name in project_dict['SpaceCoolSystem'].keys():
             project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 5.1
             project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 0.95
+
+def calc_design_capacity(project_dict, HTC_dict):
+    min_air_temp = min(project_dict['ExternalConditions']['air_temperatures'])
+    design_capacity_dict = {}
+
+    for zone_name, zone in project_dict['Zone'].items():
+        set_point = set_point_per_zone(zone)
+
+        temperature_difference = set_point - min_air_temp
+        design_heat_loss = HTC_dict[zone_name] * temperature_difference
+        design_capacity = 2 * design_heat_loss
+        design_capacity_dict[zone_name] = design_capacity / units.W_per_kW
+
+    design_capacity_overall = sum(design_capacity_dict.values())
+
+    return design_capacity_dict, design_capacity_overall
+
+def set_point_per_zone(zone):
+    if zone['SpaceHeatControl'] == 'livingroom':
+        set_point = livingroom_setpoint_fhs
+    elif zone['SpaceHeatControl'] == 'restofdwelling':
+        set_point = restofdwelling_setpoint_fhs
+    else:
+        sys.exit("Setpoint error - invalid zone name ")
+
+    return set_point
+
+def initialise_temperature_setpoints(project_dict):
+    ''' Intitilise temperature setpoints for all zones.
+    The initial set point is needed to call the Project class. 
+    Set as 18C for now. The FHS wrapper will overwrite temp_setpnt_init '''
+    for zone_name, zone in project_dict['Zone'].items():
+        zone['temp_setpnt_init'] = 18

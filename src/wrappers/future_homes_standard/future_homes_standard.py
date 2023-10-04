@@ -28,6 +28,9 @@ appl_obj_name = 'appliances'
 elec_cook_obj_name = 'Eleccooking'
 gas_cook_obj_name = 'Gascooking'
 
+livingroom_setpoint_fhs = 21.0
+restofdwelling_setpoint_fhs = 18.0
+
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
     
@@ -353,9 +356,6 @@ def create_heating_pattern(project_dict):
     '''
     space heating
     '''
-    
-    livingroom_setpoint_fhs = 21.0
-    restofdwelling_setpoint_fhs = 18.0
 
     #07:30-09:30 and then 16:30-22:00
     heating_fhs_weekday = (

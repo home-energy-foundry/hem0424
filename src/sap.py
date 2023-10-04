@@ -101,7 +101,7 @@ def run_project(
     project = Project(project_dict, heat_balance, use_fast_solver)
 
     # Calculate static parameters and output
-    heat_trans_coeff, heat_loss_param = project.calc_HTC_HLP()
+    heat_trans_coeff, heat_loss_param, HTC_dict, HLP_dict = project.calc_HTC_HLP()
     thermal_mass_param = project.calc_TMP()
     heat_loss_form_factor = project.calc_HLFF()
     write_static_output_file(
