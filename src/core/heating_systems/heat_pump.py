@@ -2141,7 +2141,10 @@ class HeatPump:
                     result = service_results[service_idx][parameter]
                     results_per_timestep[service_name][parameter].append(result)
 
-        results_annual = {'auxiliary': {}}
+        results_annual = {
+            'Overall': {key: 0.0 for key, incl_in_annual in output_parameters if incl_in_annual},
+            'auxiliary': {},
+            }
         # Report auxiliary parameters (not specific to a service)
         for parameter, incl_in_annual in aux_parameters:
             if incl_in_annual:
@@ -2152,10 +2155,44 @@ class HeatPump:
             results_annual[service_name] = {}
             for parameter, incl_in_annual in output_parameters:
                 if incl_in_annual:
-                    results_annual[service_name][parameter] \
-                        = sum(results_per_timestep[service_name][parameter])
+                    parameter_annual_total = sum(results_per_timestep[service_name][parameter])
+                    results_annual[service_name][parameter] = parameter_annual_total
+                    results_annual['Overall'][parameter] += parameter_annual_total
+            # For each service, calculate CoP at different system boundaries
+            self.__calc_service_cop(results_annual[service_name])
+
+        # Calculate overall CoP for all services combined
+        self.__calc_service_cop(results_annual['Overall'])
 
         return results_per_timestep, results_annual
+
+    def __calc_service_cop(self, results_totals):
+        """ Calculate CoP for whole simulation period for the given service (or overall) """
+        # TODO Add auxiliary energy to overall CoP
+
+        # Calculate CoP at different system boundaries
+        cop_h1_numerator = results_totals['energy_delivered_HP']
+        cop_h1_denominator = results_totals['energy_input_HP']
+        cop_h2_numerator = cop_h1_numerator
+        cop_h2_denominator \
+            = cop_h1_denominator + results_totals['energy_source_circ_pump']
+        cop_h3_numerator \
+            = cop_h2_numerator + results_totals['energy_delivered_backup']
+        cop_h3_denominator \
+            = cop_h2_denominator + results_totals['energy_input_backup']
+        # TODO For DHW, need to include storage and primary circuit losses.
+        #      Can do this by replacing H4 numerator with total energy
+        #      draw-off from hot water cylinder.
+        cop_h4_numerator = cop_h3_numerator
+        cop_h4_denominator \
+            = cop_h3_denominator + results_totals['energy_heating_circ_pump']
+
+        results_totals['CoP (H1)'] = cop_h1_numerator / cop_h1_denominator
+        results_totals['CoP (H2)'] = cop_h2_numerator / cop_h2_denominator
+        results_totals['CoP (H3)'] = cop_h3_numerator / cop_h3_denominator
+        results_totals['CoP (H4)'] = cop_h4_numerator / cop_h4_denominator
+
+        return results_totals
 
 
 class HeatPump_HWOnly:
