@@ -1782,6 +1782,7 @@ class Project:
         zone_list = []
         hot_water_demand_dict = {}
         hot_water_energy_demand_dict = {}
+        hot_water_energy_output_dict = {}
         hot_water_duration_dict = {}
         hot_water_no_events_dict = {}
         hot_water_pipework_dict = {}
@@ -1811,6 +1812,7 @@ class Project:
 
         hot_water_demand_dict['demand'] = []
         hot_water_energy_demand_dict['energy_demand'] = []
+        hot_water_energy_output_dict['energy_output'] = []
         hot_water_duration_dict['duration'] = []
         hot_water_no_events_dict['no_events'] = []
         hot_water_pipework_dict['pw_losses'] = []
@@ -1823,8 +1825,13 @@ class Project:
                 pw_losses_internal, pw_losses_external, gains_internal_dhw_use, hw_energy_demand \
                 = hot_water_demand(t_idx)
 
-            self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
+            hw_energy_output \
+                = self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
             # TODO Remove hard-coding of hot water source name
+            # TODO Reporting of the hot water energy output assumes that there
+            #      is only one water heating system. If the model changes in
+            #      future to allow more than one hot water system, this code may
+            #      need to be revised to handle that scenario.
 
             gains_internal_dhw \
                 = (pw_losses_internal + gains_internal_dhw_use) \
@@ -1887,6 +1894,7 @@ class Project:
 
             hot_water_demand_dict['demand'].append(hw_demand)
             hot_water_energy_demand_dict['energy_demand'].append(hw_energy_demand)
+            hot_water_energy_output_dict['energy_output'].append(hw_energy_output)
             hot_water_duration_dict['duration'].append(hw_duration)
             hot_water_no_events_dict['no_events'].append(no_events)
             hot_water_pipework_dict['pw_losses'].append(pw_losses_internal + pw_losses_external)
@@ -1920,12 +1928,19 @@ class Project:
         hot_water_dict = {'Hot water demand': hot_water_demand_dict, 'Hot water energy demand': hot_water_energy_demand_dict, 'Hot water duration': hot_water_duration_dict, 'Hot Water Events': hot_water_no_events_dict, 'Pipework losses': hot_water_pipework_dict}
 
         # Report detailed outputs from heat source wet objects, if requested and available
+        # TODO Note that the below assumes that there is only one water
+        #      heating service and therefore that all hot water energy
+        #      output is assigned to that service. If the model changes in
+        #      future to allow more than one hot water system, this code may
+        #      need to be revised to handle that scenario.
         if self.__detailed_output_heating_cooling:
             for name, heat_source_wet in self.__heat_sources_wet.items():
                 if  hasattr(heat_source_wet, "output_detailed_results") \
                 and callable(heat_source_wet.output_detailed_results):
                     heat_source_wet_results_dict[name], heat_source_wet_results_annual_dict[name] \
-                        = heat_source_wet.output_detailed_results()
+                        = heat_source_wet.output_detailed_results(
+                            hot_water_energy_output_dict['energy_output']
+                            )
 
         # Return results from all energy supplies
         results_totals = {}

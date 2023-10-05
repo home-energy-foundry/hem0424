@@ -2091,7 +2091,7 @@ class HeatPump:
         self.__total_time_running_current_timestep = 0.0
         self.__service_results = []
 
-    def output_detailed_results(self):
+    def output_detailed_results(self, hot_water_energy_output):
         """ Output detailed results of heat pump calculation """
 
         # Define parameters to output
@@ -2140,11 +2140,31 @@ class HeatPump:
                 for t_idx, service_results in enumerate(self.__detailed_results):
                     result = service_results[service_idx][parameter]
                     results_per_timestep[service_name][parameter].append(result)
+            # For water heating service, record hot water energy delivered from tank
+            if self.__detailed_results[0][service_idx]['service_type'] == ServiceType.WATER :
+                # For DHW, need to include storage and primary circuit losses.
+                # Can do this by replacing H4 numerator with total energy
+                # draw-off from hot water cylinder.
+                # TODO Note that the below assumes that there is only one water
+                #      heating service and therefore that all hot water energy
+                #      output is assigned to that service. If the model changes in
+                #      future to allow more than one hot water system, this code may
+                #      need to be revised to handle that scenario.
+                results_per_timestep[service_name]['energy_delivered_H4'] \
+                    = hot_water_energy_output
+            else:
+                # TODO Note that the below assumes there is no buffer tank for
+                #      space heating, which is not currently included in the
+                #      model. If this is included in future, this code will need
+                #      to be revised.
+                results_per_timestep[service_name]['energy_delivered_H4'] \
+                    = results_per_timestep[service_name]['energy_delivered_total']
 
         results_annual = {
             'Overall': {key: 0.0 for key, incl_in_annual in output_parameters if incl_in_annual},
             'auxiliary': {},
             }
+        results_annual['Overall']['energy_delivered_H4'] = 0.0
         # Report auxiliary parameters (not specific to a service)
         for parameter, incl_in_annual in aux_parameters:
             if incl_in_annual:
@@ -2158,6 +2178,10 @@ class HeatPump:
                     parameter_annual_total = sum(results_per_timestep[service_name][parameter])
                     results_annual[service_name][parameter] = parameter_annual_total
                     results_annual['Overall'][parameter] += parameter_annual_total
+            results_annual[service_name]['energy_delivered_H4'] \
+                = sum(results_per_timestep[service_name]['energy_delivered_H4'])
+            results_annual['Overall']['energy_delivered_H4'] \
+                += results_annual[service_name]['energy_delivered_H4']
             # For each service, calculate CoP at different system boundaries
             self.__calc_service_cop(results_annual[service_name])
 
@@ -2180,10 +2204,7 @@ class HeatPump:
             = cop_h2_numerator + results_totals['energy_delivered_backup']
         cop_h3_denominator \
             = cop_h2_denominator + results_totals['energy_input_backup']
-        # TODO For DHW, need to include storage and primary circuit losses.
-        #      Can do this by replacing H4 numerator with total energy
-        #      draw-off from hot water cylinder.
-        cop_h4_numerator = cop_h3_numerator
+        cop_h4_numerator = results_totals['energy_delivered_H4']
         cop_h4_denominator \
             = cop_h3_denominator + results_totals['energy_heating_circ_pump']
 

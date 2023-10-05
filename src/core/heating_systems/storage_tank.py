@@ -685,6 +685,8 @@ class StorageTank:
 
         #TODOrecoverable heat losses for heating should impact heating
 
+        # Return total energy of hot water supplied
+        return sum(Q_use_W_n)
 
     def additional_energy_input(self, heat_source, energy_input):
         if energy_input == 0.0:
