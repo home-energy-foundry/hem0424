@@ -11,6 +11,7 @@ import sys
 
 # Third-party imports
 import numpy as np
+import cython
 
 # Local imports
 import core.units as units
@@ -24,33 +25,48 @@ from core.space_heat_demand.building_element import \
 
 # Convective fractions
 # (default values from BS EN ISO 52016-1:2017, Table B.11)
-f_int_c = 0.4 # Can be different for each source of internal gains
-f_sol_c = 0.1
+f_int_c: cython.double = 0.4 # Can be different for each source of internal gains
+f_sol_c: cython.double = 0.1
 
 # Areal thermal capacity of air and furniture
 # (default value from BS EN ISO 52016-1:2017, Table B.17)
-k_m_int = 10000 # J / (m2.K)
+k_m_int: cython.int = 10000 # J / (m2.K)
 
 
+@cython.cclass
 class Zone:
     """ An object to represent a thermal zone in the building
 
     Temperatures of nodes in associated building elements are also calculated
     in this object by solving a matrix equation.
     """
-
+    __useful_area: cython.double
+    __volume: cython.double
+    __building_elements: list
+    __vent_elements: list
+    __vent_cool_extra: object
+    __tb_heat_trans_coeff: cython.double
+    __area_el_total: cython.double
+    __c_int: cython.double
+    __element_positions: object
+    __zone_idx: cython.int
+    __no_of_temps: cython.int
+    __temp_prev: cython.double[:]
+    __print_heat_balance: cython.bint
+    __use_fast_solver  : cython.bint
+    
     def __init__(
             self,
-            area,
-            volume,
-            building_elements,
-            thermal_bridging,
-            vent_elements,
-            temp_ext_air_init,
-            temp_setpnt_init,
-            vent_cool_extra = None,
-            print_heat_balance = False,
-            use_fast_solver=False,
+            area: cython.double,
+            volume: cython.double,
+            building_elements: list,
+            thermal_bridging: list,
+            vent_elements: list,
+            temp_ext_air_init: object,
+            temp_setpnt_init: cython.double,
+            vent_cool_extra: object = None,
+            print_heat_balance: cython.bint=False,
+            use_fast_solver: cython.bint=False,
             ):
         """ Construct a Zone object
 
@@ -95,6 +111,7 @@ class Zone:
                              previous timestep. Positions in list defined in
                              self.__element_positions and self.__zone_idx
         """
+
         self.__useful_area = area
         self.__volume = volume
         self.__building_elements = building_elements
@@ -118,8 +135,11 @@ class Zone:
         # - size of required matrix/vectors (total number of nodes across all
         #   building elements + 1 for internal air)
         # - positions of heat balance eqns and temperatures in matrix for each node
-        self.__element_positions = {}
-        n = 0
+        self.__element_positions: object = {}
+        n: cython.int = 0
+        start_idx: cython.int
+        end_idx: cython.int        
+        eli: object
         for eli in self.__building_elements:
             start_idx = n
             n = n + eli.no_of_nodes()
@@ -133,7 +153,7 @@ class Zone:
 
         self.__init_node_temps(temp_ext_air_init, temp_setpnt_init)
 
-    def __init_node_temps(self, temp_ext_air_init, temp_setpnt_init):
+    def __init_node_temps(self, temp_ext_air_init: cython.double, temp_setpnt_init: cython.double) -> cython.void:
         """ Initialise temperatures of heat balance nodes
 
         Arguments:
@@ -143,12 +163,12 @@ class Zone:
         # Use yearly timestep for warm-up period
         # - solution converges significantly faster with larger timestep
         # - solution is the same to ~5 significant figures for hourly vs. yearly timestep
-        delta_t_h = 8760
+        delta_t_h: cython.int = 8760
         delta_t = delta_t_h * units.seconds_per_hour
 
         # Assume default convective fraction for heating/cooling suggested in
         # BS EN ISO 52016-1:2017 Table B.11
-        frac_convective = 0.4
+        frac_convective: cython.double = 0.4
 
         # Set starting point for all node temperatures (elements of
         # self.__temp_prev) as average of external air temp and setpoint. This
@@ -159,12 +179,14 @@ class Zone:
         # setpoint temperature towards the internal surface nodes, and therefore
         # node temperatures on average should be close to the average of the
         # external air and setpoint temperatures.
-        temp_start = (temp_ext_air_init + temp_setpnt_init) / 2.0
+        temp_start: cython.double = (temp_ext_air_init + temp_setpnt_init) / 2.0
         self.__temp_prev = np.array([temp_start] * self.__no_of_temps)
 
         # Iterate over space heating calculation and meet all space heating
         # demand until temperatures stabilise, under steady-state conditions
         # using specified constant setpoint and external air temperatures.
+        space_heat_demand: cython.double
+        space_cool_demand: cython.double
         while True:
             space_heat_demand, space_cool_demand, _ = self.space_heat_cool_demand(
                 delta_t_h,
@@ -180,7 +202,9 @@ class Zone:
             # Note: space_cool_demand returned by function above is negative,
             # and only one of space_heat_demand and space_cool_demand will be
             # non-zero.
-            gains_heat_cool = (space_heat_demand + space_cool_demand) * units.W_per_kW / delta_t_h
+            gains_heat_cool: cython.double = (space_heat_demand + space_cool_demand) * units.W_per_kW / delta_t_h
+
+            temps_updated: cython.double[:]
 
             temps_updated, _ = self.__calc_temperatures(
                 delta_t, 
@@ -197,33 +221,34 @@ class Zone:
             else:
                 break
 
-    def area(self):
+    def area(self) -> cython.double:
         return self.__useful_area
 
-    def volume(self):
+    def volume(self) -> cython.double:
         return self.__volume
 
-    def gains_solar(self):
+    def gains_solar(self) -> cython.double:
         """sum solar gains for all elements in the zone
         only transparent elements will have solar gains > 0 """
 
-        solar_gains = 0
+        solar_gains: cython.double = 0
+        eli: object
         for eli in self.__building_elements:
             solar_gains += eli.solar_gains()
 
         return solar_gains
 
     def __calc_temperatures(self,
-            delta_t,
-            temp_prev,
-            temp_ext_air,
-            gains_internal,
-            gains_solar,
-            gains_heat_cool,
-            f_hc_c,
-            vent_extra_h_ve=0.0,
-            throughput_factor=1.0,
-            print_heat_balance = False,
+            delta_t: cython.double,
+            temp_prev: cython.double[:],
+            temp_ext_air: cython.double,
+            gains_internal: cython.double,
+            gains_solar: cython.double,
+            gains_heat_cool: cython.double,
+            f_hc_c: cython.double,
+            vent_extra_h_ve: cython.double=0.0,
+            throughput_factor: cython.double=1.0,
+            print_heat_balance: cython.bint = False,
             ):
         """ Calculate temperatures according to procedure in BS EN ISO 52016-1:2017, section 6.5.6
 
@@ -271,10 +296,12 @@ class Zone:
         # Init matrix with zeroes
         # Number of rows in matrix = number of columns
         # = total number of nodes + 1 for overall zone heat balance (and internal air temp)
-        matrix_a = np.zeros((self.__no_of_temps, self.__no_of_temps))
+        result = np.zeros((self.__no_of_temps, self.__no_of_temps))
+        matrix_a: cython.double[:, :] = result
 
         # Init vector_b with zeroes (length = number of nodes + 1 for overall zone heat balance)
-        vector_b = np.zeros(self.__no_of_temps)
+        result = np.zeros(self.__no_of_temps)
+        vector_b: cython.double[:] = result
 
         # One term in eqn 39 is sum from k = 1 to n of (A_elk / A_tot). Given
         # that A_tot is defined as the sum of A_elk from k = 1 to n, this term
@@ -282,11 +309,21 @@ class Zone:
         # TODO Check this is correct. It seems a bit pointless if it is but we
         #      should probably retain it as an explicit term anyway to match
         #      the standard.
-        sum_area_frac = 1.0
+        sum_area_frac: cython.double = 1.0
 
         # Node heat balances - loop through building elements and their nodes:
         # - Construct row of matrix_a for each node energy balance eqn
         # - Calculate RHS of node energy balance eqn and add to vector_b
+        idx: cython.Py_ssize_t
+        i: cython.Py_ssize_t
+        h_ci: cython.double
+        eli: object
+        elk: object
+        i_sol_dir: cython.double
+        i_sol_dif: cython.double
+        f_sh_dir: cython.double
+        f_sh_dif: cython.double     
+
         for eli in self.__building_elements:
             # External surface node (eqn 41)
             # Get position (row == column) in matrix previously calculated for the first (external) node
@@ -334,6 +371,7 @@ class Zone:
             # Add final sum term for LHS of eqn 39 in loop below.
             # These are coeffs for temperatures of internal surface nodes of
             # all building elements in the zone
+            col: cython.Py_ssize_t
             for elk in self.__building_elements:
                 col = self.__element_positions[elk][1]
                 # The line below must be an adjustment to the existing value
@@ -364,7 +402,8 @@ class Zone:
         #      interface as other ventilation element classes, which could make
         #      future development more difficult. Ideally, we would find a
         #      cleaner way to implement this difference.
-        sum_vent_elements_h_ve = vent_extra_h_ve
+        vei: object
+        sum_vent_elements_h_ve: cython.double = vent_extra_h_ve
         for vei in self.__vent_elements:
             if type(vei) in (MechnicalVentilationHeatRecovery, WholeHouseExtractVentilation):
                 sum_vent_elements_h_ve \
@@ -402,7 +441,7 @@ class Zone:
         #      interface as other ventilation element classes, which could make
         #      future development more difficult. Ideally, we would find a
         #      cleaner way to implement this difference.
-        sum_vent_elements_h_ve_times_temp_supply = 0.0
+        sum_vent_elements_h_ve_times_temp_supply: cython.double = 0.0
         if vent_extra_h_ve != 0:
             sum_vent_elements_h_ve_times_temp_supply \
                 += vent_extra_h_ve * self.__vent_cool_extra.temp_supply()
@@ -430,6 +469,34 @@ class Zone:
         else:
             vector_x = np.linalg.solve(matrix_a, vector_b)
 
+        heat_balance_dict: object
+        temp_internal: cython.double
+        hb_gains_solar: cython.double
+        hb_gains_internal: cython.double
+        hb_gains_heat_cool: cython.double
+        hb_energy_to_change_temp: cython.double
+        hb_loss_thermal_bridges: cython.double
+        hb_loss_ventilation: cython.double
+        hb_loss_infiltration: cython.double
+        hb_loss_fabri: cython.double
+        fabric_int_sol: cython.double
+        fabric_int_int_gains: cython.double
+        fabric_int_heat_cool: cython.double
+        fabric_int_air_convective: cython.double
+        temp_int_surface: cython.double
+        air_node_tem: cython.double
+        hb_fabric_ext_air_convective: cython.double
+        hb_fabric_ext_air_radiative: cython.double
+        hb_fabric_ext_sol: cython.double
+        hb_fabric_ext_sky: cython.double
+        hb_fabric_ext_opaque: cython.double
+        hb_fabric_ext_transparent: cython.double
+        hb_fabric_ext_ground: cython.double
+        hb_fabric_ext_ZTC: cython.double
+        hb_fabric_ext_ZTU: cython.double
+        el_idx: cython.double
+        el_idx_other: cython.double
+        
         if print_heat_balance:
             heat_balance_dict = {}
 
@@ -548,7 +615,8 @@ class Zone:
             heat_balance_dict = None
         return vector_x, heat_balance_dict
 
-    def __fast_solver(self, coeffs, rhs):
+    @cython.cfunc
+    def __fast_solver(self, coeffs: cython.double[:, :], rhs: cython.double[:]) -> cython.double[:]:
         """ Optimised heat balance solver
 
         Arguments:
@@ -654,22 +722,35 @@ class Zone:
         # Init matrix with zeroes
         # Number of rows in matrix = number of columns
         # = total number of nodes + 1 for overall zone heat balance (and internal air temp)
-        coeffs_adj = np.zeros((self.__no_of_temps, self.__no_of_temps))
+        response = np.zeros((self.__no_of_temps, self.__no_of_temps))
+        coeffs_adj: cython.double[:, :] = response
+
+        coeffs_adj[0]
 
         # Init vector_b with zeroes (length = number of nodes + 1 for overall zone heat balance)
-        rhs_adj = np.zeros(self.__no_of_temps)
+        # response = np.zeros(self.__no_of_temps)
+        rhs_adj: cython.double[:] = np.zeros(self.__no_of_temps)
+
+        rhs_adj[0]
 
         # Init matrix with zeroes
         # Number of rows in matrix = number of columns
         # = total number of internal surface nodes + 1 for internal air node
-        num_rows_cols_optimised = len(self.__building_elements) + 1
-        zone_idx = num_rows_cols_optimised - 1
-        matrix_a = np.zeros((num_rows_cols_optimised, num_rows_cols_optimised))
+        num_rows_cols_optimised: cython.int = len(self.__building_elements) + 1
+        zone_idx: cython.Py_ssize_t = num_rows_cols_optimised - 1
+        response = np.zeros((num_rows_cols_optimised, num_rows_cols_optimised))
+        matrix_a: cython.double[:, :] = response
 
         # Init vector_b with zeroes (length = number of internal surfaces + 1 for air node)
-        vector_b = np.zeros(num_rows_cols_optimised)
+        response = np.zeros(num_rows_cols_optimised)
+        vector_b: cython.double[:] = response
 
         # Loop over building elements
+        idx_ext_surface: cython.int
+        idx_int_surface: cython.int
+        el_idx: cython.Py_ssize_t
+        eli: object
+        idx: cython.Py_ssize_t
         for el_idx, eli in enumerate(self.__building_elements):
             idx_ext_surface = self.__element_positions[eli][0]
             idx_int_surface = self.__element_positions[eli][1]
@@ -678,7 +759,7 @@ class Zone:
             coeffs_adj[idx_ext_surface][idx_ext_surface] = coeffs[idx_ext_surface][idx_ext_surface]
             rhs_adj[idx_ext_surface] = rhs[idx_ext_surface]
 
-            # Loop over nodes, from inside node adjacent to external surface, to internal surface
+            # Loop over nodes, from inside node adjacent to external surface, to internal surface            
             for idx in range(idx_ext_surface + 1, idx_int_surface + 1):
                 # Calculate adjusted coeffs and RHS for each heat balance eqn
                 coeffs_adj[idx][idx] \
@@ -693,6 +774,8 @@ class Zone:
             vector_b[el_idx] = rhs_adj[idx_int_surface]
 
             # Add coeffs for temperatures other than the int surface temp of this building element
+            el_idx_other: cython.Py_ssize_t
+            elk: object            
             for el_idx_other, elk in enumerate(self.__building_elements):
                 # Skip the current building element
                 if elk is eli:
@@ -713,10 +796,13 @@ class Zone:
 
         # Solve heat balance eqns for inside and air nodes using normal matrix solver
         # Solve matrix eqn A.X = B to calculate vector_x (temperatures)
-        vector_x = np.linalg.solve(matrix_a, vector_b)
+        response = np.linalg.solve(matrix_a, vector_b)
+        vector_x: cython.double[:] = response
 
         # Init vector_x with zeroes (length = number of nodes + 1 for overall zone heat balance)
-        temperatures = np.zeros(self.__no_of_temps)
+        response = np.zeros(self.__no_of_temps)
+        temperatures: cython.double[:] = response
+        
         # Populate air node temperature result
         temperatures[self.__zone_idx] = vector_x[zone_idx]
 
@@ -737,7 +823,8 @@ class Zone:
 
         return temperatures
 
-    def __temp_operative(self, temp_vector):
+    @cython.cfunc
+    def __temp_operative(self, temp_vector) -> cython.double:
         """ Calculate the operative temperature, in deg C
 
         According to the procedure in BS EN ISO 52016-1:2017, section 6.5.5.3.
@@ -745,35 +832,35 @@ class Zone:
         Arguments:
         temp_vector -- vector (list) of temperatures calculated from the heat balance equations
         """
-        temp_int_air = temp_vector[self.__zone_idx]
+        temp_int_air: cython.double = temp_vector[self.__zone_idx]
 
         # Mean radiant temperature is weighted average of internal surface temperatures
-        temp_mean_radiant = sum([eli.area * temp_vector[self.__element_positions[eli][1]] \
+        temp_mean_radiant: cython.double = sum([eli.area * temp_vector[self.__element_positions[eli][1]] \
                                  for eli in self.__building_elements]) \
                           / self.__area_el_total
 
         return (temp_int_air + temp_mean_radiant) / 2.0
 
-    def temp_operative(self):
+    def temp_operative(self) -> cython.double:
         """ Return operative temperature, in deg C """
         return self.__temp_operative(self.__temp_prev)
 
-    def temp_internal_air(self):
+    def temp_internal_air(self) -> cython.double:
         """ Return internal air temperature, in deg C """
         return self.__temp_prev[self.__zone_idx]
 
     def space_heat_cool_demand(
             self,
-            delta_t_h,
-            temp_ext_air,
-            gains_internal,
-            gains_solar,
-            frac_convective_heat,
-            frac_convective_cool,
-            temp_setpnt_heat,
-            temp_setpnt_cool,
-            throughput_factor=1.0,
-            ):
+            delta_t_h: cython.double,
+            temp_ext_air: cython.double,
+            gains_internal: cython.double,
+            gains_solar: cython.double,
+            frac_convective_heat: cython.double,
+            frac_convective_cool: cython.double,
+            temp_setpnt_heat: cython.double,
+            temp_setpnt_cool: cython.double,
+            throughput_factor: cython.double=1.0,
+            ) -> tuple:
         """ Calculate heating and cooling demand in the zone for the current timestep
 
         According to the procedure in BS EN ISO 52016-1:2017, section 6.5.5.2, steps 1 to 4.
@@ -794,20 +881,23 @@ class Zone:
             sys.exit('ERROR: Cooling setpoint is below heating setpoint.')
 
         if self.__vent_cool_extra is not None:
-            temp_setpnt_cool_vent = self.__vent_cool_extra.temp_setpnt()
-            if temp_setpnt_cool_vent is None:
+            temp_setpnt_cool_vent_response = self.__vent_cool_extra.temp_setpnt()
+            temp_setpnt_cool_vent: cython.double
+            if temp_setpnt_cool_vent_response is None:
                 # Set cooling setpoint to Planck temperature to ensure no cooling demand
-                temp_setpnt_cool_vent = units.Kelvin2Celcius(1.4e32)
-            if temp_setpnt_cool_vent < temp_setpnt_heat:
+                temp_setpnt_cool_vent_response = units.Kelvin2Celcius(1.4e32)
+            if temp_setpnt_cool_vent_response < temp_setpnt_heat:
                 sys.exit('ERROR: Setpoint for additional ventilation is below heating setpoint.')
+            temp_setpnt_cool_vent = temp_setpnt_cool_vent_response
 
         # Calculate timestep in seconds
-        delta_t = delta_t_h * units.seconds_per_hour
+        delta_t: cython.double = delta_t_h * units.seconds_per_hour
 
         # For calculation of demand, set heating/cooling gains to zero
-        gains_heat_cool = 0.0
+        gains_heat_cool: cython.double = 0.0
 
         # Calculate node and internal air temperatures with heating/cooling gains of zero
+        temp_vector_no_heat_cool: cython.double[:]
         temp_vector_no_heat_cool, _ = self.__calc_temperatures(
             delta_t,
             self.__temp_prev,
@@ -821,8 +911,8 @@ class Zone:
 
         # Calculate internal operative temperature at free-floating conditions
         # i.e. with no heating/cooling
-        temp_operative_free = self.__temp_operative(temp_vector_no_heat_cool)
-        temp_int_air_free = temp_vector_no_heat_cool[self.__zone_idx]
+        temp_operative_free: cython.double = self.__temp_operative(temp_vector_no_heat_cool)
+        temp_int_air_free: cython.double = temp_vector_no_heat_cool[self.__zone_idx]
 
         # Check setpoint for additional ventilation. If above setpoint:
         # First calculate temps with max. additional ventilation, then check
@@ -830,7 +920,7 @@ class Zone:
         # ventilation - just use cooling instead. Otherwise, cooling demand is zero
         # and need to use interpolation to work out additional ventilation required
         # (just like calc for heat_cool_load_unrestricted below)
-        h_ve_cool_extra = 0.0
+        h_ve_cool_extra: cython.double = 0.0
         if self.__vent_cool_extra is not None and temp_operative_free > temp_setpnt_cool_vent:
             # Calculate node and internal air temperatures with maximum additional ventilation
             h_ve_cool_max = self.__vent_cool_extra.h_ve_max(
@@ -897,6 +987,9 @@ class Zone:
 
         # Determine relevant setpoint (if neither, then return space heating/cooling demand of zero)
         # Determine maximum heating/cooling
+        temp_setpnt: cython.double
+        heat_cool_load_upper: cython.double
+        frac_convective: cython.double        
         if temp_operative_free > temp_setpnt_cool:
             # Cooling
             # TODO Implement eqn 26 "if max power available" case rather than just "otherwise" case?
@@ -928,7 +1021,7 @@ class Zone:
             )
 
         # Calculate internal operative temperature with maximum heating/cooling
-        temp_operative_upper = self.__temp_operative(temp_vector_upper_heat_cool)
+        temp_operative_upper: cython.double = self.__temp_operative(temp_vector_upper_heat_cool)
 
         # Calculate heating (positive) or cooling (negative) required to reach setpoint
         if (temp_operative_upper - temp_operative_free) == 0.0:
@@ -942,10 +1035,10 @@ class Zone:
                                     / (temp_operative_upper - temp_operative_free)
 
         # Convert from W to kWh
-        heat_cool_demand = heat_cool_load_unrestricted / units.W_per_kW * delta_t_h
+        heat_cool_demand: cython.double = heat_cool_load_unrestricted / units.W_per_kW * delta_t_h
 
-        space_heat_demand = 0.0 # in kWh
-        space_cool_demand = 0.0 # in kWh
+        space_heat_demand: cython.double = 0.0 # in kWh
+        space_cool_demand: cython.double = 0.0 # in kWh
         if heat_cool_demand < 0.0:
             space_cool_demand = heat_cool_demand
         elif heat_cool_demand > 0.0:
@@ -955,15 +1048,15 @@ class Zone:
         return space_heat_demand, space_cool_demand, h_ve_cool_extra
 
     def update_temperatures(self,
-            delta_t,
-            temp_ext_air,
-            gains_internal,
-            gains_solar,
-            gains_heat_cool,
-            frac_convective,
-            vent_extra_h_ve=0.0,
-            throughput_factor=1.0,
-            ):
+            delta_t: cython.int,
+            temp_ext_air: cython.double,
+            gains_internal: cython.double,
+            gains_solar: cython.double,
+            gains_heat_cool: cython.double,
+            frac_convective: cython.double,
+            vent_extra_h_ve: cython.double=0.0,
+            throughput_factor: cython.double=1.0,
+            ) -> object:
         """ Update node and internal air temperatures for calculation of next timestep
 
         Arguments:
@@ -994,17 +1087,17 @@ class Zone:
             )
         return heat_balance_dict
 
-    def total_fabric_heat_loss(self):
+    def total_fabric_heat_loss(self) -> cython.double:
         """ Return the total fabric heat loss from all 
         building elements in a zone, in W / K """
-        total_fabric_heat_loss = 0
+        total_fabric_heat_loss: cython.double = 0
         for be in self.__building_elements:
             total_fabric_heat_loss += be.fabric_heat_loss()
         return total_fabric_heat_loss
 
-    def total_heat_loss_area(self):
+    def total_heat_loss_area(self) -> cython.double:
         """ return the total heat loss area, in m2"""
-        total_heat_loss_area = 0
+        total_heat_loss_area: cython.double = 0
         for be in self.__building_elements:
             if type(be) in (BuildingElementOpaque, BuildingElementTransparent,
              BuildingElementGround, BuildingElementAdjacentZTU_Simple):
@@ -1016,25 +1109,24 @@ class Zone:
                     Please update zone.py function total_heat_loss_area.")
         return total_heat_loss_area
 
-    def total_heat_capacity(self):
+    def total_heat_capacity(self) -> cython.double:
         """ Return the total heat capacity from all building elements in a zone
         excluding ground and transparent elements, in kJ / K """
         # TODO Exclude solid door (opaque building element), or define convention
         #      that heat capacity of solid doors can be entered as zero
-        total_heat_capacity = 0
+        total_heat_capacity: cython.double = 0
         for be in self.__building_elements:
             total_heat_capacity += be.heat_capacity()
         return total_heat_capacity
 
-    def total_thermal_bridges(self):
+    def total_thermal_bridges(self) -> cython.double:
         """ Return the total heat transfer coefficient for all
         thermal bridges in a zone, in W / K """
         return self.__tb_heat_trans_coeff
 
-    def total_vent_heat_loss(self):
+    def total_vent_heat_loss(self) -> cython.double:
         """ Return the ventilation heat loss from all ventilation elements, in W / K """
-        total_vent_heat_loss = 0
+        total_vent_heat_loss: cython.double = 0
         for ve in self.__vent_elements:
             total_vent_heat_loss += ve.h_ve_average(self.__volume)
         return total_vent_heat_loss
-
