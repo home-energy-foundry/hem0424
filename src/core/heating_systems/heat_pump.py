@@ -2097,49 +2097,49 @@ class HeatPump:
         # Define parameters to output
         # Second element of each tuple controls whether item is summed for annual total
         output_parameters = [
-            ('service_name', False),
-            ('service_type', False),
-            ('service_on', False),
-            ('energy_output_required', True),
-            ('temp_output', False),
-            ('temp_source', False),
-            ('thermal_capacity_op_cond', False),
-            ('cop_op_cond', False),
-            ('time_running', True),
-            ('load_ratio', False),
-            ('hp_operating_in_onoff_mode', False),
-            ('energy_delivered_HP', True),
-            ('energy_delivered_backup', True),
-            ('energy_delivered_total', True),
-            ('energy_input_HP', True),
-            ('energy_input_backup', True),
-            ('energy_heating_circ_pump', True),
-            ('energy_source_circ_pump', True),
-            ('energy_input_total', True),
+            ('service_name', None, False),
+            ('service_type', None, False),
+            ('service_on', None, False),
+            ('energy_output_required', 'kWh', True),
+            ('temp_output', 'K', False),
+            ('temp_source', 'K', False),
+            ('thermal_capacity_op_cond', 'kW', False),
+            ('cop_op_cond', None, False),
+            ('time_running', 'hours', True),
+            ('load_ratio', None, False),
+            ('hp_operating_in_onoff_mode', None, False),
+            ('energy_delivered_HP', 'kWh', True),
+            ('energy_delivered_backup', 'kWh', True),
+            ('energy_delivered_total', 'kWh', True),
+            ('energy_input_HP', 'kWh', True),
+            ('energy_input_backup', 'kWh', True),
+            ('energy_heating_circ_pump', 'kWh', True),
+            ('energy_source_circ_pump', 'kWh', True),
+            ('energy_input_total', 'kWh', True),
             ]
         aux_parameters = [
-            ('energy_standby', True),
-            ('energy_crankcase_heater_mode', True),
-            ('energy_off_mode', True),
+            ('energy_standby', 'kWh', True),
+            ('energy_crankcase_heater_mode', 'kWh', True),
+            ('energy_off_mode', 'kWh', True),
             ]
 
         results_per_timestep = {'auxiliary': {}}
         # Report auxiliary parameters (not specific to a service)
-        for parameter, _ in aux_parameters:
-            results_per_timestep['auxiliary'][parameter] = []
+        for parameter, param_unit, _ in aux_parameters:
+            results_per_timestep['auxiliary'][(parameter, param_unit)] = []
             for t_idx, service_results in enumerate(self.__detailed_results):
                 result = service_results[-1][parameter]
-                results_per_timestep['auxiliary'][parameter].append(result)
+                results_per_timestep['auxiliary'][(parameter, param_unit)].append(result)
         # For each service, report required output parameters
         for service_idx, service_name in enumerate(self.__energy_supply_connections.keys()):
             results_per_timestep[service_name] = {}
             # Look up each required parameter
-            for parameter, _ in output_parameters:
-                results_per_timestep[service_name][parameter] = []
+            for parameter, param_unit, _ in output_parameters:
+                results_per_timestep[service_name][(parameter, param_unit)] = []
                 # Look up value of required parameter in each timestep
                 for t_idx, service_results in enumerate(self.__detailed_results):
                     result = service_results[service_idx][parameter]
-                    results_per_timestep[service_name][parameter].append(result)
+                    results_per_timestep[service_name][(parameter, param_unit)].append(result)
             # For water heating service, record hot water energy delivered from tank
             if self.__detailed_results[0][service_idx]['service_type'] == ServiceType.WATER :
                 # For DHW, need to include storage and primary circuit losses.
@@ -2150,38 +2150,43 @@ class HeatPump:
                 #      output is assigned to that service. If the model changes in
                 #      future to allow more than one hot water system, this code may
                 #      need to be revised to handle that scenario.
-                results_per_timestep[service_name]['energy_delivered_H4'] \
+                results_per_timestep[service_name][('energy_delivered_H4', 'kWh')] \
                     = hot_water_energy_output
             else:
                 # TODO Note that the below assumes there is no buffer tank for
                 #      space heating, which is not currently included in the
                 #      model. If this is included in future, this code will need
                 #      to be revised.
-                results_per_timestep[service_name]['energy_delivered_H4'] \
-                    = results_per_timestep[service_name]['energy_delivered_total']
+                results_per_timestep[service_name][('energy_delivered_H4', 'kWh')] \
+                    = results_per_timestep[service_name][('energy_delivered_total', 'kWh')]
 
         results_annual = {
-            'Overall': {key: 0.0 for key, incl_in_annual in output_parameters if incl_in_annual},
+            'Overall': {
+                (parameter, param_units): 0.0
+                for parameter, param_units, incl_in_annual in output_parameters
+                if incl_in_annual
+                },
             'auxiliary': {},
             }
-        results_annual['Overall']['energy_delivered_H4'] = 0.0
+        results_annual['Overall'][('energy_delivered_H4', 'kWh')] = 0.0
         # Report auxiliary parameters (not specific to a service)
-        for parameter, incl_in_annual in aux_parameters:
+        for parameter, param_unit, incl_in_annual in aux_parameters:
             if incl_in_annual:
-                results_annual['auxiliary'][parameter] \
-                    = sum(results_per_timestep['auxiliary'][parameter])
+                results_annual['auxiliary'][(parameter, param_unit)] \
+                    = sum(results_per_timestep['auxiliary'][(parameter, param_unit)])
         # For each service, report required output parameters
         for service_idx, service_name in enumerate(self.__energy_supply_connections.keys()):
             results_annual[service_name] = {}
-            for parameter, incl_in_annual in output_parameters:
+            for parameter, param_unit, incl_in_annual in output_parameters:
                 if incl_in_annual:
-                    parameter_annual_total = sum(results_per_timestep[service_name][parameter])
-                    results_annual[service_name][parameter] = parameter_annual_total
-                    results_annual['Overall'][parameter] += parameter_annual_total
-            results_annual[service_name]['energy_delivered_H4'] \
-                = sum(results_per_timestep[service_name]['energy_delivered_H4'])
-            results_annual['Overall']['energy_delivered_H4'] \
-                += results_annual[service_name]['energy_delivered_H4']
+                    parameter_annual_total \
+                        = sum(results_per_timestep[service_name][(parameter, param_unit)])
+                    results_annual[service_name][(parameter, param_unit)] = parameter_annual_total
+                    results_annual['Overall'][(parameter, param_unit)] += parameter_annual_total
+            results_annual[service_name][('energy_delivered_H4', 'kWh')] \
+                = sum(results_per_timestep[service_name][('energy_delivered_H4', 'kWh')])
+            results_annual['Overall'][('energy_delivered_H4', 'kWh')] \
+                += results_annual[service_name][('energy_delivered_H4', 'kWh')]
             # For each service, calculate CoP at different system boundaries
             self.__calc_service_cop(results_annual[service_name])
 
@@ -2195,23 +2200,23 @@ class HeatPump:
         # TODO Add auxiliary energy to overall CoP
 
         # Calculate CoP at different system boundaries
-        cop_h1_numerator = results_totals['energy_delivered_HP']
-        cop_h1_denominator = results_totals['energy_input_HP']
+        cop_h1_numerator = results_totals[('energy_delivered_HP', 'kWh')]
+        cop_h1_denominator = results_totals[('energy_input_HP', 'kWh')]
         cop_h2_numerator = cop_h1_numerator
         cop_h2_denominator \
-            = cop_h1_denominator + results_totals['energy_source_circ_pump']
+            = cop_h1_denominator + results_totals[('energy_source_circ_pump', 'kWh')]
         cop_h3_numerator \
-            = cop_h2_numerator + results_totals['energy_delivered_backup']
+            = cop_h2_numerator + results_totals[('energy_delivered_backup', 'kWh')]
         cop_h3_denominator \
-            = cop_h2_denominator + results_totals['energy_input_backup']
-        cop_h4_numerator = results_totals['energy_delivered_H4']
+            = cop_h2_denominator + results_totals[('energy_input_backup', 'kWh')]
+        cop_h4_numerator = results_totals[('energy_delivered_H4', 'kWh')]
         cop_h4_denominator \
-            = cop_h3_denominator + results_totals['energy_heating_circ_pump']
+            = cop_h3_denominator + results_totals[('energy_heating_circ_pump', 'kWh')]
 
-        results_totals['CoP (H1)'] = cop_h1_numerator / cop_h1_denominator
-        results_totals['CoP (H2)'] = cop_h2_numerator / cop_h2_denominator
-        results_totals['CoP (H3)'] = cop_h3_numerator / cop_h3_denominator
-        results_totals['CoP (H4)'] = cop_h4_numerator / cop_h4_denominator
+        results_totals[('CoP (H1)', None)] = cop_h1_numerator / cop_h1_denominator
+        results_totals[('CoP (H2)', None)] = cop_h2_numerator / cop_h2_denominator
+        results_totals[('CoP (H3)', None)] = cop_h3_numerator / cop_h3_denominator
+        results_totals[('CoP (H4)', None)] = cop_h4_numerator / cop_h4_denominator
 
         return results_totals
 
