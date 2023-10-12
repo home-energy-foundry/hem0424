@@ -464,7 +464,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
             "min_temp_diff_flow_return_for_hp_to_operate": 0,
             "modulating_control": True,
             "power_crankcase_heater": 0.01,
-            "power_heating_circ_pump": 0.015,
+            "power_heating_circ_pump": capacity_results_dict_55['F'] * 0.003,
             "power_max_backup": 3,
             "power_off": 0,
             "power_source_circ_pump": 0,
