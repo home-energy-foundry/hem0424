@@ -59,6 +59,7 @@ def apply_fhs_not_preprocessing(project_dict,
         cold_water_source,
         design_capacity_dict,
         design_capacity_overall,
+        TFA,
         )
 
     # modify bath, shower and other dhw characteristics
@@ -66,9 +67,6 @@ def apply_fhs_not_preprocessing(project_dict,
 
     # add WWHRS if needed
     add_wwhrs(project_dict, cold_water_source, is_notA, is_FEE)
-
-    #modify primary pipework chracteristics
-    edit_primary_pipework(project_dict, TFA)
     
     #modify hot water distribution
     edit_hot_water_distribution_inner(project_dict, TFA)
@@ -697,41 +695,89 @@ def calculate_daily_losses(cylinder_vol, thickness):
     
     return daily_losses
 
-def edit_daily_losses(project_dict):
-    # check if cylinder in project_dict
-    if 'hw cylinder' not in project_dict['HotWaterSource']:
-        print(' Warning: hot water cylinder not found in project_dict')
-        return
-
+def edit_storagetank(project_dict, cold_water_source, TFA):
     # look up cylinder volume
-    cylinder_vol = project_dict['HotWaterSource']['hw cylinder']['volume']
     thickness = 120  # mm
+
+    # TODO Calculate cylinder volume
+    cylinder_vol = 215
 
     # Calculate daily losses and update daily losses in project_dict
     daily_losses = calculate_daily_losses(cylinder_vol, thickness)
-    project_dict['HotWaterSource']['hw cylinder']['daily_losses'] = daily_losses
+
+    #modify primary pipework chracteristics
+    primary_pipework_dict = edit_primary_pipework(project_dict, TFA)
+    
+    # check if cylinder in project_dict
+    project_dict['HotWaterSource']['hw cylinder'] = {}
+    project_dict['HotWaterSource']['hw cylinder'] = {
+            "ColdWaterSource": cold_water_source,
+            "HeatSource": {
+                "hp": {
+                    "ColdWaterSource": cold_water_source,
+                    "Control": "hw timer",
+                    "EnergySupply": "mains elec",
+                    "heater_position": 0.1,
+                    "name": "hp",
+                    "temp_flow_limit_upper": 55,
+                    "thermostat_position": 0.1,
+                    "type": "HeatSourceWet"
+                }
+            },
+            "daily_losses": daily_losses,
+            "min_temp": 52.0,
+            "primary_pipework": {
+                "external_diameter": 0.024,
+            },
+            "setpoint_temp": 60.0,
+            "type": "StorageTank",
+            "volume": cylinder_vol,
+            "primary_pipework":primary_pipework_dict
+        }
 
 def edit_primary_pipework(project_dict, TFA):
+    
+    # Define minimum values
+    internal_diameter_mm_min = 0.022
+    external_diameter_mm_min = 0.024
+    length_min =  0.05 * (TFA / 2)
+    insulation_thickness_mm_min = 0.025
+
+    # Update primary pipework object when primary pipework not present
     if 'primary_pipework' not in project_dict['HotWaterSource']['hw cylinder']:
-        print(' Warning: no primary pipework not found in project_dict')
-        return
+        project_dict['HotWaterSource']['hw cylinder']['primary_pipework'] = {}
+        # primary pipework dictionary
+        primary_pipework_dict = {
+                "internal_diameter_mm": internal_diameter_mm_min,
+                "external_diameter_mm": external_diameter_mm_min,
+                "length": length_min,
+                "insulation_thermal_conductivity": 0.035,
+                "insulation_thickness_mm": insulation_thickness_mm_min,
+                "surface_reflectivity": False,
+                "pipe_contents": "water"
+            }
 
-    # primary pipework dictionary
-    primary_pipework_dict = project_dict['HotWaterSource']['hw cylinder']['primary_pipework']
+    # Update primary pipework object using actual values
+    if 'primary_pipework' in project_dict['HotWaterSource']['hw cylinder']:
+        primary_pipework_dict = project_dict['HotWaterSource']['hw cylinder']['primary_pipework']
+        length = primary_pipework_dict['length']
+        internal_diameter_mm = max(primary_pipework_dict['internal_diameter_mm'], internal_diameter_mm_min)
+        external_diameter_mm = max(primary_pipework_dict['external_diameter_mm'], external_diameter_mm_min)
+        # update insulation thickness based on internal diameter
+        if internal_diameter_mm > 0.025:
+            insulation_thickness_mm = 0.032
 
-    # update length
-    length = primary_pipework_dict['length']
-    length =  min(length, 0.05 * (TFA / 2))
-    primary_pipework_dict['length'] = length
-
-    # update other properties
-    primary_pipework_dict['insulation_thermal_conductivity'] = 0.035
-    primary_pipework_dict['surface_reflectivity'] = False
-
-    # update insulation thickness based on internal diameter
-    primary_pipework_dict['insulation_thickness_mm'] = 0.025
-    if primary_pipework_dict['internal_diameter_mm'] > 0.025:
-         primary_pipework_dict['insulation_thickness_mm'] = 0.032
+        # primary pipework dictionary
+        primary_pipework_dict = {
+                "internal_diameter_mm": internal_diameter_mm,
+                "external_diameter_mm": external_diameter_mm,
+                "length": length,
+                "insulation_thermal_conductivity": 0.035,
+                "insulation_thickness_mm": insulation_thickness_mm,
+                "surface_reflectivity": False,
+                "pipe_contents": "water"
+            }
+    return primary_pipework_dict
 
 def edit_hot_water_distribution_inner(project_dict, TFA):
     # hot water dictionary
@@ -740,16 +786,35 @@ def edit_hot_water_distribution_inner(project_dict, TFA):
     # Update length
     length = hot_water_distribution_inner_dict['length']
     length =  min(length, 0.2 * TFA)
-    hot_water_distribution_inner_dict['length'] = length
 
-    # update other properties
-    hot_water_distribution_inner_dict['insulation_thermal_conductivity'] = 0.035
-    hot_water_distribution_inner_dict['surface_reflectivity'] = False
+    internal_diameter_mm = hot_water_distribution_inner_dict['internal_diameter_mm']
+    internal_diameter_mm_min = 0.015
+    internal_diameter_mm = max(internal_diameter_mm, internal_diameter_mm_min)
+    # update internal diameter if not present
+    if 'internal_diameter_mm' not in hot_water_distribution_inner_dict:
+        internal_diameter_mm = internal_diameter_mm_min
 
-    # update insulation thickness based on internal diamter
-    hot_water_distribution_inner_dict['insulation_thickness_mm'] = 0.020
-    if hot_water_distribution_inner_dict['internal_diameter_mm'] > 0.025:
-        hot_water_distribution_inner_dict['insulation_thickness_mm'] = 0.024
+    external_diameter_mm = hot_water_distribution_inner_dict['external_diameter_mm']
+    external_diameter_mm_min = 0.017
+    external_diameter_mm = max(external_diameter_mm, external_diameter_mm_min)
+    # update external diameter if not present
+    if 'external_diameter_mm' not in hot_water_distribution_inner_dict:
+        external_diameter_mm = external_diameter_mm_min
+
+    # update insulation thickness based on internal diameter
+    insulation_thickness_mm = 0.020
+    if internal_diameter_mm > 0.025:
+         insulation_thickness_mm = 0.024
+
+    hot_water_distribution_inner_dict = {
+        "external_diameter_mm": external_diameter_mm,
+        "insulation_thermal_conductivity": 0.035,
+        "insulation_thickness_mm": insulation_thickness_mm,
+        "internal_diameter_mm": internal_diameter_mm,
+        "length": length,
+        "pipe_contents": "water",
+        "surface_reflectivity": False
+        }
 
 def remove_hot_water_distribution_external(project_dict):
     # setting the length to 0 to effectively remove external pipework
@@ -815,6 +880,7 @@ def edit_space_heating_system(project_dict,
                               cold_water_source,
                               design_capacity_dict,
                               design_capacity_overall,
+                              TFA,
                               ):
     
     #check if a heat network is present
@@ -828,11 +894,11 @@ def edit_space_heating_system(project_dict,
     elif is_heat_network:
         edit_add_heatnetwork_space_heating(project_dict, cold_water_source)
         edit_heatnetwork_space_heating_distribution_system(project_dict)
+        edit_storagetank(project_dict, cold_water_source, TFA)
     else:
         edit_add_default_space_heating_system(project_dict, design_capacity_overall)
         edit_default_space_heating_distribution_system(project_dict, design_capacity_dict)
-        edit_daily_losses(project_dict)
-
+        edit_storagetank(project_dict, cold_water_source, TFA)
 
 def edit_air_conditioning(project_dict):
     if project_dict['PartO_air_conditioning_needed']:
