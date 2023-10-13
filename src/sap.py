@@ -36,6 +36,7 @@ def run_project(
         fhs_FEE_notA_assumptions=False,
         fhs_FEE_notB_assumptions=False,
         heat_balance=False,
+        detailed_output_heating_cooling=False,
         use_fast_solver=False,
         ):
     file_name = os.path.splitext(os.path.basename(inp_filename))[0]
@@ -86,7 +87,7 @@ def run_project(
         shutil.copy2(inp_filename, results_folder)
         return # Skip actual calculation if preproc only option has been selected
 
-    project = Project(project_dict, heat_balance, use_fast_solver)
+    project = Project(project_dict, heat_balance, detailed_output_heating_cooling, use_fast_solver)
 
     # Calculate static parameters and output
     heat_trans_coeff, heat_loss_param = project.calc_HTC_HLP()
@@ -104,7 +105,8 @@ def run_project(
     timestep_array, results_totals, results_end_user, \
         energy_import, energy_export, energy_generated_consumed, betafactor, \
         zone_dict, zone_list, hc_system_dict, hot_water_dict, heat_cop_dict, cool_cop_dict, \
-        ductwork_gains, heat_balance_dict \
+        ductwork_gains, heat_balance_dict, heat_source_wet_results_dict, \
+        heat_source_wet_results_annual_dict \
         = project.run()
 
     write_core_output_file(
@@ -132,6 +134,26 @@ def run_project(
                 timestep_array,
                 hour_per_step,
                 hb_dict,
+                )
+
+    if detailed_output_heating_cooling:
+        for heat_source_wet_name, heat_source_wet_results in heat_source_wet_results_dict.items():
+            heat_source_wet_output_file \
+                = output_file_name_stub + 'results_heat_source_wet__' \
+                + heat_source_wet_name + '.csv'
+            write_heat_source_wet_output_file(
+                heat_source_wet_output_file,
+                timestep_array,
+                heat_source_wet_results,
+                )
+        for heat_source_wet_name, heat_source_wet_results_annual \
+            in heat_source_wet_results_annual_dict.items():
+            heat_source_wet_output_file \
+                = output_file_name_stub + 'results_heat_source_wet_summary__' \
+                + heat_source_wet_name + '.csv'
+            write_heat_source_wet_summary_output_file(
+                heat_source_wet_output_file,
+                heat_source_wet_results_annual,
                 )
 
     # Sum per-timestep figures as needed
@@ -239,6 +261,41 @@ def write_heat_balance_output_file(
         writer.writerow(headings)
         writer.writerow(units_row)
         writer.writerows(rows)
+
+def write_heat_source_wet_output_file(output_file, timestep_array, heat_source_wet_results):
+
+    # Repeat column headings for each service
+    col_headings = ['Timestep count']
+    col_units_row = ['']
+    columns = {}
+    for service_name, service_results in heat_source_wet_results.items():
+        columns[service_name] = [col for col in service_results.keys()]
+        col_headings += [col_heading for col_heading, _ in columns[service_name]]
+        col_units_row += [col_unit for _, col_unit in columns[service_name]]
+
+    with open(output_file, 'w') as f:
+        writer = csv.writer(f)
+
+        # Write column headings and units
+        writer.writerow(col_headings)
+        writer.writerow(col_units_row)
+
+        # Write rows
+        for t_idx in range(0, len(timestep_array)):
+            row = [t_idx]
+            for service_name, service_results in heat_source_wet_results.items():
+                row += [service_results[col][t_idx] for col in columns[service_name]]
+            writer.writerow(row)
+
+def write_heat_source_wet_summary_output_file(output_file, heat_source_wet_results_annual):
+    with open(output_file, 'w') as f:
+        writer = csv.writer(f)
+
+        for service_name, service_results in heat_source_wet_results_annual.items():
+            writer.writerow((service_name,))
+            for name, value in service_results.items():
+                writer.writerow((name[0], name[1], value))
+            writer.writerow('')
 
 def write_core_output_file(
         output_file,
@@ -605,6 +662,15 @@ if __name__ == '__main__':
         help='output heat balance for each zone',
         )
     parser.add_argument(
+        '--detailed-output-heating-cooling',
+        action='store_true',
+        default=False,
+        help=('output detailed calculation results for heating and cooling '
+              'system objects (including HeatSourceWet objects) where the '
+              'relevant objects have this functionality'
+              )
+        )
+    parser.add_argument(
         '--no-fast-solver',
         action='store_true',
         default=False,
@@ -626,6 +692,7 @@ if __name__ == '__main__':
     fhs_FEE_notB_assumptions = cli_args.future_homes_standard_FEE_notB
     preproc_only = cli_args.preprocess_only
     heat_balance = cli_args.heat_balance
+    detailed_output_heating_cooling = cli_args.detailed_output_heating_cooling
     use_fast_solver = not cli_args.no_fast_solver
 
     if epw_filename is not None:
@@ -650,6 +717,7 @@ if __name__ == '__main__':
                 fhs_FEE_notA_assumptions,
                 fhs_FEE_notB_assumptions,
                 heat_balance,
+                detailed_output_heating_cooling,
                 use_fast_solver,
                 )
     else:
@@ -663,6 +731,7 @@ if __name__ == '__main__':
               fhs_assumptions,
               fhs_FEE_assumptions,
               heat_balance,
+              detailed_output_heating_cooling,
               use_fast_solver,
             )
             for inpfile in inp_filenames
