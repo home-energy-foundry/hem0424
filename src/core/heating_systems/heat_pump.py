@@ -1148,6 +1148,7 @@ class HeatPump:
             external_conditions,
             throughput_exhaust_air=None,
             heat_network=None,
+            output_detailed_results=False,
             ):
         """ Construct a HeatPump object
 
@@ -1212,6 +1213,8 @@ class HeatPump:
         throughput_exhaust_air -- throughput (litres / second) of exhaust air
         heat_network -- reference to EnergySupply object representing heat network
                         (for HPs that use heat network as heat source)
+        output_detailed_results -- if true, save detailed results from each timestep
+                                   for later reporting
 
         Other variables:
         energy_supply_connections
@@ -1301,6 +1304,12 @@ class HeatPump:
             if 55.0 in self.__test_data._HeatPumpTestData__dsgn_flow_temps:
                 self.__temp_min_modulation_rate_high = 55.0
                 self.__min_modulation_rate_55 = float(hp_dict['min_modulation_rate_55'])
+
+        # If detailed results are to be output, initialise list
+        if output_detailed_results:
+            self.__detailed_results = []
+        else:
+            self.__detailed_results = None
 
     def source_is_exhaust_air(self):
         return SourceType.is_exhaust_air(self.__source_type)
@@ -1826,14 +1835,27 @@ class HeatPump:
         #      system object. For now, assume 100% efficiency
         energy_input_backup = energy_delivered_backup
 
+        # Energy used by pumps
+        energy_heating_circ_pump \
+            = time_running_current_service * self.__power_heating_circ_pump
+        energy_source_circ_pump \
+            = time_running_current_service * self.__power_source_circ_pump
+
         # Calculate total energy delivered and input
         energy_delivered_total = energy_delivered_HP + energy_delivered_backup
-        energy_input_total = energy_input_HP + energy_input_backup
+        energy_input_total \
+            = energy_input_HP + energy_input_backup \
+            + energy_heating_circ_pump + energy_source_circ_pump
 
-        return energy_delivered_total, energy_input_total, {
+        return {
             'service_name': service_name,
             'service_type': service_type,
             'service_on': service_on,
+            'energy_output_required': energy_output_required,
+            'temp_output': temp_output,
+            'temp_source': temp_source,
+            'cop_op_cond': cop_op_cond,
+            'thermal_capacity_op_cond': thermal_capacity_op_cond,
             'time_running': time_running_current_service,
             'deg_coeff_op_cond': deg_coeff_op_cond,
             'compressor_power_min_load': compressor_power_min_load,
@@ -1844,6 +1866,12 @@ class HeatPump:
             'energy_input_HP_divisor': energy_input_HP_divisor,
             'energy_input_HP': energy_input_HP,
             'energy_delivered_HP': energy_delivered_HP,
+            'energy_input_backup': energy_input_backup,
+            'energy_delivered_backup': energy_delivered_backup,
+            'energy_input_total': energy_input_total,
+            'energy_delivered_total': energy_delivered_total,
+            'energy_heating_circ_pump': energy_heating_circ_pump,
+            'energy_source_circ_pump': energy_source_circ_pump,
             }
 
     def __demand_energy(
@@ -1863,8 +1891,7 @@ class HeatPump:
 
         Note: Call via a HeatPumpService object, not directly.
         """
-        energy_delivered_total, energy_input_total, service_results \
-            = self.__run_demand_energy_calc(
+        service_results = self.__run_demand_energy_calc(
                 service_name,
                 service_type,
                 energy_output_required,
@@ -1883,8 +1910,10 @@ class HeatPump:
             += service_results['time_running']
 
         # Feed/return results to other modules
-        self.__energy_supply_connections[service_name].demand_energy(energy_input_total)
-        return energy_delivered_total
+        self.__energy_supply_connections[service_name].demand_energy(
+            service_results['energy_input_total']
+            )
+        return service_results['energy_delivered_total']
 
     def __running_time_throughput_factor(
             self,
@@ -1905,8 +1934,7 @@ class HeatPump:
 
         # TODO Run HP calculation to get total running time incl space heating,
         #      but do not save space heating running time
-        energy_delivered_total, energy_input_total, service_results \
-            = self.__run_demand_energy_calc(
+        service_results = self.__run_demand_energy_calc(
                 service_name,
                 service_type,
                 energy_output_required,
@@ -1982,15 +2010,10 @@ class HeatPump:
 
             self.__energy_supply_connections[service_name].demand_energy(energy_input_HP)
             self.__service_results[service_no]['energy_input_HP'] += energy_input_HP
+            self.__service_results[service_no]['energy_input_total'] += energy_input_HP
 
     def __calc_auxiliary_energy(self, timestep, time_remaining_current_timestep):
         """ Calculate auxiliary energy according to CALCM-01 - DAHPSE - V2.0_DRAFT13, section 4.7 """
-        # Energy used by pumps
-        # TODO This could be calculated separately for each service and included
-        #      in those totals, rather than auxiliary
-        energy_aux \
-            = self.__total_time_running_current_timestep \
-            * (self.__power_heating_circ_pump + self.__power_source_circ_pump)
 
         # Retrieve control settings for this timestep
         heating_profile_on = False
@@ -2010,19 +2033,24 @@ class HeatPump:
         # TODO Standby power is only relevant when at least one service is
         #      available. Therefore, it could be split between the available
         #      services rather than treated as auxiliary
+        energy_off_mode = 0.0
+        energy_standby = 0.0
+        energy_crankcase_heater_mode = 0.0
         if heating_profile_on:
-            energy_aux \
-               += time_remaining_current_timestep \
-                * (self.__power_standby + self.__power_crankcase_heater_mode)
+            energy_standby = time_remaining_current_timestep * self.__power_standby
+            energy_crankcase_heater_mode \
+                = time_remaining_current_timestep * self.__power_crankcase_heater_mode
         elif not heating_profile_on and water_profile_on:
-            energy_aux += time_remaining_current_timestep * self.__power_standby
+            energy_standby = time_remaining_current_timestep * self.__power_standby
         # Energy used in off mode
         elif not heating_profile_on and not water_profile_on:
-            energy_aux += timestep * self.__power_off_mode
+            energy_off_mode = timestep * self.__power_off_mode
         else:
             sys.exit() # Should never get here.
 
+        energy_aux = energy_standby + energy_crankcase_heater_mode + energy_off_mode
         self.__energy_supply_connection_aux.demand_energy(energy_aux)
+        return energy_standby, energy_crankcase_heater_mode, energy_off_mode
 
     def __extract_energy_from_source(self):
         """ If HP uses heat network as source, calculate energy extracted from heat network """
@@ -2044,14 +2072,153 @@ class HeatPump:
             self.__time_running_continuous = 0.0
 
         self.__calc_ancillary_energy(timestep, time_remaining_current_timestep)
-        self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
+        energy_standby, energy_crankcase_heater_mode, energy_off_mode \
+               = self.__calc_auxiliary_energy(timestep, time_remaining_current_timestep)
 
         if self.__source_type == SourceType.HEAT_NETWORK:
             self.__extract_energy_from_source()
 
+        # If detailed results are to be output, save the results from the current timestep
+        if self.__detailed_results is not None:
+            self.__service_results.append({
+                'energy_standby': energy_standby,
+                'energy_crankcase_heater_mode': energy_crankcase_heater_mode,
+                'energy_off_mode': energy_off_mode,
+                })
+            self.__detailed_results.append(self.__service_results)
+
         # Variables below need to be reset at the end of each timestep.
         self.__total_time_running_current_timestep = 0.0
         self.__service_results = []
+
+    def output_detailed_results(self, hot_water_energy_output):
+        """ Output detailed results of heat pump calculation """
+
+        # Define parameters to output
+        # Second element of each tuple controls whether item is summed for annual total
+        output_parameters = [
+            ('service_name', None, False),
+            ('service_type', None, False),
+            ('service_on', None, False),
+            ('energy_output_required', 'kWh', True),
+            ('temp_output', 'K', False),
+            ('temp_source', 'K', False),
+            ('thermal_capacity_op_cond', 'kW', False),
+            ('cop_op_cond', None, False),
+            ('time_running', 'hours', True),
+            ('load_ratio', None, False),
+            ('hp_operating_in_onoff_mode', None, False),
+            ('energy_delivered_HP', 'kWh', True),
+            ('energy_delivered_backup', 'kWh', True),
+            ('energy_delivered_total', 'kWh', True),
+            ('energy_input_HP', 'kWh', True),
+            ('energy_input_backup', 'kWh', True),
+            ('energy_heating_circ_pump', 'kWh', True),
+            ('energy_source_circ_pump', 'kWh', True),
+            ('energy_input_total', 'kWh', True),
+            ]
+        aux_parameters = [
+            ('energy_standby', 'kWh', True),
+            ('energy_crankcase_heater_mode', 'kWh', True),
+            ('energy_off_mode', 'kWh', True),
+            ]
+
+        results_per_timestep = {'auxiliary': {}}
+        # Report auxiliary parameters (not specific to a service)
+        for parameter, param_unit, _ in aux_parameters:
+            results_per_timestep['auxiliary'][(parameter, param_unit)] = []
+            for t_idx, service_results in enumerate(self.__detailed_results):
+                result = service_results[-1][parameter]
+                results_per_timestep['auxiliary'][(parameter, param_unit)].append(result)
+        # For each service, report required output parameters
+        for service_idx, service_name in enumerate(self.__energy_supply_connections.keys()):
+            results_per_timestep[service_name] = {}
+            # Look up each required parameter
+            for parameter, param_unit, _ in output_parameters:
+                results_per_timestep[service_name][(parameter, param_unit)] = []
+                # Look up value of required parameter in each timestep
+                for t_idx, service_results in enumerate(self.__detailed_results):
+                    result = service_results[service_idx][parameter]
+                    results_per_timestep[service_name][(parameter, param_unit)].append(result)
+            # For water heating service, record hot water energy delivered from tank
+            if self.__detailed_results[0][service_idx]['service_type'] == ServiceType.WATER :
+                # For DHW, need to include storage and primary circuit losses.
+                # Can do this by replacing H4 numerator with total energy
+                # draw-off from hot water cylinder.
+                # TODO Note that the below assumes that there is only one water
+                #      heating service and therefore that all hot water energy
+                #      output is assigned to that service. If the model changes in
+                #      future to allow more than one hot water system, this code may
+                #      need to be revised to handle that scenario.
+                results_per_timestep[service_name][('energy_delivered_H4', 'kWh')] \
+                    = hot_water_energy_output
+            else:
+                # TODO Note that the below assumes there is no buffer tank for
+                #      space heating, which is not currently included in the
+                #      model. If this is included in future, this code will need
+                #      to be revised.
+                results_per_timestep[service_name][('energy_delivered_H4', 'kWh')] \
+                    = results_per_timestep[service_name][('energy_delivered_total', 'kWh')]
+
+        results_annual = {
+            'Overall': {
+                (parameter, param_units): 0.0
+                for parameter, param_units, incl_in_annual in output_parameters
+                if incl_in_annual
+                },
+            'auxiliary': {},
+            }
+        results_annual['Overall'][('energy_delivered_H4', 'kWh')] = 0.0
+        # Report auxiliary parameters (not specific to a service)
+        for parameter, param_unit, incl_in_annual in aux_parameters:
+            if incl_in_annual:
+                results_annual['auxiliary'][(parameter, param_unit)] \
+                    = sum(results_per_timestep['auxiliary'][(parameter, param_unit)])
+        # For each service, report required output parameters
+        for service_idx, service_name in enumerate(self.__energy_supply_connections.keys()):
+            results_annual[service_name] = {}
+            for parameter, param_unit, incl_in_annual in output_parameters:
+                if incl_in_annual:
+                    parameter_annual_total \
+                        = sum(results_per_timestep[service_name][(parameter, param_unit)])
+                    results_annual[service_name][(parameter, param_unit)] = parameter_annual_total
+                    results_annual['Overall'][(parameter, param_unit)] += parameter_annual_total
+            results_annual[service_name][('energy_delivered_H4', 'kWh')] \
+                = sum(results_per_timestep[service_name][('energy_delivered_H4', 'kWh')])
+            results_annual['Overall'][('energy_delivered_H4', 'kWh')] \
+                += results_annual[service_name][('energy_delivered_H4', 'kWh')]
+            # For each service, calculate CoP at different system boundaries
+            self.__calc_service_cop(results_annual[service_name])
+
+        # Calculate overall CoP for all services combined
+        self.__calc_service_cop(results_annual['Overall'])
+
+        return results_per_timestep, results_annual
+
+    def __calc_service_cop(self, results_totals):
+        """ Calculate CoP for whole simulation period for the given service (or overall) """
+        # TODO Add auxiliary energy to overall CoP
+
+        # Calculate CoP at different system boundaries
+        cop_h1_numerator = results_totals[('energy_delivered_HP', 'kWh')]
+        cop_h1_denominator = results_totals[('energy_input_HP', 'kWh')]
+        cop_h2_numerator = cop_h1_numerator
+        cop_h2_denominator \
+            = cop_h1_denominator + results_totals[('energy_source_circ_pump', 'kWh')]
+        cop_h3_numerator \
+            = cop_h2_numerator + results_totals[('energy_delivered_backup', 'kWh')]
+        cop_h3_denominator \
+            = cop_h2_denominator + results_totals[('energy_input_backup', 'kWh')]
+        cop_h4_numerator = results_totals[('energy_delivered_H4', 'kWh')]
+        cop_h4_denominator \
+            = cop_h3_denominator + results_totals[('energy_heating_circ_pump', 'kWh')]
+
+        results_totals[('CoP (H1)', None)] = cop_h1_numerator / cop_h1_denominator
+        results_totals[('CoP (H2)', None)] = cop_h2_numerator / cop_h2_denominator
+        results_totals[('CoP (H3)', None)] = cop_h3_numerator / cop_h3_denominator
+        results_totals[('CoP (H4)', None)] = cop_h4_numerator / cop_h4_denominator
+
+        return results_totals
 
 
 class HeatPump_HWOnly:
