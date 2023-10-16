@@ -2191,17 +2191,21 @@ class HeatPump:
             self.__calc_service_cop(results_annual[service_name])
 
         # Calculate overall CoP for all services combined
-        self.__calc_service_cop(results_annual['Overall'])
+        self.__calc_service_cop(results_annual['Overall'], results_annual['auxiliary'])
 
         return results_per_timestep, results_annual
 
-    def __calc_service_cop(self, results_totals):
+    def __calc_service_cop(self, results_totals, results_auxiliary=None):
         """ Calculate CoP for whole simulation period for the given service (or overall) """
-        # TODO Add auxiliary energy to overall CoP
+        # Add auxiliary energy to overall CoP
+        if results_auxiliary is not None:
+            energy_auxiliary = sum(result for result in results_auxiliary.values())
+        else:
+            energy_auxiliary = 0.0
 
         # Calculate CoP at different system boundaries
         cop_h1_numerator = results_totals[('energy_delivered_HP', 'kWh')]
-        cop_h1_denominator = results_totals[('energy_input_HP', 'kWh')]
+        cop_h1_denominator = results_totals[('energy_input_HP', 'kWh')] + energy_auxiliary
         cop_h2_numerator = cop_h1_numerator
         cop_h2_denominator \
             = cop_h1_denominator + results_totals[('energy_source_circ_pump', 'kWh')]
@@ -2213,10 +2217,11 @@ class HeatPump:
         cop_h4_denominator \
             = cop_h3_denominator + results_totals[('energy_heating_circ_pump', 'kWh')]
 
+        cop_h4_note = 'Note: For water heating services, only valid when HP is only heat source'
         results_totals[('CoP (H1)', None)] = cop_h1_numerator / cop_h1_denominator
         results_totals[('CoP (H2)', None)] = cop_h2_numerator / cop_h2_denominator
         results_totals[('CoP (H3)', None)] = cop_h3_numerator / cop_h3_denominator
-        results_totals[('CoP (H4)', None)] = cop_h4_numerator / cop_h4_denominator
+        results_totals[('CoP (H4)', cop_h4_note)] = cop_h4_numerator / cop_h4_denominator
 
         return results_totals
 
