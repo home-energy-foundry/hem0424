@@ -1012,6 +1012,7 @@ class Project:
             if space_heater_type == 'InstantElecHeater':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn_name = name
                 energy_supply_conn = energy_supply.connection(name)
 
                 space_heater = InstantElecHeater(
@@ -1024,6 +1025,7 @@ class Project:
             elif space_heater_type == 'ElecStorageHeater':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn_name = name
                 energy_supply_conn = energy_supply.connection(name)
 
                 space_heater = ElecStorageHeater(
@@ -1051,10 +1053,11 @@ class Project:
                     charge_control,
                 )
             elif space_heater_type == 'WetDistribution':
+                energy_supply_conn_name = data['HeatSource']['name'] + '_space_heating: ' + name
                 heat_source = self.__heat_sources_wet[data['HeatSource']['name']]
                 if isinstance(heat_source, HeatPump):
                     heat_source_service = heat_source.create_service_space_heating(
-                        data['HeatSource']['name'] + '_space_heating: ' + name,
+                        energy_supply_conn_name,
                         data['HeatSource']['temp_flow_limit_upper'],
                         data['temp_diff_emit_dsgn'],
                         ctrl,
@@ -1065,17 +1068,17 @@ class Project:
 
                 elif isinstance(heat_source, Boiler):
                     heat_source_service = heat_source.create_service_space_heating(
-                        data['HeatSource']['name'] + '_space_heating: ' + name,
+                        energy_supply_conn_name,
                         ctrl,
                         )
                 elif isinstance(heat_source, HeatNetwork):
                     heat_source_service = heat_source.create_service_space_heating(
-                        data['HeatSource']['name'] + '_space_heating: ' + name,
+                        energy_supply_conn_name,
                         ctrl,
                         )
                 elif isinstance(heat_source, HeatBattery):
                     heat_source_service = heat_source.create_service_space_heating(
-                        data['HeatSource']['name'] + '_space_heating: ' + name,
+                        energy_supply_conn_name,
                         ctrl,
                         )
                 else:
@@ -1096,10 +1099,11 @@ class Project:
                     self.__simtime,
                     )
             elif space_heater_type == 'WarmAir':
+                energy_supply_conn_name = data['HeatSource']['name'] + '_space_heating: ' + name
                 heat_source = self.__heat_sources_wet[data['HeatSource']['name']]
                 if isinstance(heat_source, HeatPump):
                     space_heater = heat_source.create_service_space_heating_warm_air(
-                        data['HeatSource']['name'] + '_space_heating: ' + name,
+                        energy_supply_conn_name,
                         ctrl,
                         data['frac_convective']
                         )
@@ -1113,15 +1117,19 @@ class Project:
                 sys.exit(name + ': space heating system type (' \
                        + space_heater_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
-            return space_heater
+
+            return space_heater, energy_supply_conn_name
 
         # If one or more space heating systems have been provided, add them to the project
         self.__space_heat_systems = {}
+        self.__energy_supply_conn_name_for_space_heat_system = {}
         # If no space heating systems have been provided, then skip. This
         # facilitates running the simulation with no heating systems at all
         if 'SpaceHeatSystem' in proj_dict:
             for name, data in proj_dict['SpaceHeatSystem'].items():
-                self.__space_heat_systems[name] = dict_to_space_heat_system(name, data)
+                self.__space_heat_systems[name], \
+                    self.__energy_supply_conn_name_for_space_heat_system[name] \
+                    = dict_to_space_heat_system(name, data)
 
         def dict_to_space_cool_system(name, data):
             if 'Control' in data.keys():
@@ -1134,6 +1142,7 @@ class Project:
             if cooling_system_type == 'AirConditioning':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn_name = name
                 energy_supply_conn = energy_supply.connection(name)
 
                 cooling_system = AirConditioning(
@@ -1146,14 +1155,18 @@ class Project:
                    )
             else:
                 sys.exit(name + ': CoolSystem type not recognised')
-            return cooling_system
+
+            return cooling_system, energy_supply_conn_name
 
         self.__space_cool_systems = {}
+        self.__energy_supply_conn_name_for_space_cool_system = {}
         # If no space cooling systems have been provided, then skip. This
         # facilitates running the simulation with no cooling systems at all
         if 'SpaceCoolSystem' in proj_dict:
             for name, data in proj_dict['SpaceCoolSystem'].items():
-                self.__space_cool_systems[name] = dict_to_space_cool_system(name, data)
+                self.__space_cool_systems[name], \
+                    self.__energy_supply_conn_name_for_space_cool_system[name] \
+                    = dict_to_space_cool_system(name, data)
 
         def dict_to_on_site_generation(name, data):
             """ Parse dictionary of on site generation data and
@@ -1752,11 +1765,11 @@ class Project:
                     )
                 
                 if h_name is None:
-                    space_heat_demand_system[h_name] = 'n/a'
-                    space_heat_provided[h_name] = 'n/a'
+                    space_heat_demand_system[h_name] = 0.0
+                    space_heat_provided[h_name] = 0.0
                 if c_name is None:
-                    space_cool_demand_system[c_name] = 'n/a'
-                    space_cool_provided[c_name] = 'n/a'
+                    space_cool_demand_system[c_name] = 0.0
+                    space_cool_provided[c_name] = 0.0
 
                 internal_air_temp[z_name] = zone.temp_internal_air()
                 operative_temp[z_name] = zone.temp_operative()
@@ -1956,12 +1969,53 @@ class Project:
             energy_export[name] = supply.get_energy_export()
             energy_generated_consumed[name] = supply.get_energy_generated_consumed()
             betafactor[name] = supply.get_beta_factor()
+
+        heat_cop_dict = self.__heat_cool_cop(
+            space_heat_provided_dict,
+            results_end_user,
+            self.__energy_supply_conn_name_for_space_heat_system
+            )
+        cool_cop_dict = self.__heat_cool_cop(
+            space_cool_provided_dict,
+            results_end_user,
+            self.__energy_supply_conn_name_for_space_cool_system
+            )
+
         return \
             timestep_array, results_totals, results_end_user, \
             energy_import, energy_export, energy_generated_consumed, betafactor, \
-            zone_dict, zone_list, hc_system_dict, hot_water_dict, \
+            zone_dict, zone_list, hc_system_dict, hot_water_dict, heat_cop_dict, cool_cop_dict, \
             ductwork_gains_dict, heat_balance_all_dict, \
             heat_source_wet_results_dict, heat_source_wet_results_annual_dict
+
+    def __heat_cool_cop(
+            self,
+            space_heat_cool_provided_dict,
+            results_end_user,
+            energy_supply_conn_name_for_space_hc_system,
+            ):
+        """ Calculate overall CoP over calculation period for each heating and cooling system """
+        # Loop over heating systems, get energy output and input, and calculate CoP
+        hc_output_overall = {}
+        hc_input_overall = {}
+        cop_dict = {}
+        for hc_name, hc_output in space_heat_cool_provided_dict.items():
+            if hc_name is None:
+                continue
+            # Take absolute value because cooling system output is reported as a negative value
+            hc_output_overall[hc_name] = abs(sum(hc_output))
+            hc_input_overall[hc_name] = 0.0
+            energy_supply_conn_name = energy_supply_conn_name_for_space_hc_system[hc_name]
+            for fuel_name, fuel_summary in results_end_user.items():
+                if fuel_name == '_unmet_demand':
+                    continue
+                for conn_name, energy_cons in fuel_summary.items():
+                    if conn_name == energy_supply_conn_name:
+                        hc_input_overall[hc_name] += sum(energy_cons)
+
+            cop_dict[hc_name] = hc_output_overall[hc_name] / hc_input_overall[hc_name]
+
+        return cop_dict
 
     def __space_heat_cool_demand_by_system_and_zone(
             self,

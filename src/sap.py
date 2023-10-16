@@ -104,7 +104,7 @@ def run_project(
     # Run main simulation
     timestep_array, results_totals, results_end_user, \
         energy_import, energy_export, energy_generated_consumed, betafactor, \
-        zone_dict, zone_list, hc_system_dict, hot_water_dict,\
+        zone_dict, zone_list, hc_system_dict, hot_water_dict, heat_cop_dict, cool_cop_dict, \
         ductwork_gains, heat_balance_dict, heat_source_wet_results_dict, \
         heat_source_wet_results_annual_dict \
         = project.run()
@@ -172,7 +172,9 @@ def run_project(
         energy_export,
         space_heat_demand_total,
         space_cool_demand_total,
-        total_floor_area
+        total_floor_area,
+        heat_cop_dict,
+        cool_cop_dict,
         )
 
     # Apply required postprocessing steps, if any
@@ -436,7 +438,9 @@ def write_core_output_file_summary(
         energy_export,
         space_heat_demand_total,
         space_cool_demand_total,
-        total_floor_area
+        total_floor_area,
+        heat_cop_dict,
+        cool_cop_dict,
         ):
     # Electricity breakdown
     elec_generated = 0
@@ -538,7 +542,10 @@ def write_core_output_file_summary(
                 new_row[0] = end_use
                 new_row[delivered_energy_rows_title.index(fuel)] = value/total_floor_area
                 delivered_energy_rows.append(new_row)
-    
+
+    heat_cop_rows = [(h_name, h_cop) for h_name, h_cop in heat_cop_dict.items()]
+    cool_cop_rows = [(c_name, c_cop) for c_name, c_cop in cool_cop_dict.items()]
+
     # Note: need to specify newline='' below, otherwise an extra carriage return
     # character is written when running on Windows
     with open(output_file_summary, 'w', newline='') as f:
@@ -568,6 +575,14 @@ def write_core_output_file_summary(
         writer.writerow(['Delivered Energy Summary'])
         writer.writerow(delivered_energy_rows_title)
         writer.writerows(delivered_energy_rows)
+        if heat_cop_rows:
+            writer.writerow([])
+            writer.writerow(['Space heating system', 'Overall CoP'])
+            writer.writerows(heat_cop_rows)
+        if cool_cop_rows:
+            writer.writerow([])
+            writer.writerow(['Space cooling system', 'Overall CoP'])
+            writer.writerows(cool_cop_rows)
 
 
 if __name__ == '__main__':
