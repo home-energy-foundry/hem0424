@@ -91,13 +91,13 @@ def run_project(
 
     # Calculate static parameters and output
     heat_trans_coeff, heat_loss_param = project.calc_HTC_HLP()
-    thermal_mass_param = project.calc_TMP()
+    heat_capacity_param = project.calc_HCP()
     heat_loss_form_factor = project.calc_HLFF()
     write_static_output_file(
         output_file_static,
         heat_trans_coeff,
         heat_loss_param,
-        thermal_mass_param,
+        heat_capacity_param,
         heat_loss_form_factor,
         )
 
@@ -204,14 +204,20 @@ def run_project(
 
     shutil.copy2(inp_filename, results_folder)
 
-def write_static_output_file(output_file, heat_trans_coeff, heat_loss_param, thermal_mass_param,heat_loss_form_factor):
+def write_static_output_file(
+        output_file,
+        heat_trans_coeff,
+        heat_loss_param,
+        heat_capacity_param,
+        heat_loss_form_factor,
+        ):
     # Note: need to specify newline='' below, otherwise an extra carriage return
     # character is written when running on Windows
     with open(output_file, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['Heat transfer coefficient', 'W / K', heat_trans_coeff])
         writer.writerow(['Heat loss parameter', 'W / m2.K', heat_loss_param])
-        writer.writerow(['Thermal mass parameter', 'kJ / m2.K', thermal_mass_param])
+        writer.writerow(['Heat capacity parameter', 'kJ / m2.K', heat_capacity_param])
         writer.writerow(['Heat loss form factor','',heat_loss_form_factor])
 
 def write_heat_balance_output_file(
