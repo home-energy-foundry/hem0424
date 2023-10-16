@@ -41,7 +41,9 @@ class PointOfUse:
         water_energy_demand = misc.water_demand_to_kWh(volume_demanded, demand_temp, self.__cold_feed.temperature())
         
         energy_used = self.demand_energy(water_energy_demand)
-        return
+
+        # Assumption is that system specified has sufficient capacity to meet any realistic demand
+        return energy_used
 
     def demand_energy(self, energy_demand):
         """ Demand energy (in kWh) from the heater """
