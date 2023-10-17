@@ -1623,10 +1623,10 @@ class HeatPump:
         # backup heater can provide more energy than heat pump. This assumption
         # is required to make the maximum energy output of the system
         # predictable before the demand is known.
-        if (   self.__backup_ctrl != BackupCtrlType.TOPUP 
+        if (   self.__backup_ctrl == BackupCtrlType.TOPUP 
            and self.__backup_heater_delay_time_elapsed()
            ) \
-        or (   self.__backup_ctrl != BackupCtrlType.SUBSTITUTE
+        or (   self.__backup_ctrl == BackupCtrlType.SUBSTITUTE
            and self.__backup_heater_delay_time_elapsed()
            and self.__power_max_backup > thermal_capacity_op_cond
            ):
