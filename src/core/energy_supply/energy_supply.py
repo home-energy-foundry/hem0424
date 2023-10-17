@@ -105,6 +105,9 @@ class EnergySupply:
         self.__beta_factor = self.__init_demand_list() #this would be multiple columns if multiple beta factors
         self.__supply_surplus = self.__init_demand_list()
         self.__demand_not_met = self.__init_demand_list()
+        self.__energy_into_battery = self.__init_demand_list()
+        self.__energy_out_of_battery = self.__init_demand_list()
+        self.__energy_diverted = self.__init_demand_list()
         self.__energy_generated_consumed = self.__init_demand_list()
 
     def __init_demand_list(self):
@@ -199,6 +202,14 @@ class EnergySupply:
         """ Return the amount of generated energy consumed in the building for all timesteps """
         return self.__energy_generated_consumed
 
+    def get_energy_to_from_battery(self):
+        """ Return the amount of generated energy sent to battery and drawn from battery """
+        return self.__energy_into_battery, self.__energy_out_of_battery
+
+    def get_energy_diverted(self):
+        """ Return the amount of generated energy diverted to minimise export """
+        return self.__energy_diverted
+
     def get_beta_factor(self):
         return self.__beta_factor
 
@@ -239,12 +250,15 @@ class EnergySupply:
             #      revise in future if more evidence becomes available.
             energy_out_of_battery = self.__elec_battery.charge_discharge_battery(supply_surplus)
             supply_surplus -= energy_out_of_battery
+            self.__energy_into_battery[t_idx] = - energy_out_of_battery
             energy_out_of_battery = self.__elec_battery.charge_discharge_battery(demand_not_met)
             demand_not_met -= energy_out_of_battery
+            self.__energy_out_of_battery[t_idx] = - energy_out_of_battery
 
         if self.__diverter is not None:
             # Divert as much surplus energy as possible, and calculate remaining surplus
-            supply_surplus += self.__diverter.divert_surplus(supply_surplus)
+            self.__energy_diverted[t_idx] = self.__diverter.divert_surplus(supply_surplus)
+            supply_surplus += self.__energy_diverted[t_idx]
 
         self.__supply_surplus[t_idx] += supply_surplus
         self.__demand_not_met[t_idx] += demand_not_met

@@ -1979,6 +1979,9 @@ class Project:
         energy_import = {}
         energy_export = {}
         energy_generated_consumed = {}
+        energy_to_storage = {}
+        energy_from_storage = {}
+        energy_diverted = {}
         betafactor = {}
         for name, supply in self.__energy_supplies.items():
             results_totals[name] = supply.results_total()
@@ -1986,6 +1989,8 @@ class Project:
             energy_import[name] = supply.get_energy_import()
             energy_export[name] = supply.get_energy_export()
             energy_generated_consumed[name] = supply.get_energy_generated_consumed()
+            energy_to_storage[name], energy_from_storage[name] = supply.get_energy_to_from_battery()
+            energy_diverted[name] = supply.get_energy_diverted()
             betafactor[name] = supply.get_beta_factor()
 
         hot_water_energy_out = {'hw cylinder': hot_water_energy_output_dict['energy_output']}
@@ -2007,7 +2012,8 @@ class Project:
 
         return \
             timestep_array, results_totals, results_end_user, \
-            energy_import, energy_export, energy_generated_consumed, betafactor, \
+            energy_import, energy_export, energy_generated_consumed, \
+            energy_to_storage, energy_from_storage, energy_diverted, betafactor, \
             zone_dict, zone_list, hc_system_dict, hot_water_dict, \
             heat_cop_dict, cool_cop_dict, dhw_cop_dict, \
             ductwork_gains_dict, heat_balance_all_dict, \
