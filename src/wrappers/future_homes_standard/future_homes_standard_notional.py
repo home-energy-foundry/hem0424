@@ -116,8 +116,8 @@ def edit_infiltration(project_dict,is_notA):
     '''
     Apply Notional infiltration specifications
     
-    Notional option A pressure test result at 50Pa = 4 ACH
-    Notional option B pressure test result at 50Pa = 5 ACH
+    Notional option A pressure test result at 50Pa = 4 m3/h.m2
+    Notional option B pressure test result at 50Pa = 5 m3/h.m2
     All passive openings count are set to zero
     Mechanical extract fans count follows the Actual dwelling,
     with the exception that there must be at least one per wet room
@@ -129,8 +129,14 @@ def edit_infiltration(project_dict,is_notA):
     else:
         test_result = 5
     
+    #c onvert from air permeability to ach
+    test_result_ach \
+        = test_result \
+        * project_dict['Infiltration']['env_area'] \
+        / project_dict['Infiltration']['volume']
+    
     project_dict['Infiltration']['test_type'] = '50Pa'
-    project_dict['Infiltration']['test_result'] = test_result
+    project_dict['Infiltration']['test_result'] = test_result_ach
     
     #all openings set to 0
     openings = ['open_chimneys','open_flues','closed_fire','flues_d',
