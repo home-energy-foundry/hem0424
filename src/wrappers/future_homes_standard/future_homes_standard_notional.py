@@ -13,8 +13,11 @@ from copy import deepcopy
 from core.project import Project
 from core.space_heat_demand.building_element import BuildingElement, HeatFlowDirection
 import core.units as units
-from wrappers.future_homes_standard.future_homes_standard import calc_TFA, livingroom_setpoint_fhs, restofdwelling_setpoint_fhs
+from wrappers.future_homes_standard.future_homes_standard import calc_TFA, livingroom_setpoint_fhs, restofdwelling_setpoint_fhs, energysupplyname_electricity
 
+# Default names
+notional_HIU = 'notionalHIU'
+notional_HP = 'notional_HP'
 
 def apply_fhs_not_preprocessing(project_dict,
                                 fhs_notA_assumptions,
@@ -22,13 +25,16 @@ def apply_fhs_not_preprocessing(project_dict,
                                 fhs_FEE_notA_assumptions,
                                 fhs_FEE_notB_assumptions):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard Notional building """
-    
+
     is_notA = fhs_notA_assumptions or fhs_FEE_notA_assumptions
     is_FEE  = fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions
 
     # Determine cold water source
-    for cold_water_type in project_dict['ColdWaterSource'].keys():
-        cold_water_source = cold_water_type
+    cold_water_type = list(project_dict['ColdWaterSource'].keys())
+    if len(cold_water_type) == 1:
+        cold_water_source = cold_water_type[0]
+    else:
+        sys.exit('Error: There should be exactly one cold water type')
 
     # Determine the TFA
     TFA = calc_TFA(project_dict)
@@ -41,6 +47,9 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_thermal_bridging(project_dict)
 
     # Set initial temperature set point for all zones
+    # This is need to initialise the project object to get the HTC and HLP,
+    # but does not make a difference to results as a new Project objecct will
+    # be created later with initial temperatures set by the FHS wrapper.
     initialise_temperature_setpoints(project_dict)
 
     # Create a Project instance
@@ -55,7 +64,6 @@ def apply_fhs_not_preprocessing(project_dict,
     # Edit space heating system
     edit_space_heating_system(
         project_dict,
-        is_FEE,
         cold_water_source,
         design_capacity_dict,
         design_capacity_overall,
@@ -108,8 +116,6 @@ def edit_lighting_efficacy(project_dict):
     for zone in project_dict["Zone"]:
         if "Lighting"  not in project_dict["Zone"][zone].keys():
             sys.exit("missing lighting in zone "+ zone)
-        if "efficacy" not in project_dict["Zone"][zone]["Lighting"].keys():
-            sys.exit("missing lighting efficacy in zone "+ zone)
         project_dict["Zone"][zone]["Lighting"]["efficacy"] = lighting_efficacy
 
 def edit_infiltration(project_dict,is_notA):
@@ -145,7 +151,7 @@ def edit_infiltration(project_dict,is_notA):
         sys.exit("missing NumberOfWetRooms - required for FHS notional building")
     else:
         wet_rooms_count = project_dict["NumberOfWetRooms"]
-    if wet_rooms_count == 0:
+    if wet_rooms_count <= 1:
         sys.exit('invalid/missing NumberOfWetRooms')
     if project_dict['Infiltration']['extract_fans'] < wet_rooms_count:
         project_dict['Infiltration']['extract_fans'] = wet_rooms_count
@@ -212,32 +218,31 @@ def edit_transparent_element(project_dict, TFA):
     
     total_window_area = 0
     total_rooflight_area = 0
-    average_roof_light_u_value = 0
+    sum_uval_times_area = 0
     for zone in project_dict['Zone'].values():
         for building_element_name, building_element in zone['BuildingElement'].items():
-            if building_element['type'] == 'BuildingElementTransparent': 
-                if not 'is_roof_light' in building_element.keys():
-                    sys.exit('Missing input /"is_roof_light/" in transparent element: {building_element_name}')
-                if building_element['is_roof_light'] == False:
+            if building_element['type'] == 'BuildingElementTransparent':
+                if BuildingElement.pitch_class(building_element['pitch']) == \
+                     HeatFlowDirection.UPWARDS:
+                    #rooflight
+                    rooflight_area = building_element['height'] * building_element['width']
+                    total_rooflight_area += rooflight_area
+                    sum_uval_times_area += building_element['u_value'] * rooflight_area
+                    building_element['u_value'] = 1.7
+                    building_element.pop('r_c', None)
+
+                else:
                     #if it is not a roof light, it is a glazed door or window
                     total_window_area += building_element['height'] * building_element['width']
                     building_element['u_value'] = 1.2
                     building_element.pop('r_c', None)
-                elif building_element['is_roof_light'] == True:
-                    #rooflight
-                    rooflight_area = building_element['height'] * building_element['width']
-                    total_rooflight_area += rooflight_area
-                    average_roof_light_u_value += building_element['u_value'] * rooflight_area
-                    building_element['u_value'] = 1.7
-                    building_element.pop('r_c', None)
+
     
     if total_rooflight_area != 0:
         #avoid divided by 0 if there are no rooflights
-        average_roof_light_u_value /= total_rooflight_area
+        average_roof_light_u_value = sum_uval_times_area / total_rooflight_area
         max_rooflight_area_red_factor = total_rooflight_area / TFA * ((average_roof_light_u_value - 1.2)/1.2)
         max_rooflight_area = TFA*0.25*max_rooflight_area_red_factor
-        if total_rooflight_area > max_rooflight_area:
-            correct_transparent_area(project_dict, total_rooflight_area, max_rooflight_area, is_rooflight = True)
     
     max_window_area = 0.25 * TFA
     if total_window_area > max_window_area:
@@ -251,37 +256,35 @@ def correct_transparent_area(project_dict, total_area, max_area, is_rooflight = 
     '''
     #window_reduction_factor is applied to both height and width (hence sqrt)
     #to preserve similar geometry as in the actual dwelling
-    if is_rooflight == False:
-        area_reduction_factor = math.sqrt(max_area / total_area)
-        for zone in project_dict['Zone'].values():
-            for building_element_name, building_element in \
-            zone['BuildingElement'].items():
-                if building_element['type'] == 'BuildingElementTransparent':
-                    old_area = building_element['height'] * building_element['width']
-                    building_element['height'] = area_reduction_factor * building_element['height']
-                    building_element['width'] = area_reduction_factor * building_element['width']
-                    new_area = building_element['height'] * building_element['width']
-                    
-                    #add the window area difference to the external wall it belongs to
-                    #TODO confirm how to deal with curtain walls
-                    area_diff = old_area - new_area
-                    if 'opaque_support' not in building_element.keys():
-                        sys.exit(f'missing element opaque_support in transparent element {building_element_name}')
-                    wall_name = building_element['opaque_support']
-                    if wall_name in zone['BuildingElement'].keys():
-                        zone['BuildingElement'][wall_name]['area'] += area_diff
-                    elif wall_name != 'curtain wall':
-                        sys.exit(f'Unrecognised opaque_support: \"{wall_name}\". ' +\
-                                 'Options are: an existing opaque element name or \"curtain wall\"')
+    linear_reduction_factor = math.sqrt(max_area / total_area)
+    for zone in project_dict['Zone'].values():
+        for building_element_name, building_element in \
+        zone['BuildingElement'].items():
+            if building_element['type'] == 'BuildingElementTransparent':
+                old_area = building_element['height'] * building_element['width']
+                building_element['height'] = linear_reduction_factor * building_element['height']
+                building_element['width'] = linear_reduction_factor * building_element['width']
+                new_area = building_element['height'] * building_element['width']
+                
+                #add the window area difference to the external wall it belongs to
+                area_diff = old_area - new_area
+                if 'opaque_support' not in building_element.keys():
+                    sys.exit('missing element opaque_support in transparent element {building_element_name}')
+                wall_name = building_element['opaque_support']
+                if wall_name in zone['BuildingElement'].keys():
+                    zone['BuildingElement'][wall_name]['area'] += area_diff
+                elif wall_name != 'curtain wall':
+                    sys.exit('Unrecognised opaque_support: \"{wall_name}\". ' +\
+                             'Options are: an existing opaque element name or \"curtain wall\"')
 
 def edit_ground_floors(project_dict):
     '''
     Apply notional building ground specifications
     u-value = 0.13 W/m2.K
-    ground thermal resistance, r_f = 6.12 m2.K/W
+    thermal resistance of the floor construction,excluding the ground, r_f = 6.12 m2.K/W
     linear thermal transmittance, psi_wall_floor_junc = 0.16 W/m.K
     
-    TODO - waiting from DELUHC/DESNZ for clarification if basement floors and basement walls are treated the same
+    TODO - waiting from DLUHC/DESNZ for clarification if basement floors and basement walls are treated the same
     '''
     for zone in project_dict['Zone'].values():
         for building_element_name, building_element in zone['BuildingElement'].items():
@@ -351,40 +354,21 @@ def edit_thermal_bridging(project_dict):
                 elif thermal_bridge['type'] == 'ThermalBridgeLinear':
                     junction_type = thermal_bridge['junction_type']
                     if not junction_type in table_R2.keys():
-                        sys.exit(f'Invalid linear thermal bridge \"junction_type\": {junction_type}. \
+                        sys.exit('Invalid linear thermal bridge \"junction_type\": {junction_type}. \
                         Option must be one available in SAP10.2 Table R2')
                     thermal_bridge['linear_thermal_transmittance'] = table_R2[junction_type]
 
-def edit_FEE_space_heating(project_dict):
-    '''
-    Apply space heating system to notional building for FEE caluclation
-    
-    TODO - the specifications spreadsheet mentions a control class 2,
-    but it's not applicable for non-wet ditribution systems.
-    the spreadsheet also specifies a set back temp, which is odd with direct electric 
-    Awaiting clarifications from DELUHC/DESNZ
-    '''
-    
-    for space_heating_name, space_heating in project_dict['SpaceHeatSystem'].items():
-        project_dict['SpaceHeatSystem'].pop(space_heating_name)
-        project_dict['SpaceHeatSystem'][space_heating_name] = {
-            "type": "InstantElecHeater",
-            "rated_power": 10000.0,
-            "frac_convective": 0.95,
-            "temp_setback": 18.0,
-            "EnergySupply": "mains elec"
-            }
 
-def edit_add_heatnetwork_space_heating(project_dict, cold_water_source):
+def edit_add_heatnetwork_heating(project_dict, cold_water_source):
     '''
     Apply heat network settings to notional building calculation in project_dict.
     '''
+    heat_network_name = "_notional_heat_network"
 
-    # TODO: Specify the details for HeatSourceWet
     project_dict['HeatSourceWet'] = {
-        "HeatNetwork": {
+        notional_HIU: {
             "type": "HIU",
-            "EnergySupply": "heat network",
+            "EnergySupply": heat_network_name,
             "power_max": 45,
             "HIU_daily_loss": 0.8
         }
@@ -394,13 +378,13 @@ def edit_add_heatnetwork_space_heating(project_dict, cold_water_source):
         "hw cylinder": {
             "type": "HIU",
             "ColdWaterSource": cold_water_source,
-            "HeatSourceWet": "HeatNetwork",
+            "HeatSourceWet": notional_HIU,
             "Control": "hw timer"
             }
         }
 
     heat_network_fuel_data = {
-        "heat network": {
+        heat_network_name: {
             "fuel": "custom",
             "factor":{
                 "Emissions Factor kgCO2e/kWh": 0.041,
@@ -410,31 +394,6 @@ def edit_add_heatnetwork_space_heating(project_dict, cold_water_source):
             }
         }
     project_dict['EnergySupply'].update(heat_network_fuel_data)
-
-def edit_heatnetwork_space_heating_distribution_system(project_dict):
-    '''
-    Apply heat network distribution system details to notional building calculation
-    
-    '''
-
-    for zone_name, zone in project_dict['Zone'].items():
-        #TODO currently repeats the same radiator characteristics for both zones
-        space_heating_name = zone['SpaceHeatSystem']
-        heat_network_distribution_details = {
-                "HeatSource": {
-                    "name": "HeatNetwork"
-                },
-                "ecodesign_controller": {
-                    "ecodesign_control_class": 2,
-                    "max_flow_temp": 45,
-                    "max_outdoor_temp": 0,
-                    "min_flow_temp": 25,
-                    "min_outdoor_temp": 20
-                },
-                "temp_setback": 18,
-                "type": "WetDistribution"
-            }
-        project_dict['SpaceHeatSystem'][space_heating_name].update(heat_network_distribution_details)
 
 def edit_add_default_space_heating_system(project_dict, design_capacity_overall):
     '''
@@ -456,7 +415,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
 
     project_dict['HeatSourceWet'] = {}
     space_heating_system = {
-        "hp": {
+        notional_HP: {
             "EnergySupply": "mains elec",
             "backup_ctrl_type": "TopUp",
             "min_modulation_rate_35": 0.4,
@@ -640,7 +599,7 @@ def edit_bath_shower_other(project_dict, cold_water_source):
         "medium": {
             "ColdWaterSource": cold_water_source,
             "flowrate": 12,
-            "size": 170
+            "size": 73
         }
     }
 
@@ -669,20 +628,21 @@ def add_wwhrs(project_dict, cold_water_source, is_notA, is_FEE):
         project_dict['WWHRS'] = {
             "Notional_Inst_WWHRS": {
                 "ColdWaterSource": cold_water_source,
-                "efficiencies": [50, 50, 50, 50, 50],
-                "flow_rates": [5, 7, 8, 11, 13],
+                "efficiencies": [50, 50],
+                "flow_rates": [0, 100],
                 "type": "WWHRS_InstantaneousSystemB",
                 "utilisation_factor": 0.98
             }
         }
 
-def calculate_daily_losses(cylinder_vol, thickness):
-    
-    factory_insulated_coeff = 0.005
-    thickness_coeff = 0.55
-    
+def calculate_daily_losses(cylinder_vol):
+
+    cylinder_loss_constant = 0.005
+    factory_insulated_thickness_coeff = 0.55
+    thickness = 120  # mm
+
     #calculate cylinder factor insulated factor
-    cylinder_factory_insulated = factory_insulated_coeff + thickness_coeff / (thickness + 4.0)
+    cylinder_heat_loss_factor = cylinder_loss_constant + factory_insulated_thickness_coeff / (thickness + 4.0)
 
     # calculate volume factor
     vol_factor = (120 / cylinder_vol) ** (1 / 3)
@@ -691,57 +651,53 @@ def calculate_daily_losses(cylinder_vol, thickness):
     temp_factor = 0.6 * 0.9
 
     # Calculate daily losses
-    daily_losses = cylinder_factory_insulated * vol_factor * temp_factor
+    daily_losses = cylinder_heat_loss_factor * vol_factor * temp_factor
     
     return daily_losses
 
 def edit_storagetank(project_dict, cold_water_source, TFA):
-    # look up cylinder volume
-    thickness = 120  # mm
 
     # TODO Calculate cylinder volume
     cylinder_vol = 215
 
-    # Calculate daily losses and update daily losses in project_dict
-    daily_losses = calculate_daily_losses(cylinder_vol, thickness)
+    # Calculate daily losses
+    daily_losses = calculate_daily_losses(cylinder_vol)
 
-    #modify primary pipework chracteristics
-    primary_pipework_dict = edit_primary_pipework(project_dict, TFA)
-    
-    # check if cylinder in project_dict
+    # Modify primary pipework chracteristics
+    primary_pipework_dict = edit_primary_pipework(project_dict)
+
+    # Modify cylinder characteristics
     project_dict['HotWaterSource']['hw cylinder'] = {}
     project_dict['HotWaterSource']['hw cylinder'] = {
             "ColdWaterSource": cold_water_source,
             "HeatSource": {
-                "hp": {
+                notional_HP: {
                     "ColdWaterSource": cold_water_source,
                     "Control": "hw timer",
                     "EnergySupply": "mains elec",
                     "heater_position": 0.1,
-                    "name": "hp",
-                    "temp_flow_limit_upper": 55,
+                    "name": notional_HP,
+                    "temp_flow_limit_upper": 60,
                     "thermostat_position": 0.1,
                     "type": "HeatSourceWet"
                 }
             },
             "daily_losses": daily_losses,
-            "min_temp": 52.0,
-            "primary_pipework": {
-                "external_diameter": 0.024,
-            },
-            "setpoint_temp": 60.0,
             "type": "StorageTank",
             "volume": cylinder_vol,
             "primary_pipework":primary_pipework_dict
         }
 
-def edit_primary_pipework(project_dict, TFA):
+def edit_primary_pipework(project_dict):
     
     # Define minimum values
-    internal_diameter_mm_min = 0.022
-    external_diameter_mm_min = 0.024
-    length_min =  0.05 * (TFA / 2)
-    insulation_thickness_mm_min = 0.025
+    internal_diameter_mm_min = 22
+    external_diameter_mm_min = 24
+    length_min =  0.05 * project_dict['GroundFloorArea']
+    insulation_thickness_mm_min = 25
+    surface_reflectivity = False
+    pipe_contents = "water"
+    insulation_thermal_conductivity = 0.035
 
     # Update primary pipework object when primary pipework not present
     if 'primary_pipework' not in project_dict['HotWaterSource']['hw cylinder']:
@@ -751,31 +707,31 @@ def edit_primary_pipework(project_dict, TFA):
                 "internal_diameter_mm": internal_diameter_mm_min,
                 "external_diameter_mm": external_diameter_mm_min,
                 "length": length_min,
-                "insulation_thermal_conductivity": 0.035,
+                "insulation_thermal_conductivity": insulation_thermal_conductivity,
                 "insulation_thickness_mm": insulation_thickness_mm_min,
-                "surface_reflectivity": False,
-                "pipe_contents": "water"
+                "surface_reflectivity": surface_reflectivity,
+                "pipe_contents": pipe_contents
             }
 
-    # Update primary pipework object using actual values
-    if 'primary_pipework' in project_dict['HotWaterSource']['hw cylinder']:
+    # Update primary pipework object when primary pipework present
+    else:
         primary_pipework_dict = project_dict['HotWaterSource']['hw cylinder']['primary_pipework']
         length = primary_pipework_dict['length']
         internal_diameter_mm = max(primary_pipework_dict['internal_diameter_mm'], internal_diameter_mm_min)
         external_diameter_mm = max(primary_pipework_dict['external_diameter_mm'], external_diameter_mm_min)
         # update insulation thickness based on internal diameter
-        if internal_diameter_mm > 0.025:
-            insulation_thickness_mm = 0.032
+        if internal_diameter_mm > 25:
+            insulation_thickness_mm_min = 32
 
         # primary pipework dictionary
         primary_pipework_dict = {
                 "internal_diameter_mm": internal_diameter_mm,
                 "external_diameter_mm": external_diameter_mm,
                 "length": length,
-                "insulation_thermal_conductivity": 0.035,
-                "insulation_thickness_mm": insulation_thickness_mm,
-                "surface_reflectivity": False,
-                "pipe_contents": "water"
+                "insulation_thermal_conductivity": insulation_thermal_conductivity,
+                "insulation_thickness_mm": insulation_thickness_mm_min,
+                "surface_reflectivity": surface_reflectivity,
+                "pipe_contents": pipe_contents
             }
     return primary_pipework_dict
 
@@ -783,32 +739,34 @@ def edit_hot_water_distribution_inner(project_dict, TFA):
     # hot water dictionary
     hot_water_distribution_inner_dict = project_dict['Distribution']['internal']
 
+    # Defaults
+    internal_diameter_mm_min = 15
+    external_diameter_mm_min = 17
+    insulation_thickness_mm = 20
+
     # Update length
     length = hot_water_distribution_inner_dict['length']
     length =  min(length, 0.2 * TFA)
 
-    internal_diameter_mm = hot_water_distribution_inner_dict['internal_diameter_mm']
-    internal_diameter_mm_min = 0.015
-    internal_diameter_mm = max(internal_diameter_mm, internal_diameter_mm_min)
-    # update internal diameter if not present
+    # Update internal diameter to minimum if not present and should not be lower than the minimum
     if 'internal_diameter_mm' not in hot_water_distribution_inner_dict:
         internal_diameter_mm = internal_diameter_mm_min
+    internal_diameter_mm = hot_water_distribution_inner_dict['internal_diameter_mm']
+    internal_diameter_mm = max(internal_diameter_mm, internal_diameter_mm_min)
 
-    external_diameter_mm = hot_water_distribution_inner_dict['external_diameter_mm']
-    external_diameter_mm_min = 0.017
-    external_diameter_mm = max(external_diameter_mm, external_diameter_mm_min)
-    # update external diameter if not present
+    # Update external diameter to minimum if not present and should not be lower than the minimum
     if 'external_diameter_mm' not in hot_water_distribution_inner_dict:
         external_diameter_mm = external_diameter_mm_min
+    external_diameter_mm = hot_water_distribution_inner_dict['external_diameter_mm']
+    external_diameter_mm = max(external_diameter_mm, external_diameter_mm_min)
 
     # update insulation thickness based on internal diameter
-    insulation_thickness_mm = 0.020
-    if internal_diameter_mm > 0.025:
-         insulation_thickness_mm = 0.024
+    if internal_diameter_mm > 25:
+         insulation_thickness_mm = 24
 
     hot_water_distribution_inner_dict = {
         "external_diameter_mm": external_diameter_mm,
-        "insulation_thermal_conductivity": 0.035,
+        "insulation_thermal_conductivity": 35,
         "insulation_thickness_mm": insulation_thickness_mm,
         "internal_diameter_mm": internal_diameter_mm,
         "length": length,
@@ -821,12 +779,14 @@ def remove_hot_water_distribution_external(project_dict):
     project_dict['Distribution']['external']['length'] = 0.0
 
 def remove_pv_diverter_if_present(project_dict):
-    if 'diverter' in project_dict['EnergySupply']['mains elec'].keys():
-        del project_dict['EnergySupply']['mains elec']['diverter']
+    for energy_supply_name, energy_supply in project_dict['EnergySupply'].items():
+        if 'diverter' in energy_supply:
+            del project_dict['EnergySupply'][energy_supply_name]['diverter']
 
 def remove_electric_battery_if_present(project_dict):
-    if 'ElectricBattery' in project_dict['EnergySupply']['mains elec'].keys():
-        del project_dict['EnergySupply']['mains elec']['ElectricBattery']
+    for energy_supply_name, energy_supply in project_dict['EnergySupply'].items():
+        if 'ElectricBattery' in energy_supply:
+            del project_dict['EnergySupply'][energy_supply_name]['ElectricBattery']
 
 def minimum_air_change_rate(project_dict, TFA):
     """ Calculate effective air change rate accoring to according to Part F 1.24 a """
@@ -847,8 +807,9 @@ def minimum_air_change_rate(project_dict, TFA):
     elif bedroom_number > 6:
         min_ventilation_rate_b = min_ventilation_rates_b[-1] + (bedroom_number - 5) * 6
 
-    # Calculate air change rate (l/s)/m3
-    minimum_ach = max(min_ventilation_rate_a, min_ventilation_rate_b) / total_volume
+    # Calculate air change rate ACH
+    minimum_ach = ( max(min_ventilation_rate_a, min_ventilation_rate_b) / total_volume ) \
+                    * units.seconds_per_hour * units.litres_per_cubic_metre
 
     return minimum_ach
 
@@ -865,43 +826,36 @@ def edit_ventilation(project_dict, isnotA, minimum_ach):
             'type': 'WHEV',
             'req_ach': req_ach,
             'SFP': 0.15,
-            "EnergySupply": "mains elec"
+            "EnergySupply": energysupplyname_electricity
             }
     else:
         # Natural ventilation
         project_dict['Ventilation'] = {
             'type': 'NatVent',
             'req_ach': req_ach,
-            "EnergySupply": "mains elec"
             }
 
 def edit_space_heating_system(project_dict,
-                              is_FEE,
                               cold_water_source,
                               design_capacity_dict,
                               design_capacity_overall,
                               TFA,
                               ):
-    
-    #check if a heat network is present
+
+    # Check if a heat network is present
     is_heat_network = check_heatnetwork_present(project_dict)
 
-    #FEE calculations - Notional heated with direct electric heaters
-    #if Actual dwelling is heated with heat networks - Notional heated with HIU
-    #otherwise, Notional heated with a air to water heat pump
-    if is_FEE:
-        edit_FEE_space_heating(project_dict)
-    elif is_heat_network:
-        edit_add_heatnetwork_space_heating(project_dict, cold_water_source)
-        edit_heatnetwork_space_heating_distribution_system(project_dict)
-        edit_storagetank(project_dict, cold_water_source, TFA)
+    # If Actual dwelling is heated with heat networks - Notional heated with HIU.
+    # Otherwise, Notional heated with a air to water heat pump
+    if is_heat_network:
+        edit_add_heatnetwork_heating(project_dict, cold_water_source)
     else:
         edit_add_default_space_heating_system(project_dict, design_capacity_overall)
         edit_default_space_heating_distribution_system(project_dict, design_capacity_dict)
         edit_storagetank(project_dict, cold_water_source, TFA)
 
 def edit_air_conditioning(project_dict):
-    if project_dict['PartO_air_conditioning_needed']:
+    if project_dict['PartO_active_cooling_required']:
         for space_cooling_name in project_dict['SpaceCoolSystem'].keys():
             project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 5.1
             project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 0.95
@@ -928,7 +882,7 @@ def set_point_per_zone(zone):
     elif zone['SpaceHeatControl'] == 'restofdwelling':
         set_point = restofdwelling_setpoint_fhs
     else:
-        sys.exit("Setpoint error - invalid zone name ")
+        sys.exit("Setpoint error - SpaceHeatControl name is not applicable")
 
     return set_point
 

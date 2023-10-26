@@ -16,13 +16,14 @@ from core import project, schedule, units
 from core.water_heat_demand.misc import frac_hot_water
 from cmath import log
 from wrappers.future_homes_standard.FHS_HW_events import HW_event_adjust_allocate, HW_events_generator
-from core.space_heat_demand.building_element import BuildingElement, HeatFlowDirection
 
 this_directory = os.path.dirname(os.path.relpath(__file__))
 FHSEMISFACTORS =  os.path.join(this_directory, "FHS_emisPEfactors_07-06-2023.csv")
 emis_factor_name = 'Emissions Factor kgCO2e/kWh'
 emis_oos_factor_name = 'Emissions Factor kgCO2e/kWh including out-of-scope emissions'
 PE_factor_name = 'Primary Energy Factor kWh/kWh delivered'
+
+energysupplyname_electricity = 'mains elec'
 
 appl_obj_name = 'appliances'
 elec_cook_obj_name = 'Eleccooking'
@@ -684,7 +685,7 @@ def create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc):
         "start_day": 0,
         "time_series_step" : 0.5,
         "gains_fraction": 0.85,
-        "EnergySupply": "mains elec",
+        "EnergySupply": energysupplyname_electricity,
         "schedule": {
             "main": [{"value": "jan", "repeat": 31},
                     {"value": "feb", "repeat": 28},
@@ -795,7 +796,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
     if "electricity" in cookingfuels:
         project_dict['ApplianceGains'][elec_cook_obj_name] = {
             "type":"cooking",
-            "EnergySupply": "mains elec",
+            "EnergySupply": energysupplyname_electricity,
             "start_day" : 0,
             "time_series_step": 0.5,
             "gains_fraction": 0.5,
@@ -833,7 +834,7 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         
     project_dict['ApplianceGains'][appl_obj_name] = {
         "type": "appliances",
-        "EnergySupply": "mains elec",
+        "EnergySupply": energysupplyname_electricity,
         "start_day": 0,
         "time_series_step": 1,
         # Internal gains are reduced from washer/dryers and dishwasher waste heat losses. 

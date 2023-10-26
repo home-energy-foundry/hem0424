@@ -1,6 +1,7 @@
 {
 	"PartGcompliance":true,
-	"PartO_air_conditioning_needed":false,
+	"PartO_active_cooling_required":false,
+	"GroundFloorArea" : 50,
 	"NumberOfBedrooms": 2,
 	"NumberOfWetRooms": 2,
 	"HeatingControlType": "SeparateTempControl",
@@ -318,7 +319,6 @@
 					"base_height": 1,
 					"height": 1.25,
 					"width": 4,
-					"is_roof_light": false,
 					"opaque_support": "wall 3",
 					"shading": [
 						{"type": "overhang", "depth": 0.5, "distance": 0.5},

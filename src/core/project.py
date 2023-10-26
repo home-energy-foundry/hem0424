@@ -1234,7 +1234,7 @@ class Project:
             HLP_dict[z_name] = HLP
 
         total_HTC = sum(HTC_dict.values())
-        total_HLP = sum(HLP_dict.values())
+        total_HLP = total_HTC / self.__total_floor_area
         
         return total_HTC, total_HLP, HTC_dict, HLP_dict
 
