@@ -18,6 +18,9 @@ from wrappers.future_homes_standard.future_homes_standard import calc_TFA, livin
 # Default names
 notional_HIU = 'notionalHIU'
 notional_HP = 'notional_HP'
+hw_timer = "hw timer"
+hw_timer_eco7 = "hw timer eco7"
+heating_pattern = "HeatingPattern_Null"
 
 def apply_fhs_not_preprocessing(project_dict,
                                 fhs_notA_assumptions,
@@ -51,6 +54,12 @@ def apply_fhs_not_preprocessing(project_dict,
     # but does not make a difference to results as a new Project objecct will
     # be created later with initial temperatures set by the FHS wrapper.
     initialise_temperature_setpoints(project_dict)
+
+    # Modify control object
+    control_objects(project_dict)
+
+    # Initialise space heating system in project dict. 
+    project_dict['SpaceHeatSystem'] = {}
 
     # Create a Project instance
     project = Project(deepcopy(project_dict), False, False)
@@ -382,7 +391,7 @@ def edit_add_heatnetwork_heating(project_dict, cold_water_source):
             "type": "HIU",
             "ColdWaterSource": cold_water_source,
             "HeatSourceWet": notional_HIU,
-            "Control": "hw timer"
+            "Control": hw_timer
             }
         }
 
@@ -589,6 +598,7 @@ def edit_default_space_heating_distribution_system(project_dict, design_capacity
                     "min_flow_temp": 25,
                     "min_outdoor_temp": 0
                     },
+            "Control": heating_pattern,
             "design_flow_temp": design_flow_temp,
             "Zone": zone_name,
             "temp_setback" : 18
@@ -676,8 +686,9 @@ def edit_storagetank(project_dict, cold_water_source, TFA):
             "HeatSource": {
                 notional_HP: {
                     "ColdWaterSource": cold_water_source,
-                    "Control": "hw timer",
-                    "EnergySupply": "mains elec",
+                    "Control": hw_timer,
+                    "Control_hold_at_setpnt": hw_timer_eco7, 
+                    "EnergySupply": energysupplyname_electricity,
                     "heater_position": 0.1,
                     "name": notional_HP,
                     "temp_flow_limit_upper": 60,
@@ -945,3 +956,84 @@ def add_solar_PV(project_dict, is_notA, is_FEE, TFA):
                 "width":1,
                 }
             }
+
+def control_objects(project_dict):
+
+    project_dict["Control"] = {
+        hw_timer: {
+            "type": "OnOffTimeControl",
+            "start_day": 0,
+            "time_series_step": 0.5,
+            "schedule": {
+                "main": [
+                    {
+                        "value": "day",
+                        "repeat": 365
+                    }
+                ],
+                "day": [
+                    {
+                        "value": True,
+                        "repeat": 48
+                    }
+                ]
+            }
+        },
+        hw_timer_eco7: {
+            "type": "OnOffCostMinimisingTimeControl",
+            "start_day": 0,
+            "time_series_step": 0.5,
+            "time_on_daily": 7,
+            "schedule": {
+                "main": [
+                    {
+                        "value": "day",
+                        "repeat": 365
+                    }
+                ],
+                "day": [
+                    {
+                        "value": 0.1436,
+                        "repeat": 14
+                    },
+                    {
+                        "value": 0.252,
+                        "repeat": 34
+                    }
+                ]
+            }
+        },
+        heating_pattern: {
+            "type": "SetpointTimeControl",
+            "start_day": 0,
+            "time_series_step": 0.5,
+            "advanced_start": 1,
+            "setpoint_min": 18,
+            "schedule": {
+                "main": [{"value": None, "repeat": 17520}]
+            }
+        },
+        "Window_Opening": {
+            "type": "SetpointTimeControl",
+            "start_day": 0,
+            "time_series_step": 0.5,
+            "schedule": {
+                "main": [
+                    {
+                        "value": "day",
+                        "repeat": 365
+                    }
+                ],
+                "day": [
+                    {
+                        "value": None,
+                        "repeat": 14
+                    },
+                    {
+                        "value": 22.0,
+                        "repeat": 34
+                    }
+                ]
+            }
+        }
+    }
