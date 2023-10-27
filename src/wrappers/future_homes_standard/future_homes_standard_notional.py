@@ -9,6 +9,7 @@ for the Future Homes Standard.
 import math
 import sys
 import os
+import numpy as np
 from copy import deepcopy
 from core.project import Project
 from core.space_heat_demand.building_element import BuildingElement, HeatFlowDirection
@@ -669,9 +670,9 @@ def calculate_daily_losses(cylinder_vol):
     return daily_losses
 
 def edit_storagetank(project_dict, cold_water_source, TFA):
-
-    # TODO Calculate cylinder volume
-    cylinder_vol = 215
+    #TODO get actual daily hot water demand
+    daily_HWD = [2, 4, 6, 8]
+    cylinder_vol = calculate_cylinder_volume(daily_HWD)
 
     # Calculate daily losses
     daily_losses = calculate_daily_losses(cylinder_vol)
@@ -1037,3 +1038,28 @@ def control_objects(project_dict):
             }
         }
     }
+
+def calculate_cylinder_volume(daily_HWD):
+
+    # Data from the table
+    percentiles_kWh   = [3.7, 4.4, 5.2, 5.9, 6.7, 7.4, 8.1, 8.9, 9.6, 10.3, 11.1]
+    vessel_sizes_litres = [165, 190, 215, 240, 265, 290, 315, 340, 365, 390, 415]
+
+    # Calculate the 75th percentile of daily hot water demand 
+    percentile_75_kWh = np.percentile(daily_HWD, 75)
+
+    # Use numpy's linear interpolation to find the appropriate vessel size
+    interpolated_size_litres = np.interp(percentile_75_kWh, percentiles_kWh, vessel_sizes_litres)
+    interpolated_size_litres = round(interpolated_size_litres)
+
+    # If the size of the hot water storage vessel is unavailable, the next 
+    # largest size available should be selected
+    if interpolated_size_litres not in vessel_sizes_litres:
+        for size in vessel_sizes_litres:
+            if size > interpolated_size_litres:
+                next_largest_size = size
+                break
+        interpolated_size_litres = next_largest_size
+
+    return interpolated_size_litres
+
