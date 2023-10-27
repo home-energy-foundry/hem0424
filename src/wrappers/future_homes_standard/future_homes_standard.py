@@ -868,9 +868,26 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
             "dec": appliance_gains_W[11]
         }
     }
-
-
+    
+# check whether the shower flowrate is not less than the minimum allowed    
+def check_shower_flowrate(project_dict):
+    
+    MIN_FLOWRATE = 8.0 # minimum flow allowed. Return False if below minimum.
+    showers = project_dict['Shower']
+  
+    for name, shower in showers.items():
+        if 'flowrate' in shower:
+            flowrate = shower['flowrate']
+            if flowrate < MIN_FLOWRATE:
+                print("Invalid flow rate: {0} l/s in shower with name {1}".format(flowrate, name), 
+                      file=sys.stderr)
+                return False
+    return True   
+        
 def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed_temps):
+    
+    if not (check_shower_flowrate(project_dict)):
+        sys.exit("Exited: invalid flow rate")    
     
     #temperature of mixed hot water for event
     event_temperature = 41.0
