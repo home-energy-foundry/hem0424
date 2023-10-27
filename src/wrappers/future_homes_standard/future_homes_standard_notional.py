@@ -664,7 +664,7 @@ def edit_storagetank(project_dict, cold_water_source, TFA):
     daily_losses = calculate_daily_losses(cylinder_vol)
 
     # Modify primary pipework chracteristics
-    primary_pipework_dict = edit_primary_pipework(project_dict)
+    primary_pipework_dict = edit_primary_pipework(project_dict, TFA)
 
     # Modify cylinder characteristics
     project_dict['HotWaterSource']['hw cylinder'] = {}
@@ -688,16 +688,23 @@ def edit_storagetank(project_dict, cold_water_source, TFA):
             "primary_pipework":primary_pipework_dict
         }
 
-def edit_primary_pipework(project_dict):
+def edit_primary_pipework(project_dict, TFA):
     
     # Define minimum values
     internal_diameter_mm_min = 22
     external_diameter_mm_min = 24
-    length_min =  0.05 * project_dict['GroundFloorArea']
     insulation_thickness_mm_min = 25
     surface_reflectivity = False
     pipe_contents = "water"
     insulation_thermal_conductivity = 0.035
+    
+    # length
+    if project_dict['Infiltration']['build_type'] == 'house': 
+        length_min =  0.05 * TFA
+    elif project_dict['Infiltration']['build_type'] == 'flat':
+        length_min =  0.05 * project_dict['GroundFloorArea']
+    else:
+        sys.exit('Unrecognised building type')
 
     # Update primary pipework object when primary pipework not present
     if 'primary_pipework' not in project_dict['HotWaterSource']['hw cylinder']:
