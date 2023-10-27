@@ -91,6 +91,9 @@ def apply_fhs_not_preprocessing(project_dict,
     # Modify air conditioning
     edit_air_conditioning(project_dict)
 
+    # Add Solar PV 
+    add_solar_PV(project_dict, is_notA, is_FEE, TFA)
+
     return project_dict
 
 def check_heatnetwork_present(project_dict):
@@ -899,3 +902,46 @@ def initialise_temperature_setpoints(project_dict):
     Set as 18C for now. The FHS wrapper will overwrite temp_setpnt_init '''
     for zone_name, zone in project_dict['Zone'].items():
         zone['temp_setpnt_init'] = 18
+
+def add_solar_PV(project_dict, is_notA, is_FEE, TFA):
+
+    number_of_storeys = project_dict['Infiltration']['storey']
+
+    # PV is included in the notional if the building contains 15 stories or 
+    # less that contain dwellings.
+    if number_of_storeys <= 15 and is_notA and not is_FEE: 
+        GFA = project_dict['GroundFloorArea']
+        if project_dict['Infiltration']['build_type'] == 'house':
+            peak_kW = GFA * 0.4 / 4.5
+            base_heights = [
+                building_element['base_height']
+                for zone in project_dict['Zone'].values()
+                for building_element_name, building_element in zone['BuildingElement'].items()
+                if 'base_height' in building_element
+            ]
+            base_height_pv = max(base_heights)
+        elif project_dict['Infiltration']['build_type'] == 'flat':
+            # TODO  update to number of storeys in block not number_of_storeys
+            peak_kW = TFA * 0.4 / (4.5 * number_of_storeys)
+            zone_volumes = [zone['volume'] for zone in project_dict['Zone'].values()]
+            zone_total_volume= sum(zone_volumes)
+            zone_areas = [zone['area'] for zone in project_dict['Zone'].values()]
+            zone_total_area = sum(zone_areas)
+            base_height_pv = (zone_total_volume / zone_total_area + 0.3) * number_of_storeys
+
+        else:
+            sys.exit('Unrecognised building type')
+        #TODO update height and width of PV array
+        project_dict['OnSiteGeneration'] = {
+            "PV1": {
+                "EnergySupply": energysupplyname_electricity,
+                "orientation360": 180,
+                "peak_power": peak_kW,
+                "pitch": 45,
+                "type": "PhotovoltaicSystem",
+                "ventilation_strategy": "moderately_ventilated",
+                "base_height": base_height_pv,
+                "height":1,
+                "width":1,
+                }
+            }
