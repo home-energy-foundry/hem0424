@@ -943,7 +943,13 @@ def add_solar_PV(project_dict, is_notA, is_FEE, TFA):
 
         else:
             sys.exit('Unrecognised building type')
-        #TODO update height and width of PV array
+
+        # PV array area
+        PV_area = 4.5 * peak_kW
+        # PV width and height based on 2:1 aspect ratio
+        PV_width = (PV_area / 2)**0.5
+        PV_height = 2 * PV_width
+
         project_dict['OnSiteGeneration'] = {
             "PV1": {
                 "EnergySupply": energysupplyname_electricity,
@@ -953,8 +959,8 @@ def add_solar_PV(project_dict, is_notA, is_FEE, TFA):
                 "type": "PhotovoltaicSystem",
                 "ventilation_strategy": "moderately_ventilated",
                 "base_height": base_height_pv,
-                "height":1,
-                "width":1,
+                "height":PV_height,
+                "width":PV_width,
                 }
             }
 
