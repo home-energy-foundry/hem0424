@@ -128,7 +128,7 @@ class Project:
             )
 
         self.__infiltration = VentilationElementInfiltration(
-            proj_dict['Infiltration']['storey'],
+            proj_dict['Infiltration']['storeys_in_building'],
             proj_dict['Infiltration']['shelter'],
             proj_dict['Infiltration']['build_type'],
             proj_dict['Infiltration']['test_result'],

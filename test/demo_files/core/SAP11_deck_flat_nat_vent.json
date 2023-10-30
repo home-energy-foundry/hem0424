@@ -8940,7 +8940,8 @@
 		"req_ach": 0.5
 	},
 	"Infiltration": {
-		"storey": 2,
+		"storeys_in_building": 2,
+		"storey_of_dwelling": 1,
 		"shelter": "normal",
 		"build_type": "flat",
 		"test_result": 4.0,
