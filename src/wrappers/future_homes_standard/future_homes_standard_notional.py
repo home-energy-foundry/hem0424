@@ -400,9 +400,9 @@ def edit_add_heatnetwork_heating(project_dict, cold_water_source):
         heat_network_name: {
             "fuel": "custom",
             "factor":{
-                "Emissions Factor kgCO2e/kWh": 0.041,
-                "Emissions Factor kgCO2e/kWh including out-of-scope emissions": 0.041,
-                "Primary Energy Factor kWh/kWh delivered": 0.850
+                "Emissions Factor kgCO2e/kWh": 0.033,
+                "Emissions Factor kgCO2e/kWh including out-of-scope emissions": 0.033,
+                "Primary Energy Factor kWh/kWh delivered": 0.75
                 }
             }
         }
