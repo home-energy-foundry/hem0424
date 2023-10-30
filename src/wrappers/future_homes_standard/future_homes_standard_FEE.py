@@ -115,7 +115,7 @@ def apply_fhs_FEE_preprocessing(project_dict):
         'bath for FEE calc': {
             'size': 73, # Based on SAP 10.2 assumption in App J
             'ColdWaterSource': cold_water_source_name,
-            'flowrate': 10.0
+            'flowrate': 12.0
             }
         }
     # Other tapping points are as specified by the user. This shouldn't make any
