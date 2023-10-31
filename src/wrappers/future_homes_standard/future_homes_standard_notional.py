@@ -880,7 +880,7 @@ def edit_air_conditioning(project_dict):
     if project_dict['PartO_active_cooling_required']:
         for space_cooling_name in project_dict['SpaceCoolSystem'].keys():
             project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 5.1
-            project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 0.95
+            project_dict['SpaceCoolSystem'][space_cooling_name]['frac_convective'] = 0.95
 
 def calc_design_capacity(project_dict, HTC_dict):
     min_air_temp = min(project_dict['ExternalConditions']['air_temperatures'])
