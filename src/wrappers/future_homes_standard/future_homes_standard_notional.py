@@ -665,7 +665,7 @@ def calculate_daily_losses(cylinder_vol):
     temp_factor = 0.6 * 0.9
 
     # Calculate daily losses
-    daily_losses = cylinder_heat_loss_factor * vol_factor * temp_factor
+    daily_losses = cylinder_heat_loss_factor * vol_factor * temp_factor * cylinder_vol
     
     return daily_losses
 
