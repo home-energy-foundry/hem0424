@@ -713,11 +713,11 @@ def edit_primary_pipework(project_dict, TFA):
     pipe_contents = "water"
     insulation_thermal_conductivity = 0.035
     
-    # length
+    # calculate maximum length
     if project_dict['Infiltration']['build_type'] == 'house': 
-        length_min =  0.05 * TFA
+        length_max =  0.05 * TFA
     elif project_dict['Infiltration']['build_type'] == 'flat':
-        length_min =  0.05 * project_dict['GroundFloorArea']
+        length_max =  0.05 * project_dict['GroundFloorArea']
     else:
         sys.exit('Unrecognised building type')
 
@@ -728,7 +728,7 @@ def edit_primary_pipework(project_dict, TFA):
         primary_pipework_dict = {
                 "internal_diameter_mm": internal_diameter_mm_min,
                 "external_diameter_mm": external_diameter_mm_min,
-                "length": length_min,
+                "length": length_max,
                 "insulation_thermal_conductivity": insulation_thermal_conductivity,
                 "insulation_thickness_mm": insulation_thickness_mm_min,
                 "surface_reflectivity": surface_reflectivity,
@@ -744,6 +744,9 @@ def edit_primary_pipework(project_dict, TFA):
         # update insulation thickness based on internal diameter
         if internal_diameter_mm > 25:
             insulation_thickness_mm_min = 32
+
+        # primary pipework should not be greater than maximum length
+        length = min(length, lenght_max)
 
         # primary pipework dictionary
         primary_pipework_dict = {
