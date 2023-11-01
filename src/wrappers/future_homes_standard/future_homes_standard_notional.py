@@ -835,7 +835,7 @@ def minimum_air_change_rate(project_dict, TFA):
 
     # Calculate air change rate ACH
     minimum_ach = ( max(min_ventilation_rate_a, min_ventilation_rate_b) / total_volume ) \
-                    * units.seconds_per_hour * units.litres_per_cubic_metre
+                    * units.seconds_per_hour / units.litres_per_cubic_metre
 
     return minimum_ach
 
