@@ -746,7 +746,7 @@ def edit_primary_pipework(project_dict, TFA):
             insulation_thickness_mm_min = 32
 
         # primary pipework should not be greater than maximum length
-        length = min(length, lenght_max)
+        length = min(length, length_max)
 
         # primary pipework dictionary
         primary_pipework_dict = {
