@@ -773,13 +773,17 @@ def edit_hot_water_distribution_inner(project_dict, TFA):
     # Update internal diameter to minimum if not present and should not be lower than the minimum
     if 'internal_diameter_mm' not in hot_water_distribution_inner_dict:
         internal_diameter_mm = internal_diameter_mm_min
-    internal_diameter_mm = hot_water_distribution_inner_dict['internal_diameter_mm']
+    else:
+        internal_diameter_mm = hot_water_distribution_inner_dict['internal_diameter_mm']
+
     internal_diameter_mm = max(internal_diameter_mm, internal_diameter_mm_min)
 
     # Update external diameter to minimum if not present and should not be lower than the minimum
     if 'external_diameter_mm' not in hot_water_distribution_inner_dict:
         external_diameter_mm = external_diameter_mm_min
-    external_diameter_mm = hot_water_distribution_inner_dict['external_diameter_mm']
+    else:
+        external_diameter_mm = hot_water_distribution_inner_dict['external_diameter_mm']
+
     external_diameter_mm = max(external_diameter_mm, external_diameter_mm_min)
 
     # update insulation thickness based on internal diameter
