@@ -259,9 +259,9 @@ def edit_transparent_element(project_dict, TFA):
     
     max_window_area = 0.25 * TFA
     if total_window_area > max_window_area:
-        correct_transparent_area(project_dict, total_window_area, max_window_area, is_rooflight = False)
+        correct_transparent_area(project_dict, total_window_area, max_window_area)
 
-def correct_transparent_area(project_dict, total_area, max_area, is_rooflight = False):
+def correct_transparent_area(project_dict, total_area, max_area):
     '''
     Applies correction to transparent elements area and their supporting opaque elements 
     
