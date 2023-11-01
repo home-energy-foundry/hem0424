@@ -99,7 +99,7 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_ventilation(project_dict, is_notA, minimum_ach)
 
     # Modify air conditioning
-    edit_air_conditioning(project_dict)
+    edit_spacecoolsystem(project_dict)
 
     # Add Solar PV 
     add_solar_PV(project_dict, is_notA, is_FEE, TFA)
@@ -880,7 +880,7 @@ def edit_space_heating_system(project_dict,
         edit_default_space_heating_distribution_system(project_dict, design_capacity_dict)
         edit_storagetank(project_dict, cold_water_source, TFA)
 
-def edit_air_conditioning(project_dict):
+def edit_spacecoolsystem(project_dict):
     if project_dict['PartO_active_cooling_required']:
         for space_cooling_name in project_dict['SpaceCoolSystem'].keys():
             project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 5.1
