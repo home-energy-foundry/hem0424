@@ -199,7 +199,7 @@ class HeatNetwork:
 
         Arguments:
         power_max -- maximum power output of HIU, in kW
-        daily_loss -- daily loss from the HIU, in kWh
+        daily_loss -- daily loss from the HIU, in kWh/day
         building_level_distribution_losses -- building level distribution losses in Watts
         energy_supply       -- reference to EnergySupply object
         energy_supply_conn_name_auxiliary -- name to use for reporting auxiliary energy use
@@ -326,7 +326,7 @@ class HeatNetwork:
 
     def HIU_loss(self):
         """ Standing heat loss from the HIU (heat interface unit) in kWh """
-        # daily_loss to be sourced from the PCDB, in kW
+        # daily_loss to be sourced from the PCDB, in kWh/day
         return self.__daily_loss / hours_per_day * self.__simulation_time.timestep()
 
     def building_level_loss(self):
