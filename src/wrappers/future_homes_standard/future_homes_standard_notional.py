@@ -715,9 +715,9 @@ def edit_primary_pipework(project_dict, TFA):
     insulation_thermal_conductivity = 0.035
     
     # calculate maximum length
-    if project_dict['Infiltration']['build_type'] == 'house': 
+    if project_dict['Infiltration']['build_type'] == 'flat': 
         length_max =  0.05 * TFA
-    elif project_dict['Infiltration']['build_type'] == 'flat':
+    elif project_dict['Infiltration']['build_type'] == 'house':
         length_max =  0.05 * project_dict['GroundFloorArea']
     else:
         sys.exit('Unrecognised building type')
