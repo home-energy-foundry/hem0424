@@ -383,7 +383,8 @@ def edit_add_heatnetwork_heating(project_dict, cold_water_source):
             "type": "HIU",
             "EnergySupply": heat_network_name,
             "power_max": 45,
-            "HIU_daily_loss": 0.8
+            "HIU_daily_loss": 0.8,
+            "building_level_distribution_losses": 62,
         }
     }
 
