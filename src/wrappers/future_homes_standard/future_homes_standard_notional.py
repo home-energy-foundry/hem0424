@@ -33,6 +33,9 @@ def apply_fhs_not_preprocessing(project_dict,
     is_notA = fhs_notA_assumptions or fhs_FEE_notA_assumptions
     is_FEE  = fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions
 
+    # Check if a heat network is present
+    is_heat_network = check_heatnetwork_present(project_dict)
+
     # Determine cold water source
     cold_water_type = list(project_dict['ColdWaterSource'].keys())
     if len(cold_water_type) == 1:
@@ -59,12 +62,11 @@ def apply_fhs_not_preprocessing(project_dict,
     # Modify control object
     control_objects(project_dict)
 
-    # Initialise space heating system in project dict. 
-    project_dict['SpaceHeatSystem'] = {}
-
+    # Make a copy and remove space heating system to initiliase project
+    project_dict_copy = deepcopy(project_dict)
+    project_dict_copy['SpaceHeatSystem'] = {}
     # Create a Project instance
-    project = Project(deepcopy(project_dict), False, False)
-
+    project = Project(project_dict_copy, False, False)
     # Calculate heat transfer coefficients and heat loss parameters
     heat_trans_coeff, heat_loss_param, HTC_dict, HLP_dict  = project.calc_HTC_HLP()
 
@@ -78,6 +80,7 @@ def apply_fhs_not_preprocessing(project_dict,
         design_capacity_dict,
         design_capacity_overall,
         TFA,
+        is_heat_network
         )
 
     # modify bath, shower and other dhw characteristics
@@ -608,6 +611,13 @@ def edit_default_space_heating_distribution_system(project_dict, design_capacity
 
         project_dict['SpaceHeatSystem'][zone_name + '_SpaceHeatSystem_Notional'] = space_distribution_system
 
+def edit_heatnetwork_space_heating_distribution_system(project_dict):
+    '''Edit distribution system details to notional building heat network '''
+
+    for distribution_name, distribution in project_dict['SpaceHeatSystem'].items():
+        project_dict['SpaceHeatSystem'][distribution_name]['advanced_start'] = 0
+        project_dict['SpaceHeatSystem'][distribution_name]["HeatSource"] = {"name": notional_HIU}
+
 def edit_bath_shower_other(project_dict, cold_water_source):
     # Define Bath, Shower, and Other DHW outlet
     project_dict['Bath'] = {
@@ -870,15 +880,14 @@ def edit_space_heating_system(project_dict,
                               design_capacity_dict,
                               design_capacity_overall,
                               TFA,
+                              is_heat_network
                               ):
-
-    # Check if a heat network is present
-    is_heat_network = check_heatnetwork_present(project_dict)
 
     # If Actual dwelling is heated with heat networks - Notional heated with HIU.
     # Otherwise, Notional heated with a air to water heat pump
     if is_heat_network:
         edit_add_heatnetwork_heating(project_dict, cold_water_source)
+        edit_heatnetwork_space_heating_distribution_system(project_dict)
     else:
         edit_add_default_space_heating_system(project_dict, design_capacity_overall)
         edit_default_space_heating_distribution_system(project_dict, design_capacity_dict)
@@ -1016,16 +1025,6 @@ def control_objects(project_dict):
                         "repeat": 34
                     }
                 ]
-            }
-        },
-        heating_pattern: {
-            "type": "SetpointTimeControl",
-            "start_day": 0,
-            "time_series_step": 0.5,
-            "advanced_start": 1,
-            "setpoint_min": 18,
-            "schedule": {
-                "main": [{"value": None, "repeat": 17520}]
             }
         },
         "Window_Opening": {
