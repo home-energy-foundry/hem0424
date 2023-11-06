@@ -330,7 +330,7 @@ class HeatNetwork:
         return self.__daily_loss / hours_per_day * self.__simulation_time.timestep()
 
     def building_level_loss(self):
-        """ Building level distribution loss in Watts"""
+        """ Converts building level distribution loss from watts to kWh """
         return self.__building_level_distribution_losses \
              / W_per_kW * self.__simulation_time.timestep()
 
