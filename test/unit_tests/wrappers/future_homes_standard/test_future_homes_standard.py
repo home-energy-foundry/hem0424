@@ -15,10 +15,6 @@ test_setup()
 # Local imports
 from core.simulation_time import SimulationTime
 from wrappers.future_homes_standard import future_homes_standard 
-
-def div(a,b):
-   return a/b
-
    
       
 class TestFutureHomesStandard(unittest.TestCase):
@@ -29,10 +25,7 @@ class TestFutureHomesStandard(unittest.TestCase):
                 {'mixer': {'type': 'MixerShower', 'flowrate': 0, 'ColdWaterSource': 'mains water'}, 
                  'IES':   {'type': 'InstantElecShower', 'rated_power': 9.0, 'ColdWaterSource': 'mains water', 'EnergySupply': 'mains elec'}
                 }
-            }              
-          
-    def testraise(self):
-        self.assertRaises(ZeroDivisionError, div, 1,0)
+            }                        
       
     def test_check_invalid_shower_flowrate(self):  
    
