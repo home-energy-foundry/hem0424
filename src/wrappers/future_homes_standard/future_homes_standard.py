@@ -683,7 +683,7 @@ def create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc):
         lumens = TFA * 185
     else:
         #from analysis of EFUS 2017 data
-        lumens = 1417.7 * (TFA * N_occupants) ** 0.4081
+        lumens = 1418 * (TFA * N_occupants) ** 0.41
 
     #dropped 1/3 - 2/3 split based on SAP2012 assumptions about portable lighting
     kWhperyear = lumens/lighting_efficacy
@@ -847,7 +847,7 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
     #EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
     
     #new relation based on analysis of EFUS 2017 monitoring data
-    EA_annual_kWh = 145.04 * (TFA * N_occupants) ** 0.4856
+    EA_annual_kWh = 145 * (TFA * N_occupants) ** 0.49
     
     appliance_gains_W = []
     for monthly_profile in avg_monthly_hr_profiles:
