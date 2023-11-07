@@ -162,7 +162,8 @@
 			"type": "HIU",
 			"EnergySupply": "heat network",
 			"power_max": 3.0,
-			"HIU_daily_loss": 0.8
+			"HIU_daily_loss": 0.8,
+			"building_level_distribution_losses": 62
 		}
 	},
 	"SpaceHeatSystem": {
