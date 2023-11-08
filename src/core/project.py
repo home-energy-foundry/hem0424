@@ -127,8 +127,13 @@ class Project:
             proj_dict['ExternalConditions']['shading_segments'],
             )
 
+        if 'flat' in proj_dict['Infiltration']['build_type']:
+            storey_of_dwelling = proj_dict['Infiltration']['storey_of_dwelling']
+        else:
+            storey_of_dwelling = None
+
         self.__infiltration = VentilationElementInfiltration(
-            proj_dict['Infiltration']['storey'],
+            proj_dict['Infiltration']['storeys_in_building'],
             proj_dict['Infiltration']['shelter'],
             proj_dict['Infiltration']['build_type'],
             proj_dict['Infiltration']['test_result'],
@@ -146,6 +151,7 @@ class Project:
             proj_dict['Infiltration']['passive_vents'],
             proj_dict['Infiltration']['gas_fires'],
             self.__external_conditions,
+            storey_of_dwelling,
             )
 
         self.__cold_water_sources = {}

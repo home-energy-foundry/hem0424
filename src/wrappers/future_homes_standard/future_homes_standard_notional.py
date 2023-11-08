@@ -650,9 +650,8 @@ def edit_bath_shower_other(project_dict, cold_water_source):
     }
 
 def add_wwhrs(project_dict, cold_water_source, is_notA, is_FEE):
-    # add WWHRS if more than 1 storey, notional A and not FEE
-    if project_dict['Infiltration']['storey'] > 1 and is_notA and not is_FEE:
-        # TODO storey input now changed
+    # add WWHRS if more than 1 storeys in building, notional A and not FEE
+    if project_dict['Infiltration']['storeys_in_building'] > 1 and is_notA and not is_FEE:
         shower_dict = project_dict['Shower']['mixer']
         shower_dict["WWHRS"] = "Notional_Inst_WWHRS"
      
@@ -945,7 +944,7 @@ def initialise_temperature_setpoints(project_dict):
 
 def add_solar_PV(project_dict, is_notA, is_FEE, TFA):
 
-    number_of_storeys = project_dict['Infiltration']['storey']
+    number_of_storeys = project_dict['Infiltration']['storeys_in_building']
 
     # PV is included in the notional if the building contains 15 stories or 
     # less that contain dwellings.
@@ -961,7 +960,6 @@ def add_solar_PV(project_dict, is_notA, is_FEE, TFA):
             ]
             base_height_pv = max(base_heights)
         elif project_dict['Infiltration']['build_type'] == 'flat':
-            # TODO  update to number of storeys in block not number_of_storeys
             peak_kW = TFA * 0.4 / (4.5 * number_of_storeys)
             zone_volumes = [zone['volume'] for zone in project_dict['Zone'].values()]
             zone_total_volume= sum(zone_volumes)

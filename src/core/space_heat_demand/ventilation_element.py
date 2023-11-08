@@ -115,7 +115,7 @@ class VentilationElementInfiltration:
         ]
 
     def __init__(self,
-            storey,
+            storeys_in_building,
             shelter,
             build_type,
             pressure_test_result_ach,
@@ -132,12 +132,13 @@ class VentilationElementInfiltration:
             extract_fans,
             passive_vents,
             gas_fires,
-            ext_cond
+            ext_cond,
+            storey_of_dwelling = None,
             ):
         """ Construct a VentilationElementInfiltration object """
 
         """Arguments:
-        storey                -- for flats, storey number within building / for non-flats, total number of storeys in building
+        storeys_in_building   -- total number of storeys in building
         shelter               -- exposure level of the building i.e. very sheltered, sheltered, normal, or exposed
         build_type            -- type of building e.g. house, flat, etc.
         pressure_test_result_ach -- result of pressure test, in ach
@@ -155,6 +156,7 @@ class VentilationElementInfiltration:
         passive_vents         -- number of passive vents
         gas_fires             -- number of flueless gas fires
         ext_cond              -- reference to ExternalConditions object
+        storey_of_dwelling    -- for flats only, storey number within building
         """
 
         self.__external_conditions = ext_cond
@@ -175,6 +177,13 @@ class VentilationElementInfiltration:
               + (gas_fires        * self.__INF_RATE_FIRE_GAS)
               ) \
             / volume
+
+        if build_type == 'flat':
+            storey = storey_of_dwelling
+        elif build_type == 'house':
+            storey = storeys_in_building
+        else:
+            sys.exit('Error: build type not applicable')
 
         # Choose correct divisor to apply to Q50:
         # TODO add options for bungalow and maisonette
