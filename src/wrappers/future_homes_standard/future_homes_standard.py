@@ -23,9 +23,14 @@ emis_factor_name = 'Emissions Factor kgCO2e/kWh'
 emis_oos_factor_name = 'Emissions Factor kgCO2e/kWh including out-of-scope emissions'
 PE_factor_name = 'Primary Energy Factor kWh/kWh delivered'
 
+energysupplyname_electricity = 'mains elec'
+
 appl_obj_name = 'appliances'
 elec_cook_obj_name = 'Eleccooking'
 gas_cook_obj_name = 'Gascooking'
+
+livingroom_setpoint_fhs = 21.0
+restofdwelling_setpoint_fhs = 18.0
 
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
@@ -376,9 +381,6 @@ def create_heating_pattern(project_dict):
     '''
     space heating
     '''
-    
-    livingroom_setpoint_fhs = 21.0
-    restofdwelling_setpoint_fhs = 20.0
 
     #07:30-09:30 and then 16:30-22:00
     heating_fhs_weekday = (
@@ -707,7 +709,7 @@ def create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc):
         "start_day": 0,
         "time_series_step" : 0.5,
         "gains_fraction": 0.85,
-        "EnergySupply": "mains elec",
+        "EnergySupply": energysupplyname_electricity,
         "schedule": {
             "main": [{"value": "jan", "repeat": 31},
                     {"value": "feb", "repeat": 28},
@@ -818,7 +820,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
     if "electricity" in cookingfuels:
         project_dict['ApplianceGains'][elec_cook_obj_name] = {
             "type":"cooking",
-            "EnergySupply": "mains elec",
+            "EnergySupply": energysupplyname_electricity,
             "start_day" : 0,
             "time_series_step": 0.5,
             "gains_fraction": 0.5,
@@ -856,7 +858,7 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         
     project_dict['ApplianceGains'][appl_obj_name] = {
         "type": "appliances",
-        "EnergySupply": "mains elec",
+        "EnergySupply": energysupplyname_electricity,
         "start_day": 0,
         "time_series_step": 1,
         # Internal gains are reduced from washer/dryers and dishwasher waste heat losses. 

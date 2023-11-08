@@ -209,6 +209,19 @@ class BuildingElement:
         """ Return number of nodes excluding external and internal layers """
         return self.no_of_nodes() - 2
 
+    @classmethod
+    def pitch_class(cls, pitch):
+        """ Return whether element is horizontal upwards/downwards or vertical """
+        # TODO use is floor and is ceiling functions so determine R SI values
+        if pitch >= cls.__PITCH_LIMIT_HORIZ_CEILING \
+        and pitch <= cls.__PITCH_LIMIT_HORIZ_FLOOR:
+            return HeatFlowDirection.HORIZONTAL
+        elif pitch < cls.__PITCH_LIMIT_HORIZ_CEILING:
+            return HeatFlowDirection.UPWARDS
+        elif pitch > cls.__PITCH_LIMIT_HORIZ_FLOOR:
+            return HeatFlowDirection.DOWNWARDS
+        else:
+            sys.exit('Pitch class not recognised')
 
 class BuildingElementOpaque(BuildingElement):
     """ A class to represent opaque building elements (walls, roofs, etc.) """

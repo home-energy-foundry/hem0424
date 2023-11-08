@@ -1263,26 +1263,31 @@ class Project:
     def calc_HTC_HLP(self):
         """ Calculate heat transfer coefficient (HTC) and heat loss parameter (HLP)
         according to the SAP10.2 specification """
-        # Initialise variables
-        total_fabric_heat_loss = 0
-        total_thermal_bridges= 0
-        total_vent_heat_loss = 0
+
+        HTC_dict = {}
+        HLP_dict = {}
 
         # Calculate the total fabric heat loss, total heat capacity, total ventilation heat
         # loss and total heat transfer coeffient for thermal bridges across all zones
         for z_name, zone in self.__zones.items():
-            total_fabric_heat_loss += zone.total_fabric_heat_loss()
-            total_thermal_bridges += zone.total_thermal_bridges()
-            total_vent_heat_loss += zone.total_vent_heat_loss()
+            fabric_heat_loss = zone.total_fabric_heat_loss()
+            thermal_bridges = zone.total_thermal_bridges()
+            vent_heat_loss = zone.total_vent_heat_loss()
 
-        # Calculate the heat transfer coefficent (HTC), in W / K
-        # TODO check ventilation losses are correct
-        HTC = total_fabric_heat_loss + total_thermal_bridges + total_vent_heat_loss
+            # Calculate the heat transfer coefficent (HTC), in W / K
+            # TODO check ventilation losses are correct
+            HTC = fabric_heat_loss + thermal_bridges + vent_heat_loss
 
-        # Calculate the HLP, in W / m2 K
-        HLP = HTC / self.__total_floor_area
+            # Calculate the HLP, in W / m2 K
+            HLP = HTC / zone.area()
 
-        return HTC, HLP
+            HTC_dict[z_name] = HTC
+            HLP_dict[z_name] = HLP
+
+        total_HTC = sum(HTC_dict.values())
+        total_HLP = total_HTC / self.__total_floor_area
+        
+        return total_HTC, total_HLP, HTC_dict, HLP_dict
 
     def calc_TMP(self):
         """ Calculate the thermal mass parameter (TMP), according to the SAP10.2 specification """

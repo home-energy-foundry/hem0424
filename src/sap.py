@@ -21,6 +21,8 @@ from read_weather_file import weather_data_to_dict
 from read_CIBSE_weather_file import CIBSE_weather_data_to_dict
 from wrappers.future_homes_standard.future_homes_standard import \
     apply_fhs_preprocessing, apply_fhs_postprocessing
+from wrappers.future_homes_standard.future_homes_standard_notional import \
+    apply_fhs_not_preprocessing
 from wrappers.future_homes_standard.future_homes_standard_FEE import \
     apply_fhs_FEE_preprocessing, apply_fhs_FEE_postprocessing
 
@@ -75,6 +77,13 @@ def run_project(
     # Apply required preprocessing steps, if any
     # TODO Implement notional runs (the below treats them the same as the
     #      equivalent non-notional runs)
+    if fhs_notA_assumptions or fhs_notB_assumptions \
+    or fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
+        project_dict = apply_fhs_not_preprocessing(project_dict, 
+                                                   fhs_notA_assumptions, 
+                                                   fhs_notB_assumptions,
+                                                   fhs_FEE_notA_assumptions,
+                                                   fhs_FEE_notB_assumptions)
     if fhs_assumptions or fhs_notA_assumptions or fhs_notB_assumptions:
         project_dict = apply_fhs_preprocessing(project_dict)
     elif fhs_FEE_assumptions or fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
@@ -90,7 +99,7 @@ def run_project(
     project = Project(project_dict, heat_balance, detailed_output_heating_cooling, use_fast_solver)
 
     # Calculate static parameters and output
-    heat_trans_coeff, heat_loss_param = project.calc_HTC_HLP()
+    heat_trans_coeff, heat_loss_param, HTC_dict, HLP_dict = project.calc_HTC_HLP()
     thermal_mass_param = project.calc_TMP()
     heat_loss_form_factor = project.calc_HLFF()
     write_static_output_file(
