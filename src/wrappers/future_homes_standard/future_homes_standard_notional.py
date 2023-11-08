@@ -652,7 +652,6 @@ def edit_bath_shower_other(project_dict, cold_water_source):
 def add_wwhrs(project_dict, cold_water_source, is_notA, is_FEE):
     # add WWHRS if more than 1 storeys in building, notional A and not FEE
     if project_dict['Infiltration']['storeys_in_building'] > 1 and is_notA and not is_FEE:
-        # TODO storey input now changed
         shower_dict = project_dict['Shower']['mixer']
         shower_dict["WWHRS"] = "Notional_Inst_WWHRS"
      
