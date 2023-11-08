@@ -66,7 +66,7 @@ def apply_fhs_not_preprocessing(project_dict,
     project_dict_copy = deepcopy(project_dict)
     project_dict_copy['SpaceHeatSystem'] = {}
     # Create a Project instance
-    project = Project(project_dict_copy, False, False)
+    project = Project(project_dict_copy, False, False, False)
     # Calculate heat transfer coefficients and heat loss parameters
     heat_trans_coeff, heat_loss_param, HTC_dict, HLP_dict  = project.calc_HTC_HLP()
 
