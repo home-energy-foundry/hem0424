@@ -743,11 +743,15 @@ class Project:
             elif heat_source_type == 'HIU':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 energy_supply_conn_name_auxiliary = 'HeatNetwork_auxiliary: ' + name
+                energy_supply_conn_name_building_level_distribution_losses \
+                    = 'HeatNetwork_building_level_distribution_losses: ' + name
                 heat_source = HeatNetwork(
                     data['power_max'],
                     data['HIU_daily_loss'],
+                    data['building_level_distribution_losses'],
                     energy_supply,
                     energy_supply_conn_name_auxiliary,
+                    energy_supply_conn_name_building_level_distribution_losses,
                     self.__simtime,
                     )
                 self.__timestep_end_calcs.append(heat_source)

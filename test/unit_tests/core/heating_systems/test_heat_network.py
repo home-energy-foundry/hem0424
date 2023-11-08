@@ -31,13 +31,17 @@ class TestHeatNetwork(unittest.TestCase):
         self.simtime = SimulationTime(0, 2, 1)
         self.energysupply = EnergySupply("custom", self.simtime)
         energy_supply_conn_name_auxiliary = 'heat_network_auxiliary'
+        energy_supply_conn_name_building_level_distribution_losses \
+                    = 'HeatNetwork_building_level_distribution_losses'
 
         # Set up HeatNetwork object
         self.heat_network = HeatNetwork(
             6.0, # power_max
             0.24, # HIU daily loss
+            0.8, # Building level distribution losses
             self.energysupply,
             energy_supply_conn_name_auxiliary,
+            energy_supply_conn_name_building_level_distribution_losses,
             self.simtime,
             )
 
@@ -81,6 +85,15 @@ class TestHeatNetwork(unittest.TestCase):
                     msg="incorrect HIU loss returned"
                     )
 
+    def test_building_level_distribution_losses(self):
+        """ Test that HeatNetwork object returns correct building level distribution loss """
+        for t_idx, _, _ in self.simtime:
+            with self.subTest(i=t_idx):
+                self.assertAlmostEqual(
+                    self.heat_network.building_level_loss(),
+                    0.0008,
+                    msg="incorrect building level distribution losses returned"
+                    )
 
 class TestHeatNetworkServiceWaterDirect(unittest.TestCase):
     """ Unit tests for HeatNetworkServiceWaterDirect class """
@@ -95,13 +108,17 @@ class TestHeatNetworkServiceWaterDirect(unittest.TestCase):
         self.energy_output_required = [2.0, 10.0]
         self.temp_return_feed = [51.05, 60.00]
         energy_supply_conn_name_auxiliary = 'heat_network_auxiliary'
+        energy_supply_conn_name_building_level_distribution_losses \
+                    = 'HeatNetwork_building_level_distribution_losses'
 
         # Set up HeatNetwork
         self.heat_network = HeatNetwork(
             18.0, # power_max
             1.0, # HIU daily loss
+            0.8, # Building level distribution loss 
             self.energysupply,
             energy_supply_conn_name_auxiliary,
+            energy_supply_conn_name_building_level_distribution_losses,
             self.simtime,
             )
 
@@ -143,13 +160,17 @@ class TestHeatNetworkServiceWaterStorage(unittest.TestCase):
         self.energy_output_required = [2.0, 10.0]
         self.temp_return_feed = [51.05, 60.00]
         energy_supply_conn_name_auxiliary = 'heat_network_auxiliary'
+        energy_supply_conn_name_building_level_distribution_losses \
+                    = 'HeatNetwork_building_level_distribution_losses'
 
         # Set up HeatNetwork
         self.heat_network = HeatNetwork(
             7.0, # power_max
             1.0, # HIU daily loss
+            0.8, # Building level distribution loss 
             self.energysupply,
             energy_supply_conn_name_auxiliary,
+            energy_supply_conn_name_building_level_distribution_losses,
             self.simtime,
             )
 
@@ -186,13 +207,17 @@ class TestHeatNetworkServiceSpace(unittest.TestCase):
         self.simtime = SimulationTime(0, 3, 1)
         self.energysupply = EnergySupply("mains_gas", self.simtime)
         energy_supply_conn_name_auxiliary = 'Boiler_auxiliary'
+        energy_supply_conn_name_building_level_distribution_losses \
+                    = 'HeatNetwork_building_level_distribution_losses'
 
         # Set up HeatNetwork
         self.heat_network = HeatNetwork(
             5.0, # power_max
             1.0, # HIU daily loss
+            0.8, # Building level distribution loss 
             self.energysupply,
             energy_supply_conn_name_auxiliary,
+            energy_supply_conn_name_building_level_distribution_losses,
             self.simtime,
             )
 
