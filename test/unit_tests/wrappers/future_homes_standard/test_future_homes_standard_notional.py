@@ -224,7 +224,7 @@ class NotionalBuildingHeatPump(unittest.TestCase):
 			}
 		}
 
-		if project_dict['Infiltration']['storey'] > 1 and self.is_notA and not self.is_FEE:
+		if project_dict['Infiltration']['storeys_in_building'] > 1 and self.is_notA and not self.is_FEE:
 			self.assertIn("WWHRS", project_dict)
 			self.assertDictEqual(project_dict['WWHRS'], expected_wwhrs)
 			self.assertEqual(project_dict['Shower']['mixer']["WWHRS"], "Notional_Inst_WWHRS")
