@@ -35,7 +35,6 @@ class NotionalBuildingHeatPump(unittest.TestCase):
 			sys.exit('Error: There should be exactly one cold water type')
 
 		# Defaults
-		self.expected_cylinder_vol = 265
 		self.hw_timer = "hw timer"
 		self.hw_timer_eco7 = "hw timer eco7"
 		self.notional_HP = 'notional_HP'
@@ -222,8 +221,9 @@ class NotionalBuildingHeatPump(unittest.TestCase):
 			self.assertNotIn("WWHRS", self.project_dict['Shower']['mixer'])
 
 	def test_calculate_daily_losses(self):
-		daily_losses = future_homes_standard_notional.calculate_daily_losses(self.expected_cylinder_vol)
 
+		expected_cylinder_vol = 265
+		daily_losses = future_homes_standard_notional.calculate_daily_losses(expected_cylinder_vol)
 		expected_daily_losses = 1.03685  
 
 		self.assertAlmostEqual(daily_losses, expected_daily_losses, places=5)
@@ -231,11 +231,11 @@ class NotionalBuildingHeatPump(unittest.TestCase):
 	def test_edit_storagetank(self):
 
 		future_homes_standard_notional.edit_storagetank(self.project_dict, self.cold_water_source, self.TFA)
-
+		print('storage-tank', self.project_dict['HotWaterSource']['hw cylinder'])
 		expected_primary_pipework_dict = {
 			"internal_diameter_mm": 25,
 			"external_diameter_mm": 27,
-			"length": 2,
+			"length": 2.0,
 			"insulation_thermal_conductivity": 0.035,
 			"insulation_thickness_mm": 25,
 			"surface_reflectivity": False,
@@ -258,12 +258,13 @@ class NotionalBuildingHeatPump(unittest.TestCase):
 						'type': 'HeatSourceWet'
 					}
 				},
-				'daily_losses': 0.01278, 
+				'daily_losses': 0.46660029577109363, 
 				'type': 'StorageTank',
-				'volume': self.expected_cylinder_vol,
+				'volume': 80.0,
 				'primary_pipework': expected_primary_pipework_dict,
 			}
 		}
+		self.assertDictEqual(self.project_dict['HotWaterSource'], expected_hotwater_source)
 
 	def test_edit_hot_water_distribution_inner(self):
 

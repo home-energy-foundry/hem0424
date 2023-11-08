@@ -683,7 +683,12 @@ def calculate_daily_losses(cylinder_vol):
 def edit_storagetank(project_dict, cold_water_source, TFA):
     #TODO get actual daily hot water demand
     daily_HWD = [2, 4, 6, 8]
-    cylinder_vol = calculate_cylinder_volume(daily_HWD)
+    
+    # Use sizing logic when  storage tank volume not present
+    if 'volume' not in project_dict['HotWaterSource']['hw cylinder']:
+        cylinder_vol = calculate_cylinder_volume(daily_HWD)
+    else:
+        cylinder_vol = project_dict['HotWaterSource']['hw cylinder']['volume']
 
     # Calculate daily losses
     daily_losses = calculate_daily_losses(cylinder_vol)
