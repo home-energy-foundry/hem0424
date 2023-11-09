@@ -256,16 +256,9 @@ def edit_transparent_element(project_dict, TFA):
                     building_element['u_value'] = 1.2
                     building_element.pop('r_c', None)
 
-    
-    if total_rooflight_area != 0:
-        #avoid divided by 0 if there are no rooflights
-        average_roof_light_u_value = sum_uval_times_area / total_rooflight_area
-        max_rooflight_area_red_factor = total_rooflight_area / TFA * ((average_roof_light_u_value - 1.2)/1.2)
-        max_rooflight_area = TFA*0.25*max_rooflight_area_red_factor
-    
 
-def split_glazing_and_walls(project_dict):
-    """Split windows/rooflights and walls/roofs into dictionaries"""
+def split_glazing_and_walls_and_adjust_glazing_area(project_dict):
+    """Split windows/rooflights and walls/roofs into dictionaries and adjust the glazing areas."""
     windows_rooflight = {}
     walls_roofs = {}
     for zone in project_dict['Zone'].values():
@@ -274,6 +267,12 @@ def split_glazing_and_walls(project_dict):
                 windows_rooflight[building_element_name] = building_element
             elif building_element['type'] == 'BuildingElementOpaque':
                 walls_roofs[building_element_name] = building_element
+            elif building_element['type'] == 'BuildingElementGround'\
+            or building_element['type'] == 'BuildingElementAdjacentZTC'\
+            or building_element['type'] == 'BuildingElementAdjacentZTU_Simple':
+                pass
+            else:
+                sys.exit('Error: unknown building element type')
     
     return windows_rooflight, walls_roofs
 
@@ -286,7 +285,7 @@ def calculate_area_diff(linear_reduction_factor, window_rooflight):
     area_diff = old_area - new_area
     return area_diff
 
-def find_walls_roofs_with_same_orientation(walls_roofs, window_rooflight):
+def find_walls_roofs_with_same_orientation_and_pitch(walls_roofs, window_rooflight):
     """ Find all walls/roofs with same orientation and pitch as this window/rooflight."""
     orientation = window_rooflight['orientation360']
     pitch = window_rooflight['pitch']
@@ -298,7 +297,7 @@ def find_walls_roofs_with_same_orientation(walls_roofs, window_rooflight):
         ]
 
     if not same_orientation:
-        raise ValueError(" There are no wals/roofs with the same orientation"
+        raise ValueError(" There are no walls/roofs with the same orientation"
                          " and pitch as this window/rooflight. ")
 
     return same_orientation
@@ -310,21 +309,23 @@ def edit_glazing_for_glazing_limit(project_dict, TFA):
         for zone in project_dict['Zone'].values()
         for building_element in zone['BuildingElement'].values()
         if building_element['type'] == 'BuildingElementTransparent'
-        and BuildingElement.pitch_class(building_element['pitch']) != \
+        and BuildingElement.pitch_class(building_element['pitch']) == \
                      HeatFlowDirection.UPWARDS
         )
-    max_glazing_area_percentage = 0.25
-    max_glazing_area = max_glazing_area_percentage * TFA
-    windows_rooflight, walls_roofs = split_glazing_and_walls(project_dict)
+    max_glazing_area_fraction= 0.25
+    max_glazing_area = max_glazing_area_fraction * TFA
+    windows_rooflight, walls_roofs = split_glazing_and_walls_and_adjust_glazing_area(project_dict)
 
     if total_glazing_area > max_glazing_area:
         linear_reduction_factor = math.sqrt(max_glazing_area / total_glazing_area)
         for window_rooflight in windows_rooflight.values():
             area_diff = calculate_area_diff(linear_reduction_factor, window_rooflight)
-            same_orientation = find_walls_roofs_with_same_orientation(walls_roofs, window_rooflight)
+            same_orientation = find_walls_roofs_with_same_orientation_and_pitch(
+                walls_roofs, 
+                window_rooflight,
+                )
             wall_roof_area_total = sum(wall_roof['area'] for wall_roof in same_orientation)
 
-            wall_roof_area_prop = {}
             for wall_roof in same_orientation:
                 wall_roof_prop =  wall_roof['area'] / wall_roof_area_total
                 wall_roof['area'] += area_diff * wall_roof_prop
