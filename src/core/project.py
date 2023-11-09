@@ -1289,8 +1289,8 @@ class Project:
         
         return total_HTC, total_HLP, HTC_dict, HLP_dict
 
-    def calc_TMP(self):
-        """ Calculate the thermal mass parameter (TMP), according to the SAP10.2 specification """
+    def calc_HCP(self):
+        """ Calculate the total heat capacity normalised for floor area """
         # TODO party walls and solid doors should be exluded according to SAP spec - if party walls are
         # assumed to be ZTU building elements this could be set to zero?
 
@@ -1302,9 +1302,9 @@ class Project:
             total_heat_capacity += zone.total_heat_capacity()
 
         # Calculate the thermal mass parameter, in kJ / m2 K
-        TMP = total_heat_capacity / self.__total_floor_area
+        HCP = total_heat_capacity / self.__total_floor_area
 
-        return TMP
+        return HCP
 
     def calc_HLFF(self):
         "Calculate the heat loss form factor, defined as exposed area / floor area"
