@@ -23,9 +23,14 @@ emis_factor_name = 'Emissions Factor kgCO2e/kWh'
 emis_oos_factor_name = 'Emissions Factor kgCO2e/kWh including out-of-scope emissions'
 PE_factor_name = 'Primary Energy Factor kWh/kWh delivered'
 
+energysupplyname_electricity = 'mains elec'
+
 appl_obj_name = 'appliances'
 elec_cook_obj_name = 'Eleccooking'
 gas_cook_obj_name = 'Gascooking'
+
+livingroom_setpoint_fhs = 21.0
+restofdwelling_setpoint_fhs = 18.0
 
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
@@ -40,7 +45,10 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     
     nbeds = calc_nbeds(project_dict)
     
-    N_occupants = calc_N_occupants(TFA, nbeds)
+    try:
+        N_occupants = calc_N_occupants(TFA, nbeds)
+    except ValueError as e:
+        sys.exit("Invalid data used in occupancy calculation. {0}".format(e))
     
     #construct schedules
     schedule_occupancy_weekday, schedule_occupancy_weekend = create_occupancy(N_occupants)
@@ -278,17 +286,38 @@ def calc_nbeds(project_dict):
     return nbeds
 
 def calc_N_occupants(TFA, nbeds):
-    #in number of occupants
     
-    sigmoid_params =   {1 :{'j': 0.4373, 'k': -0.001902} ,
-                        2 :{'j': 1.2472, 'k': -0.018511} ,
-                        3 :{'j': 1.9796, 'k': -0.031784} ,
-                        4 :{'j': 2.3715, 'k': -0.001866} ,
-                        5 :{'j': 2.8997, 'k': -0.013386} ,
+    if (TFA <= 0):
+        # assume if floor area less than or equal to zero, TFA is not valid
+        raise ValueError("Invalid floor area: {0}".format(TFA))
+    
+    # sigmoid curve is only used for one bedroom occupancy.
+    # Therefore sigmoid parameters only listed if there is one bedroom
+    sigmoid_params =   {1 :
+                            {'j': 0.4373, 'k': -0.001902}
                         }
-
-    N = 1 + sigmoid_params[nbeds]['j'] * (1 - math.exp(sigmoid_params[nbeds]['k'] * (TFA)**2))
     
+    # constant values are used to look up occupancy against the number of bedrooms
+    TWO_BED_OCCUPANCY = 2.2472
+    THREE_BED_OCCUPANCY = 2.9796
+    FOUR_BED_OCCUPANCY = 3.3715
+    FIVE_BED_OCCUPANCY = 3.8997
+             
+    if (nbeds == 1):
+        N = 1 + sigmoid_params[nbeds]['j'] * (1 - math.exp(sigmoid_params[nbeds]['k'] * (TFA)**2))
+    elif (nbeds == 2):
+        N = TWO_BED_OCCUPANCY
+    elif (nbeds == 3):
+        N = THREE_BED_OCCUPANCY 
+    elif (nbeds == 4):
+        N = FOUR_BED_OCCUPANCY
+    elif (nbeds >= 5):
+        # 5 bedrooms or more are assumed to all have same occupancy
+        N = FIVE_BED_OCCUPANCY
+    else:
+        # invalid number of bedrooms, raise ValueError exception
+        raise ValueError("Invalid number of bedrooms: {0}".format(nbeds))
+            
     return N
 
 def create_occupancy(N_occupants):
@@ -352,9 +381,6 @@ def create_heating_pattern(project_dict):
     '''
     space heating
     '''
-    
-    livingroom_setpoint_fhs = 21.0
-    restofdwelling_setpoint_fhs = 20.0
 
     #07:30-09:30 and then 16:30-22:00
     heating_fhs_weekday = (
@@ -659,7 +685,7 @@ def create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc):
         lumens = TFA * 185
     else:
         #from analysis of EFUS 2017 data
-        lumens = 1417.7 * (TFA * N_occupants) ** 0.4081
+        lumens = 1418 * (TFA * N_occupants) ** 0.41
 
     #dropped 1/3 - 2/3 split based on SAP2012 assumptions about portable lighting
     kWhperyear = lumens/lighting_efficacy
@@ -683,7 +709,7 @@ def create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc):
         "start_day": 0,
         "time_series_step" : 0.5,
         "gains_fraction": 0.85,
-        "EnergySupply": "mains elec",
+        "EnergySupply": energysupplyname_electricity,
         "schedule": {
             "main": [{"value": "jan", "repeat": 31},
                     {"value": "feb", "repeat": 28},
@@ -794,7 +820,7 @@ def create_cooking_gains(project_dict,TFA, N_occupants):
     if "electricity" in cookingfuels:
         project_dict['ApplianceGains'][elec_cook_obj_name] = {
             "type":"cooking",
-            "EnergySupply": "mains elec",
+            "EnergySupply": energysupplyname_electricity,
             "start_day" : 0,
             "time_series_step": 0.5,
             "gains_fraction": 0.5,
@@ -823,7 +849,7 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
     #EA_annual_kWh = 207.8 * (TFA * N_occupants) ** 0.4714
     
     #new relation based on analysis of EFUS 2017 monitoring data
-    EA_annual_kWh = 145.04 * (TFA * N_occupants) ** 0.4856
+    EA_annual_kWh = 145 * (TFA * N_occupants) ** 0.49
     
     appliance_gains_W = []
     for monthly_profile in avg_monthly_hr_profiles:
@@ -832,7 +858,7 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
         
     project_dict['ApplianceGains'][appl_obj_name] = {
         "type": "appliances",
-        "EnergySupply": "mains elec",
+        "EnergySupply": energysupplyname_electricity,
         "start_day": 0,
         "time_series_step": 1,
         # Internal gains are reduced from washer/dryers and dishwasher waste heat losses. 
@@ -868,9 +894,26 @@ def create_appliance_gains(project_dict,TFA,N_occupants):
             "dec": appliance_gains_W[11]
         }
     }
-
-
+    
+# check whether the shower flowrate is not less than the minimum allowed    
+def check_shower_flowrate(project_dict):
+    
+    MIN_FLOWRATE = 8.0 # minimum flow allowed. Return False if below minimum.
+    showers = project_dict['Shower']
+  
+    for name, shower in showers.items():
+        if 'flowrate' in shower:
+            flowrate = shower['flowrate']
+            if flowrate < MIN_FLOWRATE:
+                print("Invalid flow rate: {0} l/s in shower with name {1}".format(flowrate, name), 
+                      file=sys.stderr)
+                return False
+    return True   
+        
 def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed_temps):
+    
+    if not (check_shower_flowrate(project_dict)):
+        sys.exit("Exited: invalid flow rate")    
     
     #temperature of mixed hot water for event
     event_temperature = 41.0

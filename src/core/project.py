@@ -127,8 +127,13 @@ class Project:
             proj_dict['ExternalConditions']['shading_segments'],
             )
 
+        if 'flat' in proj_dict['Infiltration']['build_type']:
+            storey_of_dwelling = proj_dict['Infiltration']['storey_of_dwelling']
+        else:
+            storey_of_dwelling = None
+
         self.__infiltration = VentilationElementInfiltration(
-            proj_dict['Infiltration']['storey'],
+            proj_dict['Infiltration']['storeys_in_building'],
             proj_dict['Infiltration']['shelter'],
             proj_dict['Infiltration']['build_type'],
             proj_dict['Infiltration']['test_result'],
@@ -146,6 +151,7 @@ class Project:
             proj_dict['Infiltration']['passive_vents'],
             proj_dict['Infiltration']['gas_fires'],
             self.__external_conditions,
+            storey_of_dwelling,
             )
 
         self.__cold_water_sources = {}
@@ -737,11 +743,15 @@ class Project:
             elif heat_source_type == 'HIU':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 energy_supply_conn_name_auxiliary = 'HeatNetwork_auxiliary: ' + name
+                energy_supply_conn_name_building_level_distribution_losses \
+                    = 'HeatNetwork_building_level_distribution_losses: ' + name
                 heat_source = HeatNetwork(
                     data['power_max'],
                     data['HIU_daily_loss'],
+                    data['building_level_distribution_losses'],
                     energy_supply,
                     energy_supply_conn_name_auxiliary,
+                    energy_supply_conn_name_building_level_distribution_losses,
                     self.__simtime,
                     )
                 self.__timestep_end_calcs.append(heat_source)
@@ -798,6 +808,7 @@ class Project:
             if heat_source_type == 'ImmersionHeater':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn_name = name
                 energy_supply_conn = energy_supply.connection(name)
 
                 heat_source = ImmersionHeater(
@@ -809,6 +820,7 @@ class Project:
             elif heat_source_type == 'SolarThermalSystem':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn_name = name
                 energy_supply_conn = energy_supply.connection(name)
 
                 heat_source = SolarThermalSystem(
@@ -832,11 +844,12 @@ class Project:
                 
             elif heat_source_type == 'HeatSourceWet':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
+                energy_supply_conn_name = data['name'] + '_water_heating'
 
                 heat_source_wet = self.__heat_sources_wet[data['name']]
                 if isinstance(heat_source_wet, HeatPump):
                     heat_source = heat_source_wet.create_service_hot_water(
-                        data['name'] + '_water_heating',
+                        energy_supply_conn_name,
                         temp_setpoint,
                         55, # TODO Remove hard-coding of return temp
                         data['temp_flow_limit_upper'],
@@ -846,7 +859,7 @@ class Project:
                 elif isinstance(heat_source_wet, Boiler):
                     heat_source = heat_source_wet.create_service_hot_water_regular(
                         data,
-                        data['name'] + '_water_heating',
+                        energy_supply_conn_name,
                         temp_setpoint,
                         cold_water_source,
                         55, # TODO Remove hard-coding of return temp
@@ -855,14 +868,14 @@ class Project:
                 elif isinstance(heat_source_wet, HeatNetwork):
                     # Add heat network hot water service for feeding hot water cylinder
                     heat_source = heat_source_wet.create_service_hot_water_storage(
-                        data['name'] + '_water_heating',
+                        energy_supply_conn_name,
                         temp_setpoint,
                         ctrl,
                         )
                 elif isinstance(heat_source_wet, HeatBattery):
                     heat_source = heat_source_wet.create_service_hot_water_regular(
                         data,
-                        data['name'] + '_water_heating',
+                        energy_supply_conn_name,
                         temp_setpoint,
                         cold_water_source,
                         55, # TODO Remove hard-coding of return temp
@@ -874,6 +887,7 @@ class Project:
             elif heat_source_type == 'HeatPump_HWOnly':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn_name = name
                 energy_supply_conn = energy_supply.connection(name)
 
                 heat_source = HeatPump_HWOnly(
@@ -887,13 +901,15 @@ class Project:
             else:
                 sys.exit(name + ': heat source type (' + heat_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
-            return heat_source
+            return heat_source, energy_supply_conn_name
 
         # List of diverter objects (for end-of-timestep calculations
         self.__diverters = []
 
         def dict_to_hot_water_source(name, data):
             """ Parse dictionary of HW source data and return approprate HW source object """
+            energy_supply_conn_names = []
+
             hw_source_type = data['type']
             if hw_source_type == 'StorageTank':
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
@@ -918,13 +934,14 @@ class Project:
 
                 heat_source_dict= {}
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
-                    heat_source = dict_to_heat_source(
+                    heat_source, conn_name = dict_to_heat_source(
                         heat_source_name,
                         heat_source_data,
                         data['setpoint_temp'],
                         )
                     heat_source_dict[heat_source] = heat_source_data['heater_position'], \
                                                     heat_source_data['thermostat_position']
+                    energy_supply_conn_names.append(conn_name)
 
                 if 'Control_hold_at_setpnt' in data:
                     ctrl_hold_at_setpnt = self.__controls[data['Control_hold_at_setpnt']]
@@ -943,6 +960,8 @@ class Project:
                     energy_supply_unmet_demand.connection(name),
                     ctrl_hold_at_setpnt,
                     )
+                energy_supply_conn_names.append(name)
+
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
                     energy_supply_name = heat_source_data['EnergySupply']
                     if energy_supply_name in diverters \
@@ -954,16 +973,20 @@ class Project:
                         self.__diverters.append(pv_diverter)
 
             elif hw_source_type == 'CombiBoiler':
+                energy_supply_conn_name = data['HeatSourceWet'] + '_water_heating'
+                energy_supply_conn_names.append(energy_supply_conn_name)
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
                 hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_combi(
                     data,
-                    data['HeatSourceWet'] + '_water_heating',
+                    energy_supply_conn_name,
                     60, # TODO Remove hard-coding of HW temp
                     cold_water_source
                     )
             elif hw_source_type == 'PointOfUse':
                 energy_supply = self.__energy_supplies[data['EnergySupply']]
                 # TODO Need to handle error if EnergySupply name is invalid.
+                energy_supply_conn_name = name
+                energy_supply_conn_names.append(energy_supply_conn_name)
                 energy_supply_conn = energy_supply.connection(name)
 
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
@@ -975,9 +998,11 @@ class Project:
                     cold_water_source
                 )
             elif hw_source_type == 'HIU':
+                energy_supply_conn_name = data['HeatSourceWet'] + '_water_heating'
+                energy_supply_conn_names.append(energy_supply_conn_name)
                 cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
                 hw_source = self.__heat_sources_wet[data['HeatSourceWet']].create_service_hot_water_direct(
-                    data['HeatSourceWet'] + '_water_heating',
+                    energy_supply_conn_name,
                     60, # TODO Remove hard-coding of HW temp
                     cold_water_source,
                     )
@@ -987,11 +1012,14 @@ class Project:
             else:
                 sys.exit(name + ': hot water source type (' + hw_source_type + ') not recognised.')
                 # TODO Exit just the current case instead of whole program entirely?
-            return hw_source
+            return hw_source, energy_supply_conn_names
 
         self.__hot_water_sources = {}
+        self.__energy_supply_conn_names_for_hot_water_source = {}
         for name, data in proj_dict['HotWaterSource'].items():
-            self.__hot_water_sources[name] = dict_to_hot_water_source(name, data)
+            self.__hot_water_sources[name], \
+                self.__energy_supply_conn_names_for_hot_water_source[name] \
+                = dict_to_hot_water_source(name, data)
 
         # Some systems (e.g. exhaust air heat pumps) may require overventilation
         # so initialise an empty list to hold the names of these systems
@@ -1235,26 +1263,31 @@ class Project:
     def calc_HTC_HLP(self):
         """ Calculate heat transfer coefficient (HTC) and heat loss parameter (HLP)
         according to the SAP10.2 specification """
-        # Initialise variables
-        total_fabric_heat_loss = 0
-        total_thermal_bridges= 0
-        total_vent_heat_loss = 0
+
+        HTC_dict = {}
+        HLP_dict = {}
 
         # Calculate the total fabric heat loss, total heat capacity, total ventilation heat
         # loss and total heat transfer coeffient for thermal bridges across all zones
         for z_name, zone in self.__zones.items():
-            total_fabric_heat_loss += zone.total_fabric_heat_loss()
-            total_thermal_bridges += zone.total_thermal_bridges()
-            total_vent_heat_loss += zone.total_vent_heat_loss()
+            fabric_heat_loss = zone.total_fabric_heat_loss()
+            thermal_bridges = zone.total_thermal_bridges()
+            vent_heat_loss = zone.total_vent_heat_loss()
 
-        # Calculate the heat transfer coefficent (HTC), in W / K
-        # TODO check ventilation losses are correct
-        HTC = total_fabric_heat_loss + total_thermal_bridges + total_vent_heat_loss
+            # Calculate the heat transfer coefficent (HTC), in W / K
+            # TODO check ventilation losses are correct
+            HTC = fabric_heat_loss + thermal_bridges + vent_heat_loss
 
-        # Calculate the HLP, in W / m2 K
-        HLP = HTC / self.__total_floor_area
+            # Calculate the HLP, in W / m2 K
+            HLP = HTC / zone.area()
 
-        return HTC, HLP
+            HTC_dict[z_name] = HTC
+            HLP_dict[z_name] = HLP
+
+        total_HTC = sum(HTC_dict.values())
+        total_HLP = total_HTC / self.__total_floor_area
+        
+        return total_HTC, total_HLP, HTC_dict, HLP_dict
 
     def calc_HCP(self):
         """ Calculate the total heat capacity normalised for floor area """
@@ -1961,6 +1994,9 @@ class Project:
         energy_import = {}
         energy_export = {}
         energy_generated_consumed = {}
+        energy_to_storage = {}
+        energy_from_storage = {}
+        energy_diverted = {}
         betafactor = {}
         for name, supply in self.__energy_supplies.items():
             results_totals[name] = supply.results_total()
@@ -1968,8 +2004,16 @@ class Project:
             energy_import[name] = supply.get_energy_import()
             energy_export[name] = supply.get_energy_export()
             energy_generated_consumed[name] = supply.get_energy_generated_consumed()
+            energy_to_storage[name], energy_from_storage[name] = supply.get_energy_to_from_battery()
+            energy_diverted[name] = supply.get_energy_diverted()
             betafactor[name] = supply.get_beta_factor()
 
+        hot_water_energy_out = {'hw cylinder': hot_water_energy_output_dict['energy_output']}
+        dhw_cop_dict = self.__heat_cool_cop(
+            hot_water_energy_out,
+            results_end_user,
+            self.__energy_supply_conn_names_for_hot_water_source,
+            )
         heat_cop_dict = self.__heat_cool_cop(
             space_heat_provided_dict,
             results_end_user,
@@ -1983,14 +2027,16 @@ class Project:
 
         return \
             timestep_array, results_totals, results_end_user, \
-            energy_import, energy_export, energy_generated_consumed, betafactor, \
-            zone_dict, zone_list, hc_system_dict, hot_water_dict, heat_cop_dict, cool_cop_dict, \
+            energy_import, energy_export, energy_generated_consumed, \
+            energy_to_storage, energy_from_storage, energy_diverted, betafactor, \
+            zone_dict, zone_list, hc_system_dict, hot_water_dict, \
+            heat_cop_dict, cool_cop_dict, dhw_cop_dict, \
             ductwork_gains_dict, heat_balance_all_dict, \
             heat_source_wet_results_dict, heat_source_wet_results_annual_dict
 
     def __heat_cool_cop(
             self,
-            space_heat_cool_provided_dict,
+            energy_provided_dict,
             results_end_user,
             energy_supply_conn_name_for_space_hc_system,
             ):
@@ -1999,21 +2045,26 @@ class Project:
         hc_output_overall = {}
         hc_input_overall = {}
         cop_dict = {}
-        for hc_name, hc_output in space_heat_cool_provided_dict.items():
+        for hc_name, hc_output in energy_provided_dict.items():
             if hc_name is None:
                 continue
             # Take absolute value because cooling system output is reported as a negative value
             hc_output_overall[hc_name] = abs(sum(hc_output))
             hc_input_overall[hc_name] = 0.0
-            energy_supply_conn_name = energy_supply_conn_name_for_space_hc_system[hc_name]
+            energy_supply_conn_names = energy_supply_conn_name_for_space_hc_system[hc_name]
+            if not isinstance(energy_supply_conn_names, list):
+                energy_supply_conn_names = [energy_supply_conn_names]
             for fuel_name, fuel_summary in results_end_user.items():
                 if fuel_name == '_unmet_demand':
                     continue
                 for conn_name, energy_cons in fuel_summary.items():
-                    if conn_name == energy_supply_conn_name:
+                    if conn_name in energy_supply_conn_names:
                         hc_input_overall[hc_name] += sum(energy_cons)
 
-            cop_dict[hc_name] = hc_output_overall[hc_name] / hc_input_overall[hc_name]
+            if hc_input_overall[hc_name] > 0:
+                cop_dict[hc_name] = hc_output_overall[hc_name] / hc_input_overall[hc_name]
+            else:
+                cop_dict[hc_name] = 'DIV/0'
 
         return cop_dict
 

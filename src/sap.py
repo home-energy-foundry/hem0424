@@ -21,6 +21,8 @@ from read_weather_file import weather_data_to_dict
 from read_CIBSE_weather_file import CIBSE_weather_data_to_dict
 from wrappers.future_homes_standard.future_homes_standard import \
     apply_fhs_preprocessing, apply_fhs_postprocessing
+from wrappers.future_homes_standard.future_homes_standard_notional import \
+    apply_fhs_not_preprocessing
 from wrappers.future_homes_standard.future_homes_standard_FEE import \
     apply_fhs_FEE_preprocessing, apply_fhs_FEE_postprocessing
 
@@ -75,6 +77,13 @@ def run_project(
     # Apply required preprocessing steps, if any
     # TODO Implement notional runs (the below treats them the same as the
     #      equivalent non-notional runs)
+    if fhs_notA_assumptions or fhs_notB_assumptions \
+    or fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
+        project_dict = apply_fhs_not_preprocessing(project_dict, 
+                                                   fhs_notA_assumptions, 
+                                                   fhs_notB_assumptions,
+                                                   fhs_FEE_notA_assumptions,
+                                                   fhs_FEE_notB_assumptions)
     if fhs_assumptions or fhs_notA_assumptions or fhs_notB_assumptions:
         project_dict = apply_fhs_preprocessing(project_dict)
     elif fhs_FEE_assumptions or fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions:
@@ -90,7 +99,7 @@ def run_project(
     project = Project(project_dict, heat_balance, detailed_output_heating_cooling, use_fast_solver)
 
     # Calculate static parameters and output
-    heat_trans_coeff, heat_loss_param = project.calc_HTC_HLP()
+    heat_trans_coeff, heat_loss_param, HTC_dict, HLP_dict = project.calc_HTC_HLP()
     heat_capacity_param = project.calc_HCP()
     heat_loss_form_factor = project.calc_HLFF()
     write_static_output_file(
@@ -103,8 +112,10 @@ def run_project(
 
     # Run main simulation
     timestep_array, results_totals, results_end_user, \
-        energy_import, energy_export, energy_generated_consumed, betafactor, \
-        zone_dict, zone_list, hc_system_dict, hot_water_dict, heat_cop_dict, cool_cop_dict, \
+        energy_import, energy_export, energy_generated_consumed, \
+        energy_to_storage, energy_from_storage, energy_diverted, betafactor, \
+        zone_dict, zone_list, hc_system_dict, hot_water_dict, \
+        heat_cop_dict, cool_cop_dict, dhw_cop_dict, \
         ductwork_gains, heat_balance_dict, heat_source_wet_results_dict, \
         heat_source_wet_results_annual_dict \
         = project.run()
@@ -117,6 +128,9 @@ def run_project(
         energy_import,
         energy_export,
         energy_generated_consumed,
+        energy_to_storage,
+        energy_from_storage,
+        energy_diverted,
         betafactor,
         zone_dict,
         zone_list,
@@ -168,6 +182,9 @@ def run_project(
         results_totals,
         results_end_user,
         energy_generated_consumed,
+        energy_to_storage,
+        energy_from_storage,
+        energy_diverted,
         energy_import,
         energy_export,
         space_heat_demand_total,
@@ -175,6 +192,7 @@ def run_project(
         total_floor_area,
         heat_cop_dict,
         cool_cop_dict,
+        dhw_cop_dict,
         )
 
     # Apply required postprocessing steps, if any
@@ -311,6 +329,9 @@ def write_core_output_file(
         energy_import,
         energy_export,
         energy_generated_consumed,
+        energy_to_storage,
+        energy_from_storage,
+        energy_diverted,
         betafactor,
         zone_dict,
         zone_list,
@@ -340,6 +361,12 @@ def write_core_output_file(
             units_row.append('[kWh]')
             headings.append(str(totals_key) + ' beta factor')
             units_row.append('[ratio]')
+            headings.append(str(totals_key) + ' to storage')
+            units_row.append('[kWh]')
+            headings.append(str(totals_key) + ' from storage')
+            units_row.append('[kWh]')
+            headings.append(str(totals_key) + ' diverted')
+            units_row.append('[kWh]')
 
         # Dictionary for most of the units (future output headings need respective units)
         unitsDict = {
@@ -410,6 +437,10 @@ def write_core_output_file(
                 energy_use_row.append(energy_export[totals_key][t_idx])
                 energy_use_row.append(energy_generated_consumed[totals_key][t_idx])
                 energy_use_row.append(betafactor[totals_key][t_idx])
+                energy_use_row.append(energy_to_storage[totals_key][t_idx])
+                energy_use_row.append(energy_from_storage[totals_key][t_idx])
+                energy_use_row.append(energy_diverted[totals_key][t_idx])
+
                 # Loop over results separated by zone
             for zone in zone_list:
                 for zone_outputs in zone_dict:
@@ -440,6 +471,9 @@ def write_core_output_file_summary(
         results_totals,
         results_end_user,
         energy_generated_consumed,
+        energy_to_storage,
+        energy_from_storage,
+        energy_diverted,
         energy_import,
         energy_export,
         space_heat_demand_total,
@@ -447,6 +481,7 @@ def write_core_output_file_summary(
         total_floor_area,
         heat_cop_dict,
         cool_cop_dict,
+        dhw_cop_dict,
         ):
     # Electricity breakdown
     elec_generated = 0
@@ -461,9 +496,14 @@ def write_core_output_file_summary(
     grid_to_consumption = sum(energy_import['mains elec'])
     generation_to_grid = abs(sum(energy_export['mains elec']))
     net_import = grid_to_consumption - generation_to_grid
-    #TODO report generation to battery, battery to consumption, battery efficiency
-    #TODO report energy diverted
-    
+    gen_to_storage = sum(energy_to_storage['mains elec'])
+    storage_to_consumption = abs(sum(energy_from_storage['mains elec']))
+    gen_to_diverter = sum(energy_diverted['mains elec'])
+    if gen_to_storage > 0.0:
+        storage_eff = storage_to_consumption / gen_to_storage
+    else:
+        storage_eff = 'DIV/0'
+
     #get peak electrcitiy consumption, and when it happens
     start_timestep=project_dict['SimulationTime']['start']
     stepping = project_dict['SimulationTime']['step']
@@ -551,6 +591,7 @@ def write_core_output_file_summary(
 
     heat_cop_rows = [(h_name, h_cop) for h_name, h_cop in heat_cop_dict.items()]
     cool_cop_rows = [(c_name, c_cop) for c_name, c_cop in cool_cop_dict.items()]
+    dhw_cop_rows = [(hw_name, hw_cop) for hw_name, hw_cop in dhw_cop_dict.items()]
 
     # Note: need to specify newline='' below, otherwise an extra carriage return
     # character is written when running on Windows
@@ -573,14 +614,26 @@ def write_core_output_file_summary(
         writer.writerow(['','','Total'])
         writer.writerow(['Consumption','kWh',elec_consumed])
         writer.writerow(['Generation','kWh',elec_generated])
-        writer.writerow(['Generation to consumption (immediate)','kWh',gen_to_consumption])
-        writer.writerow(['Grid to consumption (import)','kWh',grid_to_consumption])
+        writer.writerow([
+            'Generation to consumption (immediate, excl. diverter)',
+            'kWh',
+            gen_to_consumption,
+            ])
+        writer.writerow(['Generation to storage', 'kWh', gen_to_storage])
+        writer.writerow(['Generation to diverter', 'kWh', gen_to_diverter])
         writer.writerow(['Generation to grid (export)','kWh',generation_to_grid])
+        writer.writerow(['Storage to consumption', 'kWh', storage_to_consumption])
+        writer.writerow(['Grid to consumption (import)','kWh',grid_to_consumption])
         writer.writerow(['Net import','kWh',net_import])
+        writer.writerow(['Storage round-trip efficiency', 'ratio', storage_eff])
         writer.writerow([])
         writer.writerow(['Delivered Energy Summary'])
         writer.writerow(delivered_energy_rows_title)
         writer.writerows(delivered_energy_rows)
+        if dhw_cop_rows:
+            writer.writerow([])
+            writer.writerow(['Hot water system', 'Overall CoP'])
+            writer.writerows(dhw_cop_rows)
         if heat_cop_rows:
             writer.writerow([])
             writer.writerow(['Space heating system', 'Overall CoP'])

@@ -10,7 +10,7 @@ import sys
 
 # Local imports
 from core.material_properties import WATER
-from core.units import hours_per_day
+from core.units import hours_per_day, W_per_kW
 
 
 class HeatNetworkService:
@@ -189,17 +189,22 @@ class HeatNetwork:
             self, 
             power_max,
             daily_loss,
+            building_level_distribution_losses,
             energy_supply,
             energy_supply_conn_name_auxiliary,
+            energy_supply_conn_name_building_level_distribution_losses,
             simulation_time,
             ):
         """ Construct a HeatNetwork object
 
         Arguments:
         power_max -- maximum power output of HIU, in kW
-        daily_loss -- daily loss from the HIU, in kWh
+        daily_loss -- daily loss from the HIU, in kWh/day
+        building_level_distribution_losses -- building level distribution losses in Watts
         energy_supply       -- reference to EnergySupply object
         energy_supply_conn_name_auxiliary -- name to use for reporting auxiliary energy use
+        energy_supply_conn_name_building_level_distribution_losses 
+            -- name to use for reporting building level distribution losses energy use
         simulation_time     -- reference to SimulationTime object
 
         Other variables:
@@ -210,11 +215,16 @@ class HeatNetwork:
         """
         self.__power_max = power_max
         self.__daily_loss = daily_loss
+        self.__building_level_distribution_losses = building_level_distribution_losses
         self.__energy_supply = energy_supply
         self.__simulation_time = simulation_time
         self.__energy_supply_connections = {}
         self.__energy_supply_connection_aux \
             = self.__energy_supply.connection(energy_supply_conn_name_auxiliary)
+        self.__energy_supply_connection_building_level_distribution_losses \
+            = self.__energy_supply.connection(
+                energy_supply_conn_name_building_level_distribution_losses
+                )
         self.__total_time_running_current_timestep = 0.0
 
     def __create_service_connection(self, service_name):
@@ -307,12 +317,20 @@ class HeatNetwork:
         """ Calculations to be done at the end of each timestep """
         # Energy required to overcome losses
         self.__energy_supply_connection_aux.demand_energy(self.HIU_loss())
+        self.__energy_supply_connection_building_level_distribution_losses.demand_energy(
+            self.building_level_loss()
+            )
 
         #Variables below need to be reset at the end of each timestep
         self.__total_time_running_current_timestep = 0.0
 
     def HIU_loss(self):
         """ Standing heat loss from the HIU (heat interface unit) in kWh """
-        # daily_loss to be sourced from the PCDB, in kW
+        # daily_loss to be sourced from the PCDB, in kWh/day
         return self.__daily_loss / hours_per_day * self.__simulation_time.timestep()
+
+    def building_level_loss(self):
+        """ Converts building level distribution loss from watts to kWh """
+        return self.__building_level_distribution_losses \
+             / W_per_kW * self.__simulation_time.timestep()
 

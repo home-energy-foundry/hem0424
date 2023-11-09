@@ -1,6 +1,9 @@
 {
 	"PartGcompliance":true,
+	"PartO_active_cooling_required":false,
+	"GroundFloorArea" : 50,
 	"NumberOfBedrooms": 2,
+	"NumberOfWetRooms": 2,
 	"HeatingControlType": "SeparateTempControl",
 	"SimulationTime": {
 		"start": 0,
@@ -233,7 +236,7 @@
 		"EnergySupply": "mains elec"
 	},
 	"Infiltration": {
-		"storey": 1,
+		"storeys_in_building": 1,
 		"shelter": "normal",
 		"build_type": "house",
 		"test_result": 4.0,
@@ -269,6 +272,7 @@
 					"k_m": 19000,
 					"mass_distribution_class": "IE",
 					"pitch": 90,
+					"is_external_door": false,
 					"orientation360": 90,
 					"base_height": 0,
 					"height": 2.5,
@@ -282,6 +286,7 @@
 					"k_m": 19100,
 					"mass_distribution_class": "M",
 					"pitch": 90,
+					"is_external_door": true,
 					"orientation360": 270,
 					"base_height": 0,
 					"height": 2.5,
@@ -295,6 +300,7 @@
 					"k_m": 19200,
 					"mass_distribution_class": "E",
 					"pitch": 90,
+					"is_external_door": false,
 					"orientation360": 0,
 					"base_height": 0,
 					"height": 2.5,
@@ -308,6 +314,7 @@
 					"k_m": 19300,
 					"mass_distribution_class": "I",
 					"pitch": 90,
+					"is_external_door": false,
 					"orientation360": 180,
 					"base_height": 0,
 					"height": 2.5,
@@ -324,6 +331,7 @@
 					"base_height": 1,
 					"height": 1.25,
 					"width": 4,
+					"opaque_support": "wall 3",
 					"shading": [
 						{"type": "overhang", "depth": 0.5, "distance": 0.5},
 						{"type": "sidefinleft", "depth": 0.25, "distance": 0.1},
@@ -356,12 +364,14 @@
 				"TB1": {
 					"type": "ThermalBridgeLinear",
 					"linear_thermal_transmittance": 1.0,
-					"length": 3.0
+					"length": 3.0,
+					"junction_type": "R5"
 				},
 				"TB2": {
 					"type": "ThermalBridgeLinear",
 					"linear_thermal_transmittance": 0.1,
-					"length": 2.0
+					"length": 2.0,
+					"junction_type": "R5"
 				},
 				"TB3": {
 					"type": "ThermalBridgePoint",
@@ -384,6 +394,7 @@
 					"a_sol": 0.6,
 					"r_c": 0.7,
 					"k_m": 19000,
+					"is_external_door": false,
 					"mass_distribution_class": "IE",
 					"pitch": 90,
 					"orientation360": 90,
