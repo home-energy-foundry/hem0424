@@ -727,9 +727,9 @@ def edit_storagetank(project_dict, cold_water_source, TFA):
 def edit_primary_pipework(project_dict, TFA):
     
     # Define minimum values
-    internal_diameter_mm_min = 22
-    external_diameter_mm_min = 24
-    insulation_thickness_mm_min = 25
+    internal_diameter_mm_min = 20
+    external_diameter_mm_min = 22
+    insulation_thickness_mm_min = 35
     surface_reflectivity = False
     pipe_contents = "water"
     insulation_thermal_conductivity = 0.035
@@ -763,8 +763,8 @@ def edit_primary_pipework(project_dict, TFA):
         internal_diameter_mm = max(primary_pipework_dict['internal_diameter_mm'], internal_diameter_mm_min)
         external_diameter_mm = max(primary_pipework_dict['external_diameter_mm'], external_diameter_mm_min)
         # update insulation thickness based on internal diameter
-        if internal_diameter_mm > 25:
-            insulation_thickness_mm_min = 32
+        if internal_diameter_mm <= 25:
+            insulation_thickness_mm_min = 25
 
         # primary pipework should not be greater than maximum length
         length = min(length, length_max)
@@ -786,8 +786,8 @@ def edit_hot_water_distribution_inner(project_dict, TFA):
     hot_water_distribution_inner_dict = project_dict['Distribution']['internal']
 
     # Defaults
-    internal_diameter_mm_min = 15
-    external_diameter_mm_min = 17
+    internal_diameter_mm_min = 13
+    external_diameter_mm_min = 15
     insulation_thickness_mm = 20
 
     # Update length
