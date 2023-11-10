@@ -257,8 +257,8 @@ def edit_transparent_element(project_dict, TFA):
                     building_element.pop('r_c', None)
 
 
-def split_glazing_and_walls_and_adjust_glazing_area(project_dict):
-    """Split windows/rooflights and walls/roofs into dictionaries and adjust the glazing areas."""
+def split_glazing_and_walls(project_dict):
+    """Split windows/rooflights and walls/roofs into dictionaries."""
     windows_rooflight = {}
     walls_roofs = {}
     for zone in project_dict['Zone'].values():
@@ -276,8 +276,8 @@ def split_glazing_and_walls_and_adjust_glazing_area(project_dict):
     
     return windows_rooflight, walls_roofs
 
-def calculate_area_diff(linear_reduction_factor, window_rooflight):
-    """Calculate difference between old  and new glazing area"""
+def calculate_area_diff_and_adjust_glazing_area(linear_reduction_factor, window_rooflight):
+    """Calculate difference between old  and new glazing area and adjust the glazing areas"""
     old_area = window_rooflight['height'] * window_rooflight['width']
     window_rooflight['height'] *= linear_reduction_factor
     window_rooflight['width'] *= linear_reduction_factor
@@ -309,17 +309,15 @@ def edit_glazing_for_glazing_limit(project_dict, TFA):
         for zone in project_dict['Zone'].values()
         for building_element in zone['BuildingElement'].values()
         if building_element['type'] == 'BuildingElementTransparent'
-        and BuildingElement.pitch_class(building_element['pitch']) == \
-                     HeatFlowDirection.UPWARDS
         )
     max_glazing_area_fraction= 0.25
     max_glazing_area = max_glazing_area_fraction * TFA
-    windows_rooflight, walls_roofs = split_glazing_and_walls_and_adjust_glazing_area(project_dict)
+    windows_rooflight, walls_roofs = split_glazing_and_walls(project_dict)
 
     if total_glazing_area > max_glazing_area:
         linear_reduction_factor = math.sqrt(max_glazing_area / total_glazing_area)
         for window_rooflight in windows_rooflight.values():
-            area_diff = calculate_area_diff(linear_reduction_factor, window_rooflight)
+            area_diff = calculate_area_diff_and_adjust_glazing_area(linear_reduction_factor, window_rooflight)
             same_orientation = find_walls_roofs_with_same_orientation_and_pitch(
                 walls_roofs, 
                 window_rooflight,
