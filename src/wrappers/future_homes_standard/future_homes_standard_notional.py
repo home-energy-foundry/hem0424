@@ -50,6 +50,7 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_infiltration(project_dict,is_notA)
     edit_opaque_ajdZTU_elements(project_dict)
     edit_transparent_element(project_dict, TFA)
+    edit_glazing_for_glazing_limit(project_dict, TFA)
     edit_ground_floors(project_dict)
     edit_thermal_bridging(project_dict)
 
@@ -218,8 +219,7 @@ def edit_transparent_element(project_dict, TFA):
     
     for windows and glazed doors
     u-value is 1.2
-    there is a max area of windows of 25% of TFA
-    
+
     for rooflights
     u-value is 1.7
     the max rooflight area is exactly defined as:
@@ -237,8 +237,6 @@ def edit_transparent_element(project_dict, TFA):
     
     TODO - awaiting confirmation from DLUHC/DESNZ that interpretation is correct
     '''
-    
-    total_window_area = 0
     total_rooflight_area = 0
     sum_uval_times_area = 0
     for zone in project_dict['Zone'].values():
@@ -255,49 +253,80 @@ def edit_transparent_element(project_dict, TFA):
 
                 else:
                     #if it is not a roof light, it is a glazed door or window
-                    total_window_area += building_element['height'] * building_element['width']
                     building_element['u_value'] = 1.2
                     building_element.pop('r_c', None)
 
-    
-    if total_rooflight_area != 0:
-        #avoid divided by 0 if there are no rooflights
-        average_roof_light_u_value = sum_uval_times_area / total_rooflight_area
-        max_rooflight_area_red_factor = total_rooflight_area / TFA * ((average_roof_light_u_value - 1.2)/1.2)
-        max_rooflight_area = TFA*0.25*max_rooflight_area_red_factor
-    
-    max_window_area = 0.25 * TFA
-    if total_window_area > max_window_area:
-        correct_transparent_area(project_dict, total_window_area, max_window_area)
 
-def correct_transparent_area(project_dict, total_area, max_area):
-    '''
-    Applies correction to transparent elements area and their supporting opaque elements 
-    
-    TODO - the correction is applied to curtain walls too, awaiting confirmation that this is correct
-    '''
-    #window_reduction_factor is applied to both height and width (hence sqrt)
-    #to preserve similar geometry as in the actual dwelling
-    linear_reduction_factor = math.sqrt(max_area / total_area)
+def split_glazing_and_walls(project_dict):
+    """Split windows/rooflights and walls/roofs into dictionaries."""
+    windows_rooflight = {}
+    walls_roofs = {}
     for zone in project_dict['Zone'].values():
-        for building_element_name, building_element in \
-        zone['BuildingElement'].items():
+        for building_element_name, building_element in zone['BuildingElement'].items():
             if building_element['type'] == 'BuildingElementTransparent':
-                old_area = building_element['height'] * building_element['width']
-                building_element['height'] = linear_reduction_factor * building_element['height']
-                building_element['width'] = linear_reduction_factor * building_element['width']
-                new_area = building_element['height'] * building_element['width']
-                
-                #add the window area difference to the external wall it belongs to
-                area_diff = old_area - new_area
-                if 'opaque_support' not in building_element.keys():
-                    sys.exit('missing element opaque_support in transparent element {building_element_name}')
-                wall_name = building_element['opaque_support']
-                if wall_name in zone['BuildingElement'].keys():
-                    zone['BuildingElement'][wall_name]['area'] += area_diff
-                elif wall_name != 'curtain wall':
-                    sys.exit('Unrecognised opaque_support: \"{wall_name}\". ' +\
-                             'Options are: an existing opaque element name or \"curtain wall\"')
+                windows_rooflight[building_element_name] = building_element
+            elif building_element['type'] == 'BuildingElementOpaque':
+                walls_roofs[building_element_name] = building_element
+            elif building_element['type'] == 'BuildingElementGround'\
+            or building_element['type'] == 'BuildingElementAdjacentZTC'\
+            or building_element['type'] == 'BuildingElementAdjacentZTU_Simple':
+                pass
+            else:
+                sys.exit('Error: unknown building element type')
+    
+    return windows_rooflight, walls_roofs
+
+def calculate_area_diff_and_adjust_glazing_area(linear_reduction_factor, window_rooflight):
+    """Calculate difference between old  and new glazing area and adjust the glazing areas"""
+    old_area = window_rooflight['height'] * window_rooflight['width']
+    window_rooflight['height'] *= linear_reduction_factor
+    window_rooflight['width'] *= linear_reduction_factor
+    new_area = window_rooflight['height'] * window_rooflight['width']
+    area_diff = old_area - new_area
+    return area_diff
+
+def find_walls_roofs_with_same_orientation_and_pitch(walls_roofs, window_rooflight):
+    """ Find all walls/roofs with same orientation and pitch as this window/rooflight."""
+    orientation = window_rooflight['orientation360']
+    pitch = window_rooflight['pitch']
+
+    same_orientation = [
+        wall_roof for wall_roof in walls_roofs.values()
+        if wall_roof['orientation360'] == orientation
+        and wall_roof['pitch'] == pitch
+        ]
+
+    if not same_orientation:
+        raise ValueError(" There are no walls/roofs with the same orientation"
+                         " and pitch as this window/rooflight. ")
+
+    return same_orientation
+
+def edit_glazing_for_glazing_limit(project_dict, TFA):
+    """" Resize window/rooflight and wall/roofs to meet glazing limits"""
+    total_glazing_area = sum(
+        building_element['height'] * building_element['width']
+        for zone in project_dict['Zone'].values()
+        for building_element in zone['BuildingElement'].values()
+        if building_element['type'] == 'BuildingElementTransparent'
+        )
+    max_glazing_area_fraction= 0.25
+    max_glazing_area = max_glazing_area_fraction * TFA
+    windows_rooflight, walls_roofs = split_glazing_and_walls(project_dict)
+
+    if total_glazing_area > max_glazing_area:
+        linear_reduction_factor = math.sqrt(max_glazing_area / total_glazing_area)
+        for window_rooflight in windows_rooflight.values():
+            area_diff = calculate_area_diff_and_adjust_glazing_area(linear_reduction_factor, window_rooflight)
+            same_orientation = find_walls_roofs_with_same_orientation_and_pitch(
+                walls_roofs, 
+                window_rooflight,
+                )
+            wall_roof_area_total = sum(wall_roof['area'] for wall_roof in same_orientation)
+
+            for wall_roof in same_orientation:
+                wall_roof_prop =  wall_roof['area'] / wall_roof_area_total
+                wall_roof['area'] += area_diff * wall_roof_prop
 
 def edit_ground_floors(project_dict):
     '''
