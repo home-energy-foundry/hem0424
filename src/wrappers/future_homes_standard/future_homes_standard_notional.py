@@ -729,7 +729,7 @@ def edit_primary_pipework(project_dict, TFA):
     # Define minimum values
     internal_diameter_mm_min = 20
     external_diameter_mm_min = 22
-    insulation_thickness_mm_min = 35
+    insulation_thickness_mm_min = 25
     surface_reflectivity = False
     pipe_contents = "water"
     insulation_thermal_conductivity = 0.035
@@ -763,8 +763,8 @@ def edit_primary_pipework(project_dict, TFA):
         internal_diameter_mm = max(primary_pipework_dict['internal_diameter_mm'], internal_diameter_mm_min)
         external_diameter_mm = max(primary_pipework_dict['external_diameter_mm'], external_diameter_mm_min)
         # update insulation thickness based on internal diameter
-        if internal_diameter_mm <= 25:
-            insulation_thickness_mm_min = 25
+        if internal_diameter_mm > 25:
+            insulation_thickness_mm_min = 35
 
         # primary pipework should not be greater than maximum length
         length = min(length, length_max)
