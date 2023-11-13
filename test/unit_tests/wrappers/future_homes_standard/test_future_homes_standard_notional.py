@@ -207,6 +207,14 @@ class NotionalBuildingHeatPump(unittest.TestCase):
 			"incorrect max glazing area fraction",
 			)
 
+		project_dict["Zone"]["test_zone"]["BuildingElement"]["test_rooflight"]["u_value"] = 1.5
+		project_dict["Zone"]["test_zone"]["BuildingElement"]["test_rooflight"]["pitch"] = 90.0
+		self.assertEqual(
+			future_homes_standard_notional.calc_max_glazing_area_fraction(project_dict, 80.0),
+			0.25,
+			"incorrect max glazing area fraction when there are no rooflights",
+			)
+
 	def test_edit_bath_shower_other(self):
 
 		project_dict = deepcopy(self.project_dict)
