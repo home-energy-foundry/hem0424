@@ -302,6 +302,24 @@ def find_walls_roofs_with_same_orientation_and_pitch(walls_roofs, window_rooflig
 
     return same_orientation
 
+def calc_max_glazing_area_fraction(project_dict, TFA):
+    """ Calculate max glazing area fraction for notional building, adjusted for rooflights """
+    total_rooflight_area = 0.0
+    sum_uval_times_area = 0.0
+    for zone in project_dict['Zone'].values():
+        for building_element in zone['BuildingElement'].values():
+            if building_element['type'] == 'BuildingElementTransparent' \
+            and BuildingElement.pitch_class(building_element['pitch']) \
+            == HeatFlowDirection.UPWARDS:
+                rooflight_area = building_element['height'] * building_element['width']
+                total_rooflight_area += rooflight_area
+                sum_uval_times_area += rooflight_area * building_element['u_value']
+
+    average_rooflight_uval = sum_uval_times_area / total_rooflight_area
+    rooflight_proportion = total_rooflight_area / TFA
+    rooflight_correction_factor = rooflight_proportion * (average_rooflight_uval - 1.2) / 1.2
+    return 0.25 - rooflight_correction_factor
+
 def edit_glazing_for_glazing_limit(project_dict, TFA):
     """" Resize window/rooflight and wall/roofs to meet glazing limits"""
     total_glazing_area = sum(
@@ -310,7 +328,7 @@ def edit_glazing_for_glazing_limit(project_dict, TFA):
         for building_element in zone['BuildingElement'].values()
         if building_element['type'] == 'BuildingElementTransparent'
         )
-    max_glazing_area_fraction= 0.25
+    max_glazing_area_fraction = calc_max_glazing_area_fraction(project_dict, TFA)
     max_glazing_area = max_glazing_area_fraction * TFA
     windows_rooflight, walls_roofs = split_glazing_and_walls(project_dict)
 
