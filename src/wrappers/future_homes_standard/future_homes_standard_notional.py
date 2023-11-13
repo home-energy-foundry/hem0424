@@ -317,7 +317,10 @@ def calc_max_glazing_area_fraction(project_dict, TFA):
 
     average_rooflight_uval = sum_uval_times_area / total_rooflight_area
     rooflight_proportion = total_rooflight_area / TFA
-    rooflight_correction_factor = rooflight_proportion * (average_rooflight_uval - 1.2) / 1.2
+    rooflight_correction_factor = max(
+        0.0,
+        rooflight_proportion * (average_rooflight_uval - 1.2) / 1.2,
+        )
     return 0.25 - rooflight_correction_factor
 
 def edit_glazing_for_glazing_limit(project_dict, TFA):
