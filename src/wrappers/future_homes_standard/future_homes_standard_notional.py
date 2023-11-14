@@ -32,7 +32,6 @@ def apply_fhs_not_preprocessing(project_dict,
 
     is_notA = fhs_notA_assumptions or fhs_FEE_notA_assumptions
     is_FEE  = fhs_FEE_notA_assumptions or fhs_FEE_notB_assumptions
-    is_notA_or_notB = fhs_notA_assumptions or fhs_notB_assumptions
 
     # Check if a heat network is present
     is_heat_network = check_heatnetwork_present(project_dict)
@@ -65,7 +64,6 @@ def apply_fhs_not_preprocessing(project_dict,
         TFA,
         is_heat_network,
         is_FEE,
-        is_notA_or_notB,
         )
 
     # modify bath, shower and other dhw characteristics
@@ -927,13 +925,14 @@ def edit_space_heating_system(project_dict,
                               TFA,
                               is_heat_network,
                               is_FEE,
-                              is_notA_or_notB,
                               ):
 
+    # If Actual dwelling is heated with heat networks - Notional heated with HIU.
+    # Otherwise, notional heated with an air to water heat pump
     if is_heat_network:
         edit_add_heatnetwork_heating(project_dict, cold_water_source)
         edit_heatnetwork_space_heating_distribution_system(project_dict)
-    elif is_notA_or_notB:
+    elif not is_FEE:
         design_capacity_dict, design_capacity_overall = calc_design_capacity(project_dict)
         edit_add_default_space_heating_system(project_dict, design_capacity_overall)
         edit_default_space_heating_distribution_system(project_dict, design_capacity_dict)
