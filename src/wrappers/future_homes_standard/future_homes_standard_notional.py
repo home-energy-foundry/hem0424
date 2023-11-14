@@ -948,6 +948,8 @@ def edit_spacecoolsystem(project_dict):
         for space_cooling_name in project_dict['SpaceCoolSystem'].keys():
             project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 5.1
             project_dict['SpaceCoolSystem'][space_cooling_name]['frac_convective'] = 0.95
+            project_dict['SpaceCoolSystem'][space_cooling_name]['EnergySupply'] \
+                = energysupplyname_electricity
 
 def calc_design_capacity(project_dict):
     '''Calculate design capacity for each zone and overall design capacity.'''
