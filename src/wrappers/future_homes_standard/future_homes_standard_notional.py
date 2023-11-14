@@ -852,7 +852,7 @@ def edit_hot_water_distribution_inner(project_dict, TFA):
 
     hot_water_distribution_inner_dict = {
         "external_diameter_mm": external_diameter_mm,
-        "insulation_thermal_conductivity": 35,
+        "insulation_thermal_conductivity": 0.035,
         "insulation_thickness_mm": insulation_thickness_mm,
         "internal_diameter_mm": internal_diameter_mm,
         "length": length,
