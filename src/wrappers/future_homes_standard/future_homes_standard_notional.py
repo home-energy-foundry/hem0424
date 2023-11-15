@@ -592,7 +592,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                     "test_letter": "F"
                 }
             ],
-            "time_constant_onoff_operation": 140,
+            "time_constant_onoff_operation": 120,
             "time_delay_backup": 1,
             "type": "HeatPump",
             "var_flow_temp_ctrl_during_test": True
