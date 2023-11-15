@@ -484,7 +484,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
             "power_heating_circ_pump": capacity_results_dict_55['F'] * 0.003,
             "power_max_backup": 3,
             "power_off": 0,
-            "power_source_circ_pump": 0,
+            "power_source_circ_pump": 0.01,
             "power_standby": 0.01,
             "sink_type": "Water",
             "source_type": "OutsideAir",
