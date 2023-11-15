@@ -899,17 +899,12 @@ def minimum_air_change_rate(project_dict, TFA):
     return minimum_ach
 
 def edit_ventilation(project_dict, isnotA, minimum_ach):
-    # Retrieve ventilation dictionary
-    ventilation = project_dict['Ventilation']
-
-    # Calculate the required air changes per hour
-    req_ach = max(ventilation['req_ach'], minimum_ach)
-
+    '''Edit air change rate and SFP'''
     if  isnotA:
         # Continous decentralised mechanical extract ventilation
         project_dict['Ventilation'] = {
             'type': 'WHEV',
-            'req_ach': req_ach,
+            'req_ach': minimum_ach,
             'SFP': 0.15,
             "EnergySupply": energysupplyname_electricity
             }
@@ -917,7 +912,7 @@ def edit_ventilation(project_dict, isnotA, minimum_ach):
         # Natural ventilation
         project_dict['Ventilation'] = {
             'type': 'NatVent',
-            'req_ach': req_ach,
+            'req_ach': minimum_ach,
             }
 
 def edit_space_heating_system(project_dict,
