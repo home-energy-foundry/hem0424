@@ -927,21 +927,20 @@ def edit_space_heating_system(project_dict,
                               is_FEE,
                               ):
 
-    # If Actual dwelling is heated with heat networks - Notional heated with HIU.
-    # Otherwise, notional heated with an air to water heat pump
-    if is_heat_network:
-        edit_add_heatnetwork_heating(project_dict, cold_water_source)
-        edit_heatnetwork_space_heating_distribution_system(project_dict)
-    elif not is_FEE:
-        design_capacity_dict, design_capacity_overall = calc_design_capacity(project_dict)
-        edit_add_default_space_heating_system(project_dict, design_capacity_overall)
-        edit_default_space_heating_distribution_system(project_dict, design_capacity_dict)
-        edit_storagetank(project_dict, cold_water_source, TFA)
-    elif is_FEE:
+    if not is_FEE:
+        # If Actual dwelling is heated with heat networks - Notional heated with HIU.
+        # Otherwise, notional heated with an air to water heat pump
+        if is_heat_network:
+            edit_add_heatnetwork_heating(project_dict, cold_water_source)
+            edit_heatnetwork_space_heating_distribution_system(project_dict)
+        else:
+            design_capacity_dict, design_capacity_overall = calc_design_capacity(project_dict)
+            edit_add_default_space_heating_system(project_dict, design_capacity_overall)
+            edit_default_space_heating_distribution_system(project_dict, design_capacity_dict)
+            edit_storagetank(project_dict, cold_water_source, TFA)
+    else:
         # FEE calculation which doesn't need the space heating system at this stage.
         pass
-    else:
-        sys.exit('Error in heating system')
 
 def edit_spacecoolsystem(project_dict):
     if project_dict['PartO_active_cooling_required']:
