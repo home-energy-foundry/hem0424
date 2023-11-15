@@ -181,18 +181,19 @@ class Project:
                 diverters[name] = data['diverter']
 
         self.__internal_gains = {}
-        for name, data in proj_dict['InternalGains'].items():
-            self.__internal_gains[name] = InternalGains(
-                                             expand_schedule(
-                                                 float,
-                                                 data['schedule'],
-                                                 "main",
-                                                 False,
-                                                 ),
-                                             self.__simtime,
-                                             data['start_day'],
-                                             data['time_series_step']
-                                             )
+        if 'InternalGains' in proj_dict:
+            for name, data in proj_dict['InternalGains'].items():
+                self.__internal_gains[name] = InternalGains(
+                                                 expand_schedule(
+                                                     float,
+                                                     data['schedule'],
+                                                     "main",
+                                                     False,
+                                                     ),
+                                                 self.__simtime,
+                                                 data['start_day'],
+                                                 data['time_series_step']
+                                                 )
 
         def dict_to_ctrl(name, data):
             """ Parse dictionary of control data and return appropriate control object """
