@@ -954,6 +954,7 @@ def calc_design_capacity(project_dict):
     # Make a copy and remove space heating system to initiliase project
     project_dict_copy = deepcopy(project_dict)
     project_dict_copy['SpaceHeatSystem'] = {}
+    project_dict_copy['ApplianceGains'] = {}
 
     # Set initial temperature set point for all zones
     initialise_temperature_setpoints(project_dict_copy)
