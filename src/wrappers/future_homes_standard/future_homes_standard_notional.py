@@ -493,7 +493,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
             "test_data": [
                 {
                     "capacity": capacity_results_dict_35['A'],
-                    "cop": 2.788,
+                    "cop": 2.79,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
                     "temp_outlet": 34,
@@ -583,7 +583,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_55['F'],
-                    "cop": 1.868,
+                    "cop": 1.87,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 55,
