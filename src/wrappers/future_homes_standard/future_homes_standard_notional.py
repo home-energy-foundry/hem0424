@@ -54,34 +54,16 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_ground_floors(project_dict)
     edit_thermal_bridging(project_dict)
 
-    # Set initial temperature set point for all zones
-    # This is need to initialise the project object to get the HTC and HLP,
-    # but does not make a difference to results as a new Project objecct will
-    # be created later with initial temperatures set by the FHS wrapper.
-    initialise_temperature_setpoints(project_dict)
-
     # Modify control object
     control_objects(project_dict)
-
-    # Make a copy and remove space heating system to initiliase project
-    project_dict_copy = deepcopy(project_dict)
-    project_dict_copy['SpaceHeatSystem'] = {}
-    # Create a Project instance
-    project = Project(project_dict_copy, False, False, False)
-    # Calculate heat transfer coefficients and heat loss parameters
-    heat_trans_coeff, heat_loss_param, HTC_dict, HLP_dict  = project.calc_HTC_HLP()
-
-    # Calculate design capacity
-    design_capacity_dict, design_capacity_overall = calc_design_capacity(project_dict, HTC_dict)
 
     # Edit space heating system
     edit_space_heating_system(
         project_dict,
         cold_water_source,
-        design_capacity_dict,
-        design_capacity_overall,
         TFA,
-        is_heat_network
+        is_heat_network,
+        is_FEE,
         )
 
     # modify bath, shower and other dhw characteristics
@@ -478,7 +460,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
     '''
     factors_35 = {'A':1.00, 'B':0.62, 'C':0.55, 'D':0.47, 'F':1.05}
     factors_55 = {'A':0.99, 'B':0.60, 'C':0.49, 'D':0.51, 'F':1.03}
-    
+
     capacity_results_dict_35 = {}
     for record, factor in factors_35.items():
         result = round(design_capacity_overall * factor, 3)
@@ -940,21 +922,25 @@ def edit_ventilation(project_dict, isnotA, minimum_ach):
 
 def edit_space_heating_system(project_dict,
                               cold_water_source,
-                              design_capacity_dict,
-                              design_capacity_overall,
                               TFA,
-                              is_heat_network
+                              is_heat_network,
+                              is_FEE,
                               ):
 
-    # If Actual dwelling is heated with heat networks - Notional heated with HIU.
-    # Otherwise, Notional heated with a air to water heat pump
-    if is_heat_network:
-        edit_add_heatnetwork_heating(project_dict, cold_water_source)
-        edit_heatnetwork_space_heating_distribution_system(project_dict)
+    if not is_FEE:
+        # If Actual dwelling is heated with heat networks - Notional heated with HIU.
+        # Otherwise, notional heated with an air to water heat pump
+        if is_heat_network:
+            edit_add_heatnetwork_heating(project_dict, cold_water_source)
+            edit_heatnetwork_space_heating_distribution_system(project_dict)
+        else:
+            design_capacity_dict, design_capacity_overall = calc_design_capacity(project_dict)
+            edit_add_default_space_heating_system(project_dict, design_capacity_overall)
+            edit_default_space_heating_distribution_system(project_dict, design_capacity_dict)
+            edit_storagetank(project_dict, cold_water_source, TFA)
     else:
-        edit_add_default_space_heating_system(project_dict, design_capacity_overall)
-        edit_default_space_heating_distribution_system(project_dict, design_capacity_dict)
-        edit_storagetank(project_dict, cold_water_source, TFA)
+        # FEE calculation which doesn't need the space heating system at this stage.
+        pass
 
 def edit_spacecoolsystem(project_dict):
     if project_dict['PartO_active_cooling_required']:
@@ -962,13 +948,26 @@ def edit_spacecoolsystem(project_dict):
             project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 5.1
             project_dict['SpaceCoolSystem'][space_cooling_name]['frac_convective'] = 0.95
 
-def calc_design_capacity(project_dict, HTC_dict):
+def calc_design_capacity(project_dict):
+    '''Calculate design capacity for each zone and overall design capacity.'''
+    # Make a copy and remove space heating system to initiliase project
+    project_dict_copy = deepcopy(project_dict)
+    project_dict_copy['SpaceHeatSystem'] = {}
+
+    # Set initial temperature set point for all zones
+    initialise_temperature_setpoints(project_dict_copy)
+
+    # Create a Project instance
+    project = Project(project_dict_copy, False, False, False)
+
+    # Calculate heat transfer coefficients and heat loss parameters
+    heat_trans_coeff, heat_loss_param, HTC_dict, HLP_dict = project.calc_HTC_HLP()
+
+    # Calculate design capacity
     min_air_temp = min(project_dict['ExternalConditions']['air_temperatures'])
     design_capacity_dict = {}
-
     for zone_name, zone in project_dict['Zone'].items():
         set_point = set_point_per_zone(zone)
-
         temperature_difference = set_point - min_air_temp
         design_heat_loss = HTC_dict[zone_name] * temperature_difference
         design_capacity = 2 * design_heat_loss
