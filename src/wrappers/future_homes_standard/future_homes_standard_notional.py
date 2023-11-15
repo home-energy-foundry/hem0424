@@ -503,7 +503,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_35['B'],
-                    "cop": 4.292,
+                    "cop": 4.29,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
                     "temp_outlet": 30,
@@ -513,7 +513,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_35['C'],
-                    "cop": 5.906,
+                    "cop": 5.91,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
                     "temp_outlet": 27,
@@ -523,7 +523,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_35['D'],
-                    "cop": 8.016,
+                    "cop": 8.02,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
                     "temp_outlet": 24,
@@ -533,7 +533,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_35['F'],
-                    "cop": 2.492,
+                    "cop": 2.49,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
                     "temp_outlet": 35,
@@ -543,7 +543,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_55['A'],
-                    "cop": 2.034,
+                    "cop": 2.03,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 52,
@@ -553,7 +553,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_55['B'],
-                    "cop": 3.118,
+                    "cop": 3.12,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 42,
@@ -563,7 +563,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_55['C'],
-                    "cop": 4.406,
+                    "cop": 4.41,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 36,
@@ -573,7 +573,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_55['D'],
-                    "cop": 6.298,
+                    "cop": 6.30,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 30,
