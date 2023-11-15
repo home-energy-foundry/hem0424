@@ -22,6 +22,7 @@ notional_HP = 'notional_HP'
 hw_timer = "hw timer"
 hw_timer_eco7 = "hw timer eco7"
 heating_pattern = "HeatingPattern_Null"
+Window_Opening = "Window_Opening"
 
 def apply_fhs_not_preprocessing(project_dict,
                                 fhs_notA_assumptions,
@@ -1088,7 +1089,7 @@ def control_objects(project_dict):
                 ]
             }
         },
-        "Window_Opening": {
+        Window_Opening: {
             "type": "SetpointTimeControl",
             "start_day": 0,
             "time_series_step": 0.5,
@@ -1112,6 +1113,10 @@ def control_objects(project_dict):
             }
         }
     }
+
+    if 'Window_Opening_For_Cooling' in project_dict:
+        project_dict['Window_Opening_For_Cooling']['Control'] = Window_Opening
+ 
 
 def calculate_cylinder_volume(daily_HWD):
 
