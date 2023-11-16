@@ -558,7 +558,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 42,
-                    "temp_source": 3,
+                    "temp_source": 2,
                     "temp_test": 2,
                     "test_letter": "B"
                 },
@@ -853,7 +853,7 @@ def edit_hot_water_distribution_inner(project_dict, TFA):
 
     hot_water_distribution_inner_dict = {
         "external_diameter_mm": external_diameter_mm,
-        "insulation_thermal_conductivity": 35,
+        "insulation_thermal_conductivity": 0.035,
         "insulation_thickness_mm": insulation_thickness_mm,
         "internal_diameter_mm": internal_diameter_mm,
         "length": length,
@@ -949,6 +949,8 @@ def edit_spacecoolsystem(project_dict):
         for space_cooling_name in project_dict['SpaceCoolSystem'].keys():
             project_dict['SpaceCoolSystem'][space_cooling_name]['efficiency'] = 5.1
             project_dict['SpaceCoolSystem'][space_cooling_name]['frac_convective'] = 0.95
+            project_dict['SpaceCoolSystem'][space_cooling_name]['EnergySupply'] \
+                = energysupplyname_electricity
 
 def calc_design_capacity(project_dict):
     '''Calculate design capacity for each zone and overall design capacity.'''
