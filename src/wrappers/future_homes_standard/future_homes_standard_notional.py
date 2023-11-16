@@ -835,8 +835,8 @@ def edit_hot_water_distribution_inner(project_dict, TFA):
         sys.exit('Unrecognised building type')
 
     # hot water distribution (inner) length should not be greater than maximum length
-    length =  min(length_actual, length_max)
     length_actual = hot_water_distribution_inner_dict['length']
+    length =  min(length_actual, length_max)
 
     # Update internal diameter to minimum if not present and should not be lower than the minimum
     if 'internal_diameter_mm' not in hot_water_distribution_inner_dict:
