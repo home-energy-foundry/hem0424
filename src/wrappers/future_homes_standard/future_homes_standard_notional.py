@@ -608,7 +608,8 @@ def edit_default_space_heating_distribution_system(project_dict, design_capacity
     design_flow_temp = 45 
     c_per_rad = 0.01
     n = 1.34
-    thermal_mass_per_rad = 51.8 / units.J_per_kWh
+    # thermal mass specified in kJ/K but required in kWh/K
+    thermal_mass_per_rad = 51.8 * units.J_per_kJ / units.J_per_kWh
 
     # Initialise space heating system in project dict
     project_dict['SpaceHeatSystem'] = {}
