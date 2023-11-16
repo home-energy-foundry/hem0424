@@ -558,7 +558,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 42,
-                    "temp_source": 3,
+                    "temp_source": 2,
                     "temp_test": 2,
                     "test_letter": "B"
                 },
