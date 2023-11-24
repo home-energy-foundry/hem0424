@@ -958,6 +958,12 @@ def calc_design_capacity(project_dict):
     project_dict_copy = deepcopy(project_dict)
     project_dict_copy['SpaceHeatSystem'] = {}
     project_dict_copy['ApplianceGains'] = {}
+    # Remove WWHRS. It is not needed in this part of the calculation and
+    # initialisation relies on existence of ColdWaterSource object, which has not
+    # been set yet.
+    del project_dict_copy['WWHRS']
+    for shower in project_dict_copy['Shower'].values():
+        shower.pop('WWHRS', None)
 
     # Set initial temperature set point for all zones
     initialise_temperature_setpoints(project_dict_copy)
