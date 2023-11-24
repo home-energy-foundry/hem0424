@@ -55,9 +55,6 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_ground_floors(project_dict)
     edit_thermal_bridging(project_dict)
 
-    # Modify control object
-    control_objects(project_dict)
-
     # Edit space heating system
     edit_space_heating_system(
         project_dict,
@@ -66,6 +63,9 @@ def apply_fhs_not_preprocessing(project_dict,
         is_heat_network,
         is_FEE,
         )
+
+    # Modify control object
+    control_objects(project_dict)
 
     # modify bath, shower and other dhw characteristics
     edit_bath_shower_other(project_dict, cold_water_source)
