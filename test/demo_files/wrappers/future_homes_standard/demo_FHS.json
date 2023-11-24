@@ -92,10 +92,27 @@
 	},
 	"EnergySupply": {
 		"mains elec": {
-			"fuel": "electricity"
+			"fuel": "electricity",
+			"ElectricBattery": {
+				"capacity": 2,
+				"charge_discharge_efficiency": 0.8
+			}
 		},
 		"mains gas": {
 			"fuel": "mains_gas"
+		}
+	},
+	"OnSiteGeneration": {
+		"PV 1": {
+			"type": "PhotovoltaicSystem",
+			"peak_power": 3.5,
+			"ventilation_strategy": "moderately_ventilated",
+			"pitch": 30,
+			"orientation360": 180,
+			"base_height":10,
+			"height":1,
+			"width":1,
+			"EnergySupply": "mains elec"
 		}
 	},
 	"Control": {
