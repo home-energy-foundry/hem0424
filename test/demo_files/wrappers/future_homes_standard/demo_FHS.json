@@ -148,7 +148,8 @@
 		"mixer": {
 			"type": "MixerShower",
 			"flowrate": 8.0,
-			"ColdWaterSource": "header tank"
+			"ColdWaterSource": "header tank",
+			"WWHRS": "Waste Water Heat Recovery System"
 		}
 	},
 	"Bath": {
@@ -203,6 +204,16 @@
 			"other": [
 				{"start": 7, "duration": 1, "temperature": 41.0}
 			]
+		}
+	},
+	"WWHRS": {
+		"Waste Water Heat Recovery System": {
+			"type": "WWHRS_InstantaneousSystemA",
+			"ColdWaterSource": "header tank",
+			"flow_rates": [5, 7, 9, 11, 13],
+			"efficiencies": [63, 54.9, 48.6, 43.6, 39.6],
+			"utilisation_factor": 0.972,
+			"electrical_consumption": 0
 		}
 	},
 	"SpaceHeatSystem": {
