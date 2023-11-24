@@ -961,7 +961,7 @@ def calc_design_capacity(project_dict):
     # Remove WWHRS. It is not needed in this part of the calculation and
     # initialisation relies on existence of ColdWaterSource object, which has not
     # been set yet.
-    del project_dict_copy['WWHRS']
+    project_dict_copy.pop('WWHRS', None)
     for shower in project_dict_copy['Shower'].values():
         shower.pop('WWHRS', None)
 
