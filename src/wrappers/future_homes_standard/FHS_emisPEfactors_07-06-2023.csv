@@ -1,6 +1,6 @@
 Fuel Code,Fuel,Emissions Factor kgCO2e/kWh,Emissions Factor kgCO2e/kWh including out-of-scope emissions,Primary Energy Factor kWh/kWh delivered
 electricity,electricity,0.086185206,0.086185206,1.969103316
-electricity_export,electricity exported to grid,0,0,1
+electricity_generated,renewable electricity generated on-site,0,0,1
 mains_gas,mains gas,0.21364,0.21364,1.119751069
 LPG_bulk,bulk LPG,0.23981,0.23981,1.103675995
 LPG_bottled,bottled LPG (for main heating system),0.23981,0.23981,1.103675995
