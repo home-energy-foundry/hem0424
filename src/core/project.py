@@ -43,11 +43,8 @@ from core.space_heat_demand.ventilation_element import \
 from core.space_heat_demand.thermal_bridge import \
     ThermalBridgeLinear, ThermalBridgePoint
 from core.water_heat_demand.cold_water_source import ColdWaterSource
-from core.water_heat_demand.shower import MixerShower, InstantElecShower
-from core.water_heat_demand.bath import Bath
-from core.water_heat_demand.other_hot_water_uses import OtherHotWater
+from core.water_heat_demand.dhw_demand import DHWDemand
 from core.space_heat_demand.internal_gains import InternalGains, ApplianceGains
-from core.pipework import Pipework
 import core.water_heat_demand.misc as misc
 from core.ductwork import Ductwork
 import core.heating_systems.wwhrs as wwhrs
@@ -320,92 +317,6 @@ class Project:
         else:
             self.__wwhrs = None
 
-        def dict_to_shower(name, data):
-            """ Parse dictionary of shower data and return approprate shower object """
-            cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
-            # TODO Need to handle error if ColdWaterSource name is invalid.
-
-            shower_type = data['type']
-            if shower_type == 'MixerShower':
-                wwhrs_instance = None
-                if 'WWHRS' in data:
-                    wwhrs_instance = self.__wwhrs[data['WWHRS']] # find the instance of WWHRS linked to by the shower
-                
-                shower = MixerShower(data['flowrate'], cold_water_source, wwhrs_instance)
-            elif shower_type == 'InstantElecShower':
-                energy_supply = self.__energy_supplies[data['EnergySupply']]
-                # TODO Need to handle error if EnergySupply name is invalid.
-                energy_supply_conn = energy_supply.connection(name)
-
-                shower = InstantElecShower(
-                    data['rated_power'],
-                    cold_water_source,
-                    energy_supply_conn,
-                    )
-            else:
-                sys.exit(name + ': shower type (' + shower_type + ') not recognised.')
-                # TODO Exit just the current case instead of whole program entirely?
-            return shower
-
-        self.__showers = {}
-        no_of_showers = 0
-        for name, data in proj_dict['Shower'].items():
-            self.__showers[name] = dict_to_shower(name, data)
-            # Count number of showers that draw from HW system
-            if data['type'] != 'InstantElecShower':
-                no_of_showers += 1
-
-
-        def dict_to_baths(name, data):
-            """ Parse dictionary of bath data and return approprate bath object """
-            cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
-            # TODO Need to handle error if ColdWaterSource name is invalid.
-
-            bath = Bath(data['size'], cold_water_source, data['flowrate'])
-
-            return bath
-
-        self.__baths = {}
-        for name, data in proj_dict['Bath'].items():
-            self.__baths[name] = dict_to_baths(name, data)
-
-        def dict_to_other_water_events(name, data):
-            """ Parse dictionary of bath data and return approprate other event object """
-            cold_water_source = self.__cold_water_sources[data['ColdWaterSource']]
-            # TODO Need to handle error if ColdWaterSource name is invalid.
-
-            other_event = OtherHotWater(data['flowrate'], cold_water_source)
-
-            return other_event
-
-        self.__other_water_events = {}
-        for name, data in proj_dict['Other'].items():
-            self.__other_water_events[name] = dict_to_other_water_events(name, data)
-
-        total_no_of_hot_water_tapping_points = \
-            no_of_showers + len(self.__baths.keys()) + len(self.__other_water_events.keys())
-
-        def dict_to_water_distribution_system(name, data):
-            # go through internal then external distribution system
-
-            # Calculate average length of pipework between HW system and tapping point
-            length_average = data["length"] / total_no_of_hot_water_tapping_points
-
-            pipework = Pipework(
-                data["internal_diameter_mm"] / units.mm_per_m,
-                data["external_diameter_mm"] / units.mm_per_m,
-                length_average,
-                data["insulation_thermal_conductivity"],
-                data["insulation_thickness_mm"] / units.mm_per_m,
-                data["surface_reflectivity"],
-                data["pipe_contents"])
-                
-            return(pipework)
-
-        self.__water_heating_pipework = {}
-        for name, data in proj_dict['Distribution'].items():
-            self.__water_heating_pipework[name] = dict_to_water_distribution_system(name, data)
-           
         def dict_to_event_schedules(data):
             """ Process list of events (for hot water draw-offs, appliance use etc.) """
             sim_timestep = self.__simtime.timestep()
@@ -418,6 +329,26 @@ class Project:
                 self.__event_schedules[sched_type] = {}
             for name, data in schedules.items():
                 self.__event_schedules[sched_type][name] = dict_to_event_schedules(data)
+
+        # TODO - this assumes there is only one hot water source, and if any
+        # hot water source is point of use, they all are. In future, allow more
+        # than one hot water source and assign hot water source to each outlet?
+        if proj_dict['HotWaterSource']['hw cylinder']['type'] == 'PointOfUse':
+            hw_pipework_dict = {}
+        else:
+            hw_pipework_dict = proj_dict['Distribution']
+
+        self.__dhw_demand = DHWDemand(
+            proj_dict['Shower'],
+            proj_dict['Bath'],
+            proj_dict['Other'],
+            hw_pipework_dict,
+            self.__cold_water_sources,
+            self.__wwhrs,
+            self.__energy_supplies,
+            self.__external_conditions,
+            self.__event_schedules,
+            )
  
         def dict_to_building_element(name, data):
             building_element_type = data['type']
@@ -1327,221 +1258,54 @@ class Project:
         internal_air_temperature /= self.__total_volume # average internal temperature
         return internal_air_temperature
 
+    def __pipework_losses_and_internal_gains_from_hw(
+            self,
+            delta_t_h,
+            vol_hot_water_at_tapping_point,
+            hw_duration,
+            no_of_hw_events,
+            ):
+        frac_dhw_energy_internal_gains = 0.25
+
+        pw_losses_internal, pw_losses_external \
+            = self.__calc_pipework_losses(
+                delta_t_h,
+                hw_duration,
+                no_of_hw_events,
+                )
+
+        gains_internal_dhw_use \
+            = frac_dhw_energy_internal_gains \
+            * misc.water_demand_to_kWh(
+                vol_hot_water_at_tapping_point,
+                52.0, # TODO Hot water temperature - define this centrally
+                self.temp_internal_air(),
+                )
+
+        # Return:
+        # - losses from internal distribution pipework (kWh)
+        # - losses from external distribution pipework (kWh)
+        # - internal gains due to hot water use (kWh)
+        return pw_losses_internal, pw_losses_external, gains_internal_dhw_use
+
+    def __calc_pipework_losses(self, delta_t_h, hw_duration, no_of_hw_events):
+        # sum up all hw_demand and allocate pipework losses also.
+        # hw_demand is volume.
+
+        # TODO demand water temperature is 52 as elsewhere, need to set it somewhere
+        demand_water_temperature = 52
+        internal_air_temperature = self.temp_internal_air()
+
+        return self.__dhw_demand.calc_pipework_losses(
+            delta_t_h,
+            hw_duration,
+            no_of_hw_events,
+            demand_water_temperature,
+            internal_air_temperature,
+            )
+
     def run(self):
         """ Run the simulation """
-
-        def hot_water_demand(t_idx):
-            """ Calculate the hot water demand for the current timestep
-
-            Arguments:
-            t_idx -- timestep index/count
-            """
-            hw_demand = 0.0
-            hw_energy_demand = 0.0
-            hw_duration = 0.0
-            all_events = 0.0
-            pw_losses_internal = 0.0
-            pw_losses_external = 0.0
-            point_of_use = False
-            vol_hot_water_equiv_elec_shower = 0.0
-
-            # TODO - this assumes there is only one hot water source
-            # if any hotwatersource is point of use, they all are.
-            # should we assign hotwatersource to each hot water event?
-            for name, i in self.__hot_water_sources.items():
-                if isinstance(i, PointOfUse):
-                    point_of_use = True
-            
-            for name, shower in self.__showers.items():
-                # Get all shower use events for the current timestep
-                usage_events = self.__event_schedules['Shower'][name][t_idx]
-                the_cold_water_temp = shower.get_cold_water_source()
-                cold_water_temperature = the_cold_water_temp.temperature()
-
-                # If shower is used in the current timestep, get details of use
-                # and calculate HW demand from shower
-                
-                # TODO revisit structure and eliminate the branch on the type
-                if usage_events is not None:
-                    for event in usage_events:
-                        shower_temp = event['temperature']
-                        shower_duration = event['duration']
-                        hw_demand_i = shower.hot_water_demand(shower_temp, shower_duration)
-                        if not isinstance(shower, InstantElecShower):
-                            # don't add hw demand and pipework loss from electric shower
-                            hw_demand += hw_demand_i
-                            hw_energy_demand += misc.water_demand_to_kWh(
-                                hw_demand_i,
-                                shower.get_temp_hot(),
-                                cold_water_temperature
-                                )
-                            hw_duration += event['duration'] # shower minutes duration
-                            all_events +=1
-                            if(point_of_use == False):
-                                pw_losses_internal_shower, pw_losses_external_shower \
-                                    = calc_pipework_losses(
-                                        hw_demand_i,
-                                        t_idx,
-                                        delta_t_h,
-                                        cold_water_temperature,
-                                        event['duration'],
-                                        self.__water_heating_pipework,
-                                        )
-                                pw_losses_internal += pw_losses_internal_shower
-                                pw_losses_external += pw_losses_external_shower
-                        else:
-                            # If electric shower, function returns equivalent
-                            # amount of hot water for internal gains calculation
-                            vol_hot_water_equiv_elec_shower += hw_demand_i
-
-            for name, other in self.__other_water_events.items():
-                # Get all other use events for the current timestep
-                usage_events = self.__event_schedules['Other'][name][t_idx]
-                the_cold_water_temp = other.get_cold_water_source()
-                cold_water_temperature = the_cold_water_temp.temperature()
-                
-                # If other is used in the current timestep, get details of use
-                # and calculate HW demand from other
-                if usage_events is not None:
-                    for event in usage_events:
-                        other_temp = event['temperature']
-                        other_duration = event['duration']
-                        hw_demand += other.hot_water_demand(other_temp, other_duration)
-                        hw_energy_demand += misc.water_demand_to_kWh(
-                            other.hot_water_demand(other_temp, other_duration),
-                            other.get_temp_hot(),
-                            cold_water_temperature
-                            )
-                        hw_duration += event['duration'] # other minutes duration
-                        all_events += 1
-                        if(point_of_use == False):
-                            pw_losses_internal_other, pw_losses_external_other \
-                                = calc_pipework_losses(
-                                    other.hot_water_demand(other_temp, other_duration),
-                                    t_idx,
-                                    delta_t_h,
-                                    cold_water_temperature,
-                                    event['duration'],
-                                    self.__water_heating_pipework,
-                                    )
-                            pw_losses_internal += pw_losses_internal_other
-                            pw_losses_external += pw_losses_external_other
-
-            for name, bath in self.__baths.items():
-                # Get all bath use events for the current timestep
-                usage_events = self.__event_schedules['Bath'][name][t_idx]
-                the_cold_water_temp = bath.get_cold_water_source()
-                cold_water_temperature = the_cold_water_temp.temperature()
-
-                # Assume flow rate for bath event is the same as other hot water events
-                peak_flowrate = bath.get_flowrate()
-
-                # If bath is used in the current timestep, get details of use
-                # and calculate HW demand from bath
-                # Note that bath size is the total water used per bath, not the total capacity of the bath
-                if usage_events is not None:
-                    for event in usage_events:
-                        bath_temp = event['temperature']
-                        hw_demand += bath.hot_water_demand(bath_temp)
-                        bath_duration = bath.get_size() / peak_flowrate
-                        hw_energy_demand += misc.water_demand_to_kWh(
-                            bath.hot_water_demand(bath_temp),
-                            bath.get_temp_hot(),
-                            cold_water_temperature
-                            )
-                        hw_duration += bath_duration
-                        # litres bath  / litres per minute flowrate = minutes
-                        all_events += 1
-                        if(point_of_use == False):
-                            pw_losses_internal_bath, pw_losses_external_bath \
-                                = calc_pipework_losses(
-                                    bath.hot_water_demand(bath_temp),
-                                    t_idx,
-                                    delta_t_h,
-                                    cold_water_temperature,
-                                    bath_duration,
-                                    self.__water_heating_pipework,
-                                    )
-                            pw_losses_internal += pw_losses_internal_bath
-                            pw_losses_external += pw_losses_external_bath
-
-            vol_hot_water_at_tapping_point = hw_demand + vol_hot_water_equiv_elec_shower
-            frac_dhw_energy_internal_gains = 0.25
-            gains_internal_dhw_use \
-                = frac_dhw_energy_internal_gains \
-                * misc.water_demand_to_kWh(
-                    vol_hot_water_at_tapping_point,
-                    52.0, # TODO Hot water temperature - define this centrally
-                    self.temp_internal_air(),
-                    )
-
-            vol_hot_water_left_in_pipework \
-                = self.__water_heating_pipework['internal'].volume_litres() \
-                + self.__water_heating_pipework['external'].volume_litres()
-            hw_demand += all_events * vol_hot_water_left_in_pipework
-
-            # Return:
-            # - litres hot water per timestep
-            # - minutes demand per timestep,
-            # - number of events in timestep
-            # - losses from internal distribution pipework (kWh)
-            # - losses from external distribution pipework (kWh)
-            # - internal gains due to hot water use (kWh)
-            # - hot water energy demand (kWh)
-            return \
-                hw_demand, \
-                hw_duration, \
-                all_events, \
-                pw_losses_internal, \
-                pw_losses_external, \
-                gains_internal_dhw_use, \
-                hw_energy_demand
-
-        def calc_pipework_losses(hw_demand, t_idx, delta_t_h, cold_water_temperature, hw_duration, hw_pipework):
-            # sum up all hw_demand and allocate pipework losses also.
-            # hw_demand is volume.
-
-            # TODO demand water temperature is 52 as elsewhere, need to set it somewhere
-            demand_water_temperature = 52
-            internal_air_temperature = self.temp_internal_air()
-
-            hot_water_time_fraction = hw_duration / (delta_t_h * units.minutes_per_hour)
-            
-            if hot_water_time_fraction>1:
-                hot_water_time_fraction = 1
-            
-            pipework_watts_heat_loss_internal = hw_pipework["internal"].heat_loss(
-                demand_water_temperature,
-                internal_air_temperature,
-                )
-            pipework_watts_heat_loss_external = hw_pipework["external"].heat_loss(
-                demand_water_temperature,
-                self.__external_conditions.air_temp(),
-                )
-
-            # only calculate loss for times when there is hot water in the pipes - multiply by time fraction to get to kWh
-            pipework_heat_loss_internal \
-                = pipework_watts_heat_loss_internal \
-                * hot_water_time_fraction \
-                * delta_t_h \
-                / units.W_per_kW # convert to kWh
-            pipework_heat_loss_external \
-                = pipework_watts_heat_loss_external \
-                * hot_water_time_fraction \
-                * delta_t_h \
-                / units.W_per_kW # convert to kWh
-
-            pipework_heat_loss_internal += hw_pipework["internal"].cool_down_loss(
-                demand_water_temperature,
-                internal_air_temperature
-                )
-            pipework_heat_loss_external += hw_pipework["external"].cool_down_loss(
-                demand_water_temperature,
-                self.__external_conditions.air_temp()
-                )
-
-            # Return heat loss in kWh for the timestep
-            return pipework_heat_loss_internal, pipework_heat_loss_external
 
         def calc_ductwork_losses(t_idx, delta_t_h, efficiency):
             """ Calculate the losses/gains in the MVHR ductwork
@@ -1868,17 +1632,25 @@ class Project:
         # Loop over each timestep
         for t_idx, t_current, delta_t_h in self.__simtime:
             timestep_array.append(t_current)
-            hw_demand, hw_duration, no_events, \
-                pw_losses_internal, pw_losses_external, gains_internal_dhw_use, hw_energy_demand \
-                = hot_water_demand(t_idx)
+            hw_demand_vol, hw_vol_at_tapping_points, hw_duration, no_events, \
+                hw_energy_demand \
+                = self.__dhw_demand.hot_water_demand(t_idx)
 
             hw_energy_output \
-                = self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand)
+                = self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand_vol)
             # TODO Remove hard-coding of hot water source name
             # TODO Reporting of the hot water energy output assumes that there
             #      is only one water heating system. If the model changes in
             #      future to allow more than one hot water system, this code may
             #      need to be revised to handle that scenario.
+
+            pw_losses_internal, pw_losses_external, gains_internal_dhw_use \
+                = self.__pipework_losses_and_internal_gains_from_hw(
+                    delta_t_h,
+                    hw_vol_at_tapping_points,
+                    hw_duration,
+                    no_events,
+                    )
 
             gains_internal_dhw \
                 = (pw_losses_internal + gains_internal_dhw_use) \
@@ -1939,7 +1711,7 @@ class Project:
                             else:
                                 heat_balance_all_dict[hb_name][z_name][heat_gains_losses_name] =[heat_gains_losses_value]
 
-            hot_water_demand_dict['demand'].append(hw_demand)
+            hot_water_demand_dict['demand'].append(hw_demand_vol)
             hot_water_energy_demand_dict['energy_demand'].append(hw_energy_demand)
             hot_water_energy_output_dict['energy_output'].append(hw_energy_output)
             hot_water_duration_dict['duration'].append(hw_duration)
