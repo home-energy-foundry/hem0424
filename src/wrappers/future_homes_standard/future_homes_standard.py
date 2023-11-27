@@ -112,9 +112,13 @@ def apply_fhs_postprocessing(
     project_dict["EnergySupply"]['_unmet_demand'] = {"fuel": "unmet_demand"}
 
     # For each EnergySupply object:
-    # - look up relevant factors for import and export from csv or custom
-    #   factors from input file
-    # - apply relevant factors for import and export
+    # - look up relevant factors for import/export from csv or custom factors
+    #   from input file
+    # - look up relevant factors for generation from csv
+    # - apply relevant factors for import, export and generation
+    # Applying factors in this way rather than applying a net export factor to
+    # exported energy accounts for energy generated and used on site and also
+    # accounts for battery storage losses
     emis_results = {}
     emis_oos_results = {}
     PE_results = {}
@@ -125,57 +129,76 @@ def apply_fhs_postprocessing(
 
         fuel_code = project_dict["EnergySupply"][energy_supply]["fuel"]
 
-        # Calculate energy imported and associated emissions/PE
+        # Get emissions/PE factors for import/export
         if fuel_code == "custom":
-            emis_factor_import \
+            emis_factor_import_export \
                 = float(project_dict["EnergySupply"][energy_supply]["factor"][emis_factor_name])
-            emis_oos_factor_import \
+            emis_oos_factor_import_export \
                 = float(project_dict["EnergySupply"][energy_supply]["factor"][emis_oos_factor_name])
-            PE_factor_import \
+            PE_factor_import_export \
                 = float(project_dict["EnergySupply"][energy_supply]["factor"][PE_factor_name])
         else:
-            emis_factor_import = float(emisPE_factors[fuel_code][emis_factor_name])
-            emis_oos_factor_import = float(emisPE_factors[fuel_code][emis_oos_factor_name])
-            PE_factor_import = float(emisPE_factors[fuel_code][PE_factor_name])
+            emis_factor_import_export = float(emisPE_factors[fuel_code][emis_factor_name])
+            emis_oos_factor_import_export = float(emisPE_factors[fuel_code][emis_oos_factor_name])
+            PE_factor_import_export = float(emisPE_factors[fuel_code][PE_factor_name])
 
+        # Calculate energy imported and associated emissions/PE
         emis_results[energy_supply]['import'] = [
-            x * emis_factor_import for x in energy_import[energy_supply]
+            x * emis_factor_import_export for x in energy_import[energy_supply]
             ]
         emis_oos_results[energy_supply]['import'] = [
-            x * emis_oos_factor_import for x in energy_import[energy_supply]
+            x * emis_oos_factor_import_export for x in energy_import[energy_supply]
             ]
         PE_results[energy_supply]['import'] = [
-            x * PE_factor_import for x in energy_import[energy_supply]
+            x * PE_factor_import_export for x in energy_import[energy_supply]
             ]
 
         # If there is any export, Calculate energy exported and associated emissions/PE
         # Note that by convention, exported energy is negative
         if sum(energy_export[energy_supply]) < 0:
-            # TODO Allow custom (user-defined) export factors?
-
-            fuel_code_export = fuel_code + '_export'
-            # TODO Calc net export factors
-            emis_factor_export = float(emisPE_factors[fuel_code_export][emis_factor_name])
-            emis_oos_factor_export = float(emisPE_factors[fuel_code_export][emis_oos_factor_name])
-            PE_factor_export = float(emisPE_factors[fuel_code_export][PE_factor_name])
-
-            emis_factor_export_net = emis_factor_import - emis_factor_export
-            emis_oos_factor_export_net = emis_oos_factor_import - emis_oos_factor_export
-            PE_factor_export_net = PE_factor_import - PE_factor_export
-
             emis_results[energy_supply]['export'] = [
-                x * emis_factor_export_net for x in energy_export[energy_supply]
+                x * emis_factor_import_export for x in energy_export[energy_supply]
                 ]
             emis_oos_results[energy_supply]['export'] = [
-                x * emis_oos_factor_export_net for x in energy_export[energy_supply]
+                x * emis_oos_factor_import_export for x in energy_export[energy_supply]
                 ]
             PE_results[energy_supply]['export'] = [
-                x * PE_factor_export_net for x in energy_export[energy_supply]
+                x * PE_factor_import_export for x in energy_export[energy_supply]
                 ]
         else:
             emis_results[energy_supply]['export'] = [0.0] * no_of_timesteps
             emis_oos_results[energy_supply]['export'] = [0.0] * no_of_timesteps
             PE_results[energy_supply]['export'] = [0.0] * no_of_timesteps
+
+        # Calculate energy generated and associated emissions/PE
+        energy_generated = [0.0] * no_of_timesteps
+        for end_user_name, end_user_energy in results_end_user[energy_supply].items():
+            # If there is energy generation (represented as negative demand)
+            if sum(end_user_energy) < 0.0:
+                for t_idx in range(0, no_of_timesteps):
+                    # Subtract here because generation is represented as negative demand
+                    energy_generated[t_idx] -= end_user_energy[t_idx]
+
+        if sum(energy_generated) > 0.0:
+            # TODO Allow custom (user-defined) factors for generated energy?
+            fuel_code_generated = fuel_code + '_generated'
+            emis_factor_generated = float(emisPE_factors[fuel_code_generated][emis_factor_name])
+            emis_oos_factor_generated = float(emisPE_factors[fuel_code_generated][emis_oos_factor_name])
+            PE_factor_generated = float(emisPE_factors[fuel_code_generated][PE_factor_name])
+
+            emis_results[energy_supply]['generated'] = [
+                x * emis_factor_generated for x in energy_generated
+                ]
+            emis_oos_results[energy_supply]['generated'] = [
+                x * emis_oos_factor_generated for x in energy_generated
+                ]
+            PE_results[energy_supply]['generated'] = [
+                x * PE_factor_generated for x in energy_generated
+                ]
+        else:
+            emis_results[energy_supply]['generated'] = [0.0] * no_of_timesteps
+            emis_oos_results[energy_supply]['generated'] = [0.0] * no_of_timesteps
+            PE_results[energy_supply]['generated'] = [0.0] * no_of_timesteps
 
         # Calculate unregulated energy demand and associated emissions/PE
         energy_unregulated = [0.0] * no_of_timesteps
@@ -185,13 +208,13 @@ def apply_fhs_postprocessing(
                     energy_unregulated[t_idx] += end_user_energy[t_idx]
 
         emis_results[energy_supply]['unregulated'] = [
-            x * emis_factor_import for x in energy_unregulated
+            x * emis_factor_import_export for x in energy_unregulated
             ]
         emis_oos_results[energy_supply]['unregulated'] = [
-            x * emis_oos_factor_import for x in energy_unregulated
+            x * emis_oos_factor_import_export for x in energy_unregulated
             ]
         PE_results[energy_supply]['unregulated'] = [
-            x * PE_factor_import for x in energy_unregulated
+            x * PE_factor_import_export for x in energy_unregulated
             ]
 
         # Calculate total CO2/PE for each EnergySupply based on import and export,
@@ -203,14 +226,17 @@ def apply_fhs_postprocessing(
             emis_results[energy_supply]['total'][t_idx] \
                 = emis_results[energy_supply]['import'][t_idx] \
                 + emis_results[energy_supply]['export'][t_idx] \
+                + emis_results[energy_supply]['generated'][t_idx] \
                 - emis_results[energy_supply]['unregulated'][t_idx]
             emis_oos_results[energy_supply]['total'][t_idx] \
                 = emis_oos_results[energy_supply]['import'][t_idx] \
                 + emis_oos_results[energy_supply]['export'][t_idx] \
+                + emis_oos_results[energy_supply]['generated'][t_idx] \
                 - emis_oos_results[energy_supply]['unregulated'][t_idx]
             PE_results[energy_supply]['total'][t_idx] \
                 = PE_results[energy_supply]['import'][t_idx] \
                 + PE_results[energy_supply]['export'][t_idx] \
+                + PE_results[energy_supply]['generated'][t_idx] \
                 - PE_results[energy_supply]['unregulated'][t_idx]
 
     # Calculate summary results
