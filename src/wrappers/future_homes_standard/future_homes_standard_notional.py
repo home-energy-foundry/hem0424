@@ -55,18 +55,6 @@ def apply_fhs_not_preprocessing(project_dict,
     edit_ground_floors(project_dict)
     edit_thermal_bridging(project_dict)
 
-    # Edit space heating system
-    edit_space_heating_system(
-        project_dict,
-        cold_water_source,
-        TFA,
-        is_heat_network,
-        is_FEE,
-        )
-
-    # Modify control object
-    control_objects(project_dict)
-
     # modify bath, shower and other dhw characteristics
     edit_bath_shower_other(project_dict, cold_water_source)
 
@@ -86,8 +74,20 @@ def apply_fhs_not_preprocessing(project_dict,
     minimum_ach = minimum_air_change_rate(project_dict, TFA) 
     edit_ventilation(project_dict, is_notA, minimum_ach)
 
+    # Edit space heating system
+    edit_space_heating_system(
+        project_dict,
+        cold_water_source,
+        TFA,
+        is_heat_network,
+        is_FEE,
+        )
+
     # Modify air conditioning
     edit_spacecoolsystem(project_dict)
+
+    # Modify control object
+    control_objects(project_dict)
 
     # Add Solar PV 
     add_solar_PV(project_dict, is_notA, is_FEE, TFA)
