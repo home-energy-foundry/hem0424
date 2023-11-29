@@ -70,7 +70,8 @@ def apply_fhs_not_preprocessing(project_dict,
     # modify bath, shower and other dhw characteristics
     edit_bath_shower_other(project_dict, cold_water_source)
 
-    # add WWHRS if needed
+    # add WWHRS if needed (and remove any existing systems)
+    remove_wwhrs_if_present(project_dict)
     add_wwhrs(project_dict, cold_water_source, is_notA, is_FEE)
     
     #modify hot water distribution
@@ -685,6 +686,10 @@ def edit_bath_shower_other(project_dict, cold_water_source):
             "flowrate": 6
         }
     }
+
+def remove_wwhrs_if_present(project_dict):
+    if 'WWHRS' in project_dict:
+        del project_dict['WWHRS']
 
 def add_wwhrs(project_dict, cold_water_source, is_notA, is_FEE):
     # add WWHRS if more than 1 storeys in building, notional A and not FEE
