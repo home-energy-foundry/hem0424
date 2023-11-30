@@ -12,17 +12,33 @@ import os
 import numpy as np
 from copy import deepcopy
 from core.project import Project
+from core.external_conditions import ExternalConditions
+from core.simulation_time import SimulationTime
 from core.space_heat_demand.building_element import BuildingElement, HeatFlowDirection
+from core.water_heat_demand.dhw_demand import DHWDemand
+from core.water_heat_demand.cold_water_source import ColdWaterSource
+from core.water_heat_demand.misc import water_demand_to_kWh
+from core.heating_systems.wwhrs import WWHRS_InstantaneousSystemB
 import core.units as units
-from wrappers.future_homes_standard.future_homes_standard import calc_TFA, livingroom_setpoint_fhs, restofdwelling_setpoint_fhs, energysupplyname_electricity
+from wrappers.future_homes_standard.future_homes_standard import \
+    calc_TFA, calc_nbeds, calc_N_occupants, \
+    livingroom_setpoint_fhs, restofdwelling_setpoint_fhs, \
+    simtime_start, simtime_end, simtime_step, \
+    energysupplyname_electricity, \
+    create_hot_water_use_pattern, create_cold_water_feed_temps
+from core.schedule import expand_events
 
 # Default names
+notional_wwhrs = "Notional_Inst_WWHRS"
 notional_HIU = 'notionalHIU'
 notional_HP = 'notional_HP'
 hw_timer = "hw timer"
 hw_timer_eco7 = "hw timer eco7"
 heating_pattern = "HeatingPattern_Null"
 Window_Opening = "Window_Opening"
+notional_bath_name = "medium"
+notional_shower_name = "mixer"
+notional_other_hw_name = "other"
 
 def apply_fhs_not_preprocessing(project_dict,
                                 fhs_notA_assumptions,
@@ -665,7 +681,7 @@ def edit_heatnetwork_space_heating_distribution_system(project_dict):
 def edit_bath_shower_other(project_dict, cold_water_source):
     # Define Bath, Shower, and Other DHW outlet
     project_dict['Bath'] = {
-        "medium": {
+        notional_bath_name: {
             "ColdWaterSource": cold_water_source,
             "flowrate": 12,
             "size": 73
@@ -673,7 +689,7 @@ def edit_bath_shower_other(project_dict, cold_water_source):
     }
 
     project_dict['Shower'] = {
-        "mixer": {
+        notional_shower_name: {
             "ColdWaterSource": cold_water_source,
             "flowrate": 8,
             "type": "MixerShower"
@@ -681,7 +697,7 @@ def edit_bath_shower_other(project_dict, cold_water_source):
     }
 
     project_dict['Other'] = {
-        "other": {
+        notional_other_hw_name: {
             "ColdWaterSource": cold_water_source,
             "flowrate": 6
         }
@@ -695,10 +711,10 @@ def add_wwhrs(project_dict, cold_water_source, is_notA, is_FEE):
     # add WWHRS if more than 1 storeys in building, notional A and not FEE
     if project_dict['Infiltration']['storeys_in_building'] > 1 and is_notA and not is_FEE:
         shower_dict = project_dict['Shower']['mixer']
-        shower_dict["WWHRS"] = "Notional_Inst_WWHRS"
+        shower_dict["WWHRS"] = notional_wwhrs
      
         project_dict['WWHRS'] = {
-            "Notional_Inst_WWHRS": {
+            notional_wwhrs: {
                 "ColdWaterSource": cold_water_source,
                 "efficiencies": [50, 50],
                 "flow_rates": [0, 100],
@@ -727,12 +743,113 @@ def calculate_daily_losses(cylinder_vol):
     
     return daily_losses
 
+def calc_daily_hw_demand(proj_dict, TFA, cold_water_source_name):
+    # Create SimulationTime object
+    simtime = SimulationTime(simtime_start, simtime_end, simtime_step)
+
+    # Create ExternalConditions object
+    if proj_dict['ExternalConditions']['direct_beam_conversion_needed']:
+        dir_beam_conversion = proj_dict['ExternalConditions']['direct_beam_conversion_needed']
+    else:
+        dir_beam_conversion = False
+    extcond = ExternalConditions(
+        simtime,
+        proj_dict['ExternalConditions']['air_temperatures'],
+        proj_dict['ExternalConditions']['wind_speeds'],
+        proj_dict['ExternalConditions']['diffuse_horizontal_radiation'],
+        proj_dict['ExternalConditions']['direct_beam_radiation'],
+        proj_dict['ExternalConditions']['solar_reflectivity_of_ground'],
+        proj_dict['ExternalConditions']['latitude'],
+        proj_dict['ExternalConditions']['longitude'],
+        0, #proj_dict['ExternalConditions']['timezone'],
+        0, #proj_dict['ExternalConditions']['start_day'],
+        365, #proj_dict['ExternalConditions']['end_day'],
+        1, #proj_dict['ExternalConditions']['time_series_step'],
+        None, #proj_dict['ExternalConditions']['january_first'],
+        None, #proj_dict['ExternalConditions']['daylight_savings'],
+        None, #proj_dict['ExternalConditions']['leap_day_included'],
+        dir_beam_conversion,
+        proj_dict['ExternalConditions']['shading_segments'],
+        )
+
+    # Create ColdWaterSource object
+    cold_water_feed_temps = create_cold_water_feed_temps(proj_dict)
+    cold_water_sources = {}
+    for name, data in proj_dict['ColdWaterSource'].items():
+        cold_water_sources[name] \
+            = ColdWaterSource(
+                data['temperatures'],
+                simtime,
+                data['start_day'],
+                data['time_series_step'],
+                )
+
+    # Create WWHRS object
+    if 'WWHRS' in proj_dict:
+        print(proj_dict['WWHRS'])
+        wwhrs_system_b = WWHRS_InstantaneousSystemB(
+            proj_dict['WWHRS'][notional_wwhrs]['flow_rates'],
+            proj_dict['WWHRS'][notional_wwhrs]['efficiencies'],
+            cold_water_sources[proj_dict['WWHRS'][notional_wwhrs]['ColdWaterSource']],
+            proj_dict['WWHRS'][notional_wwhrs]['utilisation_factor']
+            )
+        wwhrs = {notional_wwhrs: wwhrs_system_b}
+    else:
+        wwhrs = {}
+
+    # Create event schedule
+    nbeds = calc_nbeds(proj_dict)
+    N_occupants = calc_N_occupants(TFA, nbeds)
+    create_hot_water_use_pattern(proj_dict, TFA, N_occupants, cold_water_feed_temps)
+    sim_timestep = simtime.timestep()
+    tot_timesteps = simtime.total_steps()
+    event_types_names_list = (
+        ('Shower', notional_shower_name),
+        ('Bath', notional_bath_name),
+        ('Other', notional_other_hw_name),
+        )
+    event_schedules = {
+        event_type: {
+            event_name:
+            expand_events(proj_dict['Events'][event_type][event_name], sim_timestep, tot_timesteps)
+        }
+        for event_type, event_name in event_types_names_list
+    }
+
+    # Create DHWDemand object
+    dhw_demand = DHWDemand(
+        proj_dict['Shower'],
+        proj_dict['Bath'],
+        proj_dict['Other'],
+        proj_dict['Distribution'],
+        cold_water_sources,
+        wwhrs,
+        None, # EnergySupply objects not needed if there are no electric showers
+        extcond,
+        event_schedules,
+        )
+
+    # For each timestep, calculate HW draw
+    total_steps = simtime.total_steps()
+    hw_energy_demand = [0.0] * total_steps
+    for t_idx, _, _ in simtime:
+        hw_demand_vol, _, _, _, _ = dhw_demand.hot_water_demand(t_idx)
+
+        # Convert from litres to kWh
+        cold_water_temperature = cold_water_sources[cold_water_source_name].temperature()
+        hw_energy_demand[t_idx] = water_demand_to_kWh(
+            hw_demand_vol,
+            52.0, # Assumed hot water temperature. TODO Need to define/calculate this centrally.
+            cold_water_temperature,
+            )
+
+    # Calculate daily HW draw
+    return units.convert_profile_to_daily(hw_energy_demand, simtime.timestep())
+
 def edit_storagetank(project_dict, cold_water_source, TFA):
-    #TODO get actual daily hot water demand
-    daily_HWD = [2, 4, 6, 8]
-    
     # Use sizing logic when  storage tank volume not present
     if 'volume' not in project_dict['HotWaterSource']['hw cylinder']:
+        daily_HWD = calc_daily_hw_demand(project_dict, TFA, cold_water_source)
         cylinder_vol = calculate_cylinder_volume(daily_HWD)
     else:
         cylinder_vol = project_dict['HotWaterSource']['hw cylinder']['volume']
