@@ -1594,6 +1594,7 @@ class Project:
         zone_list = []
         hot_water_demand_dict = {}
         hot_water_energy_demand_dict = {}
+        hot_water_energy_demand_dict_incl_pipework = {}
         hot_water_energy_output_dict = {}
         hot_water_duration_dict = {}
         hot_water_no_events_dict = {}
@@ -1624,6 +1625,7 @@ class Project:
 
         hot_water_demand_dict['demand'] = []
         hot_water_energy_demand_dict['energy_demand'] = []
+        hot_water_energy_demand_dict_incl_pipework['energy_demand_incl_pipework_loss'] = []
         hot_water_energy_output_dict['energy_output'] = []
         hot_water_duration_dict['duration'] = []
         hot_water_no_events_dict['no_events'] = []
@@ -1636,6 +1638,15 @@ class Project:
             hw_demand_vol, hw_vol_at_tapping_points, hw_duration, no_events, \
                 hw_energy_demand \
                 = self.__dhw_demand.hot_water_demand(t_idx)
+
+            # Convert from litres to kWh
+            cold_water_source = self.__hot_water_sources['hw cylinder'].get_cold_water_source()
+            cold_water_temperature = cold_water_source.temperature()
+            hw_energy_demand_incl_pipework_loss = misc.water_demand_to_kWh(
+                hw_demand_vol,
+                52.0, # Assumed hot water temperature. TODO Need to define/calculate this centrally.
+                cold_water_temperature,
+                )
 
             hw_energy_output \
                 = self.__hot_water_sources['hw cylinder'].demand_hot_water(hw_demand_vol)
@@ -1714,6 +1725,7 @@ class Project:
 
             hot_water_demand_dict['demand'].append(hw_demand_vol)
             hot_water_energy_demand_dict['energy_demand'].append(hw_energy_demand)
+            hot_water_energy_demand_dict_incl_pipework['energy_demand_incl_pipework_loss'].append(hw_energy_demand_incl_pipework_loss)
             hot_water_energy_output_dict['energy_output'].append(hw_energy_output)
             hot_water_duration_dict['duration'].append(hw_duration)
             hot_water_no_events_dict['no_events'].append(no_events)
@@ -1745,7 +1757,14 @@ class Project:
             'Heating system output': space_heat_provided_dict,
             'Cooling system output': space_cool_provided_dict,
             }
-        hot_water_dict = {'Hot water demand': hot_water_demand_dict, 'Hot water energy demand': hot_water_energy_demand_dict, 'Hot water duration': hot_water_duration_dict, 'Hot Water Events': hot_water_no_events_dict, 'Pipework losses': hot_water_pipework_dict}
+        hot_water_dict = {
+            'Hot water demand': hot_water_demand_dict,
+            'Hot water energy demand': hot_water_energy_demand_dict,
+            'Hot water energy demand incl pipework_loss': hot_water_energy_demand_dict_incl_pipework,
+            'Hot water duration': hot_water_duration_dict,
+            'Hot Water Events': hot_water_no_events_dict,
+            'Pipework losses': hot_water_pipework_dict,
+            }
 
         # Report detailed outputs from heat source wet objects, if requested and available
         # TODO Note that the below assumes that there is only one water

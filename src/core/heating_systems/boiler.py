@@ -132,6 +132,9 @@ class BoilerServiceWaterCombi(BoilerService):
         #TODO feed in actual daily HW usage
         self.__daily_HW_usage = boiler_data["daily_HW_usage"]
 
+    def get_cold_water_source(self):
+        return self.__cold_feed
+
     def demand_hot_water(self, volume_demanded):
         """ Demand volume from boiler. Currently combi only """
         timestep = self.__simulation_time.timestep()

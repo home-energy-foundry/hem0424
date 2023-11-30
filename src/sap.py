@@ -14,6 +14,9 @@ import shutil
 import argparse
 from math import floor
 
+# Third-party imports
+import numpy as np
+
 # Local imports
 from core.project import Project
 import core.units as units
@@ -174,7 +177,12 @@ def run_project(
     space_heat_demand_total = sum(sum(h_dem) for h_dem in zone_dict['Space heat demand'].values())
     space_cool_demand_total = sum(sum(c_dem) for c_dem in zone_dict['Space cool demand'].values())
     total_floor_area = project.total_floor_area()
-    
+    daily_hw_demand = units.convert_profile_to_daily(
+        hot_water_dict['Hot water energy demand incl pipework_loss']['energy_demand_incl_pipework_loss'],
+        project_dict['SimulationTime']['step'],
+        )
+    daily_hw_demand_75th_percentile = np.percentile(daily_hw_demand, 75)
+
     write_core_output_file_summary(
         output_file_summary,
         project_dict,
@@ -193,6 +201,7 @@ def run_project(
         heat_cop_dict,
         cool_cop_dict,
         dhw_cop_dict,
+        daily_hw_demand_75th_percentile,
         )
 
     # Apply required postprocessing steps, if any
@@ -482,6 +491,7 @@ def write_core_output_file_summary(
         heat_cop_dict,
         cool_cop_dict,
         dhw_cop_dict,
+        daily_hw_demand_75th_percentile,
         ):
     # Electricity breakdown
     elec_generated = 0
@@ -591,7 +601,7 @@ def write_core_output_file_summary(
 
     heat_cop_rows = [(h_name, h_cop) for h_name, h_cop in heat_cop_dict.items()]
     cool_cop_rows = [(c_name, c_cop) for c_name, c_cop in cool_cop_dict.items()]
-    dhw_cop_rows = [(hw_name, hw_cop) for hw_name, hw_cop in dhw_cop_dict.items()]
+    dhw_cop_rows = [[hw_name, hw_cop] for hw_name, hw_cop in dhw_cop_dict.items()]
 
     # Note: need to specify newline='' below, otherwise an extra carriage return
     # character is written when running on Windows
@@ -632,7 +642,18 @@ def write_core_output_file_summary(
         writer.writerows(delivered_energy_rows)
         if dhw_cop_rows:
             writer.writerow([])
-            writer.writerow(['Hot water system', 'Overall CoP'])
+            writer.writerow([
+                'Hot water system',
+                'Overall CoP',
+                'Daily HW demand (kWh, 75th percentile)',
+                'HW cylinder volume (litres)',
+                ])
+            for row in dhw_cop_rows:
+                row.append(daily_hw_demand_75th_percentile)
+                if project_dict['HotWaterSource'][row[0]]['type'] == 'StorageTank':
+                    row.append(project_dict['HotWaterSource'][row[0]]['volume'])
+                else:
+                    row.append('N/A')
             writer.writerows(dhw_cop_rows)
         if heat_cop_rows:
             writer.writerow([])
