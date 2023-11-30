@@ -13,7 +13,8 @@ from unit_tests.common import test_setup
 test_setup()
 
 # Local imports
-from core.units import Celcius2Kelvin, Kelvin2Celcius, average_monthly_to_annual
+from core.units import Celcius2Kelvin, Kelvin2Celcius, average_monthly_to_annual, \
+    convert_profile_to_daily
 
 class TestUnits(unittest.TestCase):
     """ Unit tests for free functions in units module """
@@ -39,6 +40,15 @@ class TestUnits(unittest.TestCase):
             average_monthly_to_annual(list_monthly_averages),
             10.020547945205479,
             "incorrect conversion of monthly averages to annual average",
+            )
+
+    def test_convert_profile_to_daily(self):
+        """ Test conversion from per-timestep profile to daily profile """
+        list_timestep_totals = [1.0] * 48 + [x/2 for x in range(0, 48)]
+        self.assertEqual(
+            convert_profile_to_daily(list_timestep_totals, 0.5),
+            [48.0, 564.0],
+            "incorrect conversion of per-timestep profile to daily profile",
             )
 
 if __name__ == '__main__':

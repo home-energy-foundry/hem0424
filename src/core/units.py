@@ -33,3 +33,12 @@ def Kelvin2Celcius(temp_K):
     assert temp_K >= 0
     return temp_K - 273.15
 
+def convert_profile_to_daily(original_profile, timestep):
+    """ Convert profile from per-timestep figures to daily figures """
+    total_steps = len(original_profile)
+    steps_per_day = int(hours_per_day / timestep)
+    daily_profile = [
+        sum(original_profile[i : i + steps_per_day])
+        for i in range(0, total_steps, steps_per_day)
+    ]
+    return daily_profile
