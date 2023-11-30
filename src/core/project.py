@@ -346,7 +346,6 @@ class Project:
             self.__cold_water_sources,
             self.__wwhrs,
             self.__energy_supplies,
-            self.__external_conditions,
             self.__event_schedules,
             )
  
@@ -1295,6 +1294,7 @@ class Project:
         # TODO demand water temperature is 52 as elsewhere, need to set it somewhere
         demand_water_temperature = 52
         internal_air_temperature = self.temp_internal_air()
+        external_air_temperature = self.__external_conditions.air_temp()
 
         return self.__dhw_demand.calc_pipework_losses(
             delta_t_h,
@@ -1302,6 +1302,7 @@ class Project:
             no_of_hw_events,
             demand_water_temperature,
             internal_air_temperature,
+            external_air_temperature,
             )
 
     def run(self):

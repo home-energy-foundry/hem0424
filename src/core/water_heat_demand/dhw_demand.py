@@ -28,12 +28,10 @@ class DHWDemand:
             cold_water_sources,
             wwhrs,
             energy_supplies,
-            external_conditions,
             event_schedules,
             ):
         """ Construct a DHWDemand object """
         self.__event_schedules = event_schedules
-        self.__external_conditions = external_conditions
 
         def dict_to_shower(name, data):
             """ Parse dictionary of shower data and return approprate shower object """
@@ -240,6 +238,7 @@ class DHWDemand:
             no_of_hw_events,
             demand_water_temperature,
             internal_air_temperature,
+            external_air_temperature,
             ):
 
         if not self.__hw_distribution_pipework:
@@ -256,7 +255,7 @@ class DHWDemand:
             )
         pipework_watts_heat_loss_external = self.__hw_distribution_pipework["external"].heat_loss(
             demand_water_temperature,
-            self.__external_conditions.air_temp(),
+            external_air_temperature,
             )
 
         # only calculate loss for times when there is hot water in the pipes - multiply by time fraction to get to kWh
@@ -281,7 +280,7 @@ class DHWDemand:
             += no_of_hw_events \
              * self.__hw_distribution_pipework["external"].cool_down_loss(
                 demand_water_temperature,
-                self.__external_conditions.air_temp()
+                external_air_temperature,
                 )
 
         # Return heat loss in kWh for the timestep

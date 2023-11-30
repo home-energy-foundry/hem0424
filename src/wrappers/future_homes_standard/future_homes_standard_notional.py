@@ -747,31 +747,6 @@ def calc_daily_hw_demand(proj_dict, TFA, cold_water_source_name):
     # Create SimulationTime object
     simtime = SimulationTime(simtime_start, simtime_end, simtime_step)
 
-    # Create ExternalConditions object
-    if proj_dict['ExternalConditions']['direct_beam_conversion_needed']:
-        dir_beam_conversion = proj_dict['ExternalConditions']['direct_beam_conversion_needed']
-    else:
-        dir_beam_conversion = False
-    extcond = ExternalConditions(
-        simtime,
-        proj_dict['ExternalConditions']['air_temperatures'],
-        proj_dict['ExternalConditions']['wind_speeds'],
-        proj_dict['ExternalConditions']['diffuse_horizontal_radiation'],
-        proj_dict['ExternalConditions']['direct_beam_radiation'],
-        proj_dict['ExternalConditions']['solar_reflectivity_of_ground'],
-        proj_dict['ExternalConditions']['latitude'],
-        proj_dict['ExternalConditions']['longitude'],
-        0, #proj_dict['ExternalConditions']['timezone'],
-        0, #proj_dict['ExternalConditions']['start_day'],
-        365, #proj_dict['ExternalConditions']['end_day'],
-        1, #proj_dict['ExternalConditions']['time_series_step'],
-        None, #proj_dict['ExternalConditions']['january_first'],
-        None, #proj_dict['ExternalConditions']['daylight_savings'],
-        None, #proj_dict['ExternalConditions']['leap_day_included'],
-        dir_beam_conversion,
-        proj_dict['ExternalConditions']['shading_segments'],
-        )
-
     # Create ColdWaterSource object
     cold_water_feed_temps = create_cold_water_feed_temps(proj_dict)
     cold_water_sources = {}
@@ -825,7 +800,6 @@ def calc_daily_hw_demand(proj_dict, TFA, cold_water_source_name):
         cold_water_sources,
         wwhrs,
         None, # EnergySupply objects not needed if there are no electric showers
-        extcond,
         event_schedules,
         )
 
