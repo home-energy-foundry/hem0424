@@ -18,16 +18,14 @@ from wrappers.future_homes_standard.future_homes_standard import \
 def apply_fhs_FEE_preprocessing(project_dict):
     # Calculation assumptions (expressed in comments) are based on SAP 10.2 FEE specification
 
-    # Climate should be UK average, but weather data is external to this program
-    # so it will have to specified by the user or user interface
+    # Climate should be same as actual building, but weather data is external
+    # to this program so it will have to specified by the user or user interface
 
     # No heat gain from pumps or fans. Water and space heating systems selected
     # have no pumps or fans, and the only ventilation fans are extract-only so
     # do not lead to heat gains either, so no additional action required for this
 
-    # Overshading of windows not less than average
-    # TODO There is not really an equivalent input for this in SAP 11, so for
-    #      now the shading will be as specified by the user
+    # Window shading should be same as actual building, so no action required here
 
     # Set the number of each of the following to zero:
     # - open chimneys
@@ -108,12 +106,9 @@ def apply_fhs_FEE_preprocessing(project_dict):
             'ColdWaterSource': cold_water_source_name,
             }
         }
-    # TODO The flowrate for the bath hot tap is based on a quick online search
-    #      and would ideally be better-evidenced, but it does not make much
-    #      difference to the calculation overall
     project_dict['Bath'] = {
         'bath for FEE calc': {
-            'size': 73, # Based on SAP 10.2 assumption in App J
+            'size': 73,
             'ColdWaterSource': cold_water_source_name,
             'flowrate': 12.0
             }
