@@ -126,6 +126,10 @@ def apply_fhs_FEE_preprocessing(project_dict):
     # Dwelling achieves water use target of not more than 125 litres/day
     project_dict['PartGcompliance'] = True
 
+    # Remove WWHRS if present
+    if 'WWHRS' in project_dict:
+        del project_dict['WWHRS']
+
     # Lighting:
     # - capacity same as main FHS wrapper (so will be set in create_lighting_gains function)
     # - efficacy 120 lumens/W
@@ -164,6 +168,15 @@ def apply_fhs_FEE_preprocessing(project_dict):
 
     # Use control type 2 (seperate temperature control but no separate time control)
     project_dict["HeatingControlType"] = "SeparateTempControl"
+
+    # Remove on-site generation, diverter and electric battery, if present
+    if 'OnSiteGeneration' in project_dict:
+        del project_dict['OnSiteGeneration']
+    for energy_supply in project_dict['EnergySupply'].values():
+        if 'diverter' in energy_supply:
+            del energy_supply['diverter']
+        if 'ElectricBattery' in energy_supply:
+            del energy_supply['ElectricBattery']
 
     # Apply standard FHS preprocessing assumptions. Note these should be applied
     # after the other adjustments are made, because decisions may be based on
