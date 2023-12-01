@@ -126,13 +126,11 @@ def apply_fhs_FEE_preprocessing(project_dict):
     # Dwelling achieves water use target of not more than 125 litres/day
     project_dict['PartGcompliance'] = True
 
-    # Fixed lighting capacity = TFA * 185 lumens, efficacy 66.9 lumens/W
-    # Note: lighting capacity is set in apply_fhs_preprocessing function (which
-    # is called later in this function) rather than here. Setting the
-    # running_FEE_calc flag in the function call to True specifies that the
-    # lighting capacity formula for the FEE calculation will be used.
+    # Lighting:
+    # - capacity same as main FHS wrapper (so will be set in create_lighting_gains function)
+    # - efficacy 120 lumens/W
     for z_name in project_dict['Zone'].keys():
-        project_dict['Zone'][z_name]['Lighting']['efficacy'] = 66.9
+        project_dict['Zone'][z_name]['Lighting']['efficacy'] = 120.0
 
     # Space heating from InstantElecHeater
     # Set power such that it should always be sufficient for any realistic demand
@@ -173,7 +171,7 @@ def apply_fhs_FEE_preprocessing(project_dict):
     # Note: In SAP 10.2, different gains assumptions were used for the cooling
     # calculation compared to the heating calculation. However, only one set of
     # standardised gains have so far been defined here.
-    project_dict = apply_fhs_preprocessing(project_dict, True)
+    project_dict = apply_fhs_preprocessing(project_dict)
 
     return project_dict
 
