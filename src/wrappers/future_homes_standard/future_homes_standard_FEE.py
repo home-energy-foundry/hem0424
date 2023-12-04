@@ -14,6 +14,8 @@ import csv
 # Local imports
 from wrappers.future_homes_standard.future_homes_standard import \
     apply_fhs_preprocessing, calc_TFA
+from wrappers.future_homes_standard.future_homes_standard_notional import \
+    minimum_air_change_rate
 
 def apply_fhs_FEE_preprocessing(project_dict):
     # Calculation assumptions (expressed in comments) are based on SAP 10.2 FEE specification
@@ -46,7 +48,8 @@ def apply_fhs_FEE_preprocessing(project_dict):
     project_dict['Infiltration']['gas_fires'] = 0
 
     # Use natural ventilation with intermittent extract fans
-    req_ach = project_dict['Ventilation']['req_ach']
+    total_floor_area = calc_TFA(project_dict)
+    req_ach = minimum_air_change_rate(project_dict, total_floor_area) 
     project_dict['Ventilation'] = {
         'type': 'NatVent',
         'req_ach': req_ach,
@@ -55,7 +58,6 @@ def apply_fhs_FEE_preprocessing(project_dict):
     #   0 < TFA <=  70: 2 extract fans
     #  70 < TFA <= 100: 3 extract fans
     # 100 < TFA       : 4 extract fans
-    total_floor_area = calc_TFA(project_dict)
     if total_floor_area <= 0:
         sys.exit('Invalid input(s): total floor area must be greater than zero')
     elif total_floor_area <= 70:
