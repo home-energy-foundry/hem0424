@@ -15,7 +15,7 @@ import csv
 from wrappers.future_homes_standard.future_homes_standard import \
     apply_fhs_preprocessing, calc_TFA
 from wrappers.future_homes_standard.future_homes_standard_notional import \
-    minimum_air_change_rate
+    minimum_air_change_rate, energysupplyname_electricity
 
 def apply_fhs_FEE_preprocessing(project_dict):
     # Calculation assumptions (expressed in comments) are based on SAP 10.2 FEE specification
@@ -46,27 +46,18 @@ def apply_fhs_FEE_preprocessing(project_dict):
     project_dict['Infiltration']['blocked_chimneys'] = 0
     project_dict['Infiltration']['passive_vents'] = 0
     project_dict['Infiltration']['gas_fires'] = 0
+    # No of intermittent extract fans is zero because there is continuous extract (see below)
+    project_dict['Infiltration']['extract_fans'] = 0
 
-    # Use natural ventilation with intermittent extract fans
+    # Use continous decentralised mechanical extract ventilation
     total_floor_area = calc_TFA(project_dict)
     req_ach = minimum_air_change_rate(project_dict, total_floor_area) 
     project_dict['Ventilation'] = {
-        'type': 'NatVent',
+        'type': 'WHEV',
         'req_ach': req_ach,
+        'SFP': 0.15,
+        "EnergySupply": energysupplyname_electricity
         }
-    # No of extract fans based on total floor area (TFA) in m2:
-    #   0 < TFA <=  70: 2 extract fans
-    #  70 < TFA <= 100: 3 extract fans
-    # 100 < TFA       : 4 extract fans
-    if total_floor_area <= 0:
-        sys.exit('Invalid input(s): total floor area must be greater than zero')
-    elif total_floor_area <= 70:
-        no_of_extract_fans = 2
-    elif total_floor_area <= 100:
-        no_of_extract_fans = 3
-    else:
-        no_of_extract_fans = 4
-    project_dict['Infiltration']['extract_fans'] = no_of_extract_fans
 
     # Use instantaneous electric water heater
     # Set power such that it should always be sufficient for any realistic demand
