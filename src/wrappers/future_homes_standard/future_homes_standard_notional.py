@@ -761,7 +761,6 @@ def calc_daily_hw_demand(proj_dict, TFA, cold_water_source_name):
 
     # Create WWHRS object
     if 'WWHRS' in proj_dict:
-        print(proj_dict['WWHRS'])
         wwhrs_system_b = WWHRS_InstantaneousSystemB(
             proj_dict['WWHRS'][notional_wwhrs]['flow_rates'],
             proj_dict['WWHRS'][notional_wwhrs]['efficiencies'],
