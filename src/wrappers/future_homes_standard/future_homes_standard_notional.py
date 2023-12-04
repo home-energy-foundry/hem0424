@@ -507,7 +507,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
             "power_heating_circ_pump": capacity_results_dict_55['F'] * 0.003,
             "power_max_backup": 3,
             "power_off": 0,
-            "power_source_circ_pump": 0,
+            "power_source_circ_pump": 0.01,
             "power_standby": 0.01,
             "sink_type": "Water",
             "source_type": "OutsideAir",
@@ -516,7 +516,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
             "test_data": [
                 {
                     "capacity": capacity_results_dict_35['A'],
-                    "cop": 2.788,
+                    "cop": 2.79,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
                     "temp_outlet": 34,
@@ -526,7 +526,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_35['B'],
-                    "cop": 4.292,
+                    "cop": 4.29,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
                     "temp_outlet": 30,
@@ -536,7 +536,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_35['C'],
-                    "cop": 5.906,
+                    "cop": 5.91,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
                     "temp_outlet": 27,
@@ -546,7 +546,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_35['D'],
-                    "cop": 8.016,
+                    "cop": 8.02,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
                     "temp_outlet": 24,
@@ -556,7 +556,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_35['F'],
-                    "cop": 2.492,
+                    "cop": 2.49,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 35,
                     "temp_outlet": 35,
@@ -566,7 +566,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_55['A'],
-                    "cop": 2.034,
+                    "cop": 2.03,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 52,
@@ -576,7 +576,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_55['B'],
-                    "cop": 3.118,
+                    "cop": 3.12,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 42,
@@ -586,7 +586,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_55['C'],
-                    "cop": 4.406,
+                    "cop": 4.41,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 36,
@@ -596,7 +596,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_55['D'],
-                    "cop": 6.298,
+                    "cop": 6.30,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 30,
@@ -606,7 +606,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                 },
                 {
                     "capacity": capacity_results_dict_55['F'],
-                    "cop": 1.868,
+                    "cop": 1.87,
                     "degradation_coeff": 0.9,
                     "design_flow_temp": 55,
                     "temp_outlet": 55,
@@ -615,7 +615,7 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
                     "test_letter": "F"
                 }
             ],
-            "time_constant_onoff_operation": 140,
+            "time_constant_onoff_operation": 120,
             "time_delay_backup": 1,
             "type": "HeatPump",
             "var_flow_temp_ctrl_during_test": True
@@ -927,9 +927,17 @@ def edit_hot_water_distribution_inner(project_dict, TFA):
     external_diameter_mm_min = 15
     insulation_thickness_mm = 20
 
-    # Update length
-    length = hot_water_distribution_inner_dict['length']
-    length =  min(length, 0.2 * TFA)
+    # Calculate maximum length
+    if project_dict['Infiltration']['build_type'] == 'flat': 
+        length_max =  0.2 * TFA
+    elif project_dict['Infiltration']['build_type'] == 'house':
+        length_max =  0.2 * project_dict['GroundFloorArea']
+    else:
+        sys.exit('Unrecognised building type')
+
+    # hot water distribution (inner) length should not be greater than maximum length
+    length_actual = hot_water_distribution_inner_dict['length']
+    length =  min(length_actual, length_max)
 
     # Update internal diameter to minimum if not present and should not be lower than the minimum
     if 'internal_diameter_mm' not in hot_water_distribution_inner_dict:
@@ -1001,17 +1009,12 @@ def minimum_air_change_rate(project_dict, TFA):
     return minimum_ach
 
 def edit_ventilation(project_dict, isnotA, minimum_ach):
-    # Retrieve ventilation dictionary
-    ventilation = project_dict['Ventilation']
-
-    # Calculate the required air changes per hour
-    req_ach = max(ventilation['req_ach'], minimum_ach)
-
+    '''Edit air change rate and SFP'''
     if  isnotA:
         # Continous decentralised mechanical extract ventilation
         project_dict['Ventilation'] = {
             'type': 'WHEV',
-            'req_ach': req_ach,
+            'req_ach': minimum_ach,
             'SFP': 0.15,
             "EnergySupply": energysupplyname_electricity
             }
@@ -1019,7 +1022,7 @@ def edit_ventilation(project_dict, isnotA, minimum_ach):
         # Natural ventilation
         project_dict['Ventilation'] = {
             'type': 'NatVent',
-            'req_ach': req_ach,
+            'req_ach': minimum_ach,
             }
 
 def edit_space_heating_system(project_dict,
