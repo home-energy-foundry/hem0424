@@ -32,12 +32,16 @@ gas_cook_obj_name = 'Gascooking'
 livingroom_setpoint_fhs = 21.0
 restofdwelling_setpoint_fhs = 18.0
 
+simtime_start = 0
+simtime_end = 8760
+simtime_step = 0.5
+
 def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
     
-    project_dict['SimulationTime']["start"] = 0
-    project_dict['SimulationTime']["end"] = 8760
-    project_dict['SimulationTime']["step"] = 0.5
+    project_dict['SimulationTime']["start"] = simtime_start
+    project_dict['SimulationTime']["end"] = simtime_end
+    project_dict['SimulationTime']["step"] = simtime_step
 
     project_dict['InternalGains']={}
     

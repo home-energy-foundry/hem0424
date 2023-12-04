@@ -34,6 +34,9 @@ class PointOfUse:
         self.__simulation_time    = simulation_time
         self.__cold_feed          = cold_feed
 
+    def get_cold_water_source(self):
+        return self.__cold_feed
+
     def demand_hot_water(self, volume_demanded):
         demand_temp = 52
         # TODO set required temperature rather than hard coding - also elsewhere in the code

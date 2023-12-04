@@ -134,6 +134,9 @@ class StorageTank:
             # heating on or off
             self.__heating_active[heat_source_data[0]] = False
 
+    def get_cold_water_source(self):
+        return self.__cold_feed
+
     def __get_setpnt_min(self):
         """ Return temp_out_W_min unless tank is being held at setpnt, in which case return that """
         if self.__control_hold_at_setpnt is not None and self.__control_hold_at_setpnt.is_on():

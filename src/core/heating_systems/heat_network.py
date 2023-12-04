@@ -78,6 +78,9 @@ class HeatNetworkServiceWaterDirect(HeatNetworkService):
         self.__service_name = service_name
         self.__simulation_time = simulation_time
 
+    def get_cold_water_source(self):
+        return self.__cold_feed
+
     def demand_hot_water(self, volume_demanded):
         """ Demand energy for hot water (in kWh) from the heat network """
         # Calculate energy needed to meet hot water demand
