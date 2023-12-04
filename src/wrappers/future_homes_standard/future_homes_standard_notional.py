@@ -166,18 +166,22 @@ def edit_infiltration(project_dict,is_notA):
                 'flues_e','blocked_chimneys','passive_vents','gas_fires']
     for opening in openings:
         project_dict['Infiltration'][opening] = 0
-    
-    #extract_fans follow the same as the actual dwelling
-    #but there must be a minimum of one extract fan
-    #per wet room, as per ADF guidance
-    if "NumberOfWetRooms" not in project_dict.keys():
-        sys.exit("missing NumberOfWetRooms - required for FHS notional building")
+
+    if is_notA:
+        # Notional option A uses continuous extract, so no intermittent extract fans
+        project_dict['Infiltration']['extract_fans'] = 0
     else:
-        wet_rooms_count = project_dict["NumberOfWetRooms"]
-    if wet_rooms_count <= 1:
-        sys.exit('invalid/missing NumberOfWetRooms')
-    if project_dict['Infiltration']['extract_fans'] < wet_rooms_count:
-        project_dict['Infiltration']['extract_fans'] = wet_rooms_count
+        #extract_fans follow the same as the actual dwelling
+        #but there must be a minimum of one extract fan
+        #per wet room, as per ADF guidance
+        if "NumberOfWetRooms" not in project_dict.keys():
+            sys.exit("missing NumberOfWetRooms - required for FHS notional building")
+        else:
+            wet_rooms_count = project_dict["NumberOfWetRooms"]
+        if wet_rooms_count <= 1:
+            sys.exit('invalid/missing NumberOfWetRooms')
+        if project_dict['Infiltration']['extract_fans'] < wet_rooms_count:
+            project_dict['Infiltration']['extract_fans'] = wet_rooms_count
 
 def edit_opaque_ajdZTU_elements(project_dict):
     """ Apply notional u-value (W/m2K) to: 
