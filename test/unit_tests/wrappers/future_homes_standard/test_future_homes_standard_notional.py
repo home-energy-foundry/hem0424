@@ -441,8 +441,8 @@ class NotionalBuildingHeatPump(unittest.TestCase):
 					'type': 'PhotovoltaicSystem', 
 					'ventilation_strategy': 'moderately_ventilated',
 					'base_height': 1,
-					'height': 6.324555320336759,
-					'width': 3.1622776601683795
+					'width': 6.324555320336759,
+					'height': 3.1622776601683795
 					}
 			}
 

@@ -81,8 +81,9 @@ def apply_fhs_not_preprocessing(project_dict,
     #modify hot water distribution
     edit_hot_water_distribution_inner(project_dict, TFA)
     remove_hot_water_distribution_external(project_dict)
-    
-    #remove pv diverter or electric battery if present
+
+    #remove on-site generation, pv diverter or electric battery if present
+    remove_onsite_generation_if_present(project_dict)
     remove_pv_diverter_if_present(project_dict)
     remove_electric_battery_if_present(project_dict)
 
@@ -1104,6 +1105,10 @@ def initialise_temperature_setpoints(project_dict):
     for zone_name, zone in project_dict['Zone'].items():
         zone['temp_setpnt_init'] = 18
 
+def remove_onsite_generation_if_present(project_dict):
+    if 'OnSiteGeneration' in project_dict:
+        del project_dict['OnSiteGeneration']
+
 def add_solar_PV(project_dict, is_notA, is_FEE, TFA):
 
     number_of_storeys = project_dict['Infiltration']['storeys_in_building']
@@ -1135,8 +1140,8 @@ def add_solar_PV(project_dict, is_notA, is_FEE, TFA):
         # PV array area
         PV_area = 4.5 * peak_kW
         # PV width and height based on 2:1 aspect ratio
-        PV_width = (PV_area / 2)**0.5
-        PV_height = 2 * PV_width
+        PV_height = (PV_area / 2)**0.5
+        PV_width = 2 * PV_height
 
         project_dict['OnSiteGeneration'] = {
             "PV1": {
