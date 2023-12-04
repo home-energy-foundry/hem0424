@@ -713,8 +713,18 @@ def remove_wwhrs_if_present(project_dict):
         del project_dict['WWHRS']
 
 def add_wwhrs(project_dict, cold_water_source, is_notA, is_FEE):
-    # add WWHRS if more than 1 storeys in building, notional A and not FEE
-    if project_dict['Infiltration']['storeys_in_building'] > 1 and is_notA and not is_FEE:
+    # TODO Storeys in dwelling is not currently collected as an input, so use
+    #      storeys in building for houses and assume 1 for flats. Note that this
+    #      means that maisonettes cannot be handled at present.
+    if project_dict['Infiltration']['build_type'] == 'house':
+        storeys_in_dwelling = project_dict['Infiltration']['storeys_in_building']
+    elif project_dict['Infiltration']['build_type'] == 'flat':
+        storeys_in_dwelling = 1
+    else:
+        sys.exit('Unrecognised building type')
+
+    # add WWHRS if more than 1 storeys in dwelling, notional A and not FEE
+    if storeys_in_dwelling > 1 and is_notA and not is_FEE:
         shower_dict = project_dict['Shower']['mixer']
         shower_dict["WWHRS"] = notional_wwhrs
      
