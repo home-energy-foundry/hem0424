@@ -1135,8 +1135,8 @@ def add_solar_PV(project_dict, is_notA, is_FEE, TFA):
         # PV array area
         PV_area = 4.5 * peak_kW
         # PV width and height based on 2:1 aspect ratio
-        PV_width = (PV_area / 2)**0.5
-        PV_height = 2 * PV_width
+        PV_height = (PV_area / 2)**0.5
+        PV_width = 2 * PV_height
 
         project_dict['OnSiteGeneration'] = {
             "PV1": {
