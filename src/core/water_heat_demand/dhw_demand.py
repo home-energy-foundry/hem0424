@@ -124,7 +124,6 @@ class DHWDemand:
 
         Arguments:
         t_idx -- timestep index/count
-        delta_t_h -- timestep duration, in hours
         """
         hw_demand_vol = 0.0
         hw_energy_demand = 0.0
