@@ -627,9 +627,11 @@ def edit_add_default_space_heating_system(project_dict, design_capacity_overall)
 def edit_default_space_heating_distribution_system(project_dict, design_capacity_dict):
     '''Apply distribution system details to notional building calculation '''
 
+    setpoint_for_sizing = max(livingroom_setpoint_fhs, restofdwelling_setpoint_fhs)
     design_flow_temp = 45 
     c_per_rad = 0.01
     n = 1.34
+    power_output_per_rad = c_per_rad * (design_flow_temp - setpoint_for_sizing) ** n
     # thermal mass specified in kJ/K but required in kWh/K
     thermal_mass_per_rad = 51.8 * units.J_per_kJ / units.J_per_kWh
 
@@ -642,7 +644,6 @@ def edit_default_space_heating_distribution_system(project_dict, design_capacity
         
         # Calculate number of radiators
         emitter_cap = design_capacity_dict[zone_name]
-        power_output_per_rad = c_per_rad * (design_flow_temp - set_point_per_zone(zone)) ** n
         number_of_rads = math.ceil(emitter_cap / power_output_per_rad)
 
         # Calculate c and thermal mass
@@ -1089,10 +1090,10 @@ def calc_design_capacity(project_dict):
 
     # Calculate design capacity
     min_air_temp = min(project_dict['ExternalConditions']['air_temperatures'])
+    set_point = max(livingroom_setpoint_fhs, restofdwelling_setpoint_fhs)
+    temperature_difference = set_point - min_air_temp
     design_capacity_dict = {}
     for zone_name, zone in project_dict['Zone'].items():
-        set_point = set_point_per_zone(zone)
-        temperature_difference = set_point - min_air_temp
         design_heat_loss = HTC_dict[zone_name] * temperature_difference
         design_capacity = 2 * design_heat_loss
         design_capacity_dict[zone_name] = design_capacity / units.W_per_kW
@@ -1100,16 +1101,6 @@ def calc_design_capacity(project_dict):
     design_capacity_overall = sum(design_capacity_dict.values())
 
     return design_capacity_dict, design_capacity_overall
-
-def set_point_per_zone(zone):
-    if zone['SpaceHeatControl'] == 'livingroom':
-        set_point = livingroom_setpoint_fhs
-    elif zone['SpaceHeatControl'] == 'restofdwelling':
-        set_point = restofdwelling_setpoint_fhs
-    else:
-        sys.exit("Setpoint error - SpaceHeatControl name is not applicable")
-
-    return set_point
 
 def initialise_temperature_setpoints(project_dict):
     ''' Intitilise temperature setpoints for all zones.
