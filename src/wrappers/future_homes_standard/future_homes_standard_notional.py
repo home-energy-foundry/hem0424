@@ -683,6 +683,8 @@ def edit_heatnetwork_space_heating_distribution_system(project_dict):
     for distribution_name, distribution in project_dict['SpaceHeatSystem'].items():
         project_dict['SpaceHeatSystem'][distribution_name]['advanced_start'] = 0
         project_dict['SpaceHeatSystem'][distribution_name]["HeatSource"] = {"name": notional_HIU}
+        if "temp_setback" in project_dict['SpaceHeatSystem'][distribution_name]:
+            del project_dict['SpaceHeatSystem'][distribution_name]["temp_setback"]
 
 def edit_bath_shower_other(project_dict, cold_water_source):
     # Define Bath, Shower, and Other DHW outlet
