@@ -1040,23 +1040,19 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
 def create_cooling(project_dict):
     cooling_setpoint = 24.0
 
-    # TODO The livingroom subschedules below have the same time pattern as the
-    #      livingroom heating schedules. Consolidate these definitions to avoid
-    #      repetition.
-
-    #07:30-09:30 and then 16:30-22:00
+    #07:00-09:30 and then 18:30-22:00
     cooling_subschedule_livingroom_weekday = (
-        [None for x in range(15)] +
-        [cooling_setpoint for x in range(4)] +
         [None for x in range(14)] +
-        [cooling_setpoint for x in range(11)] +
+        [cooling_setpoint for x in range(5)] +
+        [None for x in range(18)] +
+        [cooling_setpoint for x in range(7)] +
         [None for x in range(4)])
 
-    #08:30 - 22:00
+    #08:30 - 22:30
     cooling_subschedule_livingroom_weekend = (
         [None for x in range(17)] +
-        [cooling_setpoint for x in range(27)] +
-        [None for x in range(4)])
+        [cooling_setpoint for x in range(28)] +
+        [None for x in range(3)])
 
     cooling_subschedule_restofdwelling = (
         #22:00-07:00 - ie nighttime only
