@@ -263,6 +263,9 @@
 			"EnergySupply": "mains elec"
 		}
 	},
+	"Window_Opening_For_Cooling": {
+		"equivalent_area": 3.0
+	},
 	"Ventilation": {
 		"type": "WHEV",
 		"req_ach": 0.5,
@@ -436,6 +439,23 @@
 					"height": 2.5,
 					"width": 10,
 					"area": 20.0
+				},
+				"window 0":{
+					"type": "BuildingElementTransparent",
+					"r_c": 0.4,
+					"pitch": 90,
+					"orientation360": 90,
+					"g_value": 0.75,
+					"frame_area_fraction": 0.25,
+					"base_height": 1,
+					"height": 1.25,
+					"width": 4,
+					"opaque_support": "wall 3",
+					"shading": [
+						{"type": "overhang", "depth": 0.5, "distance": 0.5},
+						{"type": "sidefinleft", "depth": 0.25, "distance": 0.1},
+						{"type": "sidefinright", "depth":0.25, "distance":0.1}
+					]
 				}
 			},
 			"ThermalBridging": 1.0
