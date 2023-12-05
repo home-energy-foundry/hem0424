@@ -681,7 +681,7 @@ def edit_heatnetwork_space_heating_distribution_system(project_dict):
     '''Edit distribution system details to notional building heat network '''
 
     for distribution_name, distribution in project_dict['SpaceHeatSystem'].items():
-        project_dict['SpaceHeatSystem'][distribution_name]['advanced_start'] = 0
+        project_dict['SpaceHeatSystem'][distribution_name]['advanced_start'] = 1
         project_dict['SpaceHeatSystem'][distribution_name]["HeatSource"] = {"name": notional_HIU}
         if "temp_setback" in project_dict['SpaceHeatSystem'][distribution_name]:
             del project_dict['SpaceHeatSystem'][distribution_name]["temp_setback"]
