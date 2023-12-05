@@ -1242,7 +1242,8 @@ def control_objects(project_dict):
     }
 
     if 'Window_Opening_For_Cooling' in project_dict:
-        project_dict['Window_Opening_For_Cooling']['Control'] = Window_Opening
+        for z_name in project_dict['Zone'].keys():
+            project_dict['Zone'][z_name]['Control_WindowOpening'] = Window_Opening
  
 
 def calculate_cylinder_volume(daily_HWD):
