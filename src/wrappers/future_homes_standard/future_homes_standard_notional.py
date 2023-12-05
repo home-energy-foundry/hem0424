@@ -666,7 +666,7 @@ def edit_default_space_heating_distribution_system(project_dict, design_capacity
             "ecodesign_controller": {
                     "ecodesign_control_class": 2,
                     "max_outdoor_temp": 20,
-                    "min_flow_temp": 25,
+                    "min_flow_temp": 21,
                     "min_outdoor_temp": 0
                     },
             "Control": heating_pattern,
