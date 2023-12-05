@@ -35,7 +35,6 @@ notional_HP = 'notional_HP'
 hw_timer = "hw timer"
 hw_timer_eco7 = "hw timer eco7"
 heating_pattern = "HeatingPattern_Null"
-Window_Opening = "Window_Opening"
 notional_bath_name = "medium"
 notional_shower_name = "mixer"
 notional_other_hw_name = "other"
@@ -1077,6 +1076,10 @@ def calc_design_capacity(project_dict):
     project_dict_copy.pop('WWHRS', None)
     for shower in project_dict_copy['Shower'].values():
         shower.pop('WWHRS', None)
+    # Remove window opening for cooling. It is not needed in this part of the
+    # calculation and initialisation relies on existing of corresponding control
+    # schedule, which has not been set yet.
+    project_dict_copy.pop('Window_Opening_For_Cooling', None)
 
     # Set initial temperature set point for all zones
     initialise_temperature_setpoints(project_dict_copy)
@@ -1216,35 +1219,7 @@ def control_objects(project_dict):
                 ]
             }
         },
-        Window_Opening: {
-            "type": "SetpointTimeControl",
-            "start_day": 0,
-            "time_series_step": 0.5,
-            "schedule": {
-                "main": [
-                    {
-                        "value": "day",
-                        "repeat": 365
-                    }
-                ],
-                "day": [
-                    {
-                        "value": None,
-                        "repeat": 14
-                    },
-                    {
-                        "value": 22.0,
-                        "repeat": 34
-                    }
-                ]
-            }
-        }
     }
-
-    if 'Window_Opening_For_Cooling' in project_dict:
-        for z_name in project_dict['Zone'].keys():
-            project_dict['Zone'][z_name]['Control_WindowOpening'] = Window_Opening
- 
 
 def calculate_cylinder_volume(daily_HWD):
 

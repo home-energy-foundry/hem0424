@@ -76,8 +76,8 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     cold_water_feed_temps = create_cold_water_feed_temps(project_dict)
     create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed_temps)
     create_cooling(project_dict)
-    
-    
+    create_window_opening_schedule(project_dict)
+
     return project_dict
 
 def load_emisPE_factors():
@@ -1036,6 +1036,51 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
                 "temperature": event_temperature}
                 )
 
+def create_window_opening_schedule(project_dict):
+
+    if "Window_Opening_For_Cooling" not in project_dict.keys():
+        print("Warning: No window opening for cooling has been specified.")
+        return
+
+    window_opening_setpoint = 22.0
+
+    # 09:00-22:00
+    project_dict['Control']['WindowOpening_LivingRoom'] = {
+        "type": "SetpointTimeControl",
+        "start_day" : 0,
+        "time_series_step": 0.5,
+        "schedule": {
+            "main": [{"repeat": 365, "value": "day"}],
+            "day": [
+                {"repeat": 18, "value": None},
+                {"repeat": 26, "value": window_opening_setpoint},
+                {"repeat": 4, "value": None},
+            ],
+        }
+    }
+
+    # 08:00-23:00
+    project_dict['Control']['WindowOpening_RestOfDwelling'] = {
+        "type": "SetpointTimeControl",
+        "start_day" : 0,
+        "time_series_step": 0.5,
+        "schedule": {
+            "main": [{"repeat": 365, "value": "day"}],
+            "day": [
+                {"repeat": 16, "value": None},
+                {"repeat": 30, "value": window_opening_setpoint},
+                {"repeat": 2, "value": None},
+            ],
+        }
+    }
+
+    for z_name in project_dict['Zone'].keys():
+        if project_dict['Zone'][z_name]["SpaceHeatControl"] == "livingroom":
+            project_dict['Zone'][z_name]['Control_WindowOpening'] = 'WindowOpening_LivingRoom'
+        elif project_dict['Zone'][z_name]["SpaceHeatControl"] == "restofdwelling":
+            project_dict['Zone'][z_name]['Control_WindowOpening'] = 'WindowOpening_RestOfDwelling'
+        else:
+            sys.exit('SpaceHeatControl value for zone "' + z_name + '" not valid.')
 
 def create_cooling(project_dict):
     cooling_setpoint = 24.0
