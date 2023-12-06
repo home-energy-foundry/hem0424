@@ -14,22 +14,23 @@ import csv
 # Local imports
 from wrappers.future_homes_standard.future_homes_standard import \
     apply_fhs_preprocessing, calc_TFA
+from wrappers.future_homes_standard.future_homes_standard_notional import \
+    minimum_air_change_rate, energysupplyname_electricity
 
 def apply_fhs_FEE_preprocessing(project_dict):
     # Calculation assumptions (expressed in comments) are based on SAP 10.2 FEE specification
 
-    # Climate should be UK average, but weather data is external to this program
-    # so it will have to specified by the user or user interface
+    # Climate should be same as actual building, but weather data is external
+    # to this program so it will have to specified by the user or user interface
 
     # No heat gain from pumps or fans. Water and space heating systems selected
     # have no pumps or fans, and the only ventilation fans are extract-only so
     # do not lead to heat gains either, so no additional action required for this
 
-    # Overshading of windows not less than average
-    # TODO There is not really an equivalent input for this in SAP 11, so for
-    #      now the shading will be as specified by the user
+    # Window shading should be same as actual building, so no action required here
 
-    # Set the number of each of the following to zero:
+    # The number of each of the following is the same as the actual building, so
+    # no action required here:
     # - open chimneys
     # - open flues
     # - chimneys/flues attached to closed fire
@@ -38,35 +39,19 @@ def apply_fhs_FEE_preprocessing(project_dict):
     # - blocked chimneys
     # - passive vents
     # - flueless gas fires
-    project_dict['Infiltration']['open_chimneys'] = 0
-    project_dict['Infiltration']['open_flues'] = 0
-    project_dict['Infiltration']['closed_fire'] = 0
-    project_dict['Infiltration']['flues_d'] = 0
-    project_dict['Infiltration']['flues_e'] = 0
-    project_dict['Infiltration']['blocked_chimneys'] = 0
-    project_dict['Infiltration']['passive_vents'] = 0
-    project_dict['Infiltration']['gas_fires'] = 0
 
-    # Use natural ventilation with intermittent extract fans
-    req_ach = project_dict['Ventilation']['req_ach']
-    project_dict['Ventilation'] = {
-        'type': 'NatVent',
-        'req_ach': req_ach,
-        }
-    # No of extract fans based on total floor area (TFA) in m2:
-    #   0 < TFA <=  70: 2 extract fans
-    #  70 < TFA <= 100: 3 extract fans
-    # 100 < TFA       : 4 extract fans
+    # No of intermittent extract fans is zero because there is continuous extract (see below)
+    project_dict['Infiltration']['extract_fans'] = 0
+
+    # Use continous decentralised mechanical extract ventilation
     total_floor_area = calc_TFA(project_dict)
-    if total_floor_area <= 0:
-        sys.exit('Invalid input(s): total floor area must be greater than zero')
-    elif total_floor_area <= 70:
-        no_of_extract_fans = 2
-    elif total_floor_area <= 100:
-        no_of_extract_fans = 3
-    else:
-        no_of_extract_fans = 4
-    project_dict['Infiltration']['extract_fans'] = no_of_extract_fans
+    req_ach = minimum_air_change_rate(project_dict, total_floor_area) 
+    project_dict['Ventilation'] = {
+        'type': 'WHEV',
+        'req_ach': req_ach,
+        'SFP': 0.15,
+        "EnergySupply": energysupplyname_electricity
+        }
 
     # Use instantaneous electric water heater
     # Set power such that it should always be sufficient for any realistic demand
@@ -108,31 +93,36 @@ def apply_fhs_FEE_preprocessing(project_dict):
             'ColdWaterSource': cold_water_source_name,
             }
         }
-    # TODO The flowrate for the bath hot tap is based on a quick online search
-    #      and would ideally be better-evidenced, but it does not make much
-    #      difference to the calculation overall
     project_dict['Bath'] = {
         'bath for FEE calc': {
-            'size': 73, # Based on SAP 10.2 assumption in App J
+            'size': 73,
             'ColdWaterSource': cold_water_source_name,
             'flowrate': 12.0
             }
         }
-    # Other tapping points are as specified by the user. This shouldn't make any
+    # Other tapping points have 6 litres/min flow rate. This shouldn't make any
     # difference to the space heating/cooling demand, as the number and flowrate
     # of the tapping points is only relevant for distribution losses, which do
     # not apply to point of use water heaters.
+    project_dict['Other'] = {
+        'Other HW for FEE calc': {
+            "ColdWaterSource": cold_water_source_name,
+            "flowrate": 6
+        }
+    }
 
     # Dwelling achieves water use target of not more than 125 litres/day
     project_dict['PartGcompliance'] = True
 
-    # Fixed lighting capacity = TFA * 185 lumens, efficacy 66.9 lumens/W
-    # Note: lighting capacity is set in apply_fhs_preprocessing function (which
-    # is called later in this function) rather than here. Setting the
-    # running_FEE_calc flag in the function call to True specifies that the
-    # lighting capacity formula for the FEE calculation will be used.
+    # Remove WWHRS if present
+    if 'WWHRS' in project_dict:
+        del project_dict['WWHRS']
+
+    # Lighting:
+    # - capacity same as main FHS wrapper (so will be set in create_lighting_gains function)
+    # - efficacy 120 lumens/W
     for z_name in project_dict['Zone'].keys():
-        project_dict['Zone'][z_name]['Lighting']['efficacy'] = 66.9
+        project_dict['Zone'][z_name]['Lighting']['efficacy'] = 120.0
 
     # Space heating from InstantElecHeater
     # Set power such that it should always be sufficient for any realistic demand
@@ -167,13 +157,22 @@ def apply_fhs_FEE_preprocessing(project_dict):
     # Use control type 2 (seperate temperature control but no separate time control)
     project_dict["HeatingControlType"] = "SeparateTempControl"
 
+    # Remove on-site generation, diverter and electric battery, if present
+    if 'OnSiteGeneration' in project_dict:
+        del project_dict['OnSiteGeneration']
+    for energy_supply in project_dict['EnergySupply'].values():
+        if 'diverter' in energy_supply:
+            del energy_supply['diverter']
+        if 'ElectricBattery' in energy_supply:
+            del energy_supply['ElectricBattery']
+
     # Apply standard FHS preprocessing assumptions. Note these should be applied
     # after the other adjustments are made, because decisions may be based on
     # e.g. the heating system type.
     # Note: In SAP 10.2, different gains assumptions were used for the cooling
     # calculation compared to the heating calculation. However, only one set of
     # standardised gains have so far been defined here.
-    project_dict = apply_fhs_preprocessing(project_dict, True)
+    project_dict = apply_fhs_preprocessing(project_dict)
 
     return project_dict
 

@@ -36,7 +36,7 @@ simtime_start = 0
 simtime_end = 8760
 simtime_step = 0.5
 
-def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
+def apply_fhs_preprocessing(project_dict):
     """ Apply assumptions and pre-processing steps for the Future Homes Standard """
     
     project_dict['SimulationTime']["start"] = simtime_start
@@ -64,7 +64,7 @@ def apply_fhs_preprocessing(project_dict, running_FEE_calc=False):
     
     create_heating_pattern(project_dict)
     create_evaporative_losses(project_dict, TFA, N_occupants)
-    create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc)
+    create_lighting_gains(project_dict, TFA, N_occupants)
     create_cooking_gains(project_dict,TFA, N_occupants)
     create_appliance_gains(project_dict, TFA, N_occupants)
     
@@ -611,7 +611,7 @@ def create_evaporative_losses(project_dict,TFA, N_occupants):
         }
     } #repeats for length of simulation which in FHS should be whole year.
 
-def create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc):
+def create_lighting_gains(project_dict, TFA, N_occupants):
     '''
     Calculate the annual energy requirement in kWh using the procedure described in SAP 10.2 up to and including step 9.
     Divide this by 365 to get the average daily energy use.
@@ -711,11 +711,8 @@ def create_lighting_gains(project_dict, TFA, N_occupants, running_FEE_calc):
          0.049851633, 0.063453382, 0.072579104, 0.076921792, 0.079601317, 0.079548711, 0.078653413, 0.076225647,
          0.073936893, 0.073585752, 0.071911165, 0.069220452, 0.065925982, 0.059952377, 0.0510938, 0.041481111]]
 
-    if running_FEE_calc:
-        lumens = TFA * 185
-    else:
-        #from analysis of EFUS 2017 data
-        lumens = 1418 * (TFA * N_occupants) ** 0.41
+    #from analysis of EFUS 2017 data
+    lumens = 1418 * (TFA * N_occupants) ** 0.41
 
     #dropped 1/3 - 2/3 split based on SAP2012 assumptions about portable lighting
     kWhperyear = lumens/lighting_efficacy
