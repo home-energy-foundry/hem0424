@@ -8953,8 +8953,7 @@
 		"req_ach": 0.5
 	},
 	"Window_Opening_For_Cooling": {
-		"equivalent_area": 3.0,
-		"Control": "window opening"
+		"equivalent_area": 3.0
 	},
 	"Infiltration": {
 		"storeys_in_building": 2,
@@ -8979,6 +8978,7 @@
 	"Zone": {
 		"zone 1": {
 			"SpaceHeatSystem": "heating system zone 1",
+			"Control_WindowOpening": "window opening",
 			"area": 14.73,
 			"volume":35.1,
 			"temp_setpnt_heat": 21.0,
@@ -9108,6 +9108,7 @@
 		},
 		"zone 2": {
 			"SpaceHeatSystem": "heating system zone 2",
+			"Control_WindowOpening": "window opening",
 			"area": 15.3,
 			"volume":36.06,
 			"temp_setpnt_heat": 21.0,

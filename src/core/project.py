@@ -550,7 +550,7 @@ class Project:
                 opening_area_equivalent \
                     = proj_dict['Window_Opening_For_Cooling']['equivalent_area'] \
                     * opening_area_zone / opening_area_total
-                control = self.__controls[proj_dict['Window_Opening_For_Cooling']['Control']]
+                control = self.__controls[proj_dict['Zone'][name]['Control_WindowOpening']]
                 if isinstance(self.__ventilation, NaturalVentilation):
                     natvent = self.__ventilation
                 else:
