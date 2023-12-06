@@ -629,8 +629,8 @@ def edit_default_space_heating_distribution_system(project_dict, design_capacity
 
     setpoint_for_sizing = max(livingroom_setpoint_fhs, restofdwelling_setpoint_fhs)
     design_flow_temp = 45 
-    c_per_rad = 1.89 / (50 ** 1.34)
     n = 1.34
+    c_per_rad = 1.89 / (50 ** n)
     power_output_per_rad = c_per_rad * (design_flow_temp - setpoint_for_sizing) ** n
     # thermal mass specified in kJ/K but required in kWh/K
     thermal_mass_per_rad = 51.8 * units.J_per_kJ / units.J_per_kWh
