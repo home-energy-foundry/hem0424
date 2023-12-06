@@ -1039,7 +1039,8 @@ def create_hot_water_use_pattern(project_dict, TFA, N_occupants, cold_water_feed
 def create_window_opening_schedule(project_dict):
 
     if "Window_Opening_For_Cooling" not in project_dict.keys():
-        print("Warning: No window opening for cooling has been specified.")
+        print("Warning: No window opening for cooling has been specified. The "
+              "calculation will assume that there are no openable windows.")
         return
 
     window_opening_setpoint = 22.0
