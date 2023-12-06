@@ -29,7 +29,8 @@ def apply_fhs_FEE_preprocessing(project_dict):
 
     # Window shading should be same as actual building, so no action required here
 
-    # Set the number of each of the following to zero:
+    # The number of each of the following is the same as the actual building, so
+    # no action required here:
     # - open chimneys
     # - open flues
     # - chimneys/flues attached to closed fire
@@ -38,14 +39,7 @@ def apply_fhs_FEE_preprocessing(project_dict):
     # - blocked chimneys
     # - passive vents
     # - flueless gas fires
-    project_dict['Infiltration']['open_chimneys'] = 0
-    project_dict['Infiltration']['open_flues'] = 0
-    project_dict['Infiltration']['closed_fire'] = 0
-    project_dict['Infiltration']['flues_d'] = 0
-    project_dict['Infiltration']['flues_e'] = 0
-    project_dict['Infiltration']['blocked_chimneys'] = 0
-    project_dict['Infiltration']['passive_vents'] = 0
-    project_dict['Infiltration']['gas_fires'] = 0
+
     # No of intermittent extract fans is zero because there is continuous extract (see below)
     project_dict['Infiltration']['extract_fans'] = 0
 
