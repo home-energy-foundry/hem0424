@@ -110,13 +110,19 @@ class NotionalBuildingHeatPump(unittest.TestCase):
 		is_notA = False
 		future_homes_standard_notional.edit_infiltration(project_dict, is_notA)
 		self.assertEqual(project_dict["Infiltration"]["test_type"], "50Pa")
-		self.assertEqual(project_dict["Infiltration"]["test_result"], 5)
+		self.assertEqual(project_dict["Infiltration"]["test_result"], 2.5)
+
+		self.assertTrue("NumberOfWetRooms" in project_dict)
+		wet_rooms_count = project_dict["NumberOfWetRooms"]
+		self.assertTrue(wet_rooms_count > 1)
+		self.assertTrue("extract_fans" in project_dict["Infiltration"])
+		self.assertEqual(project_dict["Infiltration"]["extract_fans"], 2)
 
 		project_dict = deepcopy(self.project_dict)
 		is_notA = True
 		future_homes_standard_notional.edit_infiltration(project_dict, is_notA)
 		self.assertEqual(project_dict["Infiltration"]["test_type"], "50Pa")
-		self.assertEqual(project_dict["Infiltration"]["test_result"], 4)
+		self.assertEqual(project_dict["Infiltration"]["test_result"], 2)
 
 		for opening in self.opening_lst:
 			self.assertEqual(project_dict["Infiltration"][opening], 0)
@@ -125,7 +131,7 @@ class NotionalBuildingHeatPump(unittest.TestCase):
 		wet_rooms_count = project_dict["NumberOfWetRooms"]
 		self.assertTrue(wet_rooms_count > 1)
 		self.assertTrue("extract_fans" in project_dict["Infiltration"])
-		self.assertEqual(project_dict["Infiltration"]["extract_fans"], wet_rooms_count)
+		self.assertEqual(project_dict["Infiltration"]["extract_fans"], 0)
 
 	def test_edit_opaque_ajdZTU_elements(self):
 
