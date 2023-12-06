@@ -106,10 +106,16 @@ def apply_fhs_FEE_preprocessing(project_dict):
             'flowrate': 12.0
             }
         }
-    # Other tapping points are as specified by the user. This shouldn't make any
+    # Other tapping points have 6 litres/min flow rate. This shouldn't make any
     # difference to the space heating/cooling demand, as the number and flowrate
     # of the tapping points is only relevant for distribution losses, which do
     # not apply to point of use water heaters.
+    project_dict['Other'] = {
+        'Other HW for FEE calc': {
+            "ColdWaterSource": cold_water_source_name,
+            "flowrate": 6
+        }
+    }
 
     # Dwelling achieves water use target of not more than 125 litres/day
     project_dict['PartGcompliance'] = True
