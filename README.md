@@ -72,6 +72,39 @@ If the tests were successful, you should see output that looks similar to the be
 Make sure that the number of tests that ran is greater than zero. If any of the tests failed, the
 output from running the unittest module should indicate the issue(s) that need to be resolved.
 
+# Running using Cython
+Cython can be used to compile Python code to C to improve the runtime of SAP. To do this you need to run slightly different commands.
+
+Note. before running make sure you install cython.
+```bash
+pip install cython==0.29.35
+```
+
+Then you run the following commands to convert and run the C version of SAP.
+
+### RHEL 7 / CentOS 7:
+1. Cython compiler converting specific .py files to C and saving them to a new directory called "build_directory"
+```bash
+python3 setup.py build_ext -–inplace
+``````
+
+2. Then you can run SAP with a similar command, but looking at the build_directory/ rather than src/.
+```bash
+python3 build_directory/sap.py test/demo.json
+```
+	
+### Windows 10:
+1. Cython compiler converting specific .py files to C and saving them to a new directory called "build_directory"
+```bash
+python setup.py build_ext -–inplace
+```
+	
+2. Then you can run SAP with a similar command, but looking at the build_directory/ rather than src/.
+```bash
+python build_directory\sap.py test\demo.json
+```
+
+
 # Contribute
 SAP 11 is currently not at a stage where we are in a position to accept external contributions 
 to the codebase.
