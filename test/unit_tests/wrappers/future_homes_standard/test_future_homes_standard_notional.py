@@ -301,8 +301,6 @@ class NotionalBuildingHeatPump(unittest.TestCase):
 				'HeatSource': {
 					self.notional_HP: {
 						'ColdWaterSource': self.cold_water_source,
-						'Control': self.hw_timer,
-						'Control_hold_at_setpnt': self.hw_timer_eco7,
 						'EnergySupply': self.energysupplyname_main,
 						'heater_position': 0.1,
 						'name': self.notional_HP,
