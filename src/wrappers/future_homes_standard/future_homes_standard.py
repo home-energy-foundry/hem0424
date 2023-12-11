@@ -28,6 +28,8 @@ energysupplyname_electricity = 'mains elec'
 appl_obj_name = 'appliances'
 elec_cook_obj_name = 'Eleccooking'
 gas_cook_obj_name = 'Gascooking'
+hw_timer_main_name = "hw timer"
+hw_timer_hold_at_setpnt_name = "hw timer eco7"
 
 livingroom_setpoint_fhs = 21.0
 restofdwelling_setpoint_fhs = 18.0
@@ -61,7 +63,8 @@ def apply_fhs_preprocessing(project_dict):
         TFA, 
         schedule_occupancy_weekday, 
         schedule_occupancy_weekend)
-    
+
+    create_water_heating_pattern(project_dict)
     create_heating_pattern(project_dict)
     create_evaporative_losses(project_dict, TFA, N_occupants)
     create_lighting_gains(project_dict, TFA, N_occupants)
@@ -555,43 +558,43 @@ def create_heating_pattern(project_dict):
                         project_dict['Control']['HeatingPattern_RestOfDwelling']['advanced_start'] \
                             = project_dict["SpaceHeatSystem"][spaceheatsystem]['advanced_start']
         #todo: else condition to deal with zone that doesnt have specified livingroom/rest of dwelling
+
+def create_water_heating_pattern(project_dict):
     '''
-    water heating pattern - same as space heating if not otherwise specified and
-    system is not instantaneous
+    water heating pattern - if system is not instantaneous, hold at setpoint
+    00:00-07:00 and then reheat as necessary 24/7
     '''
+    project_dict['Control'][hw_timer_main_name] = {
+        "type": "OnOffTimeControl",
+        "start_day": 0,
+        "time_series_step": 0.5,
+        "schedule": {
+            "main": [{"value": "day", "repeat": 365}],
+            "day": [{"value": True, "repeat": 48}]
+        }
+    }
+    project_dict['Control'][hw_timer_hold_at_setpnt_name] = {
+        "type": "OnOffTimeControl",
+        "start_day": 0,
+        "time_series_step": 0.5,
+        "schedule": {
+            "main": [{"value": "day", "repeat": 365}],
+            "day": [
+                {"value": True, "repeat": 14},
+                {"value": False, "repeat": 34}
+            ]
+        }
+    }
 
     for hwsource in project_dict['HotWaterSource']:
         hw_source_type = project_dict['HotWaterSource'][hwsource]["type"]
         if hw_source_type == "StorageTank":
+            project_dict['HotWaterSource'][hwsource]['Control_hold_at_setpnt'] \
+                = hw_timer_hold_at_setpnt_name
             for heatsource in project_dict['HotWaterSource'][hwsource]["HeatSource"]:
-                # If control schedule has not already been provided, use standardised schedule
-                if "Control" not in project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]:
-                    hwcontrolname = "Water heating control: " + hwsource + ": " + heatsource
-                    project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"] \
-                        = hwcontrolname
+                project_dict['HotWaterSource'][hwsource]["HeatSource"][heatsource]["Control"] \
+                    = hw_timer_main_name
 
-                    hw_sched_default = project_dict['WaterHeatSchedDefault']
-                    if hw_sched_default == "HeatingHours":
-                        hw_sched_weekday = heating_fhs_weekday
-                        hw_sched_weekend = heating_fhs_weekend
-                    elif hw_sched_default == "AllDay":
-                        hw_sched_weekday = hw_sched_allday_weekday
-                        hw_sched_weekend = hw_sched_allday_weekend
-                    else:
-                        sys.exit('Selected default water heating schedule (' + hw_sched_default + ') unknown')
-
-                    project_dict["Control"][hwcontrolname] = {
-                        "type": "OnOffTimeControl",
-                        "start_day" : 0,
-                        "time_series_step":0.5,
-                        "schedule":{
-                            "main": [{"repeat": 53, "value": "week"}],
-                            "week": [{"repeat": 5, "value": "weekday"},
-                                     {"repeat": 2, "value": "weekend"}],
-                            "weekday": hw_sched_weekday,
-                            "weekend": hw_sched_weekend
-                        }
-                    }
         elif hw_source_type in ("CombiBoiler", "PointOfUse", "HIU"):
             # Instantaneous water heating systems must be available 24 hours a day
             pass

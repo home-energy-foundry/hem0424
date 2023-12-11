@@ -32,8 +32,6 @@ from core.schedule import expand_events
 notional_wwhrs = "Notional_Inst_WWHRS"
 notional_HIU = 'notionalHIU'
 notional_HP = 'notional_HP'
-hw_timer = "hw timer"
-hw_timer_eco7 = "hw timer eco7"
 heating_pattern = "HeatingPattern_Null"
 notional_bath_name = "medium"
 notional_shower_name = "mixer"
@@ -101,9 +99,6 @@ def apply_fhs_not_preprocessing(project_dict,
 
     # Modify air conditioning
     edit_spacecoolsystem(project_dict)
-
-    # Modify control object
-    control_objects(project_dict)
 
     # Add Solar PV 
     add_solar_PV(project_dict, is_notA, is_FEE, TFA)
@@ -459,7 +454,6 @@ def edit_add_heatnetwork_heating(project_dict, cold_water_source):
             "type": "HIU",
             "ColdWaterSource": cold_water_source,
             "HeatSourceWet": notional_HIU,
-            "Control": hw_timer
             }
         }
 
@@ -857,8 +851,6 @@ def edit_storagetank(project_dict, cold_water_source, TFA):
             "HeatSource": {
                 notional_HP: {
                     "ColdWaterSource": cold_water_source,
-                    "Control": hw_timer,
-                    "Control_hold_at_setpnt": hw_timer_eco7, 
                     "EnergySupply": energysupplyname_electricity,
                     "heater_position": 0.1,
                     "name": notional_HP,
@@ -1165,54 +1157,6 @@ def add_solar_PV(project_dict, is_notA, is_FEE, TFA):
                 "width":PV_width,
                 }
             }
-
-def control_objects(project_dict):
-
-    project_dict["Control"] = {
-        hw_timer: {
-            "type": "OnOffTimeControl",
-            "start_day": 0,
-            "time_series_step": 0.5,
-            "schedule": {
-                "main": [
-                    {
-                        "value": "day",
-                        "repeat": 365
-                    }
-                ],
-                "day": [
-                    {
-                        "value": True,
-                        "repeat": 48
-                    }
-                ]
-            }
-        },
-        hw_timer_eco7: {
-            "type": "OnOffCostMinimisingTimeControl",
-            "start_day": 0,
-            "time_series_step": 0.5,
-            "time_on_daily": 7,
-            "schedule": {
-                "main": [
-                    {
-                        "value": "day",
-                        "repeat": 365
-                    }
-                ],
-                "day": [
-                    {
-                        "value": 0.1436,
-                        "repeat": 14
-                    },
-                    {
-                        "value": 0.252,
-                        "repeat": 34
-                    }
-                ]
-            }
-        },
-    }
 
 def calculate_cylinder_volume(daily_HWD):
 
