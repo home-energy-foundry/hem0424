@@ -32,7 +32,7 @@ hw_timer_main_name = "hw timer"
 hw_timer_hold_at_setpnt_name = "hw timer eco7"
 
 livingroom_setpoint_fhs = 21.0
-restofdwelling_setpoint_fhs = 18.0
+restofdwelling_setpoint_fhs = 20.0
 
 simtime_start = 0
 simtime_end = 8760
