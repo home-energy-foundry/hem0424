@@ -30,7 +30,7 @@ elec_cook_obj_name = 'Eleccooking'
 gas_cook_obj_name = 'Gascooking'
 
 livingroom_setpoint_fhs = 21.0
-restofdwelling_setpoint_fhs = 18.0
+restofdwelling_setpoint_fhs = 20.0
 
 simtime_start = 0
 simtime_end = 8760
