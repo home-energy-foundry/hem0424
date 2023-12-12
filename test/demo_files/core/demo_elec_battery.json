@@ -87,7 +87,7 @@
 		"mains elec": {
 			"fuel": "electricity",
 			"ElectricBattery": {
-				"capacity": 2000,
+				"capacity": 2,
 				"charge_discharge_efficiency": 0.8
 			}
 		}

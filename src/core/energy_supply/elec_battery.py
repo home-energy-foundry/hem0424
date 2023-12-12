@@ -16,7 +16,7 @@ class ElectricBattery:
         """ Construct an ElectricBattery object
 
         Arguments:
-        capacity                    -- the maximum capacity of the battery (kW)
+        capacity                    -- the maximum capacity of the battery (kWh)
         charge_discharge_efficiency -- charge/discharge round trip efficiency of battery
                                        system (between 0 & 1)
 
