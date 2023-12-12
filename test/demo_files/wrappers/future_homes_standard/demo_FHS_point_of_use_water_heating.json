@@ -108,22 +108,6 @@
 			}
 		}
 	},
-	"SpaceCoolSystem": {
-		"cooling system 1": {
-			"type": "AirConditioning",
-			"cooling_capacity": 3.0,
-			"efficiency": 4.3,
-			"frac_convective": 0.95,
-			"EnergySupply": "mains elec"
-		},
-		"cooling system 2": {
-			"type": "AirConditioning",
-			"cooling_capacity": 3.0,
-			"efficiency": 4.3,
-			"frac_convective": 0.95,
-			"EnergySupply": "mains elec"
-		}
-	},
 	"HotWaterSource": {
 		"hw cylinder": {
 			"type": "PointOfUse",
