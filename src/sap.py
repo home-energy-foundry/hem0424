@@ -187,7 +187,6 @@ def run_project(
         output_file_summary,
         project_dict,
         timestep_array,
-        results_totals,
         results_end_user,
         energy_generated_consumed,
         energy_to_storage,
@@ -477,7 +476,6 @@ def write_core_output_file_summary(
         output_file_summary,
         project_dict,
         timestep_array,
-        results_totals,
         results_end_user,
         energy_generated_consumed,
         energy_to_storage,
@@ -517,8 +515,14 @@ def write_core_output_file_summary(
     #get peak electrcitiy consumption, and when it happens
     start_timestep=project_dict['SimulationTime']['start']
     stepping = project_dict['SimulationTime']['step']
-    peak_elec_consumption = max(results_totals['mains elec'])
-    index_peak_elec_consumption = results_totals['mains elec'].index(peak_elec_consumption)
+    # Calculate net import by adding gross import and export figures. Add
+    # because export figures are already negative
+    net_import_per_timestep = [
+        energy_import['mains elec'][i] + energy_export['mains elec'][i]
+        for i in range(len(timestep_array))
+        ]
+    peak_elec_consumption = max(net_import_per_timestep)
+    index_peak_elec_consumption = net_import_per_timestep.index(peak_elec_consumption)
     #must reflect hour or half hour in the year (hour 0 to hour 8759)
     #to work with the dictionary below timestep_to_date
     #hence + start_timestep
