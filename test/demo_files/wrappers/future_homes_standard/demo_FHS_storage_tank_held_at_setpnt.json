@@ -331,7 +331,6 @@
 					"base_height": 1,
 					"height": 1.25,
 					"width": 4,
-					"opaque_support": "wall 3",
 					"shading": [
 						{"type": "overhang", "depth": 0.5, "distance": 0.5},
 						{"type": "sidefinleft", "depth": 0.25, "distance": 0.1},
