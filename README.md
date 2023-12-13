@@ -23,32 +23,32 @@ the Virtual Environment by running:
 	venv\Scripts\activate.bat
 	pip install -r requirements.txt
 
-To run the program, activate the Virtual Environment if it is not active already, and run the sap.py
+To run the program, activate the Virtual Environment if it is not active already, and run the hem.py
 file, e.g. (assuming the working directory is the top-level folder of the repository):
 
 	# RHEL 7 / CentOS 7:
-	python3 src/sap.py test/demo.json
+	python3 src/hem.py test/demo.json
 
 	# Windows 10:
-	python src\sap.py test\demo.json
+	python src\hem.py test\demo.json
 
 Note that the above requires an entire year's weather data to be provided in the input file.
 Alternatively, a weather file can be provided in EnergyPlus (epw) format, after the appropriate
 flag, e.g.:
 
 	# RHEL 7 / CentOS 7:
-	python3 src/sap.py test/demo.json --epw-file /path/to/weather_files/GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
+	python3 src/hem.py test/demo.json --epw-file /path/to/weather_files/GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
 
 	# Windows 10:
-	python src\sap.py test\demo.json --epw-file C:\path\to\weather_files\GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
+	python src\hem.py test\demo.json --epw-file C:\path\to\weather_files\GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
 
 For a full list of command-line options, run the following:
 
 	# RHEL 7 / CentOS 7:
-	python3 src/sap.py --help
+	python3 src/hem.py --help
 
 	# Windows 10:
-	python src\sap.py --help
+	python src\hem.py --help
 
 
 # Build and Test
@@ -90,7 +90,7 @@ python3 setup.py build_ext -–inplace
 
 2. Then you can run SAP with a similar command, but looking at the build_directory/ rather than src/.
 ```bash
-python3 build_directory/sap.py test/demo.json
+python3 build_directory/hem.py test/demo.json
 ```
 	
 ### Windows 10:
@@ -101,7 +101,7 @@ python setup.py build_ext -–inplace
 	
 2. Then you can run SAP with a similar command, but looking at the build_directory/ rather than src/.
 ```bash
-python build_directory\sap.py test\demo.json
+python build_directory\hem.py test\demo.json
 ```
 
 
