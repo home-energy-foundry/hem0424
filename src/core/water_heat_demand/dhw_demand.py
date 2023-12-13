@@ -248,6 +248,11 @@ class DHWDemand:
         if hot_water_time_fraction > 1:
             hot_water_time_fraction = 1
 
+        '''
+        TODO For now, ignore heat loss from pipes while water is flowing, as
+             this is is not currently added to hot water demand, but is added
+             to the internal gains. This would mean that reducing insulation
+             would reduce overall energy demand, which would not be correct.
         pipework_watts_heat_loss_internal = self.__hw_distribution_pipework["internal"].heat_loss(
             demand_water_temperature,
             internal_air_temperature,
@@ -268,6 +273,9 @@ class DHWDemand:
             * hot_water_time_fraction \
             * delta_t_h \
             / units.W_per_kW # convert to kWh
+        '''
+        pipework_heat_loss_internal = 0.0
+        pipework_heat_loss_external = 0.0
 
         pipework_heat_loss_internal \
             += no_of_hw_events \
