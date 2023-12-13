@@ -398,7 +398,8 @@ def write_core_output_file(
                 if zone_outputs in unitsDict:
                     units_row.append(unitsDict.get(zone_outputs))
                 else:
-                    units_row.append('Unit not defined (unitsDict sap.py)')
+                    this_filename = os.path.basename(__file__)
+                    units_row.append('Unit not defined (unitsDict ' + this_filename + ')')
 
         for system in hc_system_dict:
             for hc_name in hc_system_dict[system].keys():
@@ -415,7 +416,8 @@ def write_core_output_file(
             if system in unitsDict:
                 units_row.append(unitsDict.get(system))
             else:
-                units_row.append('Unit not defined (add to unitsDict sap.py)')
+                this_filename = os.path.basename(__file__)
+                units_row.append('Unit not defined (add to unitsDict ' + this_filename + ')')
 
         headings.append('Ductwork gains')
         units_row.append('[kWh]')
@@ -670,7 +672,7 @@ def write_core_output_file_summary(
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='SAP 11')
+    parser = argparse.ArgumentParser(description='Home Energy Model (HEM)')
     parser.add_argument(
         '--epw-file', '-w',
         action='store',
