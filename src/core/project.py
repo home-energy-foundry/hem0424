@@ -1086,9 +1086,14 @@ class Project:
         # facilitates running the simulation with no heating systems at all
         if 'SpaceHeatSystem' in proj_dict:
             for name, data in proj_dict['SpaceHeatSystem'].items():
-                self.__space_heat_systems[name], \
-                    self.__energy_supply_conn_name_for_space_heat_system[name] \
-                    = dict_to_space_heat_system(name, data)
+                # Only initialise systems that are actually used
+                if name not in self.__heat_system_name_for_zone.values():
+                    # TODO Add warning message here. Not adding now because it may break web interface
+                    pass
+                else:
+                    self.__space_heat_systems[name], \
+                        self.__energy_supply_conn_name_for_space_heat_system[name] \
+                        = dict_to_space_heat_system(name, data)
 
         def dict_to_space_cool_system(name, data):
             if 'Control' in data.keys():
@@ -1123,9 +1128,14 @@ class Project:
         # facilitates running the simulation with no cooling systems at all
         if 'SpaceCoolSystem' in proj_dict:
             for name, data in proj_dict['SpaceCoolSystem'].items():
-                self.__space_cool_systems[name], \
-                    self.__energy_supply_conn_name_for_space_cool_system[name] \
-                    = dict_to_space_cool_system(name, data)
+                # Only initialise systems that are actually used
+                if name not in self.__cool_system_name_for_zone.values():
+                    # TODO Add warning message here. Not adding now because it may break web interface
+                    pass
+                else:
+                    self.__space_cool_systems[name], \
+                        self.__energy_supply_conn_name_for_space_cool_system[name] \
+                        = dict_to_space_cool_system(name, data)
 
         def dict_to_on_site_generation(name, data):
             """ Parse dictionary of on site generation data and
