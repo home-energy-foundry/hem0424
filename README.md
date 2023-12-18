@@ -107,3 +107,6 @@ python build_directory\hem.py test\demo.json
 # Contribute
 HEM is currently not at a stage where we are in a position to accept external contributions 
 to the codebase.
+
+# Licence
+This software is available under the [MIT License](LICENCE).
