@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module provides objects to represent heat pumps and heat pump test data.
 The calculations are based on the DAHPSE method developed for generating PCDB
 entries for SAP 2012 and SAP 10. DAHPSE was based on a draft of

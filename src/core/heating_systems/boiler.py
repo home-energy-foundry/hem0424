@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module provides objects to represent boilers. The calculations are based
 on the hourly method developed for calculating efficiency improvements for
 different classes of boiler controls in SAP 10 Appendix D2.2 (described in the

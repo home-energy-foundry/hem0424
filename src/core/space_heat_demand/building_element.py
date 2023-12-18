@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module provides objects to represent building elements such as walls,
 floors and windows. Each of these building elements has 2 or more nodes and is
 associated with a thermal zone.

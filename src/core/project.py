@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module provides the high-level control flow for the core calculation, and
 initialises the relevant objects in the core model.
 """

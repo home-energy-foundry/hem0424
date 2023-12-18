@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 import scipy.interpolate
 
-"""TODO Copyright & licensing notices
-
+"""
 This module provides objects to model waste water heat recovery systems of different types.
 """
 
