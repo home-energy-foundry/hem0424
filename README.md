@@ -94,7 +94,7 @@ Then you run the following commands to convert and run the C version of HEM.
 1. Cython compiler converting specific .py files to C and saving them to a new directory called "build_directory"
 ```bash
 python3 setup.py build_ext -–inplace
-``````
+```
 
 2. Then you can run HEM with a similar command, but looking at the build_directory/ rather than src/.
 ```bash
