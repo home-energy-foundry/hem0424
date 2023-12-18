@@ -6,6 +6,14 @@ references to SAP 11 should be interpreted as references to HEM.
 Please note that HEM is currently in development and should not be used for any official purpose.
 
 # Getting Started
+
+## Supported platforms
+This program has been tested on the following platforms:
+
+- Python 3.6 running on Red Hat Enterprise Linux 7 or CentOS 7
+- Python 3.9 running on Microsoft Windows 10
+
+## Installing dependencies
 In order to run the code in this repository, it is recommended that you set up a Python Virtual
 Environment and install the dependencies listed in the requirements.txt file.
 
@@ -22,6 +30,7 @@ the Virtual Environment by running:
 	venv\Scripts\activate.bat
 	pip install -r requirements.txt
 
+## Running calculations
 To run the program, activate the Virtual Environment if it is not active already, and run the hem.py
 file, e.g. (assuming the working directory is the top-level folder of the repository):
 
