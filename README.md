@@ -25,10 +25,10 @@ the Virtual Environment by running:
 	source ./venv/bin/activate
 	pip install -r requirements_3-6.txt
 
-	# Windows 10:
+	# Python 3.9 on Windows 10:
 	python -m venv venv
 	venv\Scripts\activate
-	pip install -r requirements.txt
+	pip install -r requirements_3-9.txt
 
 ## Running calculations
 To run the program, activate the Virtual Environment if it is not active already, and run the hem.py
