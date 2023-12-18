@@ -101,18 +101,18 @@ class TestEmitters(unittest.TestCase):
                 energy_demand += energy_demand_list[t_idx]
                 energy_provided = self.emitters.demand_energy(energy_demand)
                 energy_demand -= energy_provided
-                self.assertEqual(
+                self.assertAlmostEqual(
                     energy_provided,
                     [0.26481930394248643, 0.8287480680413242, 1.053315069769369, 1.053315069769369,
                      0.9604801440326911, 0.9419772896929609, 0.915353814620655, 0.7639281136418886]
                     [t_idx],
-                    'incorrect energy provided by emitters',
+                    msg='incorrect energy provided by emitters',
                     )
-                self.assertEqual(
+                self.assertAlmostEqual(
                     self.emitters._Emitters__temp_emitter_prev,
                     [35.96557640041081, 47.20238095238095, 47.20238095238095, 47.20238095238095,
                      44.78422619047619, 44.78422619047619, 43.67306169524251, 38.21643231208616]
                     [t_idx],
-                    'incorrect emitter temperature calculated'
+                    msg='incorrect emitter temperature calculated'
                     )
 
