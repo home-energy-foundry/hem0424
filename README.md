@@ -6,6 +6,14 @@ references to SAP 11 should be interpreted as references to HEM.
 Please note that HEM is currently in development and should not be used for any official purpose.
 
 # Getting Started
+
+## Supported platforms
+This program has been tested on the following platforms:
+
+- Python 3.6 running on Red Hat Enterprise Linux 7 or CentOS 7
+- Python 3.9 running on Microsoft Windows 10
+
+## Installing dependencies
 In order to run the code in this repository, it is recommended that you set up a Python Virtual
 Environment and install the dependencies listed in the requirements.txt file.
 
@@ -19,27 +27,39 @@ the Virtual Environment by running:
 
 	# Windows 10:
 	python -m venv venv
-	venv\Scripts\activate.bat
+	venv\Scripts\activate
 	pip install -r requirements.txt
 
+## Running calculations
 To run the program, activate the Virtual Environment if it is not active already, and run the hem.py
 file, e.g. (assuming the working directory is the top-level folder of the repository):
 
 	# RHEL 7 / CentOS 7:
-	python3 src/hem.py test/demo.json
+	python3 src/hem.py test/demo_files/core/demo.json
 
 	# Windows 10:
-	python src\hem.py test\demo.json
+	python src\hem.py test\demo_files\core\demo.json
 
 Note that the above requires an entire year's weather data to be provided in the input file.
 Alternatively, a weather file can be provided in EnergyPlus (epw) format, after the appropriate
 flag, e.g.:
 
 	# RHEL 7 / CentOS 7:
-	python3 src/hem.py test/demo.json --epw-file /path/to/weather_files/GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
+	python3 src/hem.py test/demo_files/core/demo.json --epw-file /path/to/weather_files/GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
 
 	# Windows 10:
-	python src\hem.py test\demo.json --epw-file C:\path\to\weather_files\GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
+	python src\hem.py test\demo_files\core\demo.json --epw-file C:\path\to\weather_files\GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
+
+To run the calculation with a pre-/post-processing wrapper, add the appropriate wrapper flag to the
+command line (note that the inputs required in the input file may be slightly different than when
+running just the core calculation). For example, to run the simulation with Future Homes Standard
+assumptions:
+
+	# RHEL 7 / CentOS 7:
+	python3 src/hem.py test/demo_files/wrappers/future_homes_standard/demo_FHS.json --future-homes-standard
+
+	# Windows 10:
+	python src\hem.py test\demo_files\wrappers\future_homes_standard\demo_FHS.json --future-homes-standard
 
 For a full list of command-line options, run the following:
 
@@ -71,37 +91,25 @@ If the tests were successful, you should see output that looks similar to the be
 Make sure that the number of tests that ran is greater than zero. If any of the tests failed, the
 output from running the unittest module should indicate the issue(s) that need to be resolved.
 
-# Running using Cython
+## Running using Cython
 Cython can be used to compile Python code to C to improve the runtime of HEM. To do this you need to run slightly different commands.
 
-Note. before running make sure you install cython.
-```bash
-pip install cython==0.29.35
-```
-
+Before running make sure you have activated the Virtual Environment and installed dependencies.
 Then you run the following commands to convert and run the C version of HEM.
 
 ### RHEL 7 / CentOS 7:
-1. Cython compiler converting specific .py files to C and saving them to a new directory called "build_directory"
-```bash
-python3 setup.py build_ext -–inplace
-``````
+1. Convert specific .py files to C using Cython and save them to a new directory called "build_directory": 
+``` python3 setup.py build_ext -–inplace ```
 
-2. Then you can run HEM with a similar command, but looking at the build_directory/ rather than src/.
-```bash
-python3 build_directory/hem.py test/demo.json
-```
-	
+2. Then you can run HEM with a similar command, but looking at the build_directory/ rather than src/: 
+``` python3 build_directory/hem.py test/demo_files/core/demo.json ```
+
 ### Windows 10:
-1. Cython compiler converting specific .py files to C and saving them to a new directory called "build_directory"
-```bash
-python setup.py build_ext -–inplace
-```
-	
-2. Then you can run HEM with a similar command, but looking at the build_directory/ rather than src/.
-```bash
-python build_directory\hem.py test\demo.json
-```
+1. Convert specific .py files to C using Cython and save them to a new directory called "build_directory": 
+``` python setup.py build_ext -–inplace ```
+
+2. Then you can run HEM with a similar command, but looking at the build_directory/ rather than src/: 
+``` python build_directory\hem.py test\demo_files\core\demo.json ```
 
 
 # Contribute
