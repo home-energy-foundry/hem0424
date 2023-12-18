@@ -15,7 +15,7 @@ This program has been tested on the following platforms:
 
 ## Installing dependencies
 In order to run the code in this repository, it is recommended that you set up a Python Virtual
-Environment and install the dependencies listed in the requirements.txt file.
+Environment and install the dependencies listed in the relevant requirements file.
 
 You can do this as follows: with the top level of the repository as your working directory, set up
 the Virtual Environment by running:
