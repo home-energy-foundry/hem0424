@@ -50,6 +50,17 @@ flag, e.g.:
 	# Windows 10:
 	python src\hem.py test\demo_files\core\demo.json --epw-file C:\path\to\weather_files\GBR_ENG_Leeds.Wea.Ctr.033470_TMYx.epw
 
+To run the calculation with a pre-/post-processing wrapper, add the appropriate wrapper flag to the
+command line (note that the inputs required in the input file may be slightly different than when
+running just the core calculation). For example, to run the simulation with Future Homes Standard
+assumptions:
+
+	# RHEL 7 / CentOS 7:
+	python3 src/hem.py test/demo_files/wrappers/future_homes_standard/demo_FHS.json --future-homes-standard
+
+	# Windows 10:
+	python src\hem.py test\demo_files\wrappers\future_homes_standard\demo_FHS.json --future-homes-standard
+
 For a full list of command-line options, run the following:
 
 	# RHEL 7 / CentOS 7:
