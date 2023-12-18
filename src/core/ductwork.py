@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module provides object(s) to represent ductwork
 """
 

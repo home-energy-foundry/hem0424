@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module provides objects to represent thermal bridges.
 
 All ThermalBridge objects must provide a function heat_trans_coeff() which

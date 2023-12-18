@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module contains objects that represent energy supplies such as mains gas,
 mains electricity or other fuels (e.g. LPG, wood pellets).
 """

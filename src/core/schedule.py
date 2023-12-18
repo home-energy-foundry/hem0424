@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module provides ways to define schedules which can be expressed concisely
 and built from sub-schedules (e.g. construct a weekly schedule from daily
 schedules) in input files.

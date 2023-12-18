@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module contains data on the properties of materials, and classes to
 organise this data.
 """

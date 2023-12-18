@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module provides objects to represent the thermal zones in the building,
 and to calculate the temperatures in the zone and associated building elements.
 """

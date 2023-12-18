@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module provides functions to implement pre- and post-processing
 steps for the Future Homes Standard.
 """

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module provides object(s) to store and look up data on external conditions
 (e.g. external air temperature)
 

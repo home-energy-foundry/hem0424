@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-""" TODO Copyright & licensing notices
-
+"""
 This module provides objects to model heat storage vessels e.g. hot water
 cylinder with immersion heater.
 Also incudes solar thermal behaviours.
