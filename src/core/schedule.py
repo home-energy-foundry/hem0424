@@ -49,7 +49,9 @@ def expand_schedule(sched_type, sched_dict, sched_main, nullable):
             return [sched_entry]
         else:
             # If entry is of an unexpected type, exit with error message
-            sys.exit("Invalid type (" + str(type(sched_entry)) + ") in schedule entry")
+            sys.exit( "Invalid type (" + str(type(sched_entry)) + ") in schedule entry. Expected " \
+                    + str(sched_type)
+                    )
 
     def process_schedule_entries(sched):
         """ Process all entries in a schedule (list) """
