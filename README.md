@@ -27,7 +27,7 @@ the Virtual Environment by running:
 
 	# Windows 10:
 	python -m venv venv
-	venv\Scripts\activate.bat
+	venv\Scripts\activate
 	pip install -r requirements.txt
 
 ## Running calculations
