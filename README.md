@@ -20,10 +20,10 @@ Environment and install the dependencies listed in the requirements.txt file.
 You can do this as follows: with the top level of the repository as your working directory, set up
 the Virtual Environment by running:
 
-	# RHEL 7 / CentOS 7:
+	# Python 3.6 on RHEL 7 / CentOS 7:
 	python3 -m venv venv
 	source ./venv/bin/activate
-	pip install -r requirements.txt
+	pip install -r requirements_3-6.txt
 
 	# Windows 10:
 	python -m venv venv
