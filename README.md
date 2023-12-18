@@ -80,37 +80,25 @@ If the tests were successful, you should see output that looks similar to the be
 Make sure that the number of tests that ran is greater than zero. If any of the tests failed, the
 output from running the unittest module should indicate the issue(s) that need to be resolved.
 
-# Running using Cython
+## Running using Cython
 Cython can be used to compile Python code to C to improve the runtime of HEM. To do this you need to run slightly different commands.
 
-Note. before running make sure you install cython.
-```bash
-pip install cython==0.29.35
-```
-
+Before running make sure you have activated the Virtual Environment and installed dependencies.
 Then you run the following commands to convert and run the C version of HEM.
 
 ### RHEL 7 / CentOS 7:
-1. Cython compiler converting specific .py files to C and saving them to a new directory called "build_directory"
-```bash
-python3 setup.py build_ext -–inplace
-```
+1. Convert specific .py files to C using Cython and save them to a new directory called "build_directory": 
+``` python3 setup.py build_ext -–inplace ```
 
-2. Then you can run HEM with a similar command, but looking at the build_directory/ rather than src/.
-```bash
-python3 build_directory/hem.py test/demo.json
-```
+2. Then you can run HEM with a similar command, but looking at the build_directory/ rather than src/: 
+``` python3 build_directory/hem.py test/demo.json ```
 	
 ### Windows 10:
-1. Cython compiler converting specific .py files to C and saving them to a new directory called "build_directory"
-```bash
-python setup.py build_ext -–inplace
-```
+1. Convert specific .py files to C using Cython and save them to a new directory called "build_directory": 
+``` python setup.py build_ext -–inplace ```
 	
 2. Then you can run HEM with a similar command, but looking at the build_directory/ rather than src/.
-```bash
-python build_directory\hem.py test\demo.json
-```
+``` python build_directory\hem.py test\demo.json ```
 
 
 # Contribute
