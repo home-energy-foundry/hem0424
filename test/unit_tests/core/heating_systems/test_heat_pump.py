@@ -408,15 +408,18 @@ class TestHeatPumpTestData(unittest.TestCase):
 
     def test_init_regression_coeffs(self):
         """ Test that regression coefficients have been populated correctly """
-        self.maxDiff = None
-        self.assertEqual(
-            self.hp_testdata._HeatPumpTestData__regression_coeffs,
-            {
-                35: [4.810017281274474, 0.03677543129969712, 0.0009914765238219557],
-                55: [3.4857982546529747, 0.050636568790103545, 0.0014104955583514216]
-            },
-            "list of regression coefficients populated incorrectly"
-            )
+        results_expected = {
+            35: [4.810017281274474, 0.03677543129969712, 0.0009914765238219557],
+            55: [3.4857982546529747, 0.050636568790103545, 0.0014104955583514216]
+            }
+        for flow_temp, reg_coeffs in self.hp_testdata._HeatPumpTestData__regression_coeffs.items():
+            for i, coeff in enumerate(reg_coeffs):
+                with self.subTest(msg="flow temp = " + str(flow_temp) + ", i = " + str(i)):
+                    self.assertAlmostEqual(
+                        coeff,
+                        results_expected[flow_temp][i],
+                        msg="list of regression coefficients populated incorrectly"
+                        )
 
     def test_average_degradation_coeff(self):
         """ Test that correct average degradation coeff is returned for the flow temp """
