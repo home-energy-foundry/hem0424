@@ -2334,7 +2334,7 @@ class HeatPump_HWOnly:
 
         energy_required = energy_supplied / self.__efficiency
         self.__energy_supply_conn.demand_energy(energy_required)
-        return energy_demand
+        return energy_supplied
 
     def energy_output_max(self):
         """ Calculate the maximum energy output (in kWh) from the heater """
