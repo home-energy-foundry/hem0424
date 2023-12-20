@@ -2248,7 +2248,7 @@ class HeatPump_HWOnly:
                          (kWh/day) for tapping profile used for test
                      - energy_input_measured -- electrical input energy (kWh)
                          measured in EN 16147 test over 24 hrs
-                     - power_standby -- standby power (W) measured in EN 16147 test
+                     - power_standby -- standby power (kW) measured in EN 16147 test
                      - hw_vessel_loss_daily -- daily hot water vessel heat loss
                          (kWh/day) for a 45 K temperature difference between vessel
                          and surroundings, tested in accordance with BS 1566 or
@@ -2334,7 +2334,7 @@ class HeatPump_HWOnly:
 
         energy_required = energy_supplied / self.__efficiency
         self.__energy_supply_conn.demand_energy(energy_required)
-        return energy_demand
+        return energy_supplied
 
     def energy_output_max(self):
         """ Calculate the maximum energy output (in kWh) from the heater """
@@ -2344,8 +2344,8 @@ class HeatPump_HWOnly:
         # is implicit in demand calculation).
         if self.__control is None or self.__control.is_on():
             # Energy that heater is able to supply is limited by power rating
-            power_max = self.__pwr * self.__simulation_time.timestep()
+            energy_max = self.__pwr * self.__simulation_time.timestep()
         else:
-            power_max = 0.0
+            energy_max = 0.0
 
-        return power_max
+        return energy_max
