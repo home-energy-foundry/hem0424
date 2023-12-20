@@ -117,11 +117,11 @@
 					"vol_hw_daily_average": 100.0,
 					"test_data": {
 						"M": {
-							"cop_dhw": 1.5,
+							"cop_dhw": 2.5,
 							"hw_tapping_prof_daily_total": 5.845,
-							"energy_input_measured": 8.0,
-							"power_standby": 10.0,
-							"hw_vessel_loss_daily": 1.0
+							"energy_input_measured": 2.338,
+							"power_standby": 0.02,
+							"hw_vessel_loss_daily": 2.0
 						}
 					},
 					"EnergySupply": "mains elec",
