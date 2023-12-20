@@ -2344,8 +2344,8 @@ class HeatPump_HWOnly:
         # is implicit in demand calculation).
         if self.__control is None or self.__control.is_on():
             # Energy that heater is able to supply is limited by power rating
-            power_max = self.__pwr * self.__simulation_time.timestep()
+            energy_max = self.__pwr * self.__simulation_time.timestep()
         else:
-            power_max = 0.0
+            energy_max = 0.0
 
-        return power_max
+        return energy_max
