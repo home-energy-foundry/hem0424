@@ -2248,7 +2248,7 @@ class HeatPump_HWOnly:
                          (kWh/day) for tapping profile used for test
                      - energy_input_measured -- electrical input energy (kWh)
                          measured in EN 16147 test over 24 hrs
-                     - power_standby -- standby power (W) measured in EN 16147 test
+                     - power_standby -- standby power (kW) measured in EN 16147 test
                      - hw_vessel_loss_daily -- daily hot water vessel heat loss
                          (kWh/day) for a 45 K temperature difference between vessel
                          and surroundings, tested in accordance with BS 1566 or
