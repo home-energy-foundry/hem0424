@@ -411,7 +411,7 @@ class Zone:
                     += vei.h_ve(self.__volume)
             else:
                 sys.exit( 'Applicability of throughput factor not defined for '
-                        + 'ventilation element type ' + type(vei))
+                        + 'ventilation element type ' + str(type(vei)))
         matrix_a[self.__zone_idx][self.__zone_idx] \
             = (self.__c_int / delta_t) \
             + sum([ eli.area
@@ -452,7 +452,7 @@ class Zone:
                     += vei.h_ve(self.__volume) * vei.temp_supply()
             else:
                 sys.exit( 'Applicability of throughput factor not defined for '
-                        + 'ventilation element type ' + type(vei))
+                        + 'ventilation element type ' + str(type(vei)))
         vector_b[self.__zone_idx] \
             = (self.__c_int / delta_t) * temp_prev[self.__zone_idx] \
             + sum_vent_elements_h_ve_times_temp_supply \
