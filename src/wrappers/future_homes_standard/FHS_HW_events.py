@@ -142,16 +142,18 @@ class HW_events_generator:
         
         with open(decilebandingfile,'r') as bandsfile:
             bandsfilereader = csv.DictReader(bandsfile)
+            bandsfiledata = []
             for row in bandsfilereader:
+                bandsfiledata.append(row)
                 if daily_DHW_vol >= float(row["min_daily_dhw_vol"])\
                     and daily_DHW_vol < float(row["max_daily_dhw_vol"]):
                     self.decile = int(row["decile"]) - 1
                     self.banding_correction = daily_DHW_vol / float(row["calibration_daily_dhw_vol"])
             if self.decile == -1:
-                if daily_DHW_vol < bandsfilereader[0]["min_daily_dhw_vol"]:
+                if daily_DHW_vol < float(bandsfiledata[0]["min_daily_dhw_vol"]):
                     self.decile = 0
                     self.banding_correction = daily_DHW_vol / float(row["calibration_daily_dhw_vol"])
-                elif daily_DHW_vol > bandsfilereader[9]["min_daily_dhw_vol"]:
+                elif daily_DHW_vol > float(bandsfiledata[9]["min_daily_dhw_vol"]):
                     self.decile = 9
                     self.banding_correction = daily_DHW_vol / float(row["calibration_daily_dhw_vol"])
             if self.decile == -1:
