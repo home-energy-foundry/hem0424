@@ -39,6 +39,12 @@ class Test_StorageTank(unittest.TestCase):
         heat_source_dict = {imheater: (0.1, 0.33)}
         self.storagetank = StorageTank(150.0, 1.68, 52.0, 55.0, coldfeed, self.simtime, heat_source_dict)
 
+        # Also test case where heater does not heat all layers, to ensure this is handled correctly
+        energysupplyconn2 = self.energysupply.connection("immersion2")
+        imheater2         = ImmersionHeater(5.0, energysupplyconn2, self.simtime, control)
+        heat_source_dict2 = {imheater2: (0.6, 0.6)}
+        self.storagetank2 = StorageTank(210.0, 1.61, 52.0, 60.0, coldfeed, self.simtime, heat_source_dict2)
+
     def test_demand_hot_water(self):
         for t_idx, _, _ in self.simtime:
             with self.subTest(i=t_idx):
@@ -58,7 +64,7 @@ class Test_StorageTank(unittest.TestCase):
                     "incorrect temperatures returned"
                     )
                 #print(self.energysupply.results_by_end_user()["immersion"][t_idx])
-                self.assertEqual(
+                self.assertAlmostEqual(
                     self.energysupply.results_by_end_user()["immersion"][t_idx],
                     [0.0,
                      0.0,
@@ -68,7 +74,36 @@ class Test_StorageTank(unittest.TestCase):
                      0.0,
                      2.0255553251028573,
                      0.0][t_idx],
-                    "incorrect energy supplied returned",
+                    msg="incorrect energy supplied returned",
+                    )
+
+                self.storagetank2.demand_hot_water([10.0, 10.0, 15.0, 20.0, 20.0, 20.0, 20.0, 20.0]
+                                                  [t_idx])
+                self.assertListEqual(
+                    self.storagetank2._StorageTank__temp_n,
+                    [[51.74444444444445, 59.687654320987654, 59.687654320987654, 59.687654320987654],
+                     [44.83576096913369, 58.10817048730805, 59.37752591068435, 59.37752591068435],
+                     [36.279411505184825, 54.60890513377094, 58.76352191705448, 59.06959902921961],
+                     [27.803758539213316, 48.41088769491589, 57.11721566595131, 58.66493643832885],
+                     [22.115012458237494, 41.46704433740872, 53.98882801141131, 57.857823384416925],
+                     [18.392953648519935, 34.88146733500239, 60.0, 60.0],
+                     [16.198781370486113, 29.539425498912564, 51.75379869179794, 59.687654320987654],
+                     [14.889587258686573, 25.21241834280409, 60.0, 60.0],
+                    ][t_idx],
+                    "incorrect temperatures returned in case where heater does not heat all layers"
+                    )
+                self.assertAlmostEqual(
+                    self.energysupply.results_by_end_user()["immersion2"][t_idx],
+                    [0.0,
+                     0.0,
+                     0.0,
+                     0.0,
+                     0.0,
+                     0.8689721305845337,
+                     0.0,
+                     1.1479005355748102,
+                    ][t_idx],
+                    msg="incorrect energy supplied returned in case where heater does not heat all layers",
                     )
 
 class Test_ImmersionHeater(unittest.TestCase):
