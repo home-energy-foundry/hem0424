@@ -251,6 +251,8 @@ def write_heat_balance_output_file(
         hour_per_step,
         heat_balance_dict,
         ):
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
     with open(heat_balance_output_file, 'w', newline='') as f:
         writer = csv.writer(f)
         headings = ['Timestep']
@@ -304,7 +306,9 @@ def write_heat_source_wet_output_file(output_file, timestep_array, heat_source_w
         col_headings += [col_heading for col_heading, _ in columns[service_name]]
         col_units_row += [col_unit for _, col_unit in columns[service_name]]
 
-    with open(output_file, 'w') as f:
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(output_file, 'w', newline='') as f:
         writer = csv.writer(f)
 
         # Write column headings and units
@@ -319,7 +323,9 @@ def write_heat_source_wet_output_file(output_file, timestep_array, heat_source_w
             writer.writerow(row)
 
 def write_heat_source_wet_summary_output_file(output_file, heat_source_wet_results_annual):
-    with open(output_file, 'w') as f:
+    # Note: need to specify newline='' below, otherwise an extra carriage return
+    # character is written when running on Windows
+    with open(output_file, 'w', newline='') as f:
         writer = csv.writer(f)
 
         for service_name, service_results in heat_source_wet_results_annual.items():
