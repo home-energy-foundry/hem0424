@@ -420,13 +420,15 @@ class StorageTank:
                 #reset mixing as lower levels now stabalised
                 mix_layer_n = [0] * self.__NB_VOL
 
-        Q_h_sto_end = self.__rho * self.__Cp \
-                     * sum(self.__Vol_n[i] * temp_s7_n[i]
-                           for i in range(len(self.__Vol_n)))
+        Q_h_sto_end \
+            = [ self.__rho * self.__Cp \
+              * self.__Vol_n[i] * temp_s7_n[i]
+              for i in range(len(self.__Vol_n))
+              ]
 
         return Q_h_sto_end, temp_s7_n
 
-    def thermal_losses(self, temp_s7_n, Q_x_in_n, Q_h_sto_s7, thermostat_layer, Q_ls_n_prev_heat_source):
+    def thermal_losses(self, temp_s7_n, Q_x_in_n, Q_h_sto_s7, heater_layer, Q_ls_n_prev_heat_source):
         """Thermal losses are calculated with respect to the impact of the temperature set point"""
         #standby losses coefficient - kW/K
         H_sto_ls = self.stand_by_losses_coefficient()
@@ -479,11 +481,15 @@ class StorageTank:
         """excess energy is calculated as the difference from the energy stored, Qsto,step7, and
            energy stored once the set temperature is obtained, Qsto,step8, with addition of the
            thermal losses."""
-        if temp_s7_n[thermostat_layer] > self.__temp_set_on:
-            energy_surplus = Q_h_sto_s7 - Q_ls \
-                             - ( self.__rho * self.__Cp * self.__V_total * self.__temp_set_on)
-        else:
-            energy_surplus = 0
+        # Note: The surplus must be calculated only for those layers that the
+        #       heat source currently being considered is capable of heating,
+        #       i.e. excluding those below the heater position.
+        energy_surplus = 0.0
+        if temp_s7_n[heater_layer] > self.__temp_set_on:
+            for i in range(heater_layer, self.__NB_VOL):
+                energy_surplus \
+                    += Q_h_sto_s7[i] - Q_ls_n[i] \
+                     - (self.__rho * self.__Cp * self.__Vol_n[i] * self.__temp_set_on)
 
         #the thermal energy provided to the system (from heat sources) shall be limited
         #adjustment of the energy delivered to the storage according with the set temperature
@@ -569,9 +575,22 @@ class StorageTank:
         #6.4.3.8 STEP 6 Energy input into the storage
         #input energy delivered to the storage in kWh - timestep dependent
         Q_x_in_n = self.potential_energy_input(temp_s3_n, heat_source, heater_layer, thermostat_layer)
-        return self.__calculate_temperatures(temp_s3_n, heat_source, Q_x_in_n, thermostat_layer, Q_ls_prev_heat_source)
+        return self.__calculate_temperatures(
+            temp_s3_n,
+            heat_source,
+            Q_x_in_n,
+            heater_layer,
+            Q_ls_prev_heat_source,
+            )
 
-    def __calculate_temperatures(self, temp_s3_n, heat_source, Q_x_in_n, thermostat_layer, Q_ls_n_prev_heat_source):
+    def __calculate_temperatures(
+            self,
+            temp_s3_n,
+            heat_source,
+            Q_x_in_n,
+            heater_layer,
+            Q_ls_n_prev_heat_source,
+            ):
         Q_s6, temp_s6_n = self.energy_input(temp_s3_n, Q_x_in_n)
 
         #6.4.3.9 STEP 7 Re-arrange the temperatures in the storage after energy input
@@ -582,7 +601,7 @@ class StorageTank:
             temp_s7_n,
             Q_x_in_n,
             Q_h_sto_s7,
-            thermostat_layer,
+            heater_layer,
             Q_ls_n_prev_heat_source,
             )
 
@@ -707,7 +726,7 @@ class StorageTank:
                 self.__temp_n,
                 heat_source,
                 Q_x_in_n,
-                thermostat_layer,
+                heater_layer,
                 self.__Q_ls_n_prev_heat_source,
                 )
         for i, Q_ls_n in enumerate(Q_ls_n_this_heat_source):
