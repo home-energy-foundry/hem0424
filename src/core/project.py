@@ -863,6 +863,7 @@ class Project:
                     primary_pipework = None
 
                 heat_source_dict= {}
+                heat_source_names_dict = {}
                 for heat_source_name, heat_source_data in data['HeatSource'].items():
                     heat_source, conn_name = dict_to_heat_source(
                         heat_source_name,
@@ -872,6 +873,7 @@ class Project:
                     heat_source_dict[heat_source] = heat_source_data['heater_position'], \
                                                     heat_source_data['thermostat_position']
                     energy_supply_conn_names.append(conn_name)
+                    heat_source_names_dict[heat_source_name] = heat_source
 
                 if 'Control_hold_at_setpnt' in data:
                     ctrl_hold_at_setpnt = self.__controls[data['Control_hold_at_setpnt']]
@@ -898,7 +900,10 @@ class Project:
                     and diverters[energy_supply_name]['StorageTank'] == name \
                     and diverters[energy_supply_name]['HeatSource'] == heat_source_name:
                         energy_supply = self.__energy_supplies[heat_source_data['EnergySupply']]
-                        pv_diverter = PVDiverter(hw_source, heat_source)
+                        pv_diverter = PVDiverter(
+                            hw_source,
+                            heat_source_names_dict[heat_source_name],
+                            )
                         energy_supply.connect_diverter(pv_diverter)
                         self.__diverters.append(pv_diverter)
 
