@@ -52,8 +52,15 @@ class MixerShower:
         # first calculate the volume of hot water needed if heating from cold water source
 
         if self.__wwhrs is not None:
+            # Assumed temperature entering WWHRS
+            temp_drain = 35.0
+
             # Get the actual return temperature given the temperature and flowrate of the waste water.
-            wwhrs_return_temperature = self.__wwhrs.return_temperature(temp_target, self.__flowrate, None)
+            wwhrs_return_temperature = self.__wwhrs.return_temperature(
+                temp_drain,
+                self.__flowrate,
+                None,
+                )
 
             if isinstance(self.__wwhrs, wwhrs.WWHRS_InstantaneousSystemB): # just returns hot water to the shower
                 # return the required volume of hot water once the recovered heat has been accounted for.
