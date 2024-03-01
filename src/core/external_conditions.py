@@ -1076,6 +1076,9 @@ class ExternalConditions:
 
         current_hour = self.__simulation_time.current_hour()
         test1 = orientation - self.__solar_azimuth_angle[current_hour]
+        test1 = test1 - 360.0 if test1 > +180.0 \
+           else test1 + 360.0 if test1 < -180.0 \
+           else test1
         test2 = tilt - self.__solar_altitude[current_hour]
 
         if (-90 > test1 or test1 > 90):
